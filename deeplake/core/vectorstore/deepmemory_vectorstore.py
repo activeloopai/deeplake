@@ -32,7 +32,7 @@ class DeepMemoryVectorStore(VectorStore):
         embedding_tensor: str = "embedding",
         return_tensors: Optional[List[str]] = None,
         return_view: bool = False,
-        deep_memory=True,
+        deep_memory=False,
     ) -> Union[Dict, Dataset]:
         if exec_option is not None and exec_option != "tensor_db":
             self.logger.warning(

@@ -28,15 +28,15 @@ To train a deepmemory model you need to preprocess the dataset so that, ``corpus
 list corresponds to the query and inner list to the relevent documents. Each tuple should contain the document id (``id`` tensor from the corpus dataset) 
 and the relevence score (range is 0-1, where 0 represents unrelated document and 1 related). ``queries`` should be a list of strings.
 
->>> job_id = db.train(
+>>> job_id = db.deep_memory.train(
 ...     corpus: List[List[Tuple[str, float]]] = corpus,
 ...     queries: List[str] = queries,
 ...     embedding_function = embedding_function, # function that takes converts texts into embeddings, it is optional and can be skipped if provided during initialization
 ... )
 
 ``job_id`` is string, which can be used to track the training progress. You can use ``db.deep_memory.status(job_id)`` to get the status of the job. 
-If you want to get all training jobs you can use ``db.deep_memory.list_jobs()`` which will show all jobs that happened on this dataset.
 
+when the model is still in pending state (not started yet) you will see the following:
 >>> db.deep_memory.status(job_id)
 --------------------------------------------------------------
 |                  6508464cd80cab681bfcfff3                  |
@@ -48,30 +48,29 @@ If you want to get all training jobs you can use ``db.deep_memory.list_jobs()`` 
 | results                    | not available yet             |
 --------------------------------------------------------------
 
+After some time the model will start training and you will see the following:
+
+>>> db.deep_memory.status(job_id)
+--------------------------------------------------------------
+|                  6508464cd80cab681bfcfff3                  |
+--------------------------------------------------------------
+| status                     | training                      |
+--------------------------------------------------------------
+| progress                   | eta: 2.5 seconds              |
+|                            | recall@10: 0.62% (+0.62%)     |
+--------------------------------------------------------------
+| results                    | not available yet             |
+--------------------------------------------------------------
+
+If you want to get all training jobs you can use ``db.deep_memory.list_jobs()`` which will show all jobs that happened on this dataset.
+
+
 >>> db.deep_memory.list_jobs()
-ID                        DATASET ID                                    ORGANIZATION ID  STATUS     RESULTS            PROGRESS       
-65198efcd28df3238c49a849  testingacc2/deepmemory_test_corpus_managed_2  testingacc2      completed  Congratulations!   eta: 2.5 seconds
-                                                                                                    Your model has     dataset: query 
-                                                                                                    achieved a         recall@10: 0.62% (+0.62%)
-                                                                                                    recall@10 of                      
-                                                                                                    0.62% which is                    
-                                                                                                    an improvement                    
-                                                                                                    of 0.62% on                       
-                                                                                                    the validation                    
-                                                                                                    set compared                      
-                                                                                                    to naive                          
-                                                                                                    vector search.                                                                                        
-651a4d41d05a21a5a6a15f67  testingacc2/deepmemory_test_corpus_managed_2  testingacc2      completed  Congratulations!   eta: 2.5 seconds
-                                                                                                    Your model has     dataset: query 
-                                                                                                    achieved a         recall@10: 0.62% (+0.62%)
-                                                                                                    recall@10 of                      
-                                                                                                    0.62% which is                    
-                                                                                                    an improvement                    
-                                                                                                    of 0.62% on                       
-                                                                                                    the validation                    
-                                                                                                    set compared                      
-                                                                                                    to naive                          
-                                                                                                    vector search.    
+ID                          STATUS     RESULTS                      PROGRESS       
+65198efcd28df3238c49a849    completed  recall@10: 0.62% (+0.62%)    eta: 2.5 seconds
+                                                                    recall@10: 0.62% (+0.62%)                                                                                         
+651a4d41d05a21a5a6a15f67    completed  recall@10: 0.62% (+0.62%)    eta: 2.5 seconds
+                                                                    recall@10: 0.62% (+0.62%)  
 
 
 Once the training is completed, you can use ``db.deep_memory.evaluate`` to evaluate the model performance on the custom dataset.
@@ -95,4 +94,5 @@ After the model is trained you also can search using it:
 ...     embedding_data: List[str] = queries,
 ...     embedding_function = embedding_function, # function that takes converts texts into embeddings, it is optional and can be skipped if provided during initialization
 ...     k = 4, # number of results to return
+...     deep_memory = True, # use deep memory model
 ... )
