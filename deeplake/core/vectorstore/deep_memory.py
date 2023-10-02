@@ -306,12 +306,17 @@ class DeepMemory:
         if embedding is not None:
             query_embs = embedding
         elif embedding is None:
-            if embedding_function is not None:
-                query_embs = embedding_function(queries)
-            else:
+            if self.embedding_function is not None:
+                embedding_function = (
+                    embedding_function or self.embedding_function.embed_documents
+                )
+
+            if embedding_function is None:
                 raise ValueError(
                     "Embedding function should be specifed either during initialization or during evaluation."
                 )
+            query_embs = embedding_function(queries)
+
         print(f"Embedding queries took {time() - start:.2f} seconds")
 
         recalls: Dict[str, Dict] = {"with model": {}, "without model": {}}
