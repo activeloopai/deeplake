@@ -769,6 +769,6 @@ def test_setattr_update(local_path):
 
     with pytest.raises(TypeError):
         ds[3] = 10
-    
+
     with pytest.raises(TypeError):
         ds[3].xyz = 10
