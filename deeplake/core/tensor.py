@@ -1398,6 +1398,9 @@ class Tensor:
 
         Returns:
             Union[np.ndarray, List]: A list or numpy array of links.
+
+        Raises:
+            Exception: If the tensor is not a linked tensor.
         """
         if not self.is_link:
             raise Exception("Only supported for linked tensors.")
