@@ -66,7 +66,7 @@ class TransformDataset:
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
-    
+
     def _get_engine_name(self, name):
         name = posixpath.join(self.group_index, name)
         name = self.label_temp_tensors.get(name, name)
