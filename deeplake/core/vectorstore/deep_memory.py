@@ -204,9 +204,7 @@ class DeepMemory:
         relevance: List[List[Tuple[str, int]]],
         queries: List[str],
         embedding_function: Optional[Callable[..., List[np.ndarray]]] = None,
-        embedding: Optional[
-            Union[List[np.ndarray[Any, Any]], List[List[float]]]
-        ] = None,
+        embedding: Optional[Union[List[np.ndarray], List[List[float]]]] = None,
         top_k: List[int] = [1, 3, 5, 10, 50, 100],
         qvs_params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Dict[str, float]]:

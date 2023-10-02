@@ -186,7 +186,7 @@ def test_deepmemory_evaluate(
     #     "recall@50": 0.9,
     #     "recall@100": 0.9,
     # }
-
+    sleep(15)
     queries_dataset = VectorStore(
         path=query_path,
         token=hub_cloud_dev_token,
@@ -195,6 +195,28 @@ def test_deepmemory_evaluate(
     )
     assert len(queries_dataset) == len(question_relevances)
 
+
+@pytest.mark.slow
+@pytest.mark.timeout(600)
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+def test_deepmemory_evaluate_log_queries(
+    corpus_query_pair_path,
+    questions_embeddings_and_relevances,
+    hub_cloud_dev_token,
+):
+    corpus, query_path = corpus_query_pair_path
+    (
+        questions_embeddings,
+        question_relevances,
+        queries,
+    ) = questions_embeddings_and_relevances
+
+    db = VectorStore(
+        corpus,
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+    )
+    sleep(15)
     recall = db.deep_memory.evaluate(
         queries=queries,
         embedding=questions_embeddings,
@@ -211,8 +233,29 @@ def test_deepmemory_evaluate(
         branch="queries",
     )
     queries_dataset.checkout("queries")
-    assert len(queries_dataset) == 2 * len(question_relevances)
+    assert len(queries_dataset) == len(question_relevances)
 
+
+@pytest.mark.slow
+@pytest.mark.timeout(600)
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+def test_deepmemory_evaluate_without_branch_name_with_logging(
+    corpus_query_pair_path,
+    questions_embeddings_and_relevances,
+    hub_cloud_dev_token,
+):
+    corpus, query_path = corpus_query_pair_path
+    (
+        questions_embeddings,
+        question_relevances,
+        queries,
+    ) = questions_embeddings_and_relevances
+
+    db = VectorStore(
+        corpus,
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+    )
     recall = db.deep_memory.evaluate(
         queries=queries,
         embedding=questions_embeddings,
@@ -228,6 +271,27 @@ def test_deepmemory_evaluate(
     )
     assert len(queries_dataset) == len(question_relevances)
 
+
+@pytest.mark.slow
+@pytest.mark.timeout(600)
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+def test_deepmemory_evaluate_without_logging(
+    corpus_query_pair_path,
+    questions_embeddings_and_relevances,
+    hub_cloud_dev_token,
+):
+    corpus, query_path = corpus_query_pair_path
+    (
+        questions_embeddings,
+        question_relevances,
+        queries,
+    ) = questions_embeddings_and_relevances
+
+    db = VectorStore(
+        corpus,
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+    )
     recall = db.deep_memory.evaluate(
         queries=queries,
         embedding=questions_embeddings,
@@ -236,13 +300,34 @@ def test_deepmemory_evaluate(
             "log_queries": False,
         },
     )
-    queries_dataset = VectorStore(
-        path=query_path,
-        token=hub_cloud_dev_token,
-        read_only=True,
-    )
-    assert len(queries_dataset) == len(question_relevances)
+    with pytest.raises(ValueError):
+        queries_dataset = VectorStore(
+            path=query_path,
+            token=hub_cloud_dev_token,
+            read_only=True,
+        )
 
+
+@pytest.mark.slow
+@pytest.mark.timeout(600)
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+def test_deepmemory_evaluate_without_branch_name(
+    corpus_query_pair_path,
+    questions_embeddings_and_relevances,
+    hub_cloud_dev_token,
+):
+    corpus, query_path = corpus_query_pair_path
+    (
+        questions_embeddings,
+        question_relevances,
+        queries,
+    ) = questions_embeddings_and_relevances
+
+    db = VectorStore(
+        corpus,
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+    )
     recall = db.deep_memory.evaluate(
         queries=queries,
         embedding=questions_embeddings,
@@ -253,18 +338,30 @@ def test_deepmemory_evaluate(
         token=hub_cloud_dev_token,
         read_only=True,
     )
-    assert len(queries_dataset) == 2 * len(question_relevances)
+    assert len(queries_dataset) == len(question_relevances)
 
-    # TODO: Improve these tests when lockup issues will be resolved
 
-    deeplake.deepcopy(
-        corpus, corpus + "_copy", token=hub_cloud_dev_token, overwrite=True
-    )
+@pytest.mark.slow
+@pytest.mark.timeout(600)
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+def test_deepmemory_evaluate_without_qvs_params(
+    corpus_query_pair_path,
+    questions_embeddings_and_relevances,
+    hub_cloud_dev_token,
+):
+    corpus, query_path = corpus_query_pair_path
+    (
+        questions_embeddings,
+        question_relevances,
+        queries,
+    ) = questions_embeddings_and_relevances
+
     db = VectorStore(
-        path=corpus + "_copy",
+        corpus,
         runtime={"tensor_db": True},
         token=hub_cloud_dev_token,
     )
+    # TODO: Improve these tests when lockup issues will be resolved
 
     recall = db.deep_memory.evaluate(
         queries=queries,
@@ -272,27 +369,36 @@ def test_deepmemory_evaluate(
         embedding_function=embedding_fn,
     )
     queries_dataset = VectorStore(
-        path=corpus + "_copy_eval_queries",
+        path=query_path,
         token=hub_cloud_dev_token,
         read_only=True,
     )
     assert len(queries_dataset) == len(question_relevances)
 
-    deeplake.delete(
-        corpus + "_copy", force=True, large_ok=True, token=hub_cloud_dev_token
-    )
-    deeplake.delete(
-        corpus + "_copy" + "_eval_queries",
-        force=True,
-        large_ok=True,
+
+@pytest.mark.slow
+@pytest.mark.timeout(600)
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+def test_deepmemory_evaluate_with_embedding_func_in_init(
+    corpus_query_pair_path,
+    questions_embeddings_and_relevances,
+    hub_cloud_dev_token,
+):
+    corpus, query_path = corpus_query_pair_path
+    (
+        questions_embeddings,
+        question_relevances,
+        queries,
+    ) = questions_embeddings_and_relevances
+
+    db = VectorStore(
+        corpus,
+        runtime={"tensor_db": True},
         token=hub_cloud_dev_token,
     )
 
-    deeplake.deepcopy(
-        corpus, corpus + "_copy", token=hub_cloud_dev_token, overwrite=True
-    )
     db = VectorStore(
-        path=corpus + "_copy",
+        path=corpus,
         runtime={"tensor_db": True},
         token=hub_cloud_dev_token,
         embedding_function=DummyEmbedder,
@@ -303,29 +409,30 @@ def test_deepmemory_evaluate(
     )
 
     queries_dataset = VectorStore(
-        path=corpus + "_copy_eval_queries",
+        path=query_path,
         token=hub_cloud_dev_token,
         read_only=True,
     )
     assert len(queries_dataset) == len(question_relevances)
-    deeplake.delete(
-        corpus + "_copy", force=True, large_ok=True, token=hub_cloud_dev_token
-    )
-    deeplake.delete(
-        corpus + "_copy_eval_queries",
-        force=True,
-        large_ok=True,
-        token=hub_cloud_dev_token,
-    )
 
-    deeplake.deepcopy(
-        corpus,
-        corpus + "_copy",
-        token=hub_cloud_dev_token,
-        overwrite=True,
-    )
+
+@pytest.mark.slow
+@pytest.mark.timeout(600)
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+def test_deepmemory_evaluate_without_embedding_function(
+    corpus_query_pair_path,
+    questions_embeddings_and_relevances,
+    hub_cloud_dev_token,
+):
+    corpus, query_path = corpus_query_pair_path
+    (
+        questions_embeddings,
+        question_relevances,
+        queries,
+    ) = questions_embeddings_and_relevances
+
     db = VectorStore(
-        path=corpus + "_copy",
+        corpus,
         runtime={"tensor_db": True},
         token=hub_cloud_dev_token,
     )
@@ -336,16 +443,6 @@ def test_deepmemory_evaluate(
             queries=queries,
             relevance=question_relevances,
         )
-
-    deeplake.delete(
-        corpus + "_copy", force=True, large_ok=True, token=hub_cloud_dev_token
-    )
-    deeplake.delete(
-        corpus + "_copy_eval_queries",
-        force=True,
-        large_ok=True,
-        token=hub_cloud_dev_token,
-    )
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
