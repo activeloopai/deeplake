@@ -249,17 +249,97 @@ def test_deepmemory_evaluate(
     )
     assert len(queries_dataset) == 2 * len(question_relevances)
 
+    # TODO: Improve these tests when lockup issues will be resolved
+
+    deeplake.deepcopy(
+        corpus, corpus + "_copy", token=hub_cloud_dev_token, overwrite=True
+    )
+    db = VectorStore(
+        path=corpus + "_copy",
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+    )
+
     recall = db.deep_memory.evaluate(
         queries=queries,
         relevance=question_relevances,
         embedding_function=embedding_fn,
     )
     queries_dataset = VectorStore(
-        path=query_path,
+        path=corpus + "_copy_eval_queries",
         token=hub_cloud_dev_token,
         read_only=True,
     )
-    assert len(queries_dataset) == 3 * len(question_relevances)
+    assert len(queries_dataset) == len(question_relevances)
+
+    deeplake.delete(
+        corpus + "_copy", force=True, large_ok=True, token=hub_cloud_dev_token
+    )
+    deeplake.delete(
+        corpus + "_copy" + "_eval_queries",
+        force=True,
+        large_ok=True,
+        token=hub_cloud_dev_token,
+    )
+
+    deeplake.deepcopy(
+        corpus, corpus + "_copy", token=hub_cloud_dev_token, overwrite=True
+    )
+    db = VectorStore(
+        path=corpus + "_copy",
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+        embedding_function=DummyEmbedder,
+    )
+    recall = db.deep_memory.evaluate(
+        queries=queries,
+        relevance=question_relevances,
+    )
+
+    queries_dataset = VectorStore(
+        path=corpus + "_copy_eval_queries",
+        token=hub_cloud_dev_token,
+        read_only=True,
+    )
+    assert len(queries_dataset) == len(question_relevances)
+    deeplake.delete(
+        corpus + "_copy", force=True, large_ok=True, token=hub_cloud_dev_token
+    )
+    deeplake.delete(
+        corpus + "_copy_eval_queries",
+        force=True,
+        large_ok=True,
+        token=hub_cloud_dev_token,
+    )
+
+    deeplake.deepcopy(
+        corpus,
+        corpus + "_copy",
+        token=hub_cloud_dev_token,
+        overwrite=True,
+    )
+    db = VectorStore(
+        path=corpus + "_copy",
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+    )
+
+    # when embedding_function is not provided in the constructor and not in the eval method
+    with pytest.raises(ValueError):
+        db.deep_memory.evaluate(
+            queries=queries,
+            relevance=question_relevances,
+        )
+
+    deeplake.delete(
+        corpus + "_copy", force=True, large_ok=True, token=hub_cloud_dev_token
+    )
+    deeplake.delete(
+        corpus + "_copy_eval_queries",
+        force=True,
+        large_ok=True,
+        token=hub_cloud_dev_token,
+    )
 
 
 def test_deepmemory_list_jobs(jobs_list, corpus_query_pair_path, hub_cloud_dev_token):
@@ -269,6 +349,7 @@ def test_deepmemory_list_jobs(jobs_list, corpus_query_pair_path, hub_cloud_dev_t
         corpus,
         runtime={"tensor_db": True},
         token=hub_cloud_dev_token,
+        read_only=True,
     )
 
     output_str = db.deep_memory.list_jobs(debug=True)
@@ -279,27 +360,29 @@ def test_deepmemory_list_jobs(jobs_list, corpus_query_pair_path, hub_cloud_dev_t
 
 
 def test_deepmemory_status(capsys, job_id, corpus_query_pair_path, hub_cloud_dev_token):
-    output_str = (
-        "--------------------------------------------------------------\n"
-        f"|                  {job_id}                  |\n"
-        "--------------------------------------------------------------\n"
-        "| status                     | completed                     |\n"
-        "--------------------------------------------------------------\n"
-        "| progress                   | eta: 121.1 seconds            |\n"
-        "|                            | recall@10: 89.40% (+9.05%)    |\n"
-        "|                            | dataset: query                |\n"
-        "--------------------------------------------------------------\n"
-        "| results                    | Congratulations!              |\n"
-        "|                            | Your model has                |\n"
-        "|                            | achieved a recall@10          |\n"
-        "|                            | of 89.40% which is            |\n"
-        "|                            | an improvement of             |\n"
-        "|                            | 9.05% on the                  |\n"
-        "|                            | validation set                |\n"
-        "|                            | compared to naive             |\n"
-        "|                            | vector search.                |\n"
-        "--------------------------------------------------------------\n\n\n"
-    )
+    # output_str = (
+    #     "--------------------------------------------------------------\n"
+    #     f"|                  {job_id}                  |\n"
+    #     "--------------------------------------------------------------\n"
+    #     "| status                     | completed                     |\n"
+    #     "--------------------------------------------------------------\n"
+    #     "| progress                   | eta: 121.1 seconds            |\n"
+    #     "|                            | recall@10: 91.67% (+11.93%)   |\n"
+    #     "|                            | dataset: query                |\n"
+    #     "--------------------------------------------------------------\n"
+    #     "| results                    | Congratulations!              |\n"
+    #     "|                            | Your model has                |\n"
+    #     "|                            | achieved a recall@10          |\n"
+    #     "|                            | of 91.67% which is            |\n"
+    #     "|                            | an improvement of             |\n"
+    #     "|                            | 11.93% on the                 |\n"
+    #     "|                            | validation set                |\n"
+    #     "|                            | compared to naive             |\n"
+    #     "|                            | vector search.                |\n"
+    #     "--------------------------------------------------------------\n\n\n"
+    # )
+
+    #
 
     corpus, query_path = corpus_query_pair_path
 

@@ -92,7 +92,7 @@ def create_response(
 class Status:
     pending = (
         "--------------------------------------------------------------\n"
-        "|                  6508464cd80cab681bfcfff3                  |\n"
+        "|                  1238464cd80cab681bfcfff3                  |\n"
         "--------------------------------------------------------------\n"
         "| status                     | pending                       |\n"
         "--------------------------------------------------------------\n"
@@ -104,7 +104,7 @@ class Status:
 
     training = (
         "--------------------------------------------------------------\n"
-        "|                  6508464cd80cab681bfcfff3                  |\n"
+        "|                  3218464cd80cab681bfcfff3                  |\n"
         "--------------------------------------------------------------\n"
         "| status                     | training                      |\n"
         "--------------------------------------------------------------\n"
@@ -118,7 +118,7 @@ class Status:
 
     completed = (
         "--------------------------------------------------------------\n"
-        "|                  6508464cd80cab681bfcfff3                  |\n"
+        "|                  2138464cd80cab681bfcfff3                  |\n"
         "--------------------------------------------------------------\n"
         "| status                     | completed                     |\n"
         "--------------------------------------------------------------\n"
@@ -139,7 +139,7 @@ class Status:
 
     failed = (
         "--------------------------------------------------------------\n"
-        "|                  6508464cd80cab681bfcfff3                  |\n"
+        "|                  1338464cd80cab681bfcfff3                  |\n"
         "--------------------------------------------------------------\n"
         "| status                     | failed                        |\n"
         "--------------------------------------------------------------\n"
@@ -152,22 +152,6 @@ class Status:
         "| results                    | not available yet             |\n"
         "--------------------------------------------------------------\n\n\n"
     )
-
-    @classmethod
-    def get_cancelled_str(job_id):
-        return """
-        --------------------------------------------------------------
-        |                  {}                  |
-        --------------------------------------------------------------
-        | status                     | canceled                      |
-        --------------------------------------------------------------
-        | progress                   | None                          |
-        --------------------------------------------------------------
-        | results                    | not available yet             |
-        --------------------------------------------------------------
-        """.format(
-            job_id
-        )
 
 
 def test_deepmemory_response_without_job_id():
@@ -185,39 +169,42 @@ def test_deepmemory_response_without_job_id():
         response_schema = JobResponseStatusSchema(response=response)
 
 
-def test_deepmemory_print_status_and_list_jobs(capsys, jobs_list):
+def test_deepmemory_print_status_and_list_jobs(capsys, precomputed_jobs_list):
     # for training that is just started
+    job_id = "1238464cd80cab681bfcfff3"
     pending_response = create_response(
+        job_id=job_id,
         status="pending",
         progress=None,
     )
     response_schema = JobResponseStatusSchema(response=pending_response)
-    response_schema.print_status("6508464cd80cab681bfcfff3")
+    response_schema.print_status(job_id)
     captured = capsys.readouterr()
     assert captured.out == Status.pending
 
     # for training that is in progress
-    training_response = create_response()
+    job_id = "3218464cd80cab681bfcfff3"
+    training_response = create_response(job_id=job_id)
     response_schema = JobResponseStatusSchema(response=training_response)
-    response_schema.print_status(
-        "6508464cd80cab681bfcfff3", recall="85.5", importvement="2.6"
-    )
+    response_schema.print_status(job_id, recall="85.5", importvement="2.6")
     captured = capsys.readouterr()
     assert captured.out == Status.training
 
     # for training jobs that are finished
+    job_id = "2138464cd80cab681bfcfff3"
     completed_response = create_response(
+        job_id=job_id,
         status="completed",
     )
     response_schema = JobResponseStatusSchema(response=completed_response)
-    response_schema.print_status(
-        "6508464cd80cab681bfcfff3", recall="85.5", importvement="2.6"
-    )
+    response_schema.print_status(job_id, recall="85.5", importvement="2.6")
     captured = capsys.readouterr()
     assert captured.out == Status.completed
 
     # for jobs that failed
+    job_id = "1338464cd80cab681bfcfff3"
     failed_response = create_response(
+        job_id=job_id,
         status="failed",
         progress={
             "eta": None,
@@ -227,19 +214,35 @@ def test_deepmemory_print_status_and_list_jobs(capsys, jobs_list):
         },
     )
     response_schema = JobResponseStatusSchema(response=failed_response)
-    response_schema.print_status("6508464cd80cab681bfcfff3")
+    response_schema.print_status(job_id)
     captured = capsys.readouterr()
     assert captured.out == Status.failed
 
-    # responses = [
-    #     pending_response,
-    #     training_response,
-    #     completed_response,
-    #     failed_response,
-    # ]
-    # response_schema = JobResponseStatusSchema(response=responses)
-    # output_str = response_schema.print_jobs(debug=True)
-    # assert output_str == jobs_list
+    responses = [
+        pending_response,
+        training_response,
+        completed_response,
+        failed_response,
+    ]
+    recalls = {
+        "1238464cd80cab681bfcfff3": None,
+        "3218464cd80cab681bfcfff3": "85.5",
+        "2138464cd80cab681bfcfff3": "85.5",
+        "1338464cd80cab681bfcfff3": None,
+    }
+    improvements = {
+        "1238464cd80cab681bfcfff3": None,
+        "3218464cd80cab681bfcfff3": "2.6",
+        "2138464cd80cab681bfcfff3": "2.6",
+        "1338464cd80cab681bfcfff3": None,
+    }
+    response_schema = JobResponseStatusSchema(response=responses)
+    output_str = response_schema.print_jobs(
+        debug=True,
+        recalls=recalls,
+        improvements=improvements,
+    )
+    assert output_str == precomputed_jobs_list
 
 
 @pytest.mark.slow
@@ -260,30 +263,6 @@ def test_deepmemory_train_and_cancel(job_id, capsys, hub_cloud_dev_token):
     )
     assert canceled == False
     assert expected in captured.out == expected
-
-
-@pytest.mark.slow
-def test_deepmemory_list_jobs(capsys):
-    # Note: this test could be flaky as it depends heavilly on deepmemory managed service
-    responses = []
-    response = create_response(
-        status="pending",
-        progress=None,
-    )
-
-    response = create_response(
-        status="pending",
-        progress=None,
-    )
-
-    response = create_response(
-        status="pending",
-        progress=None,
-    )
-    response_schema = JobResponseStatusSchema(response=response)
-    captured = capsys.readouterr()
-    response_schema.check_status("6508464cd80cab681bfcfff3")
-    assert captured.out == Status.list_jobs[1:]
 
 
 def test_deepmemory_delete(
