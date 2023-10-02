@@ -35,7 +35,16 @@ class DeepMemory:
         Raises:
             ImportError: if indra is not installed
         """
-        # TODO: add reporting
+        feature_report_path(
+            path=dataset.path,
+            feature_name="dm.initialize",
+            parameters={
+                "embedding_function": True if embedding_function is not None else False,
+                "client": client,
+                "token": token,
+            },
+            token=token,
+        )
         self.dataset = dataset
         self.token = token
         self.embedding_function = embedding_function
@@ -78,6 +87,16 @@ class DeepMemory:
         Raises:
             ValueError: if embedding_function is not specified either during initialization or during training.
         """
+        feature_report_path(
+            path=self.dataset.path,
+            feature_name="dm.train",
+            parameters={
+                "queries": queries,
+                "relevance": relevance,
+                "embedding_function": embedding_function,
+            },
+            token=token or self.token,
+        )
         # TODO: Support for passing query_embeddings directly without embedding function
         corpus_path = self.dataset.path
         queries_path = corpus_path + "_queries"
@@ -127,6 +146,14 @@ class DeepMemory:
         Returns:
             bool: True if job was cancelled successfully, False otherwise.
         """
+        feature_report_path(
+            path=self.dataset.path,
+            feature_name="dm.cancel",
+            parameters={
+                "job_id": job_id,
+            },
+            token=self.token,
+        )
         return self.client.cancel_job(job_id=job_id)
 
     def delete(self, job_id: str):
@@ -141,6 +168,14 @@ class DeepMemory:
         Returns:
             bool: True if job was deleted successfully, False otherwise.
         """
+        feature_report_path(
+            path=self.dataset.path,
+            feature_name="dm.delete",
+            parameters={
+                "job_id": job_id,
+            },
+            token=self.token,
+        )
         return self.client.delete_job(job_id=job_id)
 
     def status(self, job_id: str):
@@ -162,6 +197,14 @@ class DeepMemory:
         Args:
             job_id (str): job_id of the training job.
         """
+        feature_report_path(
+            path=self.dataset.path,
+            feature_name="dm.status",
+            parameters={
+                "job_id": job_id,
+            },
+            token=self.token,
+        )
         try:
             recall, improvement = _get_best_model(
                 self.dataset.embedding, job_id, latest_job=True
@@ -176,6 +219,14 @@ class DeepMemory:
 
     def list_jobs(self, debug=False):
         """List all training jobs on DeepMemory managed service."""
+        feature_report_path(
+            path=self.dataset.path,
+            feature_name="dm.list_jobs",
+            parameters={
+                "debug": debug,
+            },
+            token=self.token,
+        )
         response = self.client.list_jobs(
             dataset_path=self.dataset.path,
         )
@@ -290,6 +341,19 @@ class DeepMemory:
             ImportError: if indra is not installed
             ValueError: if embedding_function is not specified either during initialization or during evaluation.
         """
+        feature_report_path(
+            path=self.dataset.path,
+            feature_name="dm.evaluate",
+            parameters={
+                "relevance": relevance,
+                "queries": queries,
+                "embedding_function": embedding_function,
+                "embedding": embedding,
+                "top_k": top_k,
+                "qvs_params": qvs_params,
+            },
+            token=self.token,
+        )
         try:
             from indra import api  # type: ignore
 

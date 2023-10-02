@@ -386,7 +386,6 @@ class VectorStore:
         return_tensors: Optional[List[str]] = None,
         return_view: bool = False,
         deep_memory: bool = False,
-        token: Optional[str] = None,
     ) -> Union[Dict, Dataset]:
         """VectorStore search method that combines embedding search, metadata search, and custom TQL search.
 

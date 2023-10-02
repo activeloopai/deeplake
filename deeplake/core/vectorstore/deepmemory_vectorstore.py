@@ -21,18 +21,18 @@ class DeepMemoryVectorStore(VectorStore):
 
     def search(
         self,
-        embedding_data: Optional[Union[str, List[str]]] = None,
-        embedding_function: Optional[Callable[..., Any]] = None,
+        embedding_data: Union[str, List[str], None] = None,
+        embedding_function: Optional[Callable] = None,
         embedding: Optional[Union[List[float], np.ndarray]] = None,
         k: int = 4,
         distance_metric: Optional[str] = None,
         query: Optional[str] = None,
-        filter: Optional[Union[Dict, Callable[..., Any]]] = None,
+        filter: Optional[Union[Dict, Callable]] = None,
         exec_option: Optional[str] = None,
         embedding_tensor: str = "embedding",
         return_tensors: Optional[List[str]] = None,
         return_view: bool = False,
-        deep_memory=False,
+        deep_memory: bool = False,
     ) -> Union[Dict, Dataset]:
         if exec_option is not None and exec_option != "tensor_db":
             self.logger.warning(
@@ -56,5 +56,4 @@ class DeepMemoryVectorStore(VectorStore):
             return_tensors=return_tensors,
             return_view=return_view,
             deep_memory=deep_memory,
-            token=self.token,
         )

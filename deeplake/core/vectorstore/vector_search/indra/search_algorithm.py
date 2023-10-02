@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Union, Dict, List
+from typing import Union, Dict, List, Optional
 
 from deeplake.core.vectorstore.vector_search.indra import query
 from deeplake.core.vectorstore.vector_search import utils
@@ -19,7 +19,7 @@ def search(
     return_tensors: List[str],
     return_view: bool = False,
     deep_memory: bool = False,
-    token: str = None,
+    token: Optional[str] = None,
 ) -> Union[Dict, DeepLakeDataset]:
     """Generalized search algorithm that uses indra. It combines vector search and other TQL queries.
 
@@ -35,7 +35,7 @@ def search(
         return_tensors (List[str]): List of tensors to return data for.
         return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictinary with data. Defaults to False.
         deep_memory (bool): Use Deep Memory for the search. Defaults to False.
-        token (str): Deep Lake token. Defaults to None.
+        token (Optional[str], optional): Deep Lake token. Defaults to None.
 
     Raises:
         ValueError: If both tql_string and tql_filter are specified.
