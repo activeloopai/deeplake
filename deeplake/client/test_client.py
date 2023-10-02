@@ -275,6 +275,7 @@ def test_deepmemory_delete(
         corpus_path,
         _,
         _,
+        _,
     ) = corpus_query_relevances_copy
 
     username, _ = hub_cloud_dev_credentials

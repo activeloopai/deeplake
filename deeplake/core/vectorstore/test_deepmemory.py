@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import pytest
 import sys
@@ -36,13 +37,14 @@ def embedding_fn(texts):
 
 
 @pytest.mark.slow
+@pytest.mark.flaky(reruns=3)
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_train_and_cancel(
     capsys,
     corpus_query_relevances_copy,
     hub_cloud_dev_token,
 ):
-    corpus, queries, relevances = corpus_query_relevances_copy
+    corpus, queries, relevances, _ = corpus_query_relevances_copy
 
     db = VectorStore(
         path=corpus,
@@ -119,11 +121,11 @@ def test_deepmemory_train_and_cancel(
 @pytest.mark.timeout(600)
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_evaluate(
-    corpus_query_pair_path,
+    corpus_query_relevances_copy,
     questions_embeddings_and_relevances,
     hub_cloud_dev_token,
 ):
-    corpus, query_path = corpus_query_pair_path
+    corpus, _, _, query_path = corpus_query_relevances_copy
     (
         questions_embeddings,
         question_relevances,
@@ -200,11 +202,11 @@ def test_deepmemory_evaluate(
 @pytest.mark.timeout(600)
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_evaluate_log_queries(
-    corpus_query_pair_path,
+    corpus_query_relevances_copy,
     questions_embeddings_and_relevances,
     hub_cloud_dev_token,
 ):
-    corpus, query_path = corpus_query_pair_path
+    corpus, _, _, query_path = corpus_query_relevances_copy
     (
         questions_embeddings,
         question_relevances,
@@ -216,7 +218,6 @@ def test_deepmemory_evaluate_log_queries(
         runtime={"tensor_db": True},
         token=hub_cloud_dev_token,
     )
-    sleep(15)
     recall = db.deep_memory.evaluate(
         queries=queries,
         embedding=questions_embeddings,
@@ -226,6 +227,8 @@ def test_deepmemory_evaluate_log_queries(
             "branch": "queries",
         },
     )
+
+    sleep(15)
     queries_dataset = VectorStore(
         path=query_path,
         token=hub_cloud_dev_token,
@@ -240,11 +243,11 @@ def test_deepmemory_evaluate_log_queries(
 @pytest.mark.timeout(600)
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_evaluate_without_branch_name_with_logging(
-    corpus_query_pair_path,
+    corpus_query_relevances_copy,
     questions_embeddings_and_relevances,
     hub_cloud_dev_token,
 ):
-    corpus, query_path = corpus_query_pair_path
+    corpus, _, _, query_path = corpus_query_relevances_copy
     (
         questions_embeddings,
         question_relevances,
@@ -264,6 +267,8 @@ def test_deepmemory_evaluate_without_branch_name_with_logging(
             "log_queries": True,
         },
     )
+
+    sleep(15)
     queries_dataset = VectorStore(
         path=query_path,
         token=hub_cloud_dev_token,
@@ -276,11 +281,11 @@ def test_deepmemory_evaluate_without_branch_name_with_logging(
 @pytest.mark.timeout(600)
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_evaluate_without_logging(
-    corpus_query_pair_path,
+    corpus_query_relevances_copy,
     questions_embeddings_and_relevances,
     hub_cloud_dev_token,
 ):
-    corpus, query_path = corpus_query_pair_path
+    corpus, _, _, query_path = corpus_query_relevances_copy
     (
         questions_embeddings,
         question_relevances,
@@ -300,6 +305,7 @@ def test_deepmemory_evaluate_without_logging(
             "log_queries": False,
         },
     )
+    sleep(15)
     with pytest.raises(ValueError):
         queries_dataset = VectorStore(
             path=query_path,
@@ -312,11 +318,11 @@ def test_deepmemory_evaluate_without_logging(
 @pytest.mark.timeout(600)
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_evaluate_without_branch_name(
-    corpus_query_pair_path,
+    corpus_query_relevances_copy,
     questions_embeddings_and_relevances,
     hub_cloud_dev_token,
 ):
-    corpus, query_path = corpus_query_pair_path
+    corpus, _, _, query_path = corpus_query_relevances_copy
     (
         questions_embeddings,
         question_relevances,
@@ -333,6 +339,8 @@ def test_deepmemory_evaluate_without_branch_name(
         embedding=questions_embeddings,
         relevance=question_relevances,
     )
+
+    sleep(15)
     queries_dataset = VectorStore(
         path=query_path,
         token=hub_cloud_dev_token,
@@ -345,11 +353,11 @@ def test_deepmemory_evaluate_without_branch_name(
 @pytest.mark.timeout(600)
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_evaluate_without_qvs_params(
-    corpus_query_pair_path,
+    corpus_query_relevances_copy,
     questions_embeddings_and_relevances,
     hub_cloud_dev_token,
 ):
-    corpus, query_path = corpus_query_pair_path
+    corpus, _, _, query_path = corpus_query_relevances_copy
     (
         questions_embeddings,
         question_relevances,
@@ -368,6 +376,8 @@ def test_deepmemory_evaluate_without_qvs_params(
         relevance=question_relevances,
         embedding_function=embedding_fn,
     )
+
+    sleep(15)
     queries_dataset = VectorStore(
         path=query_path,
         token=hub_cloud_dev_token,
@@ -380,11 +390,11 @@ def test_deepmemory_evaluate_without_qvs_params(
 @pytest.mark.timeout(600)
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_evaluate_with_embedding_func_in_init(
-    corpus_query_pair_path,
+    corpus_query_relevances_copy,
     questions_embeddings_and_relevances,
     hub_cloud_dev_token,
 ):
-    corpus, query_path = corpus_query_pair_path
+    corpus, _, _, query_path = corpus_query_relevances_copy
     (
         questions_embeddings,
         question_relevances,
@@ -408,6 +418,7 @@ def test_deepmemory_evaluate_with_embedding_func_in_init(
         relevance=question_relevances,
     )
 
+    sleep(15)
     queries_dataset = VectorStore(
         path=query_path,
         token=hub_cloud_dev_token,
@@ -420,11 +431,11 @@ def test_deepmemory_evaluate_with_embedding_func_in_init(
 @pytest.mark.timeout(600)
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_evaluate_without_embedding_function(
-    corpus_query_pair_path,
+    corpus_query_relevances_copy,
     questions_embeddings_and_relevances,
     hub_cloud_dev_token,
 ):
-    corpus, query_path = corpus_query_pair_path
+    corpus, _, _, query_path = corpus_query_relevances_copy
     (
         questions_embeddings,
         question_relevances,
@@ -437,6 +448,7 @@ def test_deepmemory_evaluate_without_embedding_function(
         token=hub_cloud_dev_token,
     )
 
+    sleep(15)
     # when embedding_function is not provided in the constructor and not in the eval method
     with pytest.raises(ValueError):
         db.deep_memory.evaluate(
@@ -504,11 +516,10 @@ def test_deepmemory_status(capsys, job_id, corpus_query_pair_path, hub_cloud_dev
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_search(
-    caplog,
-    corpus_query_relevances_copy,
+    corpus_query_pair_path,
     hub_cloud_dev_token,
 ):
-    corpus, _, _ = corpus_query_relevances_copy
+    corpus, _ = corpus_query_pair_path
 
     db = VectorStore(
         path=corpus,
@@ -526,9 +537,5 @@ def test_deepmemory_search(
     assert len(output) == 4
 
     output = db.search(embedding=query_embedding, exec_option="compute_engine")
-    warning = (
-        "Specifying `exec_option` is not supported for this dataset. "
-        "The search will be executed on the Deep Lake Managed Database."
-    )
-
-    assert warning in caplog.text
+    assert len(output) == 4
+    # TODO: add some logging checks

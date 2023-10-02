@@ -3,7 +3,7 @@ METRIC_TO_ORDER_TYPE = {
     "l2": "ASC",
     "cos": "DESC",
     "max": "ASC",
-    "deepmemory_norm": "DESC",
+    "deepmemory_distance": "DESC",
 }
 
 
