@@ -784,7 +784,7 @@ class DeepLakeDataLoader(DataLoader):
         dataset_read(self._orig_dataset)
 
         if self._iterator is not None:
-            self._iterator = iter(self._iterator)
+            self._iterator = iter(self._dataloader)
 
         return self
 
