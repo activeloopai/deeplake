@@ -108,7 +108,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @htype.setter
     def htype(self, value):
-        raise NotImplementedError("htype of a query tensor cannot be set.")
+        raise NotImplementedError("htype of a virtual tensor cannot be set.")
 
     @property
     def sample_compression(self):
@@ -132,6 +132,10 @@ class DeepLakeQueryTensor(tensor.Tensor):
     @property
     def min_shape(self):
         return self.indra_tensor.min_shape
+
+    @property
+    def chunk_engine(self):
+        raise NotImplementedError("Virtual tensor does not have chunk engine.")
 
     @property
     def shape(self):

@@ -2,8 +2,6 @@ import pathlib
 import posixpath
 from typing import Optional, Union, Tuple, Dict
 
-from typing_extensions import LiteralString
-
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.util.tag import process_hub_path
 from deeplake.constants import HUB_CLOUD_DEV_USERNAME
@@ -14,7 +12,7 @@ import re
 
 CLOUD_DS_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]*$")
 LOCAL_DS_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_ .-]*$")
-_relpath_cache: Dict[str, LiteralString] = {}
+_relpath_cache: Dict[str, str] = {}
 
 
 def is_hub_cloud_path(path: str):

@@ -169,7 +169,7 @@ def test_index_maintenance_update(local_auth_ds_generator):
 
     deeplake_ds.embedding.create_vdb_index("hnsw_1")
     # Append rows and check query recall.
-    deeplake_ds.update({"embedding": [1] * 200})
+    deeplake_ds[0].update({"embedding": [2] * 384})
 
     # Check if the index is recreated properly.
     es = deeplake_ds.embedding.get_vdb_indexes()

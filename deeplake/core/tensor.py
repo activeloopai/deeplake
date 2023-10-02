@@ -1049,16 +1049,17 @@ class Tensor:
             )
             value = parse_mesh_to_dict(full_arr, self.sample_info)
             return value
-        elif hasattr(self, "chunk_engine"):
-            return {
-                "value": self.chunk_engine.numpy(
-                    index=self.index, aslist=aslist, fetch_chunks=fetch_chunks
-                ),
-            }
         else:
-            return {
-                "value": self.numpy(aslist=aslist, fetch_chunks=fetch_chunks),
-            }
+            try:
+                return {
+                    "value": self.chunk_engine.numpy(
+                        index=self.index, aslist=aslist, fetch_chunks=fetch_chunks
+                    ),
+                }
+            except NotImplementedError:
+                return {
+                    "value": self.numpy(aslist=aslist, fetch_chunks=fetch_chunks),
+                }
 
     def tobytes(self) -> bytes:
         """Returns the bytes of the tensor.

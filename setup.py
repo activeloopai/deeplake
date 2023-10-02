@@ -70,9 +70,10 @@ extras_require = {k: [req_map[r] for r in v] for k, v in extras.items()}
 extras_require["all"] = [req_map[r] for r in all_extras]
 
 if libdeeplake_available():
-    libdeeplake = "libdeeplake==0.0.77"
+    libdeeplake = "libdeeplake==0.0.79"
     extras_require["enterprise"] = [libdeeplake, "pyjwt"]
     extras_require["all"].append(libdeeplake)
+    install_requires.append(libdeeplake)
 
 init_file = os.path.join(project_name, "__init__.py")
 
