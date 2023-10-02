@@ -360,29 +360,26 @@ def test_deepmemory_list_jobs(jobs_list, corpus_query_pair_path, hub_cloud_dev_t
 
 
 def test_deepmemory_status(capsys, job_id, corpus_query_pair_path, hub_cloud_dev_token):
-    # output_str = (
-    #     "--------------------------------------------------------------\n"
-    #     f"|                  {job_id}                  |\n"
-    #     "--------------------------------------------------------------\n"
-    #     "| status                     | completed                     |\n"
-    #     "--------------------------------------------------------------\n"
-    #     "| progress                   | eta: 121.1 seconds            |\n"
-    #     "|                            | recall@10: 91.67% (+11.93%)   |\n"
-    #     "|                            | dataset: query                |\n"
-    #     "--------------------------------------------------------------\n"
-    #     "| results                    | Congratulations!              |\n"
-    #     "|                            | Your model has                |\n"
-    #     "|                            | achieved a recall@10          |\n"
-    #     "|                            | of 91.67% which is            |\n"
-    #     "|                            | an improvement of             |\n"
-    #     "|                            | 11.93% on the                 |\n"
-    #     "|                            | validation set                |\n"
-    #     "|                            | compared to naive             |\n"
-    #     "|                            | vector search.                |\n"
-    #     "--------------------------------------------------------------\n\n\n"
-    # )
-
-    #
+    output_str = (
+        "--------------------------------------------------------------\n"
+        f"|                  {job_id}                  |\n"
+        "--------------------------------------------------------------\n"
+        "| status                     | completed                     |\n"
+        "--------------------------------------------------------------\n"
+        "| progress                   | eta: 2.5 seconds              |\n"
+        "|                            | dataset: query                |\n"
+        "|                            | recall@10: 0.62% (+0.62%)     |\n"
+        "--------------------------------------------------------------\n"
+        "| results                    | Congratulations!              |\n"
+        "|                            | Your model has                |\n"
+        "|                            | achieved a recall@10          |\n"
+        "|                            | of 0.62% which is an          |\n"
+        "|                            | improvement of 0.62%          |\n"
+        "|                            | on the validation             |\n"
+        "|                            | set compared to               |\n"
+        "|                            | naive vector search.          |\n"
+        "--------------------------------------------------------------\n\n\n"
+    )
 
     corpus, query_path = corpus_query_pair_path
 

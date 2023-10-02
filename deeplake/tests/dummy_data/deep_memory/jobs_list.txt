@@ -1,7 +1,31 @@
 ID                        DATASET ID                                    ORGANIZATION ID  STATUS     RESULTS            PROGRESS       
 65198efcd28df3238c49a849  testingacc2/deepmemory_test_corpus_managed_2  testingacc2      completed  Congratulations!   eta: 2.5 seconds
-                                                                                                    Your model has     recall@10: 0.62% (+0.62%)
-                                                                                                    achieved a         dataset: query 
+                                                                                                    Your model has     dataset: query 
+                                                                                                    achieved a         recall@10: 0.62% (+0.62%)
+                                                                                                    recall@10 of                      
+                                                                                                    0.62% which is                    
+                                                                                                    an improvement                    
+                                                                                                    of 0.62% on                       
+                                                                                                    the validation                    
+                                                                                                    set compared                      
+                                                                                                    to naive                          
+                                                                                                    vector search.                    
+                                                                                                                                      
+651a4d41d05a21a5a6a15f67  testingacc2/deepmemory_test_corpus_managed_2  testingacc2      completed  Congratulations!   eta: 2.5 seconds
+                                                                                                    Your model has     dataset: query 
+                                                                                                    achieved a         recall@10: 0.62% (+0.62%)
+                                                                                                    recall@10 of                      
+                                                                                                    0.62% which is                    
+                                                                                                    an improvement                    
+                                                                                                    of 0.62% on                       
+                                                                                                    the validation                    
+                                                                                                    set compared                      
+                                                                                                    to naive                          
+                                                                                                    vector search.                    
+                                                                                                                                      
+651a56c15a18dea3283ffc1c  testingacc2/deepmemory_test_corpus_managed_2  testingacc2      completed  Congratulations!   eta: 2.4 seconds
+                                                                                                    Your model has     dataset: query 
+                                                                                                    achieved a         recall@10: 0.62% (+0.62%)
                                                                                                     recall@10 of                      
                                                                                                     0.62% which is                    
                                                                                                     an improvement                    
