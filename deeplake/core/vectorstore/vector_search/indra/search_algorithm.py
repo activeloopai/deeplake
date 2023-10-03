@@ -32,8 +32,6 @@ def search(
         runtime (dict): Runtime parameters for the query.
         return_tensors (List[str]): List of tensors to return data for.
         return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictinary with data. Defaults to False.
-        deep_memory (bool): Use Deep Memory for the search. Defaults to False.
-        token (Optional[str], optional): Deep Lake token. Defaults to None.
 
     Raises:
         ValueError: If both tql_string and tql_filter are specified.
