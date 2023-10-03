@@ -18,6 +18,7 @@
 #include "last_checkpoint.hpp"
 #include "deeplog_v3.hpp"
 #include "../storage/local_storage.hpp"
+#include <arrow/ipc/json_simple.h>
 
 namespace deeplog {
 
@@ -145,7 +146,7 @@ namespace deeplog {
 
 //        next_from = branch_obj->from_version + 1;
 
-        std::set<::storage::file_ref> sorted_paths = {};
+        std::set < ::storage::file_ref > sorted_paths = {};
 
         if (storage_->file(dir_path).exists()) {
             for (auto file_ref: storage_->list_files(dir_path)) {
@@ -285,7 +286,7 @@ namespace deeplog {
         auto status = write_checkpoint(branch_id, version_to_checkpoint);
 
         if (!status.ok()) {
-            spdlog::error(status.message());
+            throw std::runtime_error(status.message());
             return;
         }
         nlohmann::json checkpoint_json = last_checkpoint(version_to_checkpoint, 3013);
@@ -308,7 +309,73 @@ namespace deeplog {
     }
 
     arrow::Status deeplog::write_checkpoint(const std::string &branch_id, const long &version) {
-        auto checkpoint_table = action_data(branch_id, 0, version).ValueOrDie();
+        auto [actions, last_version] = get_actions(branch_id, version);
+
+        std::vector<std::shared_ptr<arrow::ArrayBuilder>> array_builders{};
+        for (auto field: arrow_schema->fields()) {
+            if (field->name() == "version") {
+                array_builders.push_back(arrow::MakeBuilder(field->type(), arrow::default_memory_pool()).ValueOrDie());
+            } else {
+                std::vector<std::shared_ptr<arrow::ArrayBuilder>> struct_builders{};
+                for (auto struct_field: field->type()->fields()) {
+                    struct_builders.push_back(arrow::MakeBuilder(struct_field->type(), arrow::default_memory_pool()).ValueOrDie());
+                }
+
+                array_builders.push_back(std::shared_ptr<arrow::StructBuilder>(std::make_shared<arrow::StructBuilder>(arrow::StructBuilder(field->type(), arrow::default_memory_pool(), struct_builders))));
+            }
+        }
+
+
+        for (const auto &action: *actions) {
+            std::string json = action->to_json().dump();
+
+            std::shared_ptr<arrow::Scalar> struct_scalar;
+            auto status = arrow::ipc::internal::json::ScalarFromJSON(action->action_type(), json, &struct_scalar);
+            if (!status.ok()) {
+                throw std::runtime_error("Error creating struct from json: " + status.message());
+            }
+
+            for (auto i = 0; i < arrow_schema->num_fields(); ++i) {
+                auto field = arrow_schema->field(i);
+                auto builder = array_builders.at(i);
+                if (field->name() == action->action_name()) {
+                    status = builder->AppendScalar(*std::dynamic_pointer_cast<arrow::StructScalar>(struct_scalar));
+                    if (!status.ok()) {
+                        throw std::runtime_error(status.message());
+                    }
+                } else {
+                    status = builder->AppendNull();
+                    if (!status.ok()) {
+                        throw std::runtime_error(status.message());
+                    }
+                }
+            }
+        }
+
+        for (auto i = 0; i < arrow_schema->num_fields(); ++i) {
+            auto field = arrow_schema->field(i);
+            auto builder = array_builders.at(i);
+            if (field->name() == "version") {
+                auto status = builder->AppendScalar(arrow::NumericScalar<arrow::UInt64Type>(version));
+                if (!status.ok()) {
+                    throw std::runtime_error(status.message());
+                }
+            } else {
+                auto status = builder->AppendNull();
+                if (!status.ok()) {
+                    throw std::runtime_error(status.message());
+                }
+            }
+        }
+
+
+        std::vector<std::shared_ptr<arrow::Array>> final_arrays{};
+        final_arrays.reserve(array_builders.size());
+        for (const auto &build: array_builders) {
+            final_arrays.push_back(build->Finish().ValueOrDie());
+        }
+
+        auto table = arrow::Table::Make(arrow_schema, final_arrays);
 
         std::shared_ptr<parquet::WriterProperties> props = parquet::WriterProperties::Builder().compression(arrow::Compression::SNAPPY)->build();
         std::shared_ptr<parquet::ArrowWriterProperties> arrow_props = parquet::ArrowWriterProperties::Builder().store_schema()->build();
@@ -316,7 +383,7 @@ namespace deeplog {
         std::shared_ptr<arrow::io::BufferOutputStream> outfile;
         ARROW_ASSIGN_OR_RAISE(outfile, arrow::io::BufferOutputStream::Create());
 //
-        ARROW_RETURN_NOT_OK(parquet::arrow::WriteTable(*checkpoint_table, arrow::default_memory_pool(), outfile, 3, props, arrow_props));
+        ARROW_RETURN_NOT_OK(parquet::arrow::WriteTable(*table, arrow::default_memory_pool(), outfile, parquet::DEFAULT_MAX_ROW_GROUP_LENGTH, props, arrow_props));
 
         auto buffer = outfile->Finish().ValueOrDie();
         const uint8_t *byte_data = buffer->data();

@@ -22,6 +22,10 @@ namespace deeplog {
         return "protocol";
     }
 
+    std::shared_ptr<arrow::StructType> protocol_action::action_type() {
+        return arrow_type;
+    }
+
     nlohmann::json deeplog::protocol_action::to_json() {
         nlohmann::json json;
 

@@ -77,6 +77,10 @@ namespace deeplog {
         return "tensor";
     }
 
+    std::shared_ptr<arrow::StructType> create_tensor_action::action_type() {
+        return arrow_type;
+    }
+
     nlohmann::json create_tensor_action::to_json() {
         nlohmann::json json;
 
