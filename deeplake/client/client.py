@@ -581,11 +581,10 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
                 method="POST",
                 relative_url=f"/api/deepmemory/v1/jobs/{job_id}/cancel",
             )
+            check_response_status(response)
         except Exception as e:
             print(f"Job with job_id='{job_id}' was not cancelled!\n Error: {e}")
             return False
-
-        check_response_status(response)
         print("Job cancelled successfully")
         return True
 
