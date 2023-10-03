@@ -719,7 +719,7 @@ class dataset:
     def _load(dataset_kwargs, access_method=None, create=False, check_integrity=True):
         if create:
             dataset_kwargs["storage"].set_deeplog(
-                DeepLog.create(dataset_kwargs["path"], dataset_kwargs["log_format"])
+                DeepLog.create(dataset_kwargs["storage"], dataset_kwargs["log_format"])
             )
         else:
             dataset_kwargs["storage"].set_deeplog(DeepLog.open(dataset_kwargs["path"]))

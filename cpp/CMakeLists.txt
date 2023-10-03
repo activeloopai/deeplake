@@ -28,6 +28,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindGoogleTest.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindSpdlog.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindBackward.cmake)
 
+add_subdirectory(storage)
 add_subdirectory(deeplog)
 add_subdirectory(tests)
 add_subdirectory(py_api)

@@ -1,17 +1,23 @@
 #include <pybind11/stl.h>
+
+#include <utility>
 #include "../../deeplog/deeplog.hpp"
 #include "deeplog.hpp"
 #include "../../deeplog/snapshot.hpp"
 #include "../../deeplog/metadata_snapshot.hpp"
 #include "../../deeplog/deeplog_v3.hpp"
 #include "../../deeplog/optimistic_transaction.hpp"
+#include "../storage/py_storage.hpp"
 
 namespace py_api {
     void deeplog::pybind(pybind11::module &module) {
         pybind11::class_<::deeplog::deeplog, std::shared_ptr<::deeplog::deeplog>>(module, "DeepLog")
-                .def_static("open", &::deeplog::deeplog::open)
-                .def_static("create", &::deeplog::deeplog::create)
-                .def_readonly("path", &::deeplog::deeplog::path)
+                .def_static("open", [](pybind11::object storage) {
+                    return ::deeplog::deeplog::open(std::make_shared<py_api::py_storage>(py_storage(std::move(storage))));
+                }, pybind11::arg("storage"))
+                .def_static("create", [](pybind11::object storage, int log_format) {
+                    return ::deeplog::deeplog::create(std::make_shared<py_api::py_storage>(py_storage(std::move(storage))), log_format);
+                }, pybind11::arg("storage"), pybind11::arg("log_format"))
                 .def("log_format", &::deeplog::deeplog::log_format)
                 .def("version", &::deeplog::deeplog::version)
                 .def("checkpoint", &::deeplog::deeplog::checkpoint);

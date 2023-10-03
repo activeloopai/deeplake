@@ -41,7 +41,6 @@ protected:
 TEST_F(DeeplogTest, create) {
     auto log = deeplog::deeplog::create(test_dir, 4);
 
-    EXPECT_EQ(test_dir, log->path);
     EXPECT_TRUE(std::filesystem::exists({test_dir + "/_deeplake_log/"}));
     EXPECT_EQ(std::set < std::string > {"00000000000000000000.json"}, list_log_files());
 
@@ -79,7 +78,7 @@ TEST_F(DeeplogTest, open) {
 
     auto log = deeplog::deeplog::open(test_dir);
 
-    EXPECT_EQ(test_dir, log->path);
+    EXPECT_EQ(0, log->version(deeplog::MAIN_BRANCH_ID));
 }
 
 TEST_F(DeeplogTest, version) {

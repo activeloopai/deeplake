@@ -1,6 +1,6 @@
 #pragma once
 
-#include <string>
+#include <fstream>
 #include <arrow/status.h>
 #include "actions/add_file_action.hpp"
 #include "actions/protocol_action.hpp"
@@ -8,6 +8,7 @@
 #include "actions/create_branch_action.hpp"
 #include "actions/create_tensor_action.hpp"
 #include "actions/create_commit_action.hpp"
+#include "../storage/storage.hpp"
 
 namespace deeplog {
 
@@ -16,11 +17,13 @@ namespace deeplog {
 
     class deeplog {
     public:
+        [[nodiscard]] static std::shared_ptr<deeplog> create(const std::shared_ptr<storage::storage> &storage, const int &log_version);
+
         [[nodiscard]] static std::shared_ptr<deeplog> create(const std::string &path, const int &log_version);
 
         [[nodiscard]] static std::shared_ptr<deeplog> open(const std::string &path);
 
-        const std::string path;
+        [[nodiscard]] static std::shared_ptr<deeplog> open(const std::shared_ptr<storage::storage> &storage);
 
         virtual int log_format() const;
 
@@ -41,7 +44,7 @@ namespace deeplog {
     protected:
 
         //only created through open() etc.
-        deeplog(std::string path);
+        deeplog(const std::shared_ptr<storage::storage> &storage);
 
     private:
 
@@ -49,9 +52,13 @@ namespace deeplog {
 
         arrow::Status write_checkpoint(const std::string &branch_id, const long &version);
 
-        long file_version(const std::filesystem::path &path) const;
+        long file_version(const std::string &path) const;
 
         const static std::shared_ptr<arrow::Schema> arrow_schema;
+
+        std::shared_ptr<storage::storage> storage_;
+
+        std::shared_ptr<arrow::io::RandomAccessFile> open_arrow_istream(const storage::file_ref &file) const;
     };
 
 }
