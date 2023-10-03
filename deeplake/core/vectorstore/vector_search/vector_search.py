@@ -28,8 +28,6 @@ def search(
     query_embedding: Optional[Union[List[float], np.ndarray]] = None,
     embedding_tensor: str = "embedding",
     return_view: bool = False,
-    deep_memory: bool = False,
-    token: Optional[str] = None,
 ) -> Union[Dict, DeepLakeDataset]:
     """Searching function
     Args:
@@ -64,6 +62,4 @@ def search(
         k=k,
         return_tensors=return_tensors,
         return_view=return_view,
-        deep_memory=deep_memory,
-        token=token,
     )

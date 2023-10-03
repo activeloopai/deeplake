@@ -26,8 +26,6 @@ def test_vector_search():
         k=10,
         return_tensors=[],
         return_view=False,
-        deep_memory=False,
-        token=None,
     )
 
     assert len(data["score"]) == 10
@@ -45,8 +43,6 @@ def test_vector_search():
             k=10,
             return_tensors=[],
             return_view=False,
-            deep_memory=False,
-            token=None,
         )
 
     data = vector_search.vector_search(
@@ -61,8 +57,6 @@ def test_vector_search():
         k=10,
         return_tensors=[],
         return_view=True,
-        deep_memory=False,
-        token=None,
     )
 
     assert len(data) == 10
@@ -81,6 +75,4 @@ def test_vector_search():
             k=10,
             return_tensors=[],
             return_view=True,
-            deep_memory=False,
-            token=None,
         )
