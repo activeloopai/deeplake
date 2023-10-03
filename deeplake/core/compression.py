@@ -29,7 +29,6 @@ import mmap
 import struct
 import sys
 import re
-import numcodecs.lz4  # type: ignore
 from numpy.core.fromnumeric import compress  # type: ignore
 import math
 from pathlib import Path
@@ -41,6 +40,13 @@ try:
     _PYAV_INSTALLED = True
 except ImportError:
     _PYAV_INSTALLED = False
+
+try:
+    import numcodecs.lz4  # type: ignore
+
+    _NUMCODECS_INSTALLED = True
+except ImportError:
+    _NUMCODECS_INSTALLED = False
 
 try:
     import lz4.frame  # type: ignore
@@ -157,6 +163,10 @@ def compress_bytes(
     if not buffer:
         return b""
     if compression == "lz4":
+        if not _NUMCODECS_INSTALLED:
+            raise ModuleNotFoundError(
+                "Module numcodecs not found. Install using `pip install numcodecs`."
+            )
         return numcodecs.lz4.compress(buffer)
     else:
         raise SampleCompressionError(
@@ -181,6 +191,10 @@ def decompress_bytes(
                     "Module lz4 not found. Install using `pip install lz4`."
                 )
             return lz4.frame.decompress(buffer)
+        if not _NUMCODECS_INSTALLED:
+            raise ModuleNotFoundError(
+                "Module numcodecs not found. Install using `pip install numcodecs`."
+            )
         return numcodecs.lz4.decompress(buffer)
     else:
         raise SampleDecompressionError()
