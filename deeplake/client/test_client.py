@@ -138,7 +138,6 @@ class Status:
         "|                            | error: list indices must be   |\n"
         "|                            |        integers or slices,    |\n"
         "|                            |        not str                |\n"
-        "|                            | dataset: query                |\n"
         "--------------------------------------------------------------\n"
         "| results                    | not available yet             |\n"
         "--------------------------------------------------------------\n\n\n"

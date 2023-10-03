@@ -1,8 +1,8 @@
-ID                        STATUS     RESULTS                   PROGRESS       
-1238464cd80cab681bfcfff3  pending    not available yet         None           
-3218464cd80cab681bfcfff3  training   not available yet         eta: 100.3 seconds
-                                                               recall@10: 85.5% (+2.6%)
-2138464cd80cab681bfcfff3  completed  recall@10: 85.5% (+2.6%)  eta: 100.3 seconds
-                                                               recall@10: 85.5% (+2.6%)
-1338464cd80cab681bfcfff3  failed     not available yet         eta: None seconds
-                                                               error: list indices must beintegers or slices,not str
+ID                        STATUS     RESULTS                        PROGRESS       
+1238464cd80cab681bfcfff3  pending    not available yet              None           
+3218464cd80cab681bfcfff3  training   not available yet              eta: 100.3 seconds
+                                                                    recall@10: 85.5% (+2.6%)
+2138464cd80cab681bfcfff3  completed  recall@10: 85.5% (+2.6%)       eta: 100.3 seconds
+                                                                    recall@10: 85.5% (+2.6%)
+1338464cd80cab681bfcfff3  failed     not available yet              eta: None seconds
+                                                                    error: list indices must beintegers or slices,not str
