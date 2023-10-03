@@ -18,8 +18,6 @@ def vector_search(
     k,
     return_tensors,
     return_view,
-    deep_memory,
-    token,
 ) -> Union[Dict, DeepLakeDataset]:
     if query is not None:
         raise NotImplementedError(
