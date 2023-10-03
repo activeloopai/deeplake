@@ -338,6 +338,7 @@ def test_deepmemory_evaluate_without_branch_name(
         queries=queries,
         embedding=questions_embeddings,
         relevance=question_relevances,
+        qvs_params={"log_queries": True},
     )
 
     sleep(15)
@@ -378,12 +379,12 @@ def test_deepmemory_evaluate_without_qvs_params(
     )
 
     sleep(15)
-    queries_dataset = VectorStore(
-        path=query_path,
-        token=hub_cloud_dev_token,
-        read_only=True,
-    )
-    assert len(queries_dataset) == len(question_relevances)
+    with pytest.raises(ValueError):
+        queries_dataset = VectorStore(
+            path=query_path,
+            token=hub_cloud_dev_token,
+            read_only=True,
+        )
 
 
 @pytest.mark.slow
@@ -416,6 +417,7 @@ def test_deepmemory_evaluate_with_embedding_func_in_init(
     recall = db.deep_memory.evaluate(
         queries=queries,
         relevance=question_relevances,
+        qvs_params={"log_queries": True},
     )
 
     sleep(15)

@@ -525,8 +525,7 @@ def parse_queries_params(queries_params: Optional[Dict[str, Any]] = None):
 
     if queries_params is None:
         queries_params = {
-            "log_queries": True,
-            "branch": "main",
+            "log_queries": False,
         }
 
     for query_param in queries_params:

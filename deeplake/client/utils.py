@@ -285,53 +285,11 @@ def get_results(
             recall = recall or curr_recall
             improvement = improvement or curr_improvement
 
-            output = f"recall@10: {str(recall)}% (+{str(improvement)}%)"
-            # return format_to_fixed_width(output, width, indent, add_vertical_bars)
+            if "(" not in improvement:
+                improvement = f"(+{improvement}%)"
+
+            output = f"recall@10: {str(recall)}% {improvement}"
             return output
-
-
-def format_to_fixed_width(
-    s: str,
-    width: int,
-    indent: str,
-    add_vertical_bars: bool,
-):
-    words = s.split()
-    lines = ""
-    line = ""
-    first_entry = True
-    for word in words:
-        # If adding the new word to the current line would make it too long
-        if len(line) + len(word) + 1 > width:  # +1 for space
-            current_indent = ""
-            if first_entry:
-                first_entry = False
-            else:
-                current_indent = (
-                    "|" + indent[:-2] + "| " if add_vertical_bars else indent
-                )
-            lines += (
-                current_indent + line.rstrip()
-            )  # Add the current line to lines and remove trailing spaces
-            lines += (30 - len(line)) * " " + " |\n" if add_vertical_bars else "\n"
-            line = ""  # Start a new line
-        line += word + " "
-
-    # Add the last line if it's not empty
-    if line:
-        current_indent = "|" + indent[:-2] + "| " if add_vertical_bars else indent
-        lines += current_indent
-        lines += (
-            line.rstrip() + (30 - len(line)) * " " + " |"
-            if add_vertical_bars
-            else line.rstrip() + "\n"
-        )
-
-    return lines
-
-
-from typing import Dict, Any
-import textwrap
 
 
 def preprocess_progress(
