@@ -44,6 +44,7 @@ def test_create(caplog, hub_cloud_path, hub_cloud_dev_token):
         runtime=None,
         exec_option="python",
         org_id=None,
+        branch="main",
     )
     assert len(dataset) == 0
     assert set(dataset.tensors.keys()) == {

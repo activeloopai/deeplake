@@ -1,13 +1,6 @@
 from typing import Dict, Union, Callable
+
 from deeplake.core.dataset import Dataset as DeepLakeDataset
-
-try:
-    from indra import api  # type: ignore
-
-    _INDRA_INSTALLED = True  # pragma: no cover
-except ImportError:  # pragma: no cover
-    _INDRA_INSTALLED = False  # pragma: no cover
-
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
 from deeplake.core import vectorstore
@@ -26,6 +19,13 @@ def vector_search(
     return_tensors,
     return_view,
 ) -> Union[Dict, DeepLakeDataset]:
+    try:
+        from indra import api  # type: ignore
+
+        _INDRA_INSTALLED = True  # pragma: no cover
+    except ImportError:  # pragma: no cover
+        _INDRA_INSTALLED = False  # pragma: no cover
+
     runtime = utils.get_runtime_from_exec_option(exec_option)
 
     if callable(filter):

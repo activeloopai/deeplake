@@ -70,8 +70,12 @@ def test_tql_metric_to_tql_str(metric, limit=10):
 
 @pytest.mark.slow
 @requires_libdeeplake
-def test_search_resulting_shapes():
-    vector_store = VectorStore("hub://activeloop/paul_graham_essay", read_only=True)
+def test_search_resulting_shapes(hub_cloud_dev_credentials, hub_cloud_dev_token):
+    username, _ = hub_cloud_dev_credentials
+    # index behavior fails on old datasets
+    vector_store = VectorStore(
+        f"hub://{username}/paul_graham_essay", read_only=True, token=hub_cloud_dev_token
+    )
     search_text = "What I Worked On"
 
     def filter_fn(x):
