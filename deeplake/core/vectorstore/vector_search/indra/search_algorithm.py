@@ -75,7 +75,9 @@ def search(
         if not INDRA_INSTALLED:
             raise raise_indra_installation_error(indra_import_error=None)
 
-        from indra import api
+        from deeplake.enterprise.convert_to_libdeeplake import import_indra_api
+
+        api = import_indra_api()
 
         indra_dataset = api.dataset(deeplake_dataset.path, token=token, org_id=org_id)
         api.tql.prepare_deepmemory_metrics(indra_dataset)
