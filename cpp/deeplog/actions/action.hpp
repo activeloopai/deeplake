@@ -12,6 +12,8 @@ namespace deeplog {
 
         virtual std::string action_name() = 0;
 
+        virtual std::shared_ptr<arrow::StructType> action_type() = 0;
+
         template<typename T>
         std::optional<T> from_struct(const std::string &field_name, const std::shared_ptr<arrow::StructScalar> &struct_scalar);
 

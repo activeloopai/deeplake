@@ -28,6 +28,10 @@ namespace deeplog {
         return "metadata";
     }
 
+    std::shared_ptr<arrow::StructType> metadata_action::action_type() {
+        return arrow_type;
+    }
+
     nlohmann::json deeplog::metadata_action::to_json() {
         nlohmann::json json;
 

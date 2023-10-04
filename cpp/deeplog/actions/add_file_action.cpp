@@ -26,6 +26,10 @@ namespace deeplog {
         return "add";
     }
 
+    std::shared_ptr<arrow::StructType> add_file_action::action_type() {
+        return arrow_type;
+    }
+
     nlohmann::json add_file_action::to_json() {
         nlohmann::json json;
         json["path"] = path;

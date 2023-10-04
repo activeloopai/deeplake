@@ -9,6 +9,10 @@
 #include <fstream>
 #include <string>
 #include <nlohmann/json.hpp>
+#include <arrow/io/api.h>
+#include <arrow/compute/api.h>
+#include <parquet/api/reader.h>
+#include <parquet/arrow/reader.h>
 
 class DeeplogTest : public ::testing::Test {
 protected:
@@ -224,6 +228,31 @@ TEST_F(DeeplogTest, checkpoint) {
     EXPECT_EQ(8, new_log->version(deeplog::MAIN_BRANCH_ID));
     EXPECT_EQ(original_metadata->id, new_metadata->id);
     EXPECT_EQ("name 3", new_metadata->name);
+}
+
+TEST_F(DeeplogTest, checkpoint_collapses_actions) {
+    auto log = deeplog::deeplog::create(test_dir, 4);
+
+    auto original_metadata = deeplog::metadata_snapshot(log).metadata();
+
+    log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::metadata_action>(deeplog::metadata_action(original_metadata->id, "first name", "first desc", original_metadata->created_time))});
+    log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), { std::make_shared<deeplog::metadata_action>(deeplog::metadata_action(original_metadata->id, "final name", "final desc", original_metadata->created_time))});
+
+    log->checkpoint(deeplog::MAIN_BRANCH_ID);
+
+    ASSERT_TRUE(list_log_files().contains("00000000000000000002.checkpoint.parquet"));
+
+    auto checkpoint_file = arrow::io::ReadableFile::Open(test_dir+"/_deeplake_log/00000000000000000002.checkpoint.parquet").ValueOrDie();
+    std::unique_ptr<parquet::arrow::FileReader> arrow_reader;
+    EXPECT_TRUE(parquet::arrow::OpenFile(checkpoint_file, arrow::default_memory_pool(), &arrow_reader).ok());
+
+    std::shared_ptr<arrow::Table> table;
+    EXPECT_TRUE(arrow_reader->ReadTable(&table).ok());
+
+    auto metadata_values = arrow::compute::DropNull(table->GetColumnByName("metadata")).ValueOrDie();
+    EXPECT_EQ(1, metadata_values.chunked_array()->length());
+    EXPECT_EQ("final name", std::dynamic_pointer_cast<arrow::StructScalar>(metadata_values.chunked_array()->GetScalar(0).ValueOrDie())->field("name").ValueOrDie()->ToString());
+    EXPECT_EQ("final desc", std::dynamic_pointer_cast<arrow::StructScalar>(metadata_values.chunked_array()->GetScalar(0).ValueOrDie())->field("description").ValueOrDie()->ToString());
 }
 
 //TEST(IntTest, e2eTest) {

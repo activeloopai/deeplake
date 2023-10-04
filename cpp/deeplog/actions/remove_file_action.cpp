@@ -23,6 +23,10 @@ namespace deeplog {
         return "remove";
     }
 
+    std::shared_ptr<arrow::StructType> remove_file_action::action_type() {
+        return arrow_type;
+    }
+
     nlohmann::json remove_file_action::to_json() {
         nlohmann::json json;
 

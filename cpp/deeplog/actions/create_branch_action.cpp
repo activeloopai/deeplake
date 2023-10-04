@@ -26,6 +26,10 @@ namespace deeplog {
         return "branch";
     }
 
+    std::shared_ptr<arrow::StructType> create_branch_action::action_type() {
+        return arrow_type;
+    }
+
     nlohmann::json create_branch_action::to_json() {
         nlohmann::json json;
         json["id"] = id;

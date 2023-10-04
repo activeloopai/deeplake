@@ -26,6 +26,10 @@ namespace deeplog {
         return "commit";
     }
 
+    std::shared_ptr<arrow::StructType> create_commit_action::action_type() {
+        return arrow_type;
+    }
+
     nlohmann::json create_commit_action::to_json() {
         nlohmann::json json;
 

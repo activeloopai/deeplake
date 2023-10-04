@@ -6,7 +6,7 @@
 
 namespace deeplog {
 
-class protocol_action : public action, public replace_action, public std::enable_shared_from_this<protocol_action> {
+    class protocol_action : public action, public replace_action, public std::enable_shared_from_this<protocol_action> {
     public:
         int min_reader_version;
         int min_writer_version;
@@ -21,6 +21,8 @@ class protocol_action : public action, public replace_action, public std::enable
         nlohmann::json to_json() override;
 
         std::string action_name() override;
+
+        std::shared_ptr<arrow::StructType> action_type() override;
 
         bool replaces(std::shared_ptr<action> action) override;
 

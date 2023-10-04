@@ -23,5 +23,6 @@ namespace deeplog {
 
         std::string action_name() override;
 
+        std::shared_ptr<arrow::StructType> action_type() override;
     };
 }
