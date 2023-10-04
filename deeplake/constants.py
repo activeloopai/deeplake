@@ -123,7 +123,6 @@ GDRIVE_PATH_OPT = "--gdrive-path"
 KEEP_STORAGE_OPT = "--keep-storage"
 KAGGLE_OPT = "--kaggle"
 
-
 EMERGENCY_STORAGE_PATH = "/tmp/emergency_storage"
 LOCAL_CACHE_PREFIX = "~/.activeloop/cache"
 DOWNLOAD_MANAGED_PATH_SUFFIX = "__local-managed-entry__"
@@ -246,6 +245,65 @@ DEFAULT_VECTORSTORE_TENSORS = [
     },
 ]
 
+DEFAULT_QUERIES_VECTORSTORE_TENSORS = [
+    {
+        "name": "text",
+        "htype": "text",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "metadata",
+        "htype": "json",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "embedding",
+        "htype": "embedding",
+        "dtype": np.float32,
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": True,
+        "max_chunk_size": 64 * MB,
+    },
+    {
+        "name": "id",
+        "htype": "text",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "deep_memory_top_10",
+        "htype": "json",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "deep_memory_recall",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "vector_search_top_10",
+        "htype": "json",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "vector_search_recall",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+]
+
 VIEW_SUMMARY_SAFE_LIMIT = 10000
 
 # openai constants
@@ -260,6 +318,7 @@ TARGET_BYTE_SIZE = 10000
 QUERY_MESSAGE_MAX_SIZE = 1000
 
 DEFAULT_VECTORSTORE_DISTANCE_METRIC = "COS"
+DEFAULT_DEEPMEMORY_DISTANCE_METRIC = "deepmemory_distance"
 
 DEFAULT_VECTORSTORE_INDEX_PARAMS = {
     "threshold": -1,

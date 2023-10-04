@@ -43,6 +43,7 @@ Deep Lake is an open-source database for AI.
    Sampler <Sampler>
    Tensor Query Language <Tensor-Query-Language>
    Random Split <Random-Split>
+   Deep Memory <Deep-Memory>
 
 .. toctree::
    :maxdepth: 1
@@ -58,6 +59,7 @@ Deep Lake is an open-source database for AI.
    deeplake.client.log
    deeplake.core.transform
    deeplake.core.vectorstore
+   deeplake.core.vectorstore.deep_memory
    deeplake.random
 
 
