@@ -7,13 +7,6 @@ from tqdm import tqdm
 
 import numpy as np
 
-try:
-    from indra import api  # type: ignore
-
-    _INDRA_INSTALLED = True  # pragma: no cover
-except ImportError:  # pragma: no cover
-    _INDRA_INSTALLED = False  # pragma: no cover
-
 import deeplake
 from deeplake.util.path import get_path_type
 from deeplake.core.vectorstore.vector_search import utils
@@ -41,8 +34,16 @@ def create_or_load_dataset(
     overwrite,
     runtime,
     org_id,
+    branch="main",
     **kwargs,
 ):
+    try:
+        from indra import api  # type: ignore
+
+        _INDRA_INSTALLED = True  # pragma: no cover
+    except ImportError:  # pragma: no cover
+        _INDRA_INSTALLED = False  # pragma: no cover
+
     utils.check_indra_installation(
         exec_option=exec_option, indra_installed=_INDRA_INSTALLED
     )
@@ -60,8 +61,8 @@ def create_or_load_dataset(
             creds,
             logger,
             read_only,
-            runtime,
             org_id,
+            branch,
             **kwargs,
         )
 
@@ -76,6 +77,7 @@ def create_or_load_dataset(
         creds,
         runtime,
         org_id,
+        branch,
         **kwargs,
     )
 
@@ -93,8 +95,8 @@ def load_dataset(
     creds,
     logger,
     read_only,
-    runtime,
     org_id,
+    branch,
     **kwargs,
 ):
     if dataset_path == DEFAULT_VECTORSTORE_DEEPLAKE_PATH:
@@ -112,22 +114,13 @@ def load_dataset(
         org_id=org_id,
         **kwargs,
     )
+    dataset.checkout(branch)
     check_tensors(dataset)
 
     logger.warning(
         f"Deep Lake Dataset in {dataset_path} already exists, "
         f"loading from the storage"
     )
-
-    if runtime is not None and runtime["tensor_db"] == True:
-        logger.warning(
-            "Specifying runtime option when loading a Vector Store is not supported and this parameter will "
-            "be ignored. If you wanted to create a new Vector Store, please specify a path to a Vector Store "
-            "that does not already exist. To transfer an existing Vector Store to the Managed Tensor Database, "
-            "use the steps in the link below: "
-            "(https://docs.activeloop.ai/enterprise-features/managed-database/migrating-datasets-to-the-tensor-database)."
-        )
-
     return dataset
 
 
@@ -179,6 +172,7 @@ def create_dataset(
     creds,
     runtime,
     org_id,
+    branch,
     **kwargs,
 ):
     if exec_option == "tensor_db" and (
@@ -202,6 +196,7 @@ def create_dataset(
         org_id=org_id,
         **kwargs,
     )
+    dataset.checkout(branch)
     create_tensors(tensor_params, dataset, logger, embedding_function)
 
     return dataset

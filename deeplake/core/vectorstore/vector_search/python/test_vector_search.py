@@ -46,7 +46,17 @@ def test_vector_search():
         )
 
     data = vector_search.vector_search(
-        None, query_embedding, "python", ds, None, None, "embedding", "l2", 10, [], True
+        query=None,
+        query_emb=query_embedding,
+        exec_option="python",
+        dataset=ds,
+        logger=None,
+        filter=None,
+        embedding_tensor="embedding",
+        distance_metric="l2",
+        k=10,
+        return_tensors=[],
+        return_view=True,
     )
 
     assert len(data) == 10
