@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Union, Dict, List
+from typing import Union, Dict, List, Optional
 
 from deeplake.core.vectorstore.vector_search.indra import query
 from deeplake.core.vectorstore.vector_search import utils

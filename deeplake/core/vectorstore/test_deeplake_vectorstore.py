@@ -1,5 +1,6 @@
 import uuid
 import os
+import sys
 from math import isclose
 from functools import partial
 
@@ -11,6 +12,8 @@ from deeplake.core.vectorstore.deeplake_vectorstore import (
     DeepLakeVectorStore,
     VectorStore,
 )
+from deeplake.core.vectorstore.deepmemory_vectorstore import DeepMemoryVectorStore
+from deeplake.core.vectorstore.vectorstore_factory import vectorstore_factory
 from deeplake.core.vectorstore import utils
 from deeplake.tests.common import requires_libdeeplake
 from deeplake.constants import (
@@ -542,9 +545,9 @@ def test_index_basic(local_path, hub_cloud_dev_token):
         == METRIC_TO_INDEX_METRIC[DEFAULT_VECTORSTORE_DISTANCE_METRIC]
     )
 
-    # Check that distance metric cannot be specified when there is an index
+    # Check that distance metric throws a warning when there is an index
     with pytest.warns(None):
-        vector_store.search(embedding=query_embedding, distance_metric="blabla")
+        vector_store.search(embedding=query_embedding, distance_metric="l1")
 
 
 @pytest.mark.slow
@@ -2000,3 +2003,23 @@ def test_exec_option_with_connected_datasets(
     )
     db.dataset.add_creds_key(hub_cloud_dev_managed_creds_key, managed=True)
     assert db.exec_option == "compute_engine"
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    "runtime",
+    ["runtime", None],
+    indirect=True,
+)
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+def test_vectorstore_factory(hub_cloud_dev_token, hub_cloud_path, runtime):
+    db = vectorstore_factory(
+        path=hub_cloud_path,
+        runtime=runtime,
+        token=hub_cloud_dev_token,
+    )
+
+    if runtime is not None:
+        assert isinstance(db, DeepMemoryVectorStore)
+    else:
+        assert isinstance(db, DeepLakeVectorStore)

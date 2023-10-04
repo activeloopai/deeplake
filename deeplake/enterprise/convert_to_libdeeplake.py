@@ -1,4 +1,4 @@
-from deeplake import Dataset
+from deeplake.core.dataset import Dataset
 
 from deeplake.constants import MB
 from deeplake.core.storage.gcs import GCSProvider
