@@ -542,12 +542,15 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
         Returns:
             bool: True if DeepMemory is available, False otherwise.
         """
-        response = self.request(
-            "GET",
-            f"/api/organizations/{org_id}/features/deepmemory",
-            endpoint=self.endpoint(),
-        )
-        return response.json()["available"]
+        try:
+            response = self.request(
+                "GET",
+                f"/api/organizations/{org_id}/features/deepmemory",
+                endpoint=self.endpoint(),
+            )
+            return response.json()["available"]
+        except Exception:
+            return False
 
     def start_taining(
         self,

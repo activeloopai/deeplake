@@ -14,6 +14,7 @@ from deeplake.client.utils import JobResponseStatusSchema
 from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
+from deeplake.util.path import get_path_type
 
 
 class DeepMemory:
@@ -23,6 +24,7 @@ class DeepMemory:
         client: DeepMemoryBackendClient,
         embedding_function: Optional[Any] = None,
         token: Optional[str] = None,
+        creds: Optional[Dict[str, Any]] = None,
     ):
         """Based Deep Memory class to train and evaluate models on DeepMemory managed service.
 
@@ -31,6 +33,7 @@ class DeepMemory:
             client (DeepMemoryBackendClient): Client to interact with the DeepMemory managed service. Defaults to None.
             embedding_function (Optional[Any], optional): Embedding funtion class used to convert queries/documents to embeddings. Defaults to None.
             token (Optional[str], optional): API token for the DeepMemory managed service. Defaults to None.
+            creds (Optional[Dict[str, Any]], optional): Credentials to access the dataset. Defaults to None.
 
         Raises:
             ImportError: if indra is not installed
@@ -49,10 +52,12 @@ class DeepMemory:
         self.token = token
         self.embedding_function = embedding_function
         self.client = client
+        self.creds = creds or {}
         self.queries_dataset = deeplake.dataset(
             self.dataset.path + "_eval_queries",
             token=token,
             read_only=False,
+            creds=self.creds,
         )
         if len(self.queries_dataset) == 0:
             self.queries_dataset.commit(allow_empty=True)
@@ -109,12 +114,16 @@ class DeepMemory:
         if embedding_function is None and self.embedding_function is not None:
             embedding_function = self.embedding_function.embed_documents
 
+        runtime = None
+        if get_path_type(corpus_path) == "hub":
+            runtime = {"tensor_db": True}
         queries_vs = VectorStore(
             path=queries_path,
             overwrite=True,
-            runtime={"tensor_db": True},
+            runtime=runtime,
             embedding_function=embedding_function,
             token=token or self.token,
+            creds=self.creds,
         )
 
         queries_vs.add(

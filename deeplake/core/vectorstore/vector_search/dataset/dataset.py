@@ -8,7 +8,6 @@ from tqdm import tqdm
 import numpy as np
 
 import deeplake
-from deeplake.util.path import get_path_type
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
 from deeplake.constants import (
@@ -47,7 +46,6 @@ def create_or_load_dataset(
     utils.check_indra_installation(
         exec_option=exec_option, indra_installed=_INDRA_INSTALLED
     )
-    org_id = org_id if get_path_type(dataset_path) == "local" else None
 
     if not overwrite and dataset_exists(dataset_path, token, creds, **kwargs):
         if tensor_params is not None and tensor_params != DEFAULT_VECTORSTORE_TENSORS:
