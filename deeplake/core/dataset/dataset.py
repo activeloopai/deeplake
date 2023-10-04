@@ -1359,9 +1359,8 @@ class Dataset:
             old_version_state = self.version_state
             self.version_state = None
             self._load_version_info(branch)
-            self.version_state = dict(
-                list(old_version_state.items()) + list(self.version_state.items())
-            )
+            self.version_state.update(old_version_state)
+            load_meta(self)
 
     def _load_version_info(self, address=None):
         """Loads data from version_control_file otherwise assume it doesn't exist and load all empty"""

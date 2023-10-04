@@ -78,6 +78,7 @@ class StorageProvider(ABC, MutableMapping):
 
         storage_to_use = get_base_storage(self)
         storage_to_use._deeplog = deeplog
+        storage_to_use._staged_transaction = None
 
     @property
     def deeplog(self) -> Union[DeepLog, None]:

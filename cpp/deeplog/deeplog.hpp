@@ -14,6 +14,7 @@ namespace deeplog {
 
     const std::string MAIN_BRANCH_ID = "";
     const std::string MAIN_BRANCH_NAME = "main";
+    std::string zero_pad(const long &version);
 
     class deeplog {
     public:

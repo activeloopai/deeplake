@@ -6,6 +6,7 @@
 #include "../../../deeplog/actions/remove_file_action.hpp"
 #include "../../../deeplog/actions/create_commit_action.hpp"
 #include "../../../deeplog/actions/create_tensor_action.hpp"
+#include <variant>
 
 namespace py_api {
 
@@ -13,9 +14,10 @@ namespace py_api {
         pybind11::class_<deeplog::action, std::shared_ptr<deeplog::action>>(module, "DeepLogAction");
 
         pybind11::class_<deeplog::add_file_action, deeplog::action, std::shared_ptr<deeplog::add_file_action>>(module, "AddFileAction")
-                .def(pybind11::init<std::string, long, long, bool>(),
-                     pybind11::arg("path"), pybind11::arg("size"), pybind11::arg("modification_time"), pybind11::arg("data_change"))
+                .def(pybind11::init<std::string, std::string, long, long, bool>(),
+                     pybind11::arg("path"), pybind11::arg("type"), pybind11::arg("size"), pybind11::arg("modification_time"), pybind11::arg("data_change"))
                 .def_readonly("path", &deeplog::add_file_action::path)
+                .def_readonly("type", &deeplog::add_file_action::type)
                 .def_readonly("size", &deeplog::add_file_action::size)
                 .def_readonly("modification_time", &deeplog::add_file_action::modification_time);
 
@@ -40,7 +42,7 @@ namespace py_api {
         pybind11::class_<deeplog::create_tensor_action, deeplog::action, std::shared_ptr<deeplog::create_tensor_action>>(module, "CreateTensorAction")
                 .def(pybind11::init<std::string, std::string, std::optional<std::string>, std::string, long, bool, bool, bool, std::optional<std::string>,
                              std::optional<std::string>,
-                             std::map<std::string, std::map<std::string, std::string>>,
+                             std::map<std::string, std::map<std::string, std::variant<std::string, bool>>>,
                              std::optional<long>,
                              std::vector<unsigned long>,
                              std::vector<unsigned long>,

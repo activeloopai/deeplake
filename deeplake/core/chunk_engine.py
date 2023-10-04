@@ -107,9 +107,15 @@ from deeplake.compression import (
     get_compression_type,
 )
 from deeplake.core.sample import Sample
+
+from deeplake.deeplog.adapters import parse_commit_id
+from deeplake.deeplog import DeepLogSnapshot, OptimisticTransaction
+from deeplake.deeplog.actions import UpdateTensorAction, AddFileAction
+
 from itertools import chain, repeat
 from collections.abc import Iterable
 from PIL import Image  # type: ignore
+import time
 
 
 class ChunkEngine:
@@ -182,7 +188,6 @@ class ChunkEngine:
         self.base_storage = get_base_storage(cache)
         self._meta_cache = meta_cache
         self.version_state = version_state
-        self.name = version_state["tensor_names"].get(self.key)
         self.compression = None
         self.chunk_class = BaseChunk
 
@@ -247,6 +252,8 @@ class ChunkEngine:
         self.write_initialization_done = False
         self.start_chunk = None
         self.link_creds: Optional[LinkCreds] = None
+
+        self._staged_transaction: Optional[OptimisticTransaction] = None
 
     @property
     def sample_compression(self):
@@ -977,6 +984,170 @@ class ChunkEngine:
 
         if not register:
             return updated_chunks, tiles
+    
+    def _samples_to_chunks_v4(
+        self,
+        samples,
+        update_commit_diff: bool = False,
+        update_tensor_meta: bool = True,
+        progressbar: bool = False,
+        register_creds: bool = True,
+        pg_callback: Optional[Callable] = None,
+        return_samples: bool = False,
+        ignore_errors: bool = False,
+    ):
+        lengths = None
+        orig_meta_length = self.tensor_meta.length
+        incoming_num_samples = len(samples)
+        enc_ids: List[Optional[str]] = []
+        enc_count = [0]
+        chunk_sizes = []
+
+        if self.tensor_meta.htype == "text" and (
+            self.chunk_class != SampleCompressedChunk
+        ):
+            lengths = np.zeros(len(samples), dtype=np.uint32)
+            for i, s in enumerate(samples):
+                try:
+                    s = s.numpy()
+                except AttributeError:
+                    pass
+                try:
+                    if s.dtype.name[:3] == "str":
+                        lengths[i] = len(str(s.reshape(())))
+                except AttributeError:
+                    try:
+                        lengths[i] = s.__len__()
+                    except AttributeError:  # None
+                        lengths[i] = 0
+                    except TypeError:  # Numpy scalar str
+                        lengths[i] = str(s).__len__()
+        extra_args = {"lengths": lengths}
+        current_chunk = self._create_new_chunk()
+        current_chunk._update_tensor_meta_length = False
+        enc_ids.append(current_chunk.id)
+        enc = self.chunk_id_encoder
+        tiles: Dict[int, Tuple[Tuple[int, ...], Tuple[int, ...]]] = {}
+        if update_commit_diff:
+            commit_diff = self.commit_diff
+        if progressbar:
+            pbar = tqdm(total=len(samples))
+        if not isinstance(samples, list) and not (
+            isinstance(samples, np.ndarray) and self._numpy_extend_optimization_enabled
+        ):
+            # Note: in the future we can get rid of this conversion of sample compressed chunks too by predicting the compression ratio.
+            samples = list(samples)
+        verified_samples = []
+        current_chunk_full = False
+        while len(samples) > 0:
+            if current_chunk_full:
+                num_samples_added = 0
+                current_chunk_full = False
+            else:
+                initial_num_samples = len(samples)
+                num_samples_added = current_chunk.extend_if_has_space(
+                    samples, update_tensor_meta=update_tensor_meta, ignore_errors=ignore_errors, **extra_args  # type: ignore
+                )  # type: ignore
+                skipped_num_samples = initial_num_samples - len(samples)
+                incoming_num_samples -= skipped_num_samples
+                if register_creds:
+                    self.register_new_creds(num_samples_added, samples)
+            if num_samples_added == 0:
+                chunk_sizes.append(current_chunk.nbytes)
+                current_chunk = self._create_new_chunk()
+                current_chunk._update_tensor_meta_length = False
+                enc_ids.append(current_chunk.id)
+                enc_count.append(0)
+            elif num_samples_added == PARTIAL_NUM_SAMPLES:
+                sample = samples[0]
+                if self.tensor_meta.is_link:
+                    verified_samples.append(sample)
+                else:
+                    if sample.is_first_write:
+                        verified_samples.append(sample)
+                num_samples_added, samples, lengths = self._handle_tiled_sample(
+                    enc,
+                    True,
+                    samples,
+                    orig_meta_length,
+                    incoming_num_samples,
+                    None,
+                    enc_count,
+                    tiles,
+                    lengths,
+                )
+                if len(samples) > 0:
+                    chunk_sizes.append(current_chunk.nbytes)
+                    current_chunk = self._create_new_chunk()
+                    current_chunk._update_tensor_meta_length = False
+                    enc_ids.append(current_chunk.id)
+                    enc_count.append(0)
+            elif num_samples_added == FAST_EXTEND_BAIL:
+                num_samples_added = 0
+                samples = list(samples)
+            else:
+                current_chunk_full = True
+                verified_samples.extend(samples[:num_samples_added])
+                num_samples_added, samples, lengths = self._handle_one_or_more_samples(
+                    enc,
+                    True,
+                    samples,
+                    num_samples_added,
+                    [],
+                    None,
+                    current_chunk,
+                    enc_count,
+                    lengths,
+                )
+            if progressbar:
+                pbar.update(num_samples_added)
+            elif pg_callback is not None:
+                pg_callback(num_samples_added)
+        
+        # add last chunk
+        chunk_sizes.append(current_chunk.nbytes)
+
+        self.tensor_meta.update_length(incoming_num_samples)
+        if enc_count:
+            enc_arr = enc._encoded
+            n = len(enc_arr)
+            if n:
+                enc_count[0] += enc_arr[-1, 1]
+            else:
+                enc_count[0] -= 1
+            enc_last_seen = np.cumsum(enc_count, dtype=np.uint64)
+            arr = np.zeros((n + len(enc_ids), 2), dtype=np.uint64)
+            if n:
+                arr[:n] = enc_arr
+            new = arr[n:]
+            new[:, 0] = enc_ids
+            new[:, 1] = enc_last_seen
+            enc._encoded = arr
+            enc.is_dirty = True
+        
+        transaction = self.base_storage._staged_transaction
+        if transaction is None:
+            branch_id, version = parse_commit_id(self.commit_id)
+            snapshot = DeepLogSnapshot(branch_id, version, self.base_storage.deeplog)
+            transaction = OptimisticTransaction(snapshot)
+            self.base_storage._staged_transaction = transaction
+        assert len(enc_ids) == len(chunk_sizes)
+        for chunk_id, chunk_size in zip(enc_ids, chunk_sizes):
+            chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+            transaction.add(AddFileAction(get_chunk_key(self.key, chunk_name, self.commit_id), "chunk", chunk_size, int(time.time()), True))
+        transaction.add(UpdateTensorAction(id=self.key, name=self.name, **self.tensor_meta._action_kwargs()))
+
+        if update_commit_diff:
+            commit_diff.add_data(incoming_num_samples)
+        tenc = self.tile_encoder
+        tenc.entries.update(tiles)
+        tenc.is_dirty = True
+        if progressbar:
+            pbar.close()
+
+        if return_samples:
+            return verified_samples
+
 
     def _handle_one_or_more_samples(
         self,
@@ -1066,16 +1237,26 @@ class ChunkEngine:
         samples, verified_samples = self._sanitize_samples(
             samples, pg_callback=pg_callback, ignore_errors=ignore_errors
         )
-        samples = self._samples_to_chunks(
-            samples,
-            start_chunk=self.last_appended_chunk(allow_copy=False),
-            register=True,
-            progressbar=progressbar,
-            update_commit_diff=update_commit_diff,
-            pg_callback=pg_callback,
-            return_samples=True,
-            ignore_errors=ignore_errors,
-        )
+        if self.base_storage.deeplog.log_format() < 4:
+            samples = self._samples_to_chunks(
+                samples,
+                start_chunk=self.last_appended_chunk(allow_copy=False),
+                register=True,
+                progressbar=progressbar,
+                update_commit_diff=update_commit_diff,
+                pg_callback=pg_callback,
+                return_samples=True,
+                ignore_errors=ignore_errors,
+            )
+        else:
+            samples = self._samples_to_chunks_v4(
+                samples,
+                update_commit_diff=update_commit_diff,
+                progressbar=progressbar,
+                pg_callback=pg_callback,
+                return_samples=True,
+                ignore_errors=ignore_errors,
+            )
         return verified_samples or samples
 
     def _extend_link_callback(

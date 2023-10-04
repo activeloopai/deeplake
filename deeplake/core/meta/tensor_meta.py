@@ -234,6 +234,26 @@ class TensorMeta(Meta):
 
     def __str__(self):
         return str(self.__getstate__())
+    
+    def _action_kwargs(self):
+        return {
+            "dtype": self.dtype,
+            "htype": self.htype,
+            "length": self.length,
+            "is_link": self.is_link,
+            "is_sequence": self.is_sequence,
+            "hidden": self.hidden,
+            "chunk_compression": self.chunk_compression,
+            "sample_compression": self.sample_compression,
+            "links": self.links,
+            "max_chunk_size": self.max_chunk_size,
+            "min_shape": self.min_shape,
+            "max_shape": self.max_shape,
+            "tiling_threshold": self.tiling_threshold,
+            "typestr": self.typestr,
+            "verify": self.verify,
+            "version": self.version,
+        }
 
 
 def _validate_links(links: dict):

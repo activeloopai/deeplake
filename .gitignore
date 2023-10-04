@@ -26,6 +26,7 @@ dask-worker-space/
 *.exp
 *.lib
 *.dll
+*.pdb
 *.exe
 *.o
 *.so

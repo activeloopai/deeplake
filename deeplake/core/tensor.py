@@ -68,8 +68,7 @@ from deeplake.util.object_3d.mesh import (
     get_mesh_vertices,
 )
 from deeplake.deeplog.actions import CreateTensorAction
-from deeplake.deeplog import DeepLogSnapshot
-from deeplake.deeplog import OptimisticTransaction
+from deeplake.deeplog import DeepLogSnapshot, OptimisticTransaction, atomic
 from deeplake.deeplog.adapters import parse_commit_id, to_commit_id
 
 from deeplake.htype import (
@@ -342,6 +341,7 @@ class Tensor:
             ].chunk_engine
 
     @invalid_view_op
+    @atomic
     def extend(
         self,
         samples: Union[np.ndarray, Sequence[InputSample], "Tensor"],
@@ -449,6 +449,7 @@ class Tensor:
             raise TypeError("Info must be set with type Dict")
 
     @invalid_view_op
+    @atomic
     def append(self, sample: InputSample):
         """Appends a single sample to the end of the tensor. Can be an array, scalar value, or the return value from :func:`deeplake.read`,
         which can be used to load files. See examples down below.

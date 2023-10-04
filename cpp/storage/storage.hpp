@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include "file_ref.hpp"
 
 namespace storage {

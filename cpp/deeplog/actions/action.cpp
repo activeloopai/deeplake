@@ -27,12 +27,12 @@ namespace deeplog {
 
     template<typename T>
     std::vector<T> action::from_arraystruct(const std::string &field_name, const std::shared_ptr<arrow::StructScalar> &struct_scalar) {
-        auto list_scalar = reinterpret_pointer_cast<arrow::ListScalar>(struct_scalar->field(field_name).ValueOrDie());
+        auto list_scalar = std::reinterpret_pointer_cast<arrow::ListScalar>(struct_scalar->field(field_name).ValueOrDie());
         if (!list_scalar->is_valid) {
             return {};
         }
 
-        auto array = reinterpret_pointer_cast<arrow::UInt64Array>(list_scalar->value);
+        auto array = std::reinterpret_pointer_cast<arrow::UInt64Array>(list_scalar->value);
 
         std::vector<T> return_vector = {};
         return_vector.reserve(array->length());

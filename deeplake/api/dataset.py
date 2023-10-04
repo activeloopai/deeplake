@@ -103,6 +103,7 @@ class dataset:
         check_integrity: bool = True,
         lock_enabled: Optional[bool] = True,
         lock_timeout: Optional[int] = 0,
+        log_format: int = 4,
     ):
         """Returns a :class:`~deeplake.core.dataset.Dataset` object referencing either a new or existing dataset.
 
@@ -255,6 +256,7 @@ class dataset:
             "verbose": verbose,
             "lock_timeout": lock_timeout,
             "lock_enabled": lock_enabled,
+            "log_format": log_format,
         }
 
         if access_method == "stream":
@@ -722,7 +724,7 @@ class dataset:
                 DeepLog.create(dataset_kwargs["storage"], dataset_kwargs["log_format"])
             )
         else:
-            dataset_kwargs["storage"].set_deeplog(DeepLog.open(dataset_kwargs["path"]))
+            dataset_kwargs["storage"].set_deeplog(DeepLog.open(dataset_kwargs["storage"]))
 
         if access_method in ("stream", None):
             ret = dataset_factory(**dataset_kwargs)

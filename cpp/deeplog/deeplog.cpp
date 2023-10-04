@@ -44,7 +44,7 @@ namespace deeplog {
             return std::make_shared<deeplog_v3>(deeplog_v3(storage));
         }
 
-        if (storage->file("/_deeplake_log").exists()) {
+        if (storage->file("/_deeplake_log" + zero_pad(0) + ".json").exists()) {
             throw std::runtime_error("DeepLake config already exists");
         }
 
@@ -68,7 +68,7 @@ namespace deeplog {
     }
 
     std::shared_ptr<deeplog> deeplog::open(const std::shared_ptr<storage::storage> &storage) {
-        if (!storage->file("/_deeplake_log").exists()) {
+        if (!storage->file("/_deeplake_log/" + zero_pad(0) + ".json").exists()) {
             if (storage->file("/dataset_meta.json").exists()) {
                 return std::make_shared<deeplog_v3>(deeplog_v3(storage));
             }

@@ -16,7 +16,7 @@ namespace deeplog {
         bool hidden;
         std::optional<std::string> chunk_compression;
         std::optional<std::string> sample_compression;
-        std::map<std::string, std::map<std::string, std::string>> links;
+        std::map<std::string, std::map<std::string, std::variant<std::string, bool>>> links;
         std::optional<long> max_chunk_size;
         std::vector<unsigned long> min_shape;
         std::vector<unsigned long> max_shape;
@@ -38,7 +38,7 @@ namespace deeplog {
                              const bool &hidden,
                              const std::optional<std::string> &chunk_compression,
                              const std::optional<std::string> &sample_compression,
-                             const std::map<std::string, std::map<std::string, std::string>> &links,
+                             const std::map<std::string, std::map<std::string, std::variant<std::string, bool>>> &links,
                              const std::optional<long> &max_chunk_size,
                              const std::vector<unsigned long> &min_shape,
                              const std::vector<unsigned long> &max_shape,

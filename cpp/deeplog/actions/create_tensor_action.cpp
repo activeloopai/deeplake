@@ -9,8 +9,8 @@ namespace deeplog {
                                    arrow::field("dtype", arrow::utf8(), true),
                                    arrow::field("htype", arrow::utf8(), true),
                                    arrow::field("length", arrow::uint64(), true),
-                                   arrow::field("link", arrow::boolean(), true),
-                                   arrow::field("sequence", arrow::boolean(), true),
+                                   arrow::field("is_link", arrow::boolean(), true),
+                                   arrow::field("is_sequence", arrow::boolean(), true),
                                    arrow::field("hidden", arrow::boolean(), true),
                                    arrow::field("chunkCompression", arrow::utf8(), true),
                                    arrow::field("sampleCompression", arrow::utf8(), true),
@@ -34,7 +34,7 @@ namespace deeplog {
                                                const bool &hidden,
                                                const std::optional<std::string> &chunk_compression,
                                                const std::optional<std::string> &sample_compression,
-                                               const std::map<std::string, std::map<std::string, std::string>> &links,
+                                               const std::map<std::string, std::map<std::string, std::variant<std::string, bool>>> &links,
                                                const std::optional<long> &max_chunk_size,
                                                const std::vector<unsigned long> &min_shape,
                                                const std::vector<unsigned long> &max_shape,
@@ -59,8 +59,8 @@ namespace deeplog {
         dtype = from_struct<std::string>("dtype", value);
         htype = from_struct<std::string>("htype", value).value();
         length = from_struct<long>("length", value).value();
-        is_link = from_struct<bool>("link", value).value();
-        is_sequence = from_struct<bool>("sequence", value).value();
+        is_link = from_struct<bool>("is_link", value).value();
+        is_sequence = from_struct<bool>("is_sequence", value).value();
         hidden = from_struct<bool>("hidden", value).value();
         chunk_compression = from_struct<std::string>("chunkCompression", value);
         sample_compression = from_struct<std::string>("sampleCompression", value);
@@ -85,8 +85,8 @@ namespace deeplog {
         json["dtype"] = to_json_value<std::string>(dtype);
         json["htype"] = htype;
         json["length"] = length;
-        json["link"] = is_link;
-        json["sequence"] = is_sequence;
+        json["is_link"] = is_link;
+        json["is_sequence"] = is_sequence;
         json["hidden"] = hidden;
         json["chunkCompression"] = to_json_value<std::string>(chunk_compression);
         json["sampleCompression"] = to_json_value<std::string>(sample_compression);
