@@ -8,6 +8,7 @@ import numpy as np
 import deeplake
 from deeplake.core.distance_type import DistanceType
 from deeplake.util.dataset import try_flushing
+from deeplake.util.path import convert_pathlib_to_string_if_needed
 
 from deeplake.api import dataset
 from deeplake.core.dataset import Dataset
@@ -131,9 +132,9 @@ class VectorStore:
             self.indra_installed = False  # pragma: no cover
 
         self._token = token
-        self.path = path
+        self.path = convert_pathlib_to_string_if_needed(path)
         self.logger = logger
-        self.org_id = org_id if get_path_type(path) == "local" else None
+        self.org_id = org_id if get_path_type(self.path) == "local" else None
 
         feature_report_path(
             path,
