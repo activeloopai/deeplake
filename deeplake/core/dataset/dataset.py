@@ -3318,7 +3318,8 @@ class Dataset:
                         saved[k].append(old_sample)
                     self[k] = v
                 # Regenerate Index
-                self.incr_maintenance_vdb_indexes(self.index, _INDEX_OPERATION_MAPPING["UPDATE"])
+                self.incr_maintenance_vdb_indexes(list(self.index.values[0].indices(len(self))),
+                                                  _INDEX_OPERATION_MAPPING["UPDATE"])
 
             except Exception as e:
                 for k, v in saved.items():
@@ -4608,7 +4609,7 @@ class Dataset:
                 if tensor.num_samples > index:
                     tensor.pop(index)
             # Regenerate vdb indexes.
-            self.incr_maintenance_vdb_indexes(index, _INDEX_OPERATION_MAPPING["REMOVE"])
+            self.incr_maintenance_vdb_indexes([index], _INDEX_OPERATION_MAPPING["REMOVE"])
 
     @property
     def is_view(self) -> bool:
