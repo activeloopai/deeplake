@@ -41,11 +41,13 @@ class DeepLakeQueryDataset(Dataset):
         enabled_tensors=None,
         index: Optional[Index] = None,
     ):
-        self.deeplake_ds = deeplake_ds
-        self.indra_ds = indra_ds
-        self.group_index = group_index or deeplake_ds.group_index
-        self.enabled_tensors = enabled_tensors or deeplake_ds.enabled_tensors
-        self._index = index or self.deeplake_ds.index
+        d: Dict[str, Any] = {}
+        d["deeplake_ds"] = deeplake_ds
+        d["indra_ds"] = indra_ds
+        d["group_index"] = group_index or deeplake_ds.group_index
+        d["enabled_tensors"] = enabled_tensors or deeplake_ds.enabled_tensors
+        d["_index"] = index or deeplake_ds.index
+        self.__dict__.update(d)
 
     @property
     def meta(self):
