@@ -463,6 +463,35 @@ def corpus_query_relevances_copy(request, hub_cloud_dev_token):
     delete_if_exists(queries_path, hub_cloud_dev_token)
 
 
+@pytest.fixture
+def deep_memory_local_dataset(request, hub_cloud_dev_token):
+    if not is_opt_true(request, HUB_CLOUD_OPT):
+        pytest.skip(f"{HUB_CLOUD_OPT} flag not set")
+        return
+
+    corpus_path = _get_storage_path(request, LOCAL)
+    queries_path = corpus_path + "_eval_queries"
+
+    deeplake.deepcopy(
+        f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus",
+        corpus_path,
+        token=hub_cloud_dev_token,
+        overwrite=True,
+    )
+
+    deeplake.deepcopy(
+        f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus_eval_queries",
+        queries_path,
+        token=hub_cloud_dev_token,
+        overwrite=True,
+    )
+
+    yield corpus_path, queries_path
+
+    delete_if_exists(corpus_path, hub_cloud_dev_token)
+    delete_if_exists(queries_path, hub_cloud_dev_token)
+
+
 def delete_if_exists(path, token):
     try:
         deeplake.delete(path, force=True, large_ok=True, token=token)

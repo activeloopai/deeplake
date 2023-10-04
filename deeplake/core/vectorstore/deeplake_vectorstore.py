@@ -173,7 +173,7 @@ class VectorStore:
             embedding_function,
             overwrite,
             runtime,
-            org_id,
+            self.org_id,
             branch,
             **kwargs,
         )
