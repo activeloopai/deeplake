@@ -101,7 +101,7 @@ class TransformTensor:
 
     def _item_added(self, item):
         if self.dataset.all_chunk_engines:
-            self.dataset.item_added(item)
+            self.dataset.item_added(item, self.name)
 
     def _verify_item(self, item):
         if (

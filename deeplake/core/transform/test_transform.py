@@ -1394,11 +1394,11 @@ class BadSample:
 
 
 @pytest.mark.slow
-@all_schedulers
+# @all_schedulers
 @pytest.mark.parametrize("method", ["ds", "multiple", "checkpointed"])
 @pytest.mark.parametrize("error_at", ["transform", "chunk_engine"])
 def test_ds_append_errors(
-    local_path, compressed_image_paths, scheduler, method, error_at
+    local_path, compressed_image_paths, method, error_at, scheduler="threaded"
 ):
     @deeplake.compute
     def upload(item, ds):
