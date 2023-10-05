@@ -12,9 +12,9 @@
 
 namespace deeplog {
 
-    const std::string MAIN_BRANCH_ID = "";
-    const std::string MAIN_BRANCH_NAME = "main";
-    std::string zero_pad(const long &version);
+    const std::string META_BRANCH_ID = "_meta";
+
+    std::string zero_pad(const unsigned long &version);
 
     class deeplog {
     public:
@@ -28,19 +28,19 @@ namespace deeplog {
 
         virtual int log_format() const;
 
-        long version(const std::string &branch_id) const;
+        unsigned long version(const std::string &branch_id) const;
 
-        std::vector<std::shared_ptr<create_commit_action>> commits(const std::string &branch_id, const std::optional<long> &version);
+        std::vector<std::shared_ptr<create_commit_action>> commits(const std::string &branch_id, const std::optional<unsigned long> &version);
 
         void commit(const std::string &branch_id,
-                    const long &base_version,
+                    const unsigned long &base_version,
                     const std::vector<std::shared_ptr<action>> &actions);
 
         void checkpoint(const std::string &branch_id);
 
-        arrow::Result<std::shared_ptr<arrow::Table>> action_data(const std::string &branch_id, const long &from, const std::optional<long> &to) const;
+        arrow::Result<std::shared_ptr<arrow::Table>> action_data(const std::string &branch_id, const unsigned long &from, const std::optional<unsigned long> &to) const;
 
-        std::tuple<std::shared_ptr<std::vector<std::shared_ptr<action>>>, long> get_actions(const std::string &branch_id, const std::optional<long> &to) const;
+        std::tuple<std::shared_ptr<std::vector<std::shared_ptr<action>>>, long> get_actions(const std::string &branch_id, const std::optional<unsigned long> &to) const;
 
     protected:
 
@@ -49,9 +49,9 @@ namespace deeplog {
 
     private:
 
-        arrow::Result<std::shared_ptr<arrow::Table>> read_checkpoint(const std::string &dir_path, const long &version) const;
+        arrow::Result<std::shared_ptr<arrow::Table>> read_checkpoint(const std::string &dir_path, const unsigned long &version) const;
 
-        arrow::Status write_checkpoint(const std::string &branch_id, const long &version);
+        arrow::Status write_checkpoint(const std::string &branch_id, const unsigned long &version);
 
         long file_version(const std::string &path) const;
 

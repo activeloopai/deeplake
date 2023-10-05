@@ -2,11 +2,11 @@
 #include <spdlog/spdlog.h>
 
 namespace deeplog {
-    metadata_snapshot::metadata_snapshot(const std::shared_ptr<::deeplog::deeplog> &deeplog) : base_snapshot(deeplog) {
+    metadata_snapshot::metadata_snapshot(const std::shared_ptr<::deeplog::deeplog> &deeplog) : base_snapshot(META_BRANCH_ID, std::nullopt, deeplog) {
         spdlog::debug("Metadata snapshot created for version {} with {} actions", version, actions_->size());
     }
 
-    metadata_snapshot::metadata_snapshot(const long &version, const std::shared_ptr<::deeplog::deeplog> &deeplog) : base_snapshot(version, deeplog) {
+    metadata_snapshot::metadata_snapshot(const unsigned long &version, const std::shared_ptr<::deeplog::deeplog> &deeplog) : base_snapshot(META_BRANCH_ID, version, deeplog) {
         spdlog::debug("Metadata snapshot created for version {} with {} actions", version, actions_->size());
     }
 
@@ -22,25 +22,16 @@ namespace deeplog {
         return find_actions<create_branch_action>();
     }
 
-    std::shared_ptr<create_branch_action> metadata_snapshot::branch_by_id(const std::string &branch_id) const {
+    std::shared_ptr<create_branch_action> metadata_snapshot::find_branch(const std::string &address) const {
         auto all_branches = branches();
 
         std::input_iterator auto branch = std::ranges::find_if(all_branches.begin(), all_branches.end(),
-                                           [branch_id](std::shared_ptr<create_branch_action> b) { return b->id == branch_id; });
+                                           [address](std::shared_ptr<create_branch_action> b) { return b->id == address || b->name == address; });
         if (branch == all_branches.end()) {
-            throw std::runtime_error("Branch id '" + branch_id + "' not found");
+            throw std::runtime_error("Branch '" + address + "' not found");
         }
 
 
         return *branch;
-    }
-
-    std::optional<std::string> metadata_snapshot::branch_id(const std::string &name) const {
-        for (auto &branch: branches()) {
-            if (branch->name == name) {
-                return branch->id;
-            }
-        }
-        return std::nullopt;
     }
 }

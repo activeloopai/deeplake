@@ -2,7 +2,6 @@
 
 #include "action.hpp"
 #include "replace_action.hpp"
-#include <uuid.h>
 #include <random>
 #include <nlohmann/json.hpp>
 #include <arrow/api.h>
@@ -35,8 +34,4 @@ namespace deeplog {
         std::shared_ptr<action> replace(std::shared_ptr<action> action) override;
 
     };
-
-    std::string generate_uuid();
-
-    long current_timestamp();
 }

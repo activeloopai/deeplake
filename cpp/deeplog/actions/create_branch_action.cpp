@@ -8,18 +8,18 @@ namespace deeplog {
                                    arrow::field("id", arrow::utf8(), true),
                                    arrow::field("name", arrow::utf8(), true),
                                    arrow::field("fromId", arrow::utf8(), true),
-                                   arrow::field("fromVersion", arrow::int64(), true),
+                                   arrow::field("fromVersion", arrow::uint64(), true),
                            }));
 
 
-    create_branch_action::create_branch_action(std::string id, std::string name, std::string from_id, const long &from_version) :
+    create_branch_action::create_branch_action(std::string id, std::string name, std::optional<std::string> from_id, const std::optional<unsigned long> &from_version) :
             id(std::move(id)), name(std::move(name)), from_id(std::move(from_id)), from_version(from_version) {}
 
     create_branch_action::create_branch_action(const std::shared_ptr<arrow::StructScalar> &value) {
         id = from_struct<std::string>("id", value).value();
         name = from_struct<std::string>("name", value).value();
-        from_id = from_struct<std::string>("fromId", value).value();
-        from_version = from_struct<long>("fromVersion", value).value();
+        from_id = from_struct<std::string>("fromId", value);
+        from_version = from_struct<long>("fromVersion", value);
     }
 
     std::string create_branch_action::action_name() {
@@ -34,8 +34,8 @@ namespace deeplog {
         nlohmann::json json;
         json["id"] = id;
         json["name"] = name;
-        json["fromId"] = from_id;
-        json["fromVersion"] = from_version;
+        json["fromId"] = to_json_value(from_id);
+        json["fromVersion"] = to_json_value(from_version);
 
         return json;
     }

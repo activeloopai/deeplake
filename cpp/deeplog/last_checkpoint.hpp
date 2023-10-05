@@ -9,9 +9,9 @@ namespace deeplog {
 
         last_checkpoint();
 
-        last_checkpoint(long version, long size);
+        last_checkpoint(unsigned long version, long size);
 
-        long version;
+        unsigned long version;
         long size;
     };
 

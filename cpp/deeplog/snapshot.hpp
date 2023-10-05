@@ -14,7 +14,7 @@ namespace deeplog {
 
         snapshot(std::string branch_id, const std::shared_ptr<::deeplog::deeplog> &deeplog);
 
-        snapshot(std::string branch_id, const long &version, const std::shared_ptr<::deeplog::deeplog> &deeplog);
+        snapshot(std::string branch_id, const unsigned long &version, const std::shared_ptr<::deeplog::deeplog> &deeplog);
 
         const std::string branch_id;
 

@@ -69,4 +69,6 @@ namespace deeplog {
 
     template nlohmann::json action::to_json_value(const std::optional<long> &value);
 
+    template nlohmann::json action::to_json_value(const std::optional<unsigned long> &value);
+
 };

@@ -44,8 +44,7 @@ namespace py_api {
                 .def("protocol", &::deeplog::metadata_snapshot::protocol)
                 .def("metadata", &::deeplog::metadata_snapshot::metadata)
                 .def("branches", &::deeplog::metadata_snapshot::branches)
-                .def("branch_by_id", &::deeplog::metadata_snapshot::branch_by_id)
-                .def("branch_id", &::deeplog::metadata_snapshot::branch_id)
+                .def("find_branch", &::deeplog::metadata_snapshot::find_branch)
                 .def_readonly("version", &::deeplog::metadata_snapshot::version);
 
         pybind11::class_<::deeplog::optimistic_transaction>(module, "OptimisticTransaction")

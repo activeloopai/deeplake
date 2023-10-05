@@ -23,17 +23,17 @@ protected:
 
 TEST_F(DeeplogSnapshotTest, construct) {
     auto log = deeplog::deeplog::create(test_dir, 4);
+    auto main_id = deeplog::metadata_snapshot(log).find_branch("main")->id;
 
-    auto original_metadata = deeplog::metadata_snapshot(log).metadata();
-    auto action = deeplog::metadata_action(original_metadata->id, "new name", "new desc", original_metadata->created_time);
-    log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::metadata_action>(action)});
+    auto action = deeplog::add_file_action("my/path", "chunk", 3, 45, true);
+    log->commit(main_id, log->version(main_id), {std::make_shared<deeplog::add_file_action>(action)});
 
-    auto snapshot0 = deeplog::snapshot(deeplog::MAIN_BRANCH_ID, 0, log);
-    auto snapshot1 = deeplog::snapshot(deeplog::MAIN_BRANCH_ID, 1, log);
+    auto snapshot0 = deeplog::snapshot(main_id, 0, log);
+    auto snapshot1 = deeplog::snapshot(main_id, 1, log);
 
     EXPECT_EQ(0, snapshot0.version);
     EXPECT_EQ(1, snapshot1.version);
 
-    EXPECT_EQ(deeplog::MAIN_BRANCH_ID, snapshot0.branch_id);
-    EXPECT_EQ(deeplog::MAIN_BRANCH_ID, snapshot1.branch_id);
+    EXPECT_EQ(main_id, snapshot0.branch_id);
+    EXPECT_EQ(main_id, snapshot1.branch_id);
 }
