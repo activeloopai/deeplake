@@ -1,4 +1,5 @@
 import posixpath
+from typing import Tuple
 from deeplake.constants import (
     CHUNKS_FOLDER,
     COMMIT_INFO_FILENAME,
@@ -38,6 +39,12 @@ def get_chunk_key(key: str, chunk_name: str, commit_id: str) -> str:
         return "/".join((key, CHUNKS_FOLDER, f"{chunk_name}"))
 
     return "/".join(("versions", commit_id, key, CHUNKS_FOLDER, f"{chunk_name}"))
+
+
+def split_chunk_key(key: str) -> Tuple[str, str, str]:
+    key = key.strip("/")
+    _, commit_id, key, _, chunk_name = key.split("/")
+    return commit_id, key, chunk_name
 
 
 def get_dataset_meta_key(commit_id: str) -> str:

@@ -31,6 +31,25 @@ namespace deeplog {
 
     }
 
+    template<>
+    std::vector<std::shared_ptr<create_tensor_action>> base_snapshot::find_actions() const {
+        std::vector<std::shared_ptr<create_tensor_action>> return_actions = {};
+        std::map<std::string, int> tensor_idxs = {};
+        for (auto found : *actions_) {
+            auto casted = std::dynamic_pointer_cast<create_tensor_action>(found);
+            if (casted != nullptr) {
+                if (tensor_idxs.find(casted->id) != tensor_idxs.end()) {
+                    return_actions.at(tensor_idxs[casted->id]) = casted;
+                } else {
+                    tensor_idxs[casted->id] = return_actions.size();
+                    return_actions.push_back(casted);
+                }
+            }
+        }
+
+        return return_actions;
+    }
+
     template<typename T>
     std::shared_ptr<T> base_snapshot::find_action() const {
         static_assert(std::is_base_of<action, T>::value, "T must be a subclass of action");

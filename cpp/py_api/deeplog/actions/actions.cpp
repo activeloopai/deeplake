@@ -14,12 +14,13 @@ namespace py_api {
         pybind11::class_<deeplog::action, std::shared_ptr<deeplog::action>>(module, "DeepLogAction");
 
         pybind11::class_<deeplog::add_file_action, deeplog::action, std::shared_ptr<deeplog::add_file_action>>(module, "AddFileAction")
-                .def(pybind11::init<std::string, std::string, long, long, bool>(),
-                     pybind11::arg("path"), pybind11::arg("type"), pybind11::arg("size"), pybind11::arg("modification_time"), pybind11::arg("data_change"))
+                .def(pybind11::init<std::string, std::string, long, long, bool, long>(),
+                     pybind11::arg("path"), pybind11::arg("type"), pybind11::arg("size"), pybind11::arg("modification_time"), pybind11::arg("data_change"), pybind11::arg("num_samples"))
                 .def_readonly("path", &deeplog::add_file_action::path)
                 .def_readonly("type", &deeplog::add_file_action::type)
                 .def_readonly("size", &deeplog::add_file_action::size)
-                .def_readonly("modification_time", &deeplog::add_file_action::modification_time);
+                .def_readonly("modification_time", &deeplog::add_file_action::modification_time)
+                .def_readonly("num_samples", &deeplog::add_file_action::num_samples);
 
         pybind11::class_<deeplog::create_branch_action, deeplog::action, std::shared_ptr<deeplog::create_branch_action>>(module, "CreateBranchAction")
                 .def(pybind11::init<std::string, std::string, std::string, long>(),

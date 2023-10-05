@@ -139,7 +139,7 @@ TEST_F(DeeplogTest, commit_metadata) {
 TEST_F(DeeplogTest, commit_add_file) {
     auto log = deeplog::deeplog::create(test_dir, 4);
 
-    auto action = deeplog::add_file_action("my/path", "chunk", 3, 45, true);
+    auto action = deeplog::add_file_action("my/path", "chunk", 3, 45, true, 3);
     log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::add_file_action>(action)});
 
     EXPECT_EQ((std::set < std::string > {"00000000000000000000.json", "00000000000000000001.json"}), list_log_files());
@@ -192,7 +192,7 @@ TEST_F(DeeplogTest, checkpoint) {
     }
 
     for (int i = 0; i < 4; ++i) {
-        auto action = deeplog::add_file_action("my/path" + std::to_string(i), "chunk", 3, 45, true);
+        auto action = deeplog::add_file_action("my/path" + std::to_string(i), "chunk", 3, 45, true, 10);
         log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::add_file_action>(action)});
     }
 

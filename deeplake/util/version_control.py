@@ -1130,30 +1130,20 @@ def load_meta(dataset: "deeplake.core.dataset.Dataset"):
     deeplog = dataset.storage.deeplog
     if deeplog.log_format() < 4:
         meta = _get_dataset_meta_at_commit(storage, version_state["commit_id"])
-
-        ffw_dataset_meta(meta)
-        version_state["meta"] = meta
-
-        _tensors = version_state["full_tensors"]
-        _tensors.clear()
-        _tensor_names = version_state["tensor_names"]
-        _tensor_names.clear()
-        _tensor_names.update(meta.tensor_names)
     else:
         branch_id, branch_version = parse_commit_id(version_state["commit_id"])
-        version_state["meta"] = _get_deeplog_meta_at_commit(
+        meta = _get_deeplog_meta_at_commit(
             dataset.storage.deeplog, branch_id, branch_version
         )
 
-        _tensors = version_state["full_tensors"]
-        _tensors.clear()
-        _tensor_names = version_state["tensor_names"]
-        _tensor_names.clear()
-        tensor_names = {
-            action.name: action.id
-            for action in DeepLogSnapshot(branch_id, branch_version, deeplog).tensors()
-        }
-        _tensor_names.update(tensor_names)
+    ffw_dataset_meta(meta)
+    version_state["meta"] = meta
+
+    _tensors = version_state["full_tensors"]
+    _tensors.clear()
+    _tensor_names = version_state["tensor_names"]
+    _tensor_names.clear()
+    _tensor_names.update(meta.tensor_names)
 
     for tensor_key in _tensor_names.values():
         if tensor_key.startswith("__temp"):

@@ -86,6 +86,7 @@ from deeplake.util.keys import (
     get_tensor_meta_key,
     get_tensor_tile_encoder_key,
     get_tensor_info_key,
+    split_chunk_key,
 )
 from deeplake.util.exceptions import (
     GetChunkError,
@@ -327,7 +328,7 @@ class ChunkEngine:
         ):
             branch_id, branch_version = parse_commit_id(self.commit_id)
             self._tensor_meta = get_tensor_metadata(
-                self.base_storage.deeplog, branch_id, branch_version
+                self.key, self.base_storage.deeplog, branch_id, branch_version
             )
             self._tensor_meta_commit_id = commit_id
 
@@ -365,11 +366,11 @@ class ChunkEngine:
                         pass
                 else:
                     enc = self.meta_cache.get_deeplake_object(key, ChunkIdEncoder)
-                self._chunk_id_encoder = enc
-                self._chunk_id_encoder_commit_id = commit_id
                 self.meta_cache.register_deeplake_object(key, enc)
             else:
-                self._chunk_id_encoder = ChunkIdEncoder(dtype=np.uint64)
+                enc = self.get_chunk_id_encoder()
+            self._chunk_id_encoder = enc
+            self._chunk_id_encoder_commit_id = commit_id
         return self._chunk_id_encoder
 
     @property
@@ -593,6 +594,31 @@ class ChunkEngine:
         self.active_appended_chunk = chunk
         return chunk
 
+    def get_chunk_id_encoder(self):
+        branch_id, branch_version = parse_commit_id(self.commit_id)
+        snapshot = DeepLogSnapshot(branch_id, branch_version, self.base_storage.deeplog)
+        file_filter = (
+            lambda file: file.type == "chunk"
+            and split_chunk_key(file.path)[1] == self.key
+        )
+        add_files = tuple(filter(file_filter, snapshot.data_files()))
+
+        encoded = np.zeros((len(add_files), 2), dtype=np.uint64)
+
+        chunk_ids = encoded[:, 0]
+        num_samples = encoded[:, 1]
+
+        for i, file in enumerate(add_files):
+            chunk_ids[i] = ChunkIdEncoder.id_from_name(split_chunk_key(file.path)[2])
+            num_samples[i] = file.num_samples
+
+        if len(num_samples) > 0:
+            num_samples[0] -= 1
+            np.cumsum(num_samples, out=num_samples)
+
+        cid = ChunkIdEncoder(encoded, dtype=np.uint64)
+        return cid
+
     def get_chunk(self, chunk_key: str, partial_chunk_bytes=0) -> BaseChunk:
         chunk = self.cache.get_deeplake_object(
             chunk_key,
@@ -627,8 +653,20 @@ class ChunkEngine:
         else:
             try:
                 chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+                branch_id, branch_version = parse_commit_id(self.commit_id)
+                # NOTE: Can this search be avoided if chunk_id is the same as chunk_key?
+                snapshot = DeepLogSnapshot(
+                    branch_id, branch_version, self.base_storage.deeplog
+                )
+                for file in snapshot.data_files():
+                    if (
+                        file.type == "chunk"
+                        and split_chunk_key(file.path)[2] == chunk_name
+                    ):
+                        chunk_key = file.path
+                        break
                 return self.get_chunk(
-                    chunk_name, partial_chunk_bytes=partial_chunk_bytes
+                    chunk_key, partial_chunk_bytes=partial_chunk_bytes
                 )
             except Exception as e:
                 raise GetChunkError(chunk_name) from e
@@ -984,7 +1022,7 @@ class ChunkEngine:
 
         if not register:
             return updated_chunks, tiles
-    
+
     def _samples_to_chunks_v4(
         self,
         samples,
@@ -1023,7 +1061,7 @@ class ChunkEngine:
                     except TypeError:  # Numpy scalar str
                         lengths[i] = str(s).__len__()
         extra_args = {"lengths": lengths}
-        current_chunk = self._create_new_chunk()
+        current_chunk = self._create_new_chunk(False)
         current_chunk._update_tensor_meta_length = False
         enc_ids.append(current_chunk.id)
         enc = self.chunk_id_encoder
@@ -1054,7 +1092,7 @@ class ChunkEngine:
                     self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
                 chunk_sizes.append(current_chunk.nbytes)
-                current_chunk = self._create_new_chunk()
+                current_chunk = self._create_new_chunk(False)
                 current_chunk._update_tensor_meta_length = False
                 enc_ids.append(current_chunk.id)
                 enc_count.append(0)
@@ -1078,7 +1116,7 @@ class ChunkEngine:
                 )
                 if len(samples) > 0:
                     chunk_sizes.append(current_chunk.nbytes)
-                    current_chunk = self._create_new_chunk()
+                    current_chunk = self._create_new_chunk(False)
                     current_chunk._update_tensor_meta_length = False
                     enc_ids.append(current_chunk.id)
                     enc_count.append(0)
@@ -1103,10 +1141,11 @@ class ChunkEngine:
                 pbar.update(num_samples_added)
             elif pg_callback is not None:
                 pg_callback(num_samples_added)
-        
+
         # add last chunk
         chunk_sizes.append(current_chunk.nbytes)
 
+        first_chunk_num_samples = enc_count[0]
         self.tensor_meta.update_length(incoming_num_samples)
         if enc_count:
             enc_arr = enc._encoded
@@ -1124,18 +1163,33 @@ class ChunkEngine:
             new[:, 1] = enc_last_seen
             enc._encoded = arr
             enc.is_dirty = True
-        
+
         transaction = self.base_storage._staged_transaction
         if transaction is None:
             branch_id, version = parse_commit_id(self.commit_id)
             snapshot = DeepLogSnapshot(branch_id, version, self.base_storage.deeplog)
             transaction = OptimisticTransaction(snapshot)
             self.base_storage._staged_transaction = transaction
-        assert len(enc_ids) == len(chunk_sizes)
-        for chunk_id, chunk_size in zip(enc_ids, chunk_sizes):
+
+        enc_count[0] = first_chunk_num_samples
+        assert len(enc_ids) == len(chunk_sizes) == len(enc_count)
+        for chunk_id, chunk_size, num_samples in zip(enc_ids, chunk_sizes, enc_count):
             chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-            transaction.add(AddFileAction(get_chunk_key(self.key, chunk_name, self.commit_id), "chunk", chunk_size, int(time.time()), True))
-        transaction.add(UpdateTensorAction(id=self.key, name=self.name, **self.tensor_meta._action_kwargs()))
+            transaction.add(
+                AddFileAction(
+                    get_chunk_key(self.key, chunk_name, self.commit_id),
+                    "chunk",
+                    chunk_size,
+                    int(time.time()),
+                    True,
+                    num_samples,
+                )
+            )
+        transaction.add(
+            UpdateTensorAction(
+                id=self.key, name=self.name, **self.tensor_meta._action_kwargs()
+            )
+        )
 
         if update_commit_diff:
             commit_diff.add_data(incoming_num_samples)
@@ -1147,7 +1201,6 @@ class ChunkEngine:
 
         if return_samples:
             return verified_samples
-
 
     def _handle_one_or_more_samples(
         self,

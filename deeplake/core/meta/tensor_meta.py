@@ -234,7 +234,7 @@ class TensorMeta(Meta):
 
     def __str__(self):
         return str(self.__getstate__())
-    
+
     def _action_kwargs(self):
         return {
             "dtype": self.dtype,

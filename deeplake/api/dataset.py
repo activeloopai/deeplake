@@ -724,7 +724,9 @@ class dataset:
                 DeepLog.create(dataset_kwargs["storage"], dataset_kwargs["log_format"])
             )
         else:
-            dataset_kwargs["storage"].set_deeplog(DeepLog.open(dataset_kwargs["storage"]))
+            dataset_kwargs["storage"].set_deeplog(
+                DeepLog.open(dataset_kwargs["storage"])
+            )
 
         if access_method in ("stream", None):
             ret = dataset_factory(**dataset_kwargs)

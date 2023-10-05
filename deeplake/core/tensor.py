@@ -305,6 +305,7 @@ class Tensor:
                 raise TensorDoesNotExistError(self.key)
 
             meta = get_tensor_metadata(
+                self.key,
                 dataset.storage.deeplog,
                 branch_id,
                 branch_version,

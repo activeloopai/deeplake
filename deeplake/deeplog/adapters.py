@@ -1,16 +1,17 @@
 from typing import Tuple
 
 from deeplake.constants import FIRST_COMMIT_ID
-
-from deeplake.core.meta import TensorMeta
 from deeplake.deeplog import DeepLog, DeepLogSnapshot
 
 
 def get_tensor_metadata(
-    deeplog: DeepLog, branch_id: str, branch_version: int
-) -> TensorMeta:
+    key: str, deeplog: DeepLog, branch_id: str, branch_version: int
+):
+    from deeplake.core.meta import TensorMeta
+
     snapshot = DeepLogSnapshot(branch_id, branch_version, deeplog)
-    create_tensor = [tensor for tensor in snapshot.tensors()][0]
+    create_tensor = {tensor.id: tensor for tensor in snapshot.tensors()}[key]
+
     meta = TensorMeta()
     meta.name = create_tensor.name
     meta.htype = create_tensor.htype

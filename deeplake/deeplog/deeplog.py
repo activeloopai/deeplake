@@ -8,8 +8,10 @@ from deeplake.deeplog.actions import (
     CreateTensorAction,
     CreateCommitAction,
 )
+from deeplake.deeplog.adapters import to_commit_id
 from functools import wraps
 import deeplake
+
 
 def atomic(func):
     @wraps(func)
@@ -25,7 +27,13 @@ def atomic(func):
         func(*args, **kwargs)
         if root_call:
             chunk_engine.cache.flush()
-            if storage._staged_transaction:
-                storage._staged_transaction.commit()
+            staged_transaction = storage._staged_transaction
+            if staged_transaction:
+                staged_transaction.commit()
                 storage._staged_transaction = None
+                branch_id = staged_transaction.snapshot.branch_id
+                self.version_state["commit_id"] = to_commit_id(
+                    branch_id, storage.deeplog.version(branch_id)
+                )
+
     return inner
