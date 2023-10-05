@@ -370,7 +370,7 @@ class DeepMemory:
         from indra import api  # type: ignore
 
         print("Startin evaluation...")
-        self.queires_dataset = load_queries_dataset(
+        self.queries_dataset = load_queries_dataset(
             self.dataset, self.token, self.creds
         )
         if len(self.queries_dataset) == 0:
