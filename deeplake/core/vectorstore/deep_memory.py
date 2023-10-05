@@ -369,7 +369,7 @@ class DeepMemory:
 
         from indra import api  # type: ignore
 
-        print("Startin evaluation...")
+        print("Starting evaluation...")
         self.queries_dataset = load_queries_dataset(
             self.dataset, self.token, self.creds
         )
