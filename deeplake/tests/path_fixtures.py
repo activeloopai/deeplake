@@ -1,10 +1,9 @@
-from deeplake.core.storage.gcs import GCSProvider
-from deeplake.core.storage.google_drive import GDriveProvider
-from deeplake.util.storage import storage_provider_from_hub_path
-from deeplake.core.storage.s3 import S3Provider
-from deeplake.core.storage.local import LocalProvider
-from deeplake.core.storage.azure import AzureProvider
 import os
+import pickle
+import posixpath
+import pytest
+import sys
+
 import deeplake
 from deeplake.constants import (
     HUB_CLOUD_OPT,
@@ -27,16 +26,23 @@ from deeplake.constants import (
     ENV_GDRIVE_CLIENT_ID,
     ENV_GDRIVE_CLIENT_SECRET,
     ENV_GDRIVE_REFRESH_TOKEN,
+    HUB_CLOUD_DEV_USERNAME,
 )
-import posixpath
+from deeplake import VectorStore
+from deeplake.client.client import DeepMemoryBackendClient
+from deeplake.core.storage.gcs import GCSProvider
+from deeplake.core.storage.google_drive import GDriveProvider
+from deeplake.util.storage import storage_provider_from_hub_path
+from deeplake.core.storage.s3 import S3Provider
+from deeplake.core.storage.local import LocalProvider
+from deeplake.core.storage.azure import AzureProvider
+from deeplake.core.vectorstore import utils
 from deeplake.tests.common import (
     SESSION_ID,
     current_test_name,
     get_dummy_data_path,
     is_opt_true,
 )
-import pytest
-import sys
 
 
 MEMORY = "memory"
@@ -427,6 +433,83 @@ def hub_cloud_vstream_path(request, hub_cloud_dev_token):
 
 
 @pytest.fixture
+def corpus_query_relevances_copy(request, hub_cloud_dev_token):
+    if not is_opt_true(request, HUB_CLOUD_OPT):
+        pytest.skip(f"{HUB_CLOUD_OPT} flag not set")
+        return
+
+    corpus = _get_storage_path(request, HUB_CLOUD)
+    query_vs = VectorStore(
+        path=f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_queries",
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+    )
+    queries = query_vs.dataset.text.data()["value"]
+    relevance = query_vs.dataset.metadata.data()["value"]
+
+    deeplake.deepcopy(
+        f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus",
+        corpus,
+        token=hub_cloud_dev_token,
+        overwrite=True,
+        runtime={"tensor_db": True},
+    )
+
+    queries_path = corpus + "_eval_queries"
+
+    yield corpus, queries, relevance, queries_path
+
+    delete_if_exists(corpus, hub_cloud_dev_token)
+    delete_if_exists(queries_path, hub_cloud_dev_token)
+
+
+@pytest.fixture
+def deep_memory_local_dataset(request, hub_cloud_dev_token):
+    if not is_opt_true(request, HUB_CLOUD_OPT):
+        pytest.skip(f"{HUB_CLOUD_OPT} flag not set")
+        return
+
+    corpus_path = _get_storage_path(request, LOCAL)
+    queries_path = corpus_path + "_eval_queries"
+
+    deeplake.deepcopy(
+        f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus",
+        corpus_path,
+        token=hub_cloud_dev_token,
+        overwrite=True,
+    )
+
+    deeplake.deepcopy(
+        f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus_eval_queries",
+        queries_path,
+        token=hub_cloud_dev_token,
+        overwrite=True,
+    )
+
+    yield corpus_path, queries_path
+
+    delete_if_exists(corpus_path, hub_cloud_dev_token)
+    delete_if_exists(queries_path, hub_cloud_dev_token)
+
+
+def delete_if_exists(path, token):
+    try:
+        deeplake.delete(path, force=True, large_ok=True, token=token)
+    except Exception:
+        pass
+
+
+@pytest.fixture
+def corpus_query_pair_path(hub_cloud_dev_token):
+    corpus = f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus_managed_2"
+    query = corpus + "_eval_queries"
+    delete_if_exists(query, hub_cloud_dev_token)
+    yield corpus, query
+
+    delete_if_exists(query, hub_cloud_dev_token)
+
+
+@pytest.fixture
 def cat_path():
     """Path to a cat image in the dummy data folder. Expected shape: (900, 900, 3)"""
 
@@ -662,3 +745,39 @@ def vector_store_filters(request):
 @pytest.fixture
 def vector_store_query(request):
     return "select * where metadata=={'a': 1}"
+
+
+@pytest.fixture
+def jobs_list():
+    parent = get_dummy_data_path("deep_memory")
+
+    with open(os.path.join(parent, "jobs_list.txt"), "r") as f:
+        jobs = f.read()
+    return jobs
+
+
+@pytest.fixture
+def questions_embeddings_and_relevances():
+    parent = get_dummy_data_path("deep_memory")
+
+    with open(os.path.join(parent, "questions.pkl"), "rb") as f:
+        questions = pickle.load(f)
+    with open(os.path.join(parent, "questions_embeddings.pkl"), "rb") as f:
+        questions_embeddings = pickle.load(f)
+    with open(os.path.join(parent, "questions_relevances.pkl"), "rb") as f:
+        question_relevances = pickle.load(f)
+    return questions_embeddings, question_relevances, questions
+
+
+@pytest.fixture
+def job_id():
+    return "65198efcd28df3238c49a849"
+
+
+@pytest.fixture
+def precomputed_jobs_list():
+    parent = get_dummy_data_path("deep_memory")
+
+    with open(os.path.join(parent, "precomputed_jobs_list.txt"), "r") as f:
+        jobs = f.read()
+    return jobs

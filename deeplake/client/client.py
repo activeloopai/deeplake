@@ -1,6 +1,7 @@
 import deeplake
 import requests
-from typing import Any, Optional, Dict
+import textwrap
+from typing import Any, Optional, Dict, List, Union
 from deeplake.util.exceptions import (
     AgreementNotAcceptedError,
     AuthorizationException,
@@ -18,6 +19,7 @@ from deeplake.client.utils import (
     write_token,
     read_token,
     remove_token,
+    JobResponseStatusSchema,
 )
 from deeplake.client.config import (
     ACCEPT_AGREEMENTS_SUFFIX,
@@ -527,3 +529,115 @@ class DeepLakeBackendClient:
         ).json()
 
         return response
+
+
+class DeepMemoryBackendClient(DeepLakeBackendClient):
+    def __init__(self, token: Optional[str] = None):
+        super().__init__(token=token)
+
+    def deepmemory_is_available(self, org_id: str):
+        """Checks if DeepMemory is available for the user.
+        Args:
+            org_id (str): The name of the user/organization to which the dataset belongs.
+        Returns:
+            bool: True if DeepMemory is available, False otherwise.
+        """
+        try:
+            response = self.request(
+                "GET",
+                f"/api/organizations/{org_id}/features/deepmemory",
+                endpoint=self.endpoint(),
+            )
+            return response.json()["available"]
+        except Exception:
+            return False
+
+    def start_taining(
+        self,
+        corpus_path: str,
+        queries_path: str,
+    ) -> Dict[str, Any]:
+        """Starts training of DeepMemory model.
+        Args:
+            corpus_path (str): The path to the corpus dataset.
+            queries_path (str): The path to the queries dataset.
+        Returns:
+            Dict[str, Any]: The json response containing job_id.
+        """
+        response = self.request(
+            method="POST",
+            relative_url="/api/deepmemory/v1/train",
+            json={"corpus_dataset": corpus_path, "query_dataset": queries_path},
+        )
+        check_response_status(response)
+        return response.json()
+
+    def cancel_job(self, job_id: str):
+        """Cancels a job with job_id.
+        Args:
+            job_id (str): The job_id of the job to be cancelled.
+        Returns:
+            bool: True if job was cancelled successfully, False otherwise.
+        """
+        try:
+            response = self.request(
+                method="POST",
+                relative_url=f"/api/deepmemory/v1/jobs/{job_id}/cancel",
+            )
+            check_response_status(response)
+        except Exception as e:
+            print(f"Job with job_id='{job_id}' was not cancelled!\n Error: {e}")
+            return False
+        print("Job cancelled successfully")
+        return True
+
+    def check_status(self, job_id: str, recall: str, improvement: str):
+        """Checks status of a job with job_id.
+        Args:
+            job_id (str): The job_id of the job to be checked.
+            recall (str): Current best top 10 recall
+            importvement (str): Current best improvement over baseline
+        Returns:
+            Dict[str, Any]: The json response containing job status.
+        """
+        response = self.request(
+            method="GET",
+            relative_url=f"/api/deepmemory/v1/jobs/{job_id}/status",
+        )
+        check_response_status(response)
+        response_status_schema = JobResponseStatusSchema(response=response.json())
+        response_status_schema.print_status(job_id, recall, improvement)
+        return response.json()
+
+    def list_jobs(self, dataset_path: str):
+        """Lists all jobs for a dataset.
+        Args:
+            dataset_path (str): The path to the dataset.
+        Returns:
+            Dict[str, Any]: The json response containing list of jobs.
+        """
+        dataset_id = dataset_path[6:]
+        response = self.request(
+            method="GET",
+            relative_url=f"/api/deepmemory/v1/{dataset_id}/jobs",
+        )
+        check_response_status(response)
+        return response.json()
+
+    def delete_job(self, job_id: str):
+        """Deletes a job with job_id.
+        Args:
+            job_id (str): The job_id of the job to be deleted.
+        Returns:
+            bool: True if job was deleted successfully, False otherwise.
+        """
+        try:
+            response = self.request(
+                method="DELETE",
+                relative_url=f"/api/deepmemory/v1/jobs/{job_id}",
+            )
+            check_response_status(response)
+            return True
+        except Exception as e:
+            print(f"Job with job_id='{job_id}' was not deleted!\n Error: {e}")
+            return False

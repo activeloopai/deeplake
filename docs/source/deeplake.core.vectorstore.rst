@@ -4,7 +4,7 @@ deeplake.core.vectorstore
 
 VectorStore
 ~~~~~~~~~~~
-.. autoclass:: VectorStore()
+.. autodata:: VectorStore()
     :members:
 
     .. automethod:: __init__

@@ -10,14 +10,17 @@ METRIC_TO_INDEX_METRIC = {
 }
 
 
-def get_index_distance_metric_from_params(
+def parse_index_distance_metric_from_params(
     logger, distance_metric_index, distance_metric
 ):
-    if distance_metric:
+    if distance_metric and distance_metric != distance_metric_index:
         logger.warning(
-            f"Specifying `distance_metric` for a Vector Store with an index is not supported; `distance_metric` was specified as: `{distance_metric}`. "
-            f"The search will be performed using the distance metric from the index: `{distance_metric_index}`"
+            f"The specified `distance_metric': `{distance_metric}` does not match the distance metric in the index: `{distance_metric_index}`."
+            f"The search will be performed linearly the using specifed `distance_metric` and it will not use the index for ANN search. This is significantly slower compared to ANN search for >100k samples."
+            "We reccommend you to specify the same `distance_metric` for both the index and the search, or leave the `distance_metric` parameter unspecified."
         )
+
+        return distance_metric
 
     for key in METRIC_TO_INDEX_METRIC:
         if METRIC_TO_INDEX_METRIC[key] == distance_metric_index:

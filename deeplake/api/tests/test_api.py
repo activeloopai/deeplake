@@ -2363,7 +2363,7 @@ def dataset_handler_error_check(runner, username, password):
 
 @pytest.mark.slow
 def test_hub_related_permission_exceptions(
-    hub_cloud_dev_credentials, hub_cloud_dev_token, hub_dev_token
+    hub_cloud_dev_credentials,
 ):
     username, password = hub_cloud_dev_credentials
     runner = CliRunner()

@@ -79,7 +79,7 @@ class ExecOptionLocalDataset(ExecOptionBase):
         if self.token is None:
             return "python"
 
-        if "mem" in self.dataset.path:
+        if "mem://" in self.dataset.path:
             return "python"
 
         if self.indra_installed and self.username != "public":
