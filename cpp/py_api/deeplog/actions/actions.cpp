@@ -22,7 +22,7 @@ namespace py_api {
                 .def_readonly("modification_time", &deeplog::add_file_action::modification_time);
 
         pybind11::class_<deeplog::create_branch_action, deeplog::action, std::shared_ptr<deeplog::create_branch_action>>(module, "CreateBranchAction")
-                .def(pybind11::init<std::string, std::string, std::string, long>(),
+                .def(pybind11::init<std::string, std::string, std::string, unsigned long>(),
                      pybind11::arg("id"), pybind11::arg("name"), pybind11::arg("from_id"), pybind11::arg("from_version"))
                 .def_readonly("id", &deeplog::create_branch_action::id)
                 .def_readonly("name", &deeplog::create_branch_action::name)
@@ -31,7 +31,7 @@ namespace py_api {
 
 
         pybind11::class_<deeplog::create_commit_action, deeplog::action, std::shared_ptr<deeplog::create_commit_action>>(module, "CreateCommitAction")
-                .def(pybind11::init<std::string, std::string, long, std::optional<std::string>, long>(),
+                .def(pybind11::init<std::string, std::string, unsigned long, std::optional<std::string>, long>(),
                      pybind11::arg("id"), pybind11::arg("branch_id"), pybind11::arg("branch_version"), pybind11::arg("message"), pybind11::arg("commit_time"))
                 .def_readonly("id", &deeplog::create_commit_action::id)
                 .def_readonly("branch_id", &deeplog::create_commit_action::branch_id)

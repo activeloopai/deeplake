@@ -11,7 +11,7 @@ namespace deeplog {
                                    arrow::field("commitTime", arrow::uint64(), true),
                            }));
 
-    create_commit_action::create_commit_action(std::string id, std::string branch_id, const long &branch_version, const std::optional<std::string> &message, const long &commit_time) :
+    create_commit_action::create_commit_action(std::string id, std::string branch_id, const unsigned long &branch_version, const std::optional<std::string> &message, const long &commit_time) :
             id(std::move(id)), branch_id(std::move(branch_id)), branch_version(branch_version), message(std::move(message)), commit_time(commit_time) {}
 
     create_commit_action::create_commit_action(const std::shared_ptr<arrow::StructScalar> &value) {

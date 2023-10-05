@@ -1,18 +1,12 @@
 #include "base_snapshot.hpp"
 
 namespace deeplog {
-    base_snapshot::base_snapshot(const std::shared_ptr<::deeplog::deeplog> &deeplog) :
-            version(-1),
-            deeplog(deeplog),
-            actions_() {
-        std::tie(actions_, version) = deeplog->get_actions(MAIN_BRANCH_ID, std::nullopt);
-    }
 
-    base_snapshot::base_snapshot(const long &version, const std::shared_ptr<::deeplog::deeplog> &deeplog) :
-            version(version),
+    base_snapshot::base_snapshot(const std::string &branch_id, const std::optional<long> &version, const std::shared_ptr<::deeplog::deeplog> &deeplog) :
+            version(0),
             deeplog(deeplog),
             actions_() {
-        std::tie(actions_, this->version) = deeplog->get_actions(MAIN_BRANCH_ID, version);
+        std::tie(actions_, this->version) = deeplog->get_actions(branch_id, version);
     }
 
     template<typename T>

@@ -18,6 +18,7 @@
 #include "last_checkpoint.hpp"
 #include "deeplog_v3.hpp"
 #include "../storage/local_storage.hpp"
+#include "util.hpp"
 #include <arrow/ipc/json_simple.h>
 
 namespace deeplog {
@@ -45,7 +46,8 @@ namespace deeplog {
             return std::make_shared<deeplog_v3>(deeplog_v3(storage));
         }
 
-        if (storage->file("/_deeplake_log" + zero_pad(0) + ".json").exists()) {
+        if (storage->file("/_deeplake_log/" + META_BRANCH_ID + "/" + zero_pad(1) + ".json").exists()
+            || storage->file("/_deeplake_log/" + META_BRANCH_ID + "/_last_checkpoint.json").exists()) {
             throw std::runtime_error("DeepLake config already exists");
         }
 
@@ -53,11 +55,11 @@ namespace deeplog {
         std::vector<action *> actions;
 
         auto protocol = std::make_shared<protocol_action>(protocol_action(4, 4));
-        auto metadata = std::make_shared<metadata_action>(metadata_action(generate_uuid(), std::nullopt, std::nullopt, current_timestamp()));
+        auto metadata = std::make_shared<metadata_action>(metadata_action(generate_id(), std::nullopt, std::nullopt, current_timestamp()));
 
-        auto branch = std::make_shared<create_branch_action>(create_branch_action(MAIN_BRANCH_ID, "main", MAIN_BRANCH_ID, -1));
+        auto branch = std::make_shared<create_branch_action>(create_branch_action(generate_id(), "main", std::nullopt, std::nullopt));
 
-        log->commit(MAIN_BRANCH_ID, -1, {protocol, metadata, branch});
+        log->commit(META_BRANCH_ID, 0, {protocol, metadata, branch});
 
         return log;
 
@@ -69,7 +71,8 @@ namespace deeplog {
     }
 
     std::shared_ptr<deeplog> deeplog::open(const std::shared_ptr<storage::storage> &storage) {
-        if (!storage->file("/_deeplake_log/" + zero_pad(0) + ".json").exists()) {
+        if (!(storage->file("/_deeplake_log/" + META_BRANCH_ID + "/" + zero_pad(1) + ".json").exists()
+              || storage->file("/_deeplake_log/" + META_BRANCH_ID + "/_last_checkpoint.json").exists())) {
             if (storage->file("/dataset_meta.json").exists()) {
                 return std::make_shared<deeplog_v3>(deeplog_v3(storage));
             }
@@ -83,18 +86,18 @@ namespace deeplog {
         return 4;
     }
 
-    std::string zero_pad(const long &version) {
+    std::string zero_pad(const unsigned long &version) {
         std::ostringstream ss;
         ss << std::setw(20) << std::setfill('0') << (version);
         return ss.str();
     }
 
-    long deeplog::version(const std::string &branch_id) const {
+    unsigned long deeplog::version(const std::string &branch_id) const {
         return get<1>(get_actions(branch_id, std::nullopt));
     }
 
     void deeplog::commit(const std::string &branch_id,
-                         const long &base_version,
+                         const unsigned long &base_version,
                          const std::vector<std::shared_ptr<action>> &actions) {
 
         auto log_dir = "/_deeplake_log/" + branch_id + "/";
@@ -114,15 +117,15 @@ namespace deeplog {
     }
 
     arrow::Result<std::shared_ptr<arrow::Table>> deeplog::action_data(const std::string &branch_id,
-                                                                      const long &from,
-                                                                      const std::optional<long> &to) const {
-        spdlog::debug("Reading action data for branch '{}' from {} to {}", branch_id, from, to.value_or(9999999));
-        long highest_version = -1;
+                                                                      const unsigned long &from,
+                                                                      const std::optional<unsigned long> &to) const {
+        spdlog::debug("Reading action data for branch '{}' from {} to {}", branch_id, from, to.value_or(ULONG_MAX));
+        unsigned long highest_version = 0;
         std::vector<std::shared_ptr<arrow::Table>> all_tables = {};
 
         const auto dir_path = "/_deeplake_log/" + branch_id;
 
-        auto last_checkpoint_path = "/_deeplake_log/_last_checkpoint.json";
+        auto last_checkpoint_path = "/_deeplake_log/" + branch_id + "/_last_checkpoint.json";
         auto last_checkpoint_ref = storage_->file(last_checkpoint_path);
         if (last_checkpoint_ref.exists()) {
             auto last_checkpoint_stream = storage_->get_bytes(last_checkpoint_path);
@@ -139,7 +142,7 @@ namespace deeplog {
         }
 
 
-        std::optional<long> next_from = from;
+        std::optional<unsigned long> next_from = from;
 
 //        auto branch_obj = branch_by_id(branch_id).data;
 //        all_tables.push_back(action_data(branch_id, from, branch_obj->from_version).ValueOrDie());
@@ -210,14 +213,14 @@ namespace deeplog {
     }
 
     std::tuple<std::shared_ptr<std::vector<std::shared_ptr<action>>>, long> deeplog::get_actions(const std::string &branch_id,
-                                                                                                 const std::optional<long> &to) const {
+                                                                                                 const std::optional<unsigned long> &to) const {
         std::vector<std::shared_ptr<action>> return_actions = {};
 
         auto all_operations = action_data(branch_id, 0, to).ValueOrDie();
 
         spdlog::debug("Parsing action data...");
 
-        unsigned long version = -1;
+        unsigned long version = 0;
         for (long row_id = 0; row_id < all_operations->num_rows(); ++row_id) {
             auto field_id = 0;
             for (const auto &field: all_operations->fields()) {
@@ -281,7 +284,7 @@ namespace deeplog {
     }
 
     void deeplog::checkpoint(const std::string &branch_id) {
-        long version_to_checkpoint = version(branch_id);
+        unsigned long version_to_checkpoint = version(branch_id);
 
         auto status = write_checkpoint(branch_id, version_to_checkpoint);
 
@@ -291,11 +294,11 @@ namespace deeplog {
         }
         nlohmann::json checkpoint_json = last_checkpoint(version_to_checkpoint, 3013);
 
-        auto checkpoint_path = "/_deeplake_log/_last_checkpoint.json";
+        auto checkpoint_path = "/_deeplake_log/" + branch_id + "/_last_checkpoint.json";
         storage_->set_bytes(checkpoint_path, checkpoint_json.dump());
     }
 
-    arrow::Result<std::shared_ptr<arrow::Table>> deeplog::read_checkpoint(const std::string &dir_path, const long &version) const {
+    arrow::Result<std::shared_ptr<arrow::Table>> deeplog::read_checkpoint(const std::string &dir_path, const unsigned long &version) const {
         arrow::MemoryPool *pool = arrow::default_memory_pool();
         auto input = open_arrow_istream(storage_->file(dir_path + "/" + zero_pad(version) + ".checkpoint.parquet"));
 
@@ -308,7 +311,7 @@ namespace deeplog {
         return arrow::Result<std::shared_ptr<arrow::Table>>(table);
     }
 
-    arrow::Status deeplog::write_checkpoint(const std::string &branch_id, const long &version) {
+    arrow::Status deeplog::write_checkpoint(const std::string &branch_id, const unsigned long &version) {
         auto [actions, last_version] = get_actions(branch_id, version);
 
         std::vector<std::shared_ptr<arrow::ArrayBuilder>> array_builders{};
@@ -395,7 +398,7 @@ namespace deeplog {
             outstream << byte_data[i];
         }
 
-        storage_->set_bytes("/_deeplake_log/" + zero_pad(version) + ".checkpoint.parquet", outstream.str());
+        storage_->set_bytes("/_deeplake_log/" + branch_id + "/" + zero_pad(version) + ".checkpoint.parquet", outstream.str());
 
         return arrow::Status::OK();
     }

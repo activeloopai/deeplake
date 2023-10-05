@@ -1410,7 +1410,7 @@ class Dataset:
         else:
             deeplog = self.storage.deeplog
             metadata_snapshot = MetadataSnapshot(deeplog)
-            branch_id = metadata_snapshot.branch_id(address)
+            branch_id = metadata_snapshot.find_branch(address).id
             snapshot = DeepLogSnapshot(branch_id, deeplog)
             branch_data = metadata_snapshot.branches()
             commit_data = snapshot.commits()
