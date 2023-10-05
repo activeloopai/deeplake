@@ -1,6 +1,6 @@
 import uuid
 from typing import Any, Dict, Optional, List, Union, Callable, Tuple
-from time import time
+from time import time, sleep
 
 import numpy as np
 
@@ -53,14 +53,6 @@ class DeepMemory:
         self.embedding_function = embedding_function
         self.client = client
         self.creds = creds or {}
-        self.queries_dataset = deeplake.dataset(
-            self.dataset.path + "_eval_queries",
-            token=token,
-            read_only=False,
-            creds=self.creds,
-        )
-        if len(self.queries_dataset) == 0:
-            self.queries_dataset.commit(allow_empty=True)
 
     def train(
         self,
@@ -377,6 +369,13 @@ class DeepMemory:
 
         from indra import api  # type: ignore
 
+        print("Startin evaluation...")
+        self.queires_dataset = load_queries_dataset(
+            self.dataset, self.token, self.creds
+        )
+        if len(self.queries_dataset) == 0:
+            self.queries_dataset.commit(allow_empty=True)
+
         indra_dataset = api.dataset(self.dataset.path, token=self.token)
         api.tql.prepare_deepmemory_metrics(indra_dataset)
 
@@ -452,6 +451,22 @@ class DeepMemory:
         self.queries_dataset.extend(queries_data, progressbar=True)
         self.queries_dataset.commit()
         return recalls
+
+
+def load_queries_dataset(dataset, token, creds, retry_attempt=0):
+    try:
+        queries_dataset = deeplake.dataset(
+            dataset.path + "_eval_queries",
+            token=token,
+            read_only=False,
+            creds=creds,
+        )
+        return queries_dataset
+    except Exception as e:
+        sleep(240)
+        if retry_attempt > 2:
+            raise e
+        load_queries_dataset(dataset, token, creds, retry_attempt=retry_attempt + 1)
 
 
 def recall_at_k(
