@@ -4,6 +4,7 @@ from typing import Union, Dict, List, Optional
 from deeplake.core.vectorstore.vector_search.indra import query
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.dataset import Dataset as DeepLakeDataset
+from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
 from deeplake.enterprise.util import raise_indra_installation_error
 
 
@@ -84,7 +85,9 @@ def search(
 
         indra_view = indra_dataset.query(tql_query)
         indexes = indra_view.indexes
-        view = deeplake_dataset[indexes]
+
+        view = DeepLakeQueryDataset(deeplake_ds=deeplake_dataset, indra_ds=indra_view)
+        view._tql_query = tql_query
 
         return_data = {}
 
