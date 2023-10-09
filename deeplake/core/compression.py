@@ -157,11 +157,7 @@ def compress_bytes(
     if not buffer:
         return b""
     if compression == "lz4":
-        if not _NUMCODECS_INSTALLED:
-            raise ModuleNotFoundError(
-                "Module numcodecs not found. Install using `pip install numcodecs`."
-            )
-        return numcodecs.lz4.compress(buffer)
+        return lz4.frame.compress(buffer)
     else:
         raise SampleCompressionError(
             (len(buffer),), compression, f"Not a byte compression: {compression}"
@@ -177,15 +173,15 @@ def decompress_bytes(
         # weird edge case of lz4 + empty string
         if buffer == b"\x00\x00\x00\x00\x00":
             return b""
-        if (
-            buffer[:4] == b'\x04"M\x18'
-        ):  # python-lz4 magic number
+        if buffer[:4] == b'\x04"M\x18':  # python-lz4 magic number
             return lz4.frame.decompress(buffer)
         if not _NUMCODECS_INSTALLED:
             raise ModuleNotFoundError(
-                "Module numcodecs not found. Install using `pip install numcodecs`."
+                "This buffer was probably compressed with numcodecs lz4"
+                " implementation but numcodecs is not installed."
+                " Install using `pip install numcodecs`."
             )
-        return numcodecs.lz4.decompress(buffer) # backwards compatibility
+        return numcodecs.lz4.decompress(buffer)  # backwards compatibility
     else:
         raise SampleDecompressionError()
 
