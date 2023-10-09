@@ -2,11 +2,14 @@ from deeplake.util.exceptions import (
     SampleAppendError,
     SampleAppendingError,
     SampleExtendingError,
+    TensorDtypeMismatchError,
 )
 from deeplake.core.transform.transform_tensor import TransformTensor
+from deeplake.util.json import validate_json_object, HubJsonEncoder
 from deeplake.core.linked_tiled_sample import LinkedTiledSample
 from deeplake.core.partial_sample import PartialSample
 from deeplake.core.linked_sample import LinkedSample
+from deeplake.util.casting import intelligent_cast
 from deeplake.core.sample import Sample
 from deeplake.core.tensor import Tensor
 from deeplake.constants import MB
@@ -15,6 +18,7 @@ from deeplake.constants import MB
 import numpy as np
 
 import posixpath
+import json
 
 
 class TransformDataset:
@@ -62,6 +66,11 @@ class TransformDataset:
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
+
+    def _get_engine_name(self, name):
+        name = posixpath.join(self.group_index, name)
+        name = self.label_temp_tensors.get(name, name)
+        return name
 
     def append(self, sample, skip_ok=False, append_empty=False):
         if not isinstance(sample, dict):
@@ -113,7 +122,26 @@ class TransformDataset:
     def update(self, sample):
         raise NotImplementedError("ds.update is not supported in transforms.")
 
-    def item_added(self, item):
+    def _calculate_sample_size(self, item, dtype, htype):
+        if isinstance(item, str):
+            return len(item.encode())
+        elif htype in ("json", "list"):
+            # NOTE: These samples will be serialized twice. Once here, and once in the chunk engine.
+            validate_json_object(item, dtype)
+            byts = json.dumps(item, cls=HubJsonEncoder).encode()
+            return len(byts)
+        else:
+            try:
+                item = intelligent_cast(item, dtype, htype)
+            except TensorDtypeMismatchError:
+                # class_label tensor can have integer dtype, but sample can be a string
+                if htype == "class_label":
+                    item = intelligent_cast(item, "str", htype)
+                else:
+                    raise
+            return item.nbytes
+
+    def item_added(self, item, tensor):
         if isinstance(item, Sample):
             sizeof_item = len(item.buffer)
         elif isinstance(item, LinkedSample):
@@ -125,7 +153,19 @@ class TransformDataset:
         elif isinstance(item, LinkedTiledSample):
             sizeof_item = item.path_array.nbytes
         else:
-            sizeof_item = np.asarray(item, dtype=object).nbytes
+            try:
+                name = self._get_engine_name(tensor)
+                chunk_engine = self.all_chunk_engines[name]
+                meta = chunk_engine.tensor_meta
+                htype, dtype = meta.htype, meta.dtype
+                # First sample in tensor
+                # Flush to set meta attributes
+                if dtype is None:
+                    self.flush()
+                    return
+                sizeof_item = self._calculate_sample_size(item, dtype, htype)
+            except:
+                sizeof_item = 0
 
         self.cache_used += sizeof_item
 
@@ -180,8 +220,7 @@ class TransformDataset:
         try:
             for name, tensor in self.data.items():
                 if not tensor.is_group:
-                    name = posixpath.join(self.group_index, name)
-                    name = label_temp_tensors.get(name, name)
+                    name = self._get_engine_name(name)
                     updated_tensors[name] = 0
                     chunk_engine = all_chunk_engines[name]
                     callback = chunk_engine._transform_callback

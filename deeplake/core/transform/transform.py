@@ -399,7 +399,7 @@ class Pipeline:
                     label_temp_tensors[tensor] = temp_tensor_obj.key
                 target_ds.flush()
 
-        tensors = list(target_ds._tensors())
+        tensors = list(target_ds._tensors(include_disabled=False))
         tensors = [target_ds[t].key for t in tensors]
         tensors = list(set(tensors) - set(class_label_tensors))
 

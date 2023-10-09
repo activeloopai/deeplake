@@ -235,6 +235,7 @@ class Dataset:
         d["verbose"] = verbose
         d["version_state"] = version_state or {}
         d["link_creds"] = link_creds
+        d["enabled_tensors"] = enabled_tensors
         d["libdeeplake_dataset"] = libdeeplake_dataset
         d["_info"] = None
         d["_ds_diff"] = None
@@ -455,9 +456,10 @@ class Dataset:
                 self.__class__ = InvalidView
                 self.__init__(reason="update")
 
-            self._view_base._commit_hooks[uid] = commit_hook
-            self._view_base._checkout_hooks[uid] = checkout_hook
-            self._view_base._update_hooks[uid] = update_hook
+            if not self.is_iteration:
+                self._view_base._commit_hooks[uid] = commit_hook
+                self._view_base._checkout_hooks[uid] = checkout_hook
+                self._view_base._update_hooks[uid] = update_hook
             return version_state
         vs_copy = {}
         vs_copy["branch"] = version_state["branch"]
@@ -599,6 +601,8 @@ class Dataset:
         if not isinstance(item, str):
             raise TypeError("Datasets do not support item assignment")
         tensor = self[item]
+        if isinstance(tensor, Dataset):
+            raise TypeError("Tensor groups do not support item assignment")
         tensor.index = Index()
         tensor[self.index] = value
 
@@ -1314,13 +1318,18 @@ class Dataset:
             ) from ke
 
     def __setattr__(self, name: str, value):
-        if isinstance(value, (np.ndarray, np.generic)):
-            raise TypeError(
-                "Setting tensor attributes directly is not supported. To add a tensor, use the `create_tensor` method."
-                + "To add data to a tensor, use the `append` and `extend` methods."
-            )
-        else:
-            return super().__setattr__(name, value)
+        try:
+            # Dataset is not fully loaded if meta is not in version_state
+            if "meta" in self.version_state:
+                return self.__setitem__(name, value)
+            raise TensorDoesNotExistError(name)
+        except TensorDoesNotExistError:
+            if isinstance(value, (np.ndarray, np.generic)):
+                raise TypeError(
+                    "Setting tensor attributes directly is not supported. To add a tensor, use the `create_tensor` method."
+                    + "To add data to a tensor, use the `append` and `extend` methods."
+                )
+        return super().__setattr__(name, value)
 
     def __iter__(self):
         dataset_read(self)

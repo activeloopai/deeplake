@@ -5,22 +5,19 @@ import jwt
 
 import numpy as np
 
+import deeplake
 from deeplake.core.distance_type import DistanceType
 from deeplake.util.dataset import try_flushing
+from deeplake.util.path import convert_pathlib_to_string_if_needed
 
-try:
-    from indra import api  # type: ignore
-
-    _INDRA_INSTALLED = True
-except Exception:  # pragma: no cover
-    _INDRA_INSTALLED = False  # pragma: no cover
-
-import deeplake
+from deeplake.api import dataset
+from deeplake.core.dataset import Dataset
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     MAX_BYTES_PER_MINUTE,
     TARGET_BYTE_SIZE,
     DEFAULT_VECTORSTORE_DISTANCE_METRIC,
+    DEFAULT_DEEPMEMORY_DISTANCE_METRIC,
 )
 from deeplake.client.utils import read_token
 from deeplake.core.vectorstore import utils
@@ -28,11 +25,11 @@ from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
 from deeplake.core.vectorstore.vector_search.indra import index
-
 from deeplake.util.bugout_reporter import (
     feature_report_path,
-    deeplake_reporter,
 )
+from deeplake.util.path import get_path_type
+
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +53,8 @@ class VectorStore:
         runtime: Optional[Dict] = None,
         creds: Optional[Union[Dict, str]] = None,
         org_id: Optional[str] = None,
+        logger: logging.Logger = logger,
+        branch: str = "main",
         **kwargs: Any,
     ) -> None:
         """Creates an empty VectorStore or loads an existing one if it exists at the specified ``path``.
@@ -115,6 +114,7 @@ class VectorStore:
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
                 - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             runtime (Dict, optional): Parameters for creating the Vector Store in Deep Lake's Managed Tensor Database. Not applicable when loading an existing Vector Store. To create a Vector Store in the Managed Tensor Database, set `runtime = {"tensor_db": True}`.
+            branch (str): Branch name to use for the Vector Store. Defaults to "main".
 
             **kwargs (Any): Additional keyword arguments.
 
@@ -124,8 +124,17 @@ class VectorStore:
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
         """
+        try:
+            from indra import api  # type: ignore
+
+            self.indra_installed = True
+        except Exception:  # pragma: no cover
+            self.indra_installed = False  # pragma: no cover
+
         self._token = token
-        self.path = path
+        self.path = convert_pathlib_to_string_if_needed(path)
+        self.logger = logger
+        self.org_id = org_id if get_path_type(self.path) == "local" else None
 
         feature_report_path(
             path,
@@ -152,29 +161,28 @@ class VectorStore:
         self.ingestion_batch_size = ingestion_batch_size
         self.index_params = utils.parse_index_params(index_params)
         self.num_workers = num_workers
-
-        if creds is None:
-            creds = {}
+        self.creds = creds or {}
 
         self.dataset = dataset_utils.create_or_load_dataset(
             tensor_params,
             path,
             self.token,
-            creds,
-            logger,
+            self.creds,
+            self.logger,
             read_only,
             exec_option,
             embedding_function,
             overwrite,
             runtime,
-            org_id,
+            self.org_id,
+            branch,
             **kwargs,
         )
         self.embedding_function = embedding_function
         self._exec_option = exec_option
         self.verbose = verbose
         self.tensor_params = tensor_params
-        self.distance_metric_index = False
+        self.distance_metric_index = None
         if utils.index_used(self.exec_option):
             index.index_cache_cleanup(self.dataset)
             self.distance_metric_index = index.validate_and_create_vector_index(
@@ -182,6 +190,7 @@ class VectorStore:
                 index_params=self.index_params,
                 regenerate_index=False,
             )
+        self.deep_memory = None
 
     @property
     def token(self):
@@ -190,7 +199,7 @@ class VectorStore:
     @property
     def exec_option(self) -> str:
         return utils.parse_exec_option(
-            self.dataset, self._exec_option, _INDRA_INSTALLED, self.username
+            self.dataset, self._exec_option, self.indra_installed, self.username
         )
 
     @property
@@ -377,7 +386,8 @@ class VectorStore:
         embedding_tensor: str = "embedding",
         return_tensors: Optional[List[str]] = None,
         return_view: bool = False,
-    ) -> Union[Dict, deeplake.core.dataset.Dataset]:
+        deep_memory: bool = False,
+    ) -> Union[Dict, Dataset]:
         """VectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
         Examples:
@@ -428,12 +438,15 @@ class VectorStore:
             embedding_tensor (str): Name of tensor with embeddings. Defaults to "embedding".
             return_tensors (Optional[List[str]]): List of tensors to return data for. Defaults to None, which returns data for all tensors except the embedding tensor (in order to minimize payload). To return data for all tensors, specify return_tensors = "*".
             return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictionary with data. Defaults to False. If ``True`` return_tensors is set to "*" beucase data is lazy-loaded and there is no cost to including all tensors in the view.
+            deep_memory (bool): Whether to use the Deep Memory model for improving search results. Defaults to False if deep_memory is not specified in the Vector Store initialization.
+                If True, the distance metric is set to "deepmemory_distance", which represents the metric with which the model was trained. The search is performed using the Deep Memory model. If False, the distance metric is set to "COS" or whatever distance metric user specifies.
 
         ..
             # noqa: DAR101
 
         Raises:
             ValueError: When invalid parameters are specified.
+            ValueError: when deep_memory is True. Deep Memory is only available for datasets stored in the Deep Lake Managed Database for paid accounts.
 
         Returns:
             Dict: Dictionary where keys are tensor names and values are the results of the search
@@ -462,13 +475,19 @@ class VectorStore:
         try_flushing(self.dataset)
 
         if exec_option is None and self.exec_option != "python" and callable(filter):
-            logger.warning(
+            self.logger.warning(
                 'Switching exec_option to "python" (runs on client) because filter is specified as a function. '
                 f'To continue using the original exec_option "{self.exec_option}", please specify the filter as a dictionary or use the "query" parameter to specify a TQL query.'
             )
             exec_option = "python"
 
         exec_option = exec_option or self.exec_option
+
+        if deep_memory and not self.deep_memory:
+            raise ValueError(
+                "Deep Memory is not available for this organization."
+                "Deep Memory is only available for waitlisted accounts."
+            )
 
         utils.parse_search_args(
             embedding_data=embedding_data,
@@ -497,7 +516,7 @@ class VectorStore:
             )
 
         if self.distance_metric_index:
-            distance_metric = index.get_index_distance_metric_from_params(
+            distance_metric = index.parse_index_distance_metric_from_params(
                 logger, self.distance_metric_index, distance_metric
             )
 
@@ -505,7 +524,7 @@ class VectorStore:
 
         return vector_search.search(
             query=query,
-            logger=logger,
+            logger=self.logger,
             filter=filter,
             query_embedding=query_emb,
             k=k,
@@ -515,6 +534,9 @@ class VectorStore:
             embedding_tensor=embedding_tensor,
             return_tensors=return_tensors,
             return_view=return_view,
+            deep_memory=deep_memory,
+            token=self.token,
+            org_id=self.org_id,
         )
 
     def delete(
@@ -756,6 +778,14 @@ class VectorStore:
             allow_empty (bool): Whether to allow empty commits. Defaults to True.
         """
         self.dataset.commit(allow_empty=allow_empty)
+
+    def checkout(self, branch: str = "main") -> None:
+        """Checkout the Vector Store to a specific branch.
+
+        Args:
+            branch (str): Branch name to checkout. Defaults to "main".
+        """
+        self.dataset.checkout(branch)
 
     def tensors(self):
         """Returns the list of tensors present in the dataset"""

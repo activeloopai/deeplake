@@ -609,6 +609,7 @@ def test_link_path(local_ds):
         np.testing.assert_array_equal(ds.a[1].path(), ds.b[1].numpy())
         np.testing.assert_array_equal(ds.a[2].path(), ds.b[2].numpy())
         np.testing.assert_array_equal(ds.a.path(), ds.b.numpy())
+        np.testing.assert_array_equal(ds.a.path(aslist=True), ds.b.numpy().tolist())
 
 
 @pytest.mark.parametrize("create_shape_tensor", [True, False])
@@ -665,9 +666,16 @@ def test_creds(hub_cloud_ds_generator, cat_path):
     ds.populate_creds(creds_key, from_environment=True)
     with ds:
         tensor = ds.create_tensor("abc", "link[image]", sample_compression="jpeg")
+        seq_tensor = ds.create_tensor(
+            "xyz", "sequence[link[image]]", sample_compression="jpeg"
+        )
         tensor.append(deeplake.link(cat_path, creds_key))
+        seq_tensor.append(
+            [deeplake.link(cat_path, creds_key), deeplake.link(cat_path, creds_key)]
+        )
 
     assert tensor[0].creds_key() == creds_key
+    assert seq_tensor[0].creds_key() == [creds_key, creds_key]
     ds.add_creds_key("aws_creds", True)
     assert ds.get_managed_creds_keys() == {"aws_creds"}
     assert set(ds.get_creds_keys()) == {"aws_creds", "ENV"}
