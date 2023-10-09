@@ -50,6 +50,7 @@ Deep Lake is an open-source database for AI.
    :caption: API Reference
 
    deeplake
+   deeplake.VectorStore
    deeplake.core
    deeplake.core.dataset
    deeplake.core.tensor
