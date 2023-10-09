@@ -192,7 +192,6 @@ class DeepMemory:
 
         Examples:
             >>> vectorstore.deep_memory.status(job_id)
-
             --------------------------------------------------------------
             |                  6508464cd80cab681bfcfff3                  |
             --------------------------------------------------------------
@@ -281,7 +280,7 @@ class DeepMemory:
         """Evaluate a model on DeepMemory managed service.
 
         Examples:
-            # Evaluate a model with embedding function
+            >>> # Evaluate a model with embedding function
             >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
             >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries. It is stored in the `id` tensor of the corpus dataset.
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
@@ -292,7 +291,7 @@ class DeepMemory:
             ...     embedding_function=embedding_function,
             ... )
 
-            # Evaluate a model with precomputed embeddings
+            >>> # Evaluate a model with precomputed embeddings
             >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
             >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries. It is stored in the `id` tensor of the corpus dataset.
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
@@ -303,7 +302,7 @@ class DeepMemory:
             ...     embedding=embedding,
             ... )
 
-            # Evaluate a model with precomputed embeddings and log queries
+            >>> # Evaluate a model with precomputed embeddings and log queries
             >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
             >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries. It is stored in the `id` tensor of the corpus dataset.
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
@@ -317,7 +316,7 @@ class DeepMemory:
             ...     }
             ... )
 
-            # Evaluate a model with precomputed embeddings and log queries, and custom branch
+            >>> # Evaluate a model with precomputed embeddings and log queries, and custom branch
             >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
             >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries. It is stored in the `id` tensor of the corpus dataset.
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
