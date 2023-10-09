@@ -25,6 +25,7 @@ from pathlib import Path
 from PIL import Image  # type: ignore
 from io import BytesIO
 
+import lz4.frame  # type: ignore
 import mmap
 import struct
 import sys
@@ -47,13 +48,6 @@ try:
     _NUMCODECS_INSTALLED = True
 except ImportError:
     _NUMCODECS_INSTALLED = False
-
-try:
-    import lz4.frame  # type: ignore
-
-    _LZ4_INSTALLED = True
-except ImportError:
-    _LZ4_INSTALLED = False
 
 try:
     import nibabel as nib  # type: ignore
@@ -185,17 +179,13 @@ def decompress_bytes(
             return b""
         if (
             buffer[:4] == b'\x04"M\x18'
-        ):  # python-lz4 magic number (backward compatiblity)
-            if not _LZ4_INSTALLED:
-                raise ModuleNotFoundError(
-                    "Module lz4 not found. Install using `pip install lz4`."
-                )
+        ):  # python-lz4 magic number
             return lz4.frame.decompress(buffer)
         if not _NUMCODECS_INSTALLED:
             raise ModuleNotFoundError(
                 "Module numcodecs not found. Install using `pip install numcodecs`."
             )
-        return numcodecs.lz4.decompress(buffer)
+        return numcodecs.lz4.decompress(buffer) # backwards compatibility
     else:
         raise SampleDecompressionError()
 
