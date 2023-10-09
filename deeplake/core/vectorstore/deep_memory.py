@@ -109,7 +109,7 @@ class DeepMemory:
         runtime = None
         if get_path_type(corpus_path) == "hub":
             runtime = {"tensor_db": True}
-        
+
         queries_vs = VectorStore(
             path=queries_path,
             overwrite=True,
