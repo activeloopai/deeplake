@@ -53,14 +53,6 @@ class DeepMemory:
         self.embedding_function = embedding_function
         self.client = client
         self.creds = creds or {}
-        self.queries_dataset = deeplake.dataset(
-            self.dataset.path + "_eval_queries",
-            token=token,
-            read_only=False,
-            creds=self.creds,
-        )
-        if len(self.queries_dataset) == 0:
-            self.queries_dataset.commit(allow_empty=True)
 
     def train(
         self,
@@ -117,6 +109,7 @@ class DeepMemory:
         runtime = None
         if get_path_type(corpus_path) == "hub":
             runtime = {"tensor_db": True}
+
         queries_vs = VectorStore(
             path=queries_path,
             overwrite=True,
@@ -192,7 +185,6 @@ class DeepMemory:
 
         Examples:
             >>> vectorstore.deep_memory.status(job_id)
-
             --------------------------------------------------------------
             |                  6508464cd80cab681bfcfff3                  |
             --------------------------------------------------------------
@@ -281,7 +273,7 @@ class DeepMemory:
         """Evaluate a model on DeepMemory managed service.
 
         Examples:
-            # Evaluate a model with embedding function
+            >>> #1. Evaluate a model with embedding function
             >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
             >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries. It is stored in the `id` tensor of the corpus dataset.
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
@@ -291,8 +283,7 @@ class DeepMemory:
             ...     queries=queries,
             ...     embedding_function=embedding_function,
             ... )
-
-            # Evaluate a model with precomputed embeddings
+            >>> #2. Evaluate a model with precomputed embeddings
             >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
             >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries. It is stored in the `id` tensor of the corpus dataset.
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
@@ -302,8 +293,7 @@ class DeepMemory:
             ...     queries=queries,
             ...     embedding=embedding,
             ... )
-
-            # Evaluate a model with precomputed embeddings and log queries
+            >>> #3. Evaluate a model with precomputed embeddings and log queries
             >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
             >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries. It is stored in the `id` tensor of the corpus dataset.
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
@@ -316,8 +306,7 @@ class DeepMemory:
             ...         "log_queries": True,
             ...     }
             ... )
-
-            # Evaluate a model with precomputed embeddings and log queries, and custom branch
+            >>> #4. Evaluate a model with precomputed embeddings and log queries, and custom branch
             >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
             >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries. It is stored in the `id` tensor of the corpus dataset.
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
@@ -441,6 +430,16 @@ class DeepMemory:
 
         if log_queries == False:
             return recalls
+
+        self.queries_dataset = deeplake.empty(
+            self.dataset.path + "_eval_queries",
+            token=self.token,
+            creds=self.creds,
+            overwrite=True,
+        )
+
+        if len(self.queries_dataset) == 0:
+            self.queries_dataset.commit(allow_empty=True)
 
         create = branch not in self.queries_dataset.branches
         self.queries_dataset.checkout(parsed_qvs_params["branch"], create=create)
