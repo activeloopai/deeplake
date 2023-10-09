@@ -72,6 +72,9 @@ def search(
         view, data = deeplake_dataset.query(
             tql_query, runtime=runtime, return_data=True
         )
+        if return_view:
+            return view
+
         return_data = data
     elif deep_memory:
         if not INDRA_INSTALLED:
