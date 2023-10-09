@@ -53,14 +53,6 @@ class DeepMemory:
         self.embedding_function = embedding_function
         self.client = client
         self.creds = creds or {}
-        self.queries_dataset = deeplake.dataset(
-            self.dataset.path + "_eval_queries",
-            token=token,
-            read_only=False,
-            creds=self.creds,
-        )
-        if len(self.queries_dataset) == 0:
-            self.queries_dataset.commit(allow_empty=True)
 
     def train(
         self,
@@ -117,6 +109,7 @@ class DeepMemory:
         runtime = None
         if get_path_type(corpus_path) == "hub":
             runtime = {"tensor_db": True}
+        
         queries_vs = VectorStore(
             path=queries_path,
             overwrite=True,
@@ -437,6 +430,16 @@ class DeepMemory:
 
         if log_queries == False:
             return recalls
+
+        self.queries_dataset = deeplake.empty(
+            self.dataset.path + "_eval_queries",
+            token=self.token,
+            creds=self.creds,
+            overwrite=True,
+        )
+
+        if len(self.queries_dataset) == 0:
+            self.queries_dataset.commit(allow_empty=True)
 
         create = branch not in self.queries_dataset.branches
         self.queries_dataset.checkout(parsed_qvs_params["branch"], create=create)
