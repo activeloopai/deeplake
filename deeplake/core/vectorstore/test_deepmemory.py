@@ -565,3 +565,4 @@ def test_deepmemory_search_on_local_datasets(
     output = corpus.search(embedding=query_embedding, deep_memory=True, k=10)
 
     assert correct_id in output["id"]
+    assert "score" in output
