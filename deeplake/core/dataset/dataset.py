@@ -2664,7 +2664,7 @@ class Dataset:
         self._token = new_token
 
     def set_token(self, new_token: str):
-        """Method to set a new token if you want a method for some reason"""
+        """Method to set a new token"""
         self._token = new_token
 
     @property
