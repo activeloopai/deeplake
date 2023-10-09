@@ -2658,6 +2658,15 @@ class Dataset:
         """Get attached token of the dataset"""
         return self._token
 
+    @token.setter
+    def token(self, new_token: str):
+        """Set token to dataset"""
+        self._token = new_token
+
+    def set_token(self, new_token: str):
+        """Method to set a new token if you want a method for some reason"""
+        self._token = new_token
+
     @property
     def _ungrouped_tensors(self) -> Dict[str, Tensor]:
         """Top level tensors in this group that do not belong to any sub groups"""

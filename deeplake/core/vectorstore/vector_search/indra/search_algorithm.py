@@ -5,6 +5,7 @@ from deeplake.core.vectorstore.vector_search.indra import query
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
+from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 from deeplake.enterprise.util import raise_indra_installation_error
 
 
@@ -76,11 +77,15 @@ def search(
         if not INDRA_INSTALLED:
             raise raise_indra_installation_error(indra_import_error=None)
 
-        from deeplake.enterprise.convert_to_libdeeplake import import_indra_api
+        if deeplake_dataset.libdeeplake_dataset is not None:
+            indra_dataset = deeplake_dataset.libdeeplake_dataset
+        else:
+            if org_id is not None:
+                deeplake_dataset.org_id = org_id
+            if token is not None:
+                deeplake_dataset.set_token(token)
 
-        api = import_indra_api()
-
-        indra_dataset = api.dataset(deeplake_dataset.path, token=token, org_id=org_id)
+            indra_dataset = dataset_to_libdeeplake(deeplake_dataset)
         api.tql.prepare_deepmemory_metrics(indra_dataset)
 
         indra_view = indra_dataset.query(tql_query)
@@ -88,8 +93,10 @@ def search(
         view = DeepLakeQueryDataset(deeplake_ds=deeplake_dataset, indra_ds=indra_view)
         view._tql_query = tql_query
 
-        return_data = {}
+        if return_view:
+            return view
 
+        return_data = {}
         for tensor in view.tensors:
             return_data[tensor] = utils.parse_tensor_return(view[tensor])
 
@@ -98,16 +105,17 @@ def search(
             raise raise_indra_installation_error(
                 indra_import_error=None
             )  # pragma: no cover
-        return_data = {}
 
         view = deeplake_dataset.query(
             tql_query,
             runtime=runtime,
         )
 
+        if return_view:
+            return view
+
+        return_data = {}
         for tensor in view.tensors:
             return_data[tensor] = utils.parse_tensor_return(view[tensor])
 
-    if return_view:
-        return view
     return return_data
