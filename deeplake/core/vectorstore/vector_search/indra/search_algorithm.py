@@ -84,7 +84,6 @@ def search(
         api.tql.prepare_deepmemory_metrics(indra_dataset)
 
         indra_view = indra_dataset.query(tql_query)
-        indexes = indra_view.indexes
 
         view = DeepLakeQueryDataset(deeplake_ds=deeplake_dataset, indra_ds=indra_view)
         view._tql_query = tql_query
