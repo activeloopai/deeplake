@@ -10,6 +10,10 @@ namespace deeplog {
         spdlog::debug("Metadata snapshot created for version {} with {} actions", version, actions_->size());
     }
 
+    std::shared_ptr<base_snapshot> metadata_snapshot::update() const {
+        return std::make_shared<metadata_snapshot>(version, deeplog);
+    }
+
     std::shared_ptr<protocol_action> metadata_snapshot::protocol() const {
         return find_action<protocol_action>();
     }

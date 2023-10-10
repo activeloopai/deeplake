@@ -13,7 +13,7 @@ namespace deeplog {
     public:
         void add(const std::shared_ptr<action> &action);
 
-        long commit();
+        unsigned long commit();
 
     private:
         std::vector<std::shared_ptr<action>> actions_;

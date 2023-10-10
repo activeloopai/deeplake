@@ -96,13 +96,19 @@ namespace deeplog {
         return get<1>(get_actions(branch_id, std::nullopt));
     }
 
-    void deeplog::commit(const std::string &branch_id,
+    bool deeplog::commit(const std::string &branch_id,
                          const unsigned long &base_version,
                          const std::vector<std::shared_ptr<action>> &actions) {
 
         auto log_dir = "/_deeplake_log/" + branch_id + "/";
 
         auto operationFilePath = log_dir + zero_pad(base_version + 1) + ".json";
+
+        if (storage_->file(operationFilePath).exists()) {
+            spdlog::debug("Version {} file already exists", operationFilePath);
+
+            return false;
+        }
 
         spdlog::debug("Committing {} actions to {}", actions.size(), operationFilePath);
 
@@ -114,6 +120,7 @@ namespace deeplog {
         }
 
         storage_->set_bytes(operationFilePath, buffer.str());
+        return true;
     }
 
     arrow::Result<std::shared_ptr<arrow::Table>> deeplog::action_data(const std::string &branch_id,

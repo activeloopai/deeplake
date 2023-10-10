@@ -11,6 +11,8 @@ namespace deeplog {
 
         metadata_snapshot(const unsigned long &version, const std::shared_ptr<::deeplog::deeplog> &deeplog);
 
+        std::shared_ptr<base_snapshot> update() const override;
+
         std::shared_ptr<protocol_action> protocol() const;
 
         std::shared_ptr<metadata_action> metadata() const;

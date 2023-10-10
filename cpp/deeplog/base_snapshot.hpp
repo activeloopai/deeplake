@@ -10,6 +10,8 @@ namespace deeplog {
         const std::string branch_id;
         const std::shared_ptr<deeplog> deeplog;
 
+        virtual std::shared_ptr<base_snapshot> update() const = 0;
+
     protected:
         std::shared_ptr<std::vector<std::shared_ptr<action>>> actions_;
 

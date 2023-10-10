@@ -32,7 +32,7 @@ namespace deeplog {
 
         std::vector<std::shared_ptr<create_commit_action>> commits(const std::string &branch_id, const std::optional<unsigned long> &version);
 
-        void commit(const std::string &branch_id,
+        bool commit(const std::string &branch_id,
                     const unsigned long &base_version,
                     const std::vector<std::shared_ptr<action>> &actions);
 

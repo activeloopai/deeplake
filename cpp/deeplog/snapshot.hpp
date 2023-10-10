@@ -21,5 +21,7 @@ namespace deeplog {
         std::vector<std::shared_ptr<create_tensor_action>> tensors();
 
         std::vector<std::shared_ptr<create_commit_action>> commits();
+
+        std::shared_ptr<base_snapshot> update() const override;
     };
 }

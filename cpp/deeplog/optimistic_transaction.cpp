@@ -1,4 +1,5 @@
 #include "optimistic_transaction.hpp"
+#include "spdlog/spdlog.h"
 #include <iostream>
 
 namespace deeplog {
@@ -8,8 +9,18 @@ namespace deeplog {
         actions_.push_back(action);
     }
 
-    long optimistic_transaction::commit() {
-        snapshot->deeplog->commit(snapshot->branch_id, snapshot->version, actions_);
-        return 3;
+    unsigned long optimistic_transaction::commit() {
+        auto snapshot_to_commit = snapshot;
+
+        while (true) {
+            auto succeeded = snapshot_to_commit->deeplog->commit(snapshot->branch_id, snapshot->version, actions_);
+            if (succeeded) {
+                return snapshot_to_commit->version + 1;
+            }
+
+            spdlog::debug("Commit failed, retrying");
+            auto snapshot_to_commit = snapshot->update();
+        }
+
     }
 }
