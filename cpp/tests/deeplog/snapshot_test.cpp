@@ -3,23 +3,9 @@
 #include "../../deeplog/deeplog.hpp"
 #include "../../deeplog/snapshot.hpp"
 #include "../../deeplog/metadata_snapshot.hpp"
+#include "base_test.hpp"
 
-class DeeplogSnapshotTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        if (std::filesystem::exists(test_dir)) {
-            std::filesystem::remove_all(test_dir);
-        }
-    }
-
-    void TearDown() override {
-        if (std::filesystem::exists(test_dir)) {
-            std::filesystem::remove_all(test_dir);
-        }
-    }
-
-    std::string test_dir = "tmp/test";
-};
+class DeeplogSnapshotTest : public base_test { };
 
 TEST_F(DeeplogSnapshotTest, construct) {
     auto log = deeplog::deeplog::create(test_dir, 4);

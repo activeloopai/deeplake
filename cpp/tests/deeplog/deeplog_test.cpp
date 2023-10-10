@@ -7,6 +7,7 @@
 #include "../../deeplog/snapshot.hpp"
 #include "../../deeplog/metadata_snapshot.hpp"
 #include "../../deeplog/optimistic_transaction.hpp"
+#include "base_test.hpp"
 #include <fstream>
 #include <string>
 #include <nlohmann/json.hpp>
@@ -15,32 +16,7 @@
 #include <parquet/api/reader.h>
 #include <parquet/arrow/reader.h>
 
-class DeeplogTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        if (std::filesystem::exists(test_dir)) {
-            std::filesystem::remove_all(test_dir);
-        }
-    }
-
-    void TearDown() override {
-        if (std::filesystem::exists(test_dir)) {
-            std::filesystem::remove_all(test_dir);
-        }
-    }
-
-    std::set<std::string> list_log_files(const std::string &branch_id) {
-        auto files = std::set < std::string > ();
-        std::filesystem::path dir_path = {test_dir + "/_deeplake_log/" + branch_id + "/"};
-        for (const auto &entry: std::filesystem::directory_iterator(dir_path)) {
-            files.insert(entry.path().string().substr((test_dir + "/_deeplake_log/" + branch_id + "/").size()));
-        }
-
-        return files;
-    }
-
-    std::string test_dir = "tmp/test";
-};
+class DeeplogTest : public base_test { };
 
 
 TEST_F(DeeplogTest, create) {
