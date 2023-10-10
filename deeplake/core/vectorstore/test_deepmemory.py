@@ -311,12 +311,13 @@ def test_deepmemory_evaluate_without_logging(
         },
     )
     sleep(15)
-    with pytest.raises(ValueError):
-        queries_dataset = VectorStore(
-            path=query_path,
-            token=hub_cloud_dev_token,
-            read_only=True,
-        )
+
+    queries_dataset = VectorStore(
+        path=query_path,
+        token=hub_cloud_dev_token,
+        read_only=True,
+    )
+    assert len(queries_dataset) == 0
 
 
 @pytest.mark.slow
@@ -386,12 +387,13 @@ def test_deepmemory_evaluate_without_qvs_params(
     )
 
     sleep(15)
-    with pytest.raises(ValueError):
-        queries_dataset = VectorStore(
-            path=query_path,
-            token=hub_cloud_dev_token,
-            read_only=True,
-        )
+
+    queries_dataset = VectorStore(
+        path=query_path,
+        token=hub_cloud_dev_token,
+        read_only=True,
+    )
+    assert len(queries_dataset) == 0
 
 
 @pytest.mark.slow
@@ -565,3 +567,4 @@ def test_deepmemory_search_on_local_datasets(
     output = corpus.search(embedding=query_embedding, deep_memory=True, k=10)
 
     assert correct_id in output["id"]
+    assert "score" in output

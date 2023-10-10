@@ -64,13 +64,11 @@ class VectorStore:
             >>> data = VectorStore(
             ...        path = "./my_vector_store",
             ... )
-
             >>> # Create a vector store in the Deep Lake Managed Tensor Database
             >>> data = VectorStore(
             ...        path = "hub://org_id/dataset_name",
             ...        runtime = {"tensor_db": True},
             ... )
-
             >>> # Create a vector store with custom tensors
             >>> data = VectorStore(
             ...        path = "./my_vector_store",
@@ -233,14 +231,12 @@ class VectorStore:
             >>> metadatas = [{"timestamp": "01:20"}, {"timestamp": "01:22"}]
             >>> emebdding_fn = lambda x: [[1, 2, 3]] * len(x)
             >>> embedding_fn_2 = lambda x: [[4, 5]] * len(x)
-
             >>> # Directly upload embeddings
             >>> deeplake_vector_store.add(
             ...     text = texts,
             ...     embedding = embeddings,
             ...     metadata = metadatas,
             ... )
-
             >>> # Upload embedding via embedding function
             >>> deeplake_vector_store.add(
             ...     text = texts,
@@ -248,7 +244,6 @@ class VectorStore:
             ...     embedding_function = embedding_fn,
             ...     embedding_data = texts,
             ... )
-
             >>> # Upload embedding via embedding function to a user-defined embedding tensor
             >>> deeplake_vector_store.add(
             ...     text = texts,
@@ -257,14 +252,12 @@ class VectorStore:
             ...     embedding_data = texts,
             ...     embedding_tensor = "embedding_1",
             ... )
-
             >>> # Multiple embedding functions (user defined embedding tensors must be specified)
             >>> deeplake_vector_store.add(
             ...     embedding_tensor = ["embedding_1", "embedding_2"]
             ...     embedding_function = [embedding_fn, embedding_fn_2],
             ...     embedding_data = [texts, texts],
             ... )
-
             >>> # Alternative syntax for multiple embedding functions
             >>> deeplake_vector_store.add(
             ...     text = texts,
@@ -272,7 +265,6 @@ class VectorStore:
             ...     embedding_tensor_1 = (embedding_fn, texts),
             ...     embedding_tensor_2 = (embedding_fn_2, texts),
             ... )
-
             >>> # Add data to fully custom tensors
             >>> deeplake_vector_store.add(
             ...     tensor_A = [1, 2],
@@ -396,21 +388,18 @@ class VectorStore:
             ...        embedding = [1, 2, 3],
             ...        exec_option = "python",
             ... )
-
             >>> # Search using an embedding function and data for embedding
             >>> data = vector_store.search(
             ...        embedding_data = "What does this chatbot do?",
             ...        embedding_function = query_embedding_fn,
             ...        exec_option = "compute_engine",
             ... )
-
             >>> # Add a filter to your search
             >>> data = vector_store.search(
             ...        embedding = np.ones(3),
             ...        exec_option = "python",
             ...        filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"},...}, # Only valid for exec_option = "python"
             ... )
-
             >>> # Search using TQL
             >>> data = vector_store.search(
             ...        query = "select * where ..... <add TQL syntax>",
@@ -553,12 +542,10 @@ class VectorStore:
         Examples:
             >>> # Delete using ids:
             >>> data = vector_store.delete(ids)
-
             >>> # Delete data using filter
             >>> data = vector_store.delete(
             ...        filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"}},
             ... )
-
             >>> # Delete data using TQL
             >>> data = vector_store.delete(
             ...        query = "select * where ..... <add TQL syntax>",
@@ -649,7 +636,6 @@ class VectorStore:
             ...    embedding_tensor = "embedding",
             ...    embedding_function = embedding_function,
             ... )
-
             >>> # Update data using filter and several embedding_tensors, several embedding_source_tensors
             >>> # and several embedding_functions:
             >>> data = vector_store.update(
@@ -658,7 +644,6 @@ class VectorStore:
             ...     filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"}},
             ...     embedding_tensor = ["text_embedding", "metadata_embedding"]
             ... )
-
             >>> # Update data using TQL, if new embedding function is not specified the embedding_function used
             >>> # during initialization will be used
             >>> data = vector_store.update(
