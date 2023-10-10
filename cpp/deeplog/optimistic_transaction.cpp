@@ -19,7 +19,7 @@ namespace deeplog {
             }
 
             spdlog::debug("Commit failed, retrying");
-            auto snapshot_to_commit = snapshot->update();
+            snapshot_to_commit = snapshot->update();
         }
 
     }
