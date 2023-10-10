@@ -3522,7 +3522,7 @@ class Dataset:
                     info["source-dataset-index"] = combined_idx.to_json()
             else:
                 info["source-dataset-version"] = (
-                    info["source-dataset-version"] or "main"
+                    info["source-dataset-version"] or FIRST_COMMIT_ID
                 )
         else:
             ds = self
