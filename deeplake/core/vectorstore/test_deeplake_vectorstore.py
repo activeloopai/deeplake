@@ -545,6 +545,15 @@ def test_index_basic(local_path, hub_cloud_dev_token):
         == METRIC_TO_INDEX_METRIC[DEFAULT_VECTORSTORE_DISTANCE_METRIC]
     )
 
+    pre_update_index = vector_store.dataset.embedding.get_vdb_indexes()[0]
+    # Test index updates and/or regeneration
+    vector_store.add(
+        embedding=[embeddings[0]], text=[texts[0]], metadata=[metadatas[0]]
+    )
+    post_update_index = vector_store.dataset.embedding.get_vdb_indexes()[0]
+
+    assert pre_update_index == post_update_index
+
     # Check that distance metric throws a warning when there is an index
     with pytest.warns(None):
         vector_store.search(embedding=query_embedding, distance_metric="l1")

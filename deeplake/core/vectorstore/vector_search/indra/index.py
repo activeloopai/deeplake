@@ -119,19 +119,25 @@ def validate_and_create_vector_index(dataset, index_params, regenerate_index=Fal
     # TODO: BRING BACK WHEN IT IS IN USE
 
     # index_regen = False
-    # Check if regenerate_index is true.
+
+    # # Check if regenerate_index is true.
     # if regenerate_index:
     #     for _, tensor in tensors.items():
     #         is_embedding = utils.is_embedding_tensor(tensor)
-    #         has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
-    #         try:
-    #             vdb_index_ids_present = len(tensor.get_vdb_indexes()) > 0
-    #         except AttributeError:
-    #             vdb_index_ids_present = False
 
-    #         if is_embedding and has_vdb_indexes and vdb_index_ids_present:
-    #             tensor._regenerate_vdb_indexes()
-    #             index_regen = True
+    #         if is_embedding:
+    #             vdb_indexes = tensor.get_vdb_indexes()
+
+    #         if len(vdb_indexes) == 0 and not below_threshold:
+    #             try:
+    #                 vdb_index_ids_present = len(tensor.get_vdb_indexes()) > 0
+    #             except AttributeError:
+    #                 vdb_index_ids_present = False
+
+    #             if is_embedding and has_vdb_indexes and vdb_index_ids_present:
+    #                 tensor._regenerate_vdb_indexes()
+    #                 index_regen = True
+
     #     if index_regen:
     #         return
 
@@ -159,6 +165,9 @@ def validate_and_create_vector_index(dataset, index_params, regenerate_index=Fal
                 except ValueError as e:
                     raise e
             elif len(vdb_indexes) > 0:
+                if regenerate_index:
+                    tensor._regenerate_vdb_indexes()
+
                 return vdb_indexes[0]["distance"]
 
     return None
