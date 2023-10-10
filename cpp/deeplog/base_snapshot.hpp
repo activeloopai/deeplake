@@ -7,6 +7,7 @@ namespace deeplog {
 
     public:
         unsigned long version;
+        const std::string branch_id;
         const std::shared_ptr<deeplog> deeplog;
 
     protected:

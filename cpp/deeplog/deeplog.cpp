@@ -14,11 +14,11 @@
 #include <parquet/arrow/reader.h>
 #include <arrow/util/type_fwd.h>
 #include <arrow/api.h>
-#include <arrow/json/api.h>
 #include "last_checkpoint.hpp"
 #include "deeplog_v3.hpp"
 #include "../storage/local_storage.hpp"
 #include "util.hpp"
+#include "json_parser.hpp"
 #include <arrow/ipc/json_simple.h>
 
 namespace deeplog {
@@ -143,16 +143,10 @@ namespace deeplog {
 
 
         std::optional<unsigned long> next_from = from;
-
-//        auto branch_obj = branch_by_id(branch_id).data;
-//        all_tables.push_back(action_data(branch_id, from, branch_obj->from_version).ValueOrDie());
-
-//        next_from = branch_obj->from_version + 1;
-
         std::set < ::storage::file_ref > sorted_paths = {};
 
         if (storage_->file(dir_path).exists()) {
-            for (auto file_ref: storage_->list_files(dir_path)) {
+            for (const auto &file_ref: storage_->list_files(dir_path)) {
                 if (file_ref.path.ends_with(".json") && !file_ref.path.ends_with("_last_checkpoint.json")) {
                     auto found_version = file_version(file_ref.path);
                     if (to.has_value() && found_version > to) {
@@ -170,32 +164,18 @@ namespace deeplog {
             }
         }
 
+        ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::RecordBatchBuilder> batch_builder, arrow::RecordBatchBuilder::Make(arrow_schema, arrow::default_memory_pool(), 20));
+
         for (const auto &json_path: sorted_paths) {
             spdlog::debug("Reading data from {}", json_path.path);
             auto buffer_reader = open_arrow_istream(json_path);
 
-            auto read_options = arrow::json::ReadOptions::Defaults();
-            auto parse_options = arrow::json::ParseOptions::Defaults();
-            parse_options.explicit_schema = arrow_schema;
-
-            auto status = arrow::json::TableReader::Make(arrow::default_memory_pool(), buffer_reader, read_options, parse_options);
-            if (!status.ok()) {
-                spdlog::error("JSON reader creation failed: {}", status.status().message());
-                continue;
-            }
-            auto json_reader = status.ValueOrDie();
-
-
-            // Read the JSON data into an Arrow Table
-            std::shared_ptr<arrow::Table> arrow_table;
-            auto reader_status = json_reader->Read();
-            if (!reader_status.ok()) {
-                throw std::runtime_error("JSON read failed: " + reader_status.status().message());
-            }
-            arrow_table = reader_status.ValueOrDie();
-
-            all_tables.push_back(arrow_table);
+            ARROW_RETURN_NOT_OK(json_parser::parse(buffer_reader, batch_builder));
         }
+
+        ARROW_ASSIGN_OR_RAISE(auto json_batch, batch_builder->Flush());
+        ARROW_ASSIGN_OR_RAISE(auto json_table, arrow::Table::FromRecordBatches(arrow_schema, {json_batch}));
+        all_tables.push_back(json_table);
 
         std::vector<std::shared_ptr<arrow::Array>> version_row;
         for (const auto &field: arrow_schema->fields()) {
@@ -216,7 +196,12 @@ namespace deeplog {
                                                                                                  const std::optional<unsigned long> &to) const {
         std::vector<std::shared_ptr<action>> return_actions = {};
 
-        auto all_operations = action_data(branch_id, 0, to).ValueOrDie();
+        auto all_operations_result = action_data(branch_id, 0, to);
+        if (!all_operations_result.ok()) {
+            throw std::runtime_error("Error reading action data: " + all_operations_result.status().message());
+        }
+
+        auto all_operations = all_operations_result.ValueOrDie();
 
         spdlog::debug("Parsing action data...");
 
@@ -314,20 +299,7 @@ namespace deeplog {
     arrow::Status deeplog::write_checkpoint(const std::string &branch_id, const unsigned long &version) {
         auto [actions, last_version] = get_actions(branch_id, version);
 
-        std::vector<std::shared_ptr<arrow::ArrayBuilder>> array_builders{};
-        for (auto field: arrow_schema->fields()) {
-            if (field->name() == "version") {
-                array_builders.push_back(arrow::MakeBuilder(field->type(), arrow::default_memory_pool()).ValueOrDie());
-            } else {
-                std::vector<std::shared_ptr<arrow::ArrayBuilder>> struct_builders{};
-                for (auto struct_field: field->type()->fields()) {
-                    struct_builders.push_back(arrow::MakeBuilder(struct_field->type(), arrow::default_memory_pool()).ValueOrDie());
-                }
-
-                array_builders.push_back(std::shared_ptr<arrow::StructBuilder>(std::make_shared<arrow::StructBuilder>(arrow::StructBuilder(field->type(), arrow::default_memory_pool(), struct_builders))));
-            }
-        }
-
+        auto array_builders = create_arrow_builders();
 
         for (const auto &action: *actions) {
             std::string json = action->to_json().dump();
@@ -412,4 +384,21 @@ namespace deeplog {
         return arrow::Buffer::GetReader(buffer).ValueOrDie();
     }
 
+    std::vector<std::shared_ptr<arrow::ArrayBuilder>> deeplog::create_arrow_builders() const {
+        std::vector<std::shared_ptr<arrow::ArrayBuilder>> array_builders{};
+        for (auto field: arrow_schema->fields()) {
+            if (field->name() == "version") {
+                array_builders.push_back(arrow::MakeBuilder(field->type(), arrow::default_memory_pool()).ValueOrDie());
+            } else {
+                std::vector<std::shared_ptr<arrow::ArrayBuilder>> struct_builders{};
+                for (auto struct_field: field->type()->fields()) {
+                    struct_builders.push_back(arrow::MakeBuilder(struct_field->type(), arrow::default_memory_pool()).ValueOrDie());
+                }
+
+                array_builders.push_back(std::make_shared<arrow::StructBuilder>(arrow::StructBuilder(field->type(), arrow::default_memory_pool(), struct_builders)));
+            }
+        }
+
+        return array_builders;
+    }
 } // deeplake

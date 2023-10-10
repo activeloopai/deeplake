@@ -5,10 +5,10 @@
 namespace deeplog {
     class optimistic_transaction {
     public:
-        optimistic_transaction(const std::shared_ptr<snapshot> &snapshot);
+        optimistic_transaction(const std::shared_ptr<base_snapshot> &snapshot);
 
     public:
-        std::shared_ptr<snapshot> snapshot;
+        std::shared_ptr<base_snapshot> snapshot;
 
     public:
         void add(const std::shared_ptr<action> &action);

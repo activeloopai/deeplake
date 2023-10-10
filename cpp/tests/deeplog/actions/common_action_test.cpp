@@ -11,6 +11,7 @@
 #include "../../../deeplog/actions/metadata_action.hpp"
 #include "../../../deeplog/actions/protocol_action.hpp"
 #include "../../../deeplog/actions/remove_file_action.hpp"
+#include "../../../deeplog/json_parser.hpp"
 
 enum ActionDataContentsType {
     FILLED,
@@ -25,20 +26,21 @@ public:
     void test_data_conversions(ActionDataContentsType test_type) {
         auto original_action_json = nlohmann::json::object();
         for (const auto &field: ActionType::arrow_type->fields()) {
+            const auto field_type = field->type();
             if (test_type == NULLS && field->nullable()) {
                 original_action_json[field->name()] = nlohmann::json::value_t::null;
                 continue;
             }
 
-            if (field->type()->Equals(arrow::utf8())) {
+            if (field_type->Equals(arrow::utf8())) {
                 original_action_json[field->name()] = "my/path";
-            } else if (field->type()->Equals(arrow::uint64())) {
+            } else if (field_type->Equals(arrow::uint64())) {
                 if (test_type == ZEROS) {
                     original_action_json[field->name()] = 0;
                 } else {
                     original_action_json[field->name()] = 873731;
                 }
-            } else if (field->type()->Equals(arrow::int64()) || field->type()->Equals(arrow::int32())) {
+            } else if (field_type->Equals(arrow::int64()) || field_type->Equals(arrow::int32())) {
                 if (test_type == ZEROS) {
                     original_action_json[field->name()] = 0;
                 } else if (test_type == NEGATIVES) {
@@ -46,30 +48,13 @@ public:
                 } else {
                     original_action_json[field->name()] = 873731;
                 }
-            } else if (field->type()->Equals(arrow::boolean())) {
+            } else if (field_type->Equals(arrow::boolean())) {
                 if (test_type == NEGATIVES) {
                     original_action_json[field->name()] = false;
                 } else {
                     original_action_json[field->name()] = true;
                 }
-            } else if (field->type()->Equals(arrow::map(arrow::utf8(), arrow::map(arrow::utf8(), arrow::utf8())))) {
-                std::map<std::string, std::map<std::string, std::string>> data = {
-                        {"outer1", {
-                                {"key1", "val1"},
-                                {"key2", "val2"},
-                        }
-                        },
-                        {"outer2", {
-                                {"key3", "val3"},
-                                {"key4", "val4"},
-                        }
-                        },
-                };
-
-                auto auto_data1 = std::map<std::string, std::string>();
-
-                original_action_json[field->name()] = data;
-            } else if (field->type()->Equals(arrow::list(arrow::uint64()))) {
+            } else if (field_type->Equals(arrow::list(arrow::uint64()))) {
                 std::vector<unsigned long> data = {1,
                                                    5,
                                                    13131};
@@ -77,21 +62,30 @@ public:
                 auto auto_data1 = std::map<std::string, std::string>();
 
                 original_action_json[field->name()] = data;
+            } else if (field_type->Equals(deeplog::create_tensor_action::arrow_type->GetFieldByName("links")->type())) {
+                auto data = nlohmann::json::object();
+
+                data["key1"] = deeplog::tensor_link("ext1", true, "up1").to_json();
+                data["key2"]  = deeplog::tensor_link("ext2", true, "up2").to_json();
+
+                original_action_json[field->name()] = data;
             } else {
-                throw std::runtime_error("No test data generation configured for type " + field->type()->ToString());
+                throw std::runtime_error("No test data generation configured for type " + field_type->ToString());
             }
         }
 
         auto table_json = "{\"x\":" + original_action_json.dump() + "}";
         auto input = std::make_shared<arrow::io::BufferReader>(std::make_shared<arrow::Buffer>(table_json));
 
-        auto parse_options = arrow::json::ParseOptions::Defaults();
-        parse_options.explicit_schema = std::make_shared<arrow::Schema>(arrow::FieldVector{
+        auto temp_schema = std::make_shared<arrow::Schema>(arrow::FieldVector{
                 arrow::field("x", ActionType::arrow_type),
         });
 
-        auto table = arrow::json::TableReader::Make(arrow::default_memory_pool(), input, arrow::json::ReadOptions::Defaults(),
-                                                    parse_options).ValueOrDie()->Read().ValueOrDie();
+        std::shared_ptr<arrow::RecordBatchBuilder> buffer_builder = arrow::RecordBatchBuilder::Make(temp_schema, arrow::default_memory_pool(), 1).ValueOrDie();
+        ASSERT_EQ("", deeplog::json_parser::parse(input, buffer_builder).message());
+
+        auto batch = buffer_builder->Flush().ValueOrDie();
+        auto table = arrow::Table::FromRecordBatches({batch}).ValueOrDie();
 
         auto parsed_scalar = std::dynamic_pointer_cast<arrow::StructScalar>(table->GetColumnByName("x")->chunk(0)->GetScalar(0).ValueOrDie());
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <fstream>
-#include <arrow/status.h>
+#include <arrow/api.h>
 #include "actions/add_file_action.hpp"
 #include "actions/protocol_action.hpp"
 #include "actions/metadata_action.hpp"
@@ -60,6 +60,8 @@ namespace deeplog {
         std::shared_ptr<storage::storage> storage_;
 
         std::shared_ptr<arrow::io::RandomAccessFile> open_arrow_istream(const storage::file_ref &file) const;
+
+        std::vector<std::shared_ptr<arrow::ArrayBuilder>> create_arrow_builders() const;
     };
 
 }

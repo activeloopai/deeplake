@@ -1,11 +1,11 @@
 #pragma once
 
-#include <nlohmann/json.hpp>
 #include <arrow/api.h>
+#include "deeplog_serializable.hpp"
 
 namespace deeplog {
 
-    class action {
+    class action : public deeplog_serializable {
 
     public:
         virtual nlohmann::json to_json() = 0;
@@ -13,14 +13,5 @@ namespace deeplog {
         virtual std::string action_name() = 0;
 
         virtual std::shared_ptr<arrow::StructType> action_type() = 0;
-
-        template<typename T>
-        std::optional<T> from_struct(const std::string &field_name, const std::shared_ptr<arrow::StructScalar> &struct_scalar);
-
-        template<typename T>
-        std::vector<T> from_arraystruct(const std::string &field_name, const std::shared_ptr<arrow::StructScalar> &struct_scalar);
-
-        template <typename T>
-        nlohmann::json to_json_value(const std::optional<T> &value);
     };
 }

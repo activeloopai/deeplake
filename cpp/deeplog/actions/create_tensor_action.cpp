@@ -14,7 +14,13 @@ namespace deeplog {
                                    arrow::field("hidden", arrow::boolean(), true),
                                    arrow::field("chunkCompression", arrow::utf8(), true),
                                    arrow::field("sampleCompression", arrow::utf8(), true),
-//                                   arrow::field("links", arrow::map(arrow::utf8(), arrow::map(arrow::utf8(), arrow::utf8())), true),
+                                   arrow::field("links", arrow::map(arrow::utf8(), std::dynamic_pointer_cast<arrow::StructType>(
+                                           arrow::struct_({
+                                                                  arrow::field("extend", arrow::utf8(), true),
+                                                                  arrow::field("flatten_sequence", arrow::boolean(), true),
+                                                                  arrow::field("update", arrow::utf8(), true),
+
+                                                          }))), true),
                                    arrow::field("maxChunkSize", arrow::uint64(), true),
                                    arrow::field("minShape", arrow::list(arrow::uint64()), true),
                                    arrow::field("maxShape", arrow::list(arrow::uint64()), true),
@@ -34,7 +40,7 @@ namespace deeplog {
                                                const bool &hidden,
                                                const std::optional<std::string> &chunk_compression,
                                                const std::optional<std::string> &sample_compression,
-                                               const std::map<std::string, std::map<std::string, std::variant<std::string, bool>>> &links,
+                                               const std::map<std::string, tensor_link> &links,
                                                const std::optional<long> &max_chunk_size,
                                                const std::vector<unsigned long> &min_shape,
                                                const std::vector<unsigned long> &max_shape,
@@ -64,6 +70,7 @@ namespace deeplog {
         hidden = from_struct<bool>("hidden", value).value();
         chunk_compression = from_struct<std::string>("chunkCompression", value);
         sample_compression = from_struct<std::string>("sampleCompression", value);
+        links = from_struct<std::map<std::string, tensor_link>>("links", value).value();
         max_chunk_size = from_struct<long>("maxChunkSize", value);
         min_shape = from_arraystruct<unsigned long>("minShape", value);
         max_shape = from_arraystruct<unsigned long>("maxShape", value);
@@ -94,7 +101,7 @@ namespace deeplog {
         json["hidden"] = hidden;
         json["chunkCompression"] = to_json_value<std::string>(chunk_compression);
         json["sampleCompression"] = to_json_value<std::string>(sample_compression);
-//        json["links"] = links;
+        json["links"] = to_json_value<std::map<std::string, tensor_link>>(links);
         json["maxChunkSize"] = to_json_value<long>(max_chunk_size);
         json["minShape"] = min_shape;
         json["maxShape"] = max_shape;
