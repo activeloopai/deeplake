@@ -607,7 +607,7 @@ class VectorStore:
 
         dataset_utils.delete_and_without_commit(self.dataset, row_ids)
 
-        self._update_index(regenerate_index=len(row_ids) > 0)
+        self._update_index(regenerate_index=len(row_ids) > 0 if row_ids else False)
 
         try_flushing(self.dataset)
 
@@ -717,7 +717,7 @@ class VectorStore:
 
         self.dataset[row_ids].update(embedding_tensor_data)
 
-        self._update_index(regenerate_index=len(row_ids) > 0)
+        self._update_index(regenerate_index=len(row_ids) > 0 if row_ids else False)
 
         try_flushing(self.dataset)
 

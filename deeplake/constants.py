@@ -324,7 +324,7 @@ DEFAULT_VECTORSTORE_INDEX_PARAMS = {
     "threshold": -1,
     "distance_metric": DEFAULT_VECTORSTORE_DISTANCE_METRIC,
     "additional_params": {
-        "efConstruction": 200,
-        "M": 64,
+        "efConstruction": 600,
+        "M": 32,
     },
 }
