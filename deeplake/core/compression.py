@@ -42,12 +42,6 @@ try:
 except ImportError:
     _PYAV_INSTALLED = False
 
-try:
-    import numcodecs.lz4  # type: ignore
-
-    _NUMCODECS_INSTALLED = True
-except ImportError:
-    _NUMCODECS_INSTALLED = False
 
 try:
     import nibabel as nib  # type: ignore
@@ -175,13 +169,7 @@ def decompress_bytes(
             return b""
         if buffer[:4] == b'\x04"M\x18':  # python-lz4 magic number
             return lz4.frame.decompress(buffer)
-        if not _NUMCODECS_INSTALLED:
-            raise ModuleNotFoundError(
-                "This buffer was probably compressed with numcodecs lz4"
-                " implementation but numcodecs is not installed."
-                " Install using `pip install numcodecs`."
-            )
-        return numcodecs.lz4.decompress(buffer)  # backwards compatibility
+        return lz4.block.decompress(buffer)
     else:
         raise SampleDecompressionError()
 
