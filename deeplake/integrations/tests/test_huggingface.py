@@ -1,3 +1,12 @@
+import pytest
+import sys
+
+if sys.platform == "darwin":
+    pytest.skip(
+        "skipping tests on macos due to issue with pyarrow + our aws usage https://github.com/aws/aws-sdk-cpp/issues/2411",
+        allow_module_level=True,
+    )
+
 from datasets import load_dataset  # type: ignore
 from datasets import Dataset  # type: ignore
 from deeplake.api.tests.test_api import convert_string_to_pathlib_if_needed
@@ -6,7 +15,6 @@ from deeplake.integrations.huggingface.huggingface import _is_seq_convertible
 from deeplake.util.exceptions import TensorAlreadyExistsError
 from numpy.testing import assert_array_equal
 
-import pytest
 import deeplake
 
 
