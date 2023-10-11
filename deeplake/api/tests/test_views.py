@@ -175,3 +175,31 @@ def test_save_view_ignore_errors(local_ds):
     assert view.images.shape == (8, 30, 20, 3)
 
     np.testing.assert_array_equal(view.labels.numpy(), np.array([[0]] * 8))
+
+
+@pytest.mark.parametrize("optimize_first_view", [True, False])
+@pytest.mark.parametrize("optimize_second_view", [True, False])
+def test_save_view_of_view(
+    local_ds_generator, optimize_first_view, optimize_second_view
+):
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend(list(range(100)))
+
+        ds.commit()
+
+        ds[:20].save_view(id="first_20", optimize=optimize_first_view)
+
+        view = ds.load_view("first_20")
+
+        view[:10].save_view(id="first_10", optimize=optimize_second_view)
+        view[10:].save_view(id="second_10", optimize=optimize_second_view)
+
+        first_10, second_10 = ds.load_view("first_10"), ds.load_view("second_10")
+        np.testing.assert_array_equal(first_10.abc.numpy(), ds[:10].abc.numpy())
+        np.testing.assert_array_equal(second_10.abc.numpy(), ds[10:20].abc.numpy())
+
+    with local_ds_generator() as ds:
+        first_10, second_10 = ds.load_view("first_10"), ds.load_view("second_10")
+        np.testing.assert_array_equal(first_10.abc.numpy(), ds[:10].abc.numpy())
+        np.testing.assert_array_equal(second_10.abc.numpy(), ds[10:20].abc.numpy())
