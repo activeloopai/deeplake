@@ -2658,6 +2658,15 @@ class Dataset:
         """Get attached token of the dataset"""
         return self._token
 
+    @token.setter
+    def token(self, new_token: str):
+        """Set token to dataset"""
+        self._token = new_token
+
+    def set_token(self, new_token: str):
+        """Method to set a new token"""
+        self._token = new_token
+
     @property
     def _ungrouped_tensors(self) -> Dict[str, Tensor]:
         """Top level tensors in this group that do not belong to any sub groups"""
@@ -3354,7 +3363,8 @@ class Dataset:
     ):
         if self.has_head_changes:
             raise DatasetViewSavingError(
-                "HEAD node has uncommitted changes. Commit them before saving views."
+                "The dataset's HEAD node has uncommitted changes. Please create a commit on"
+                " the dataset object [ds.commit(<insert optional message>)] prior to saving the view."
             )
         commit_id = self.commit_id
         tm = getattr(self, "_created_at", time())
