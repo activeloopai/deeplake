@@ -1408,26 +1408,6 @@ class Tensor:
         """Invalidates the libdeeplake dataset object."""
         self.dataset.libdeeplake_dataset = None
 
-    def get_operation_indices(self, operation_kind, row_ids):
-        add_indices = []
-        remove_indices = []
-        update_indices = []
-
-        if operation_kind == _INDEX_OPERATION_MAPPING["ADD"]:
-            # For ADD operation, row_ids represent the rows to be added
-            add_indices = row_ids
-        elif operation_kind == _INDEX_OPERATION_MAPPING["REMOVE"]:
-            # For REMOVE operation, row_ids represent the rows to be removed
-            remove_indices = row_ids
-        elif operation_kind == _INDEX_OPERATION_MAPPING["UPDATE"]:
-            # For UPDATE operation, row_ids represent the rows to be updated
-            update_indices = row_ids
-        else:
-            # Handle unsupported operation kinds or provide a default behavior
-            raise Exception(f"Unsupported operation_kind: {operation_kind}")
-
-        return add_indices, remove_indices, update_indices
-
     def update_vdb_index(
             self,
             id: str,
@@ -1454,23 +1434,48 @@ class Tensor:
             get_tensor_vdb_index_key(self.key, commit_id, id)
         ]
 
-        add_indices, remove_indices, update_indices = self.get_operation_indices(
-            operation_kind=operation_kind, row_ids=row_ids)
+        if (operation_kind == _INDEX_OPERATION_MAPPING["ADD"]):
+            try:
+                index = api.vdb.add_samples_to_index(ts,
+                                                     index_type="hnsw",
+                                                     distance_type=distance,
+                                                     add_indices=row_ids,
+                                                     data=index_data)
+                b = index.serialize()
+                commit_id = self.version_state["commit_id"]
+                self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
+                self.invalidate_libdeeplake_dataset()
+            except:
+                raise
+        elif (operation_kind == _INDEX_OPERATION_MAPPING["REMOVE"]):
+            try:
+                index = api.vdb.remove_sample_from_index(ts,
+                                                         index_type="hnsw",
+                                                         distance_type=distance,
+                                                         remove_indices=row_ids,
+                                                         data=index_data)
+                b = index.serialize()
+                commit_id = self.version_state["commit_id"]
+                self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
+                self.invalidate_libdeeplake_dataset()
+            except:
+                raise
+        elif (operation_kind == _INDEX_OPERATION_MAPPING["UPDATE"]):
+            try:
+                index = api.vdb.update_samples_in_index(ts,
+                                                        index_type="hnsw",
+                                                        distance_type=distance,
+                                                        update_indices=row_ids,
+                                                        data=index_data)
+                b = index.serialize()
+                commit_id = self.version_state["commit_id"]
+                self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
+                self.invalidate_libdeeplake_dataset()
+            except:
+                raise
+        else:
+            raise AssertionError(f"Invalid operation_kind: {operation_kind}")
 
-        try:
-            index = api.vdb.apply_index_changes(ts,
-                                                index_type="hnsw",
-                                                distance_type=distance,
-                                                add_indices=add_indices,
-                                                remove_indices=remove_indices,
-                                                update_indices=update_indices,
-                                                data=index_data)
-            b = index.serialize()
-            commit_id = self.version_state["commit_id"]
-            self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
-            self.invalidate_libdeeplake_dataset()
-        except:
-            raise
 
     def create_vdb_index(
         self,
@@ -1581,7 +1586,7 @@ class Tensor:
         except Exception as e:
             raise Exception(f"An error occurred while deleting VDB indexes: {e}")
 
-    def load_vdb_index(self, id: str):
+    def load_vdb_index(self, id: str, path: str = None):
         if self.meta.htype != "embedding":
             raise Exception(f"Only supported for embedding tensors.")
         if not self.meta.contains_vdb_index(id):
@@ -1603,9 +1608,13 @@ class Tensor:
         b = self.chunk_engine.base_storage[
             get_tensor_vdb_index_key(self.key, commit_id, id)
         ]
-        return api.vdb.load_index(
-            ts, b, index_type=index_meta["type"], distance_type=index_meta["distance"]
-        )
+        if path is None:
+            return api.vdb.load_index(
+                ts, b, index_type=index_meta["type"], distance_type=index_meta["distance"]
+            )
+        else:
+            return api.vdb.load_index(
+                ts, b, index_type=index_meta["type"], distance_type=index_meta["distance"], path=path)
 
     def unload_index_cache(self):
         if self.meta.htype != "embedding":
