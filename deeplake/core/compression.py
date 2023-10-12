@@ -26,6 +26,7 @@ from PIL import Image  # type: ignore
 from io import BytesIO
 
 import lz4.frame  # type: ignore
+import lz4.block  # type: ignore
 import mmap
 import struct
 import sys
