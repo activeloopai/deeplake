@@ -226,7 +226,7 @@ def compress_array(array: np.ndarray, compression: Optional[str]) -> bytes:
             "Compressing raw data is not yet supported."
         )
     elif compr_type == VIDEO_COMPRESSION:
-        raise NotImplementedError(
+        raise NotImplementedError( 
             "In order to store video data, you should use `deeplake.read(path_to_file)` or specify sample_compression=None. "
             "Compressing raw data is not yet supported."
         )
