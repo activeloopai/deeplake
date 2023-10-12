@@ -14,6 +14,7 @@ from deeplake.client.utils import JobResponseStatusSchema
 from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
+from deeplake.util.path import get_path_type
 
 
 class DeepMemory:
@@ -23,6 +24,7 @@ class DeepMemory:
         client: DeepMemoryBackendClient,
         embedding_function: Optional[Any] = None,
         token: Optional[str] = None,
+        creds: Optional[Dict[str, Any]] = None,
     ):
         """Based Deep Memory class to train and evaluate models on DeepMemory managed service.
 
@@ -31,6 +33,7 @@ class DeepMemory:
             client (DeepMemoryBackendClient): Client to interact with the DeepMemory managed service. Defaults to None.
             embedding_function (Optional[Any], optional): Embedding funtion class used to convert queries/documents to embeddings. Defaults to None.
             token (Optional[str], optional): API token for the DeepMemory managed service. Defaults to None.
+            creds (Optional[Dict[str, Any]], optional): Credentials to access the dataset. Defaults to None.
 
         Raises:
             ImportError: if indra is not installed
@@ -49,13 +52,7 @@ class DeepMemory:
         self.token = token
         self.embedding_function = embedding_function
         self.client = client
-        self.queries_dataset = deeplake.dataset(
-            self.dataset.path + "_eval_queries",
-            token=token,
-            read_only=False,
-        )
-        if len(self.queries_dataset) == 0:
-            self.queries_dataset.commit(allow_empty=True)
+        self.creds = creds or {}
 
     def train(
         self,
@@ -109,12 +106,17 @@ class DeepMemory:
         if embedding_function is None and self.embedding_function is not None:
             embedding_function = self.embedding_function.embed_documents
 
+        runtime = None
+        if get_path_type(corpus_path) == "hub":
+            runtime = {"tensor_db": True}
+
         queries_vs = VectorStore(
             path=queries_path,
             overwrite=True,
-            runtime={"tensor_db": True},
+            runtime=runtime,
             embedding_function=embedding_function,
             token=token or self.token,
+            creds=self.creds,
         )
 
         queries_vs.add(
@@ -183,7 +185,6 @@ class DeepMemory:
 
         Examples:
             >>> vectorstore.deep_memory.status(job_id)
-
             --------------------------------------------------------------
             |                  6508464cd80cab681bfcfff3                  |
             --------------------------------------------------------------
@@ -272,7 +273,7 @@ class DeepMemory:
         """Evaluate a model on DeepMemory managed service.
 
         Examples:
-            # Evaluate a model with embedding function
+            >>> #1. Evaluate a model with embedding function
             >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
             >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries. It is stored in the `id` tensor of the corpus dataset.
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
@@ -282,8 +283,7 @@ class DeepMemory:
             ...     queries=queries,
             ...     embedding_function=embedding_function,
             ... )
-
-            # Evaluate a model with precomputed embeddings
+            >>> #2. Evaluate a model with precomputed embeddings
             >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
             >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries. It is stored in the `id` tensor of the corpus dataset.
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
@@ -293,8 +293,7 @@ class DeepMemory:
             ...     queries=queries,
             ...     embedding=embedding,
             ... )
-
-            # Evaluate a model with precomputed embeddings and log queries
+            >>> #3. Evaluate a model with precomputed embeddings and log queries
             >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
             >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries. It is stored in the `id` tensor of the corpus dataset.
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
@@ -307,8 +306,7 @@ class DeepMemory:
             ...         "log_queries": True,
             ...     }
             ... )
-
-            # Evaluate a model with precomputed embeddings and log queries, and custom branch
+            >>> #4. Evaluate a model with precomputed embeddings and log queries, and custom branch
             >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
             >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries. It is stored in the `id` tensor of the corpus dataset.
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
@@ -432,6 +430,16 @@ class DeepMemory:
 
         if log_queries == False:
             return recalls
+
+        self.queries_dataset = deeplake.empty(
+            self.dataset.path + "_eval_queries",
+            token=self.token,
+            creds=self.creds,
+            overwrite=True,
+        )
+
+        if len(self.queries_dataset) == 0:
+            self.queries_dataset.commit(allow_empty=True)
 
         create = branch not in self.queries_dataset.branches
         self.queries_dataset.checkout(parsed_qvs_params["branch"], create=create)

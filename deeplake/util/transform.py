@@ -530,7 +530,8 @@ def check_transform_ds_out(
         for tensor in tensors:
             if len(ds_out[tensor]) != len(ds_out):
                 raise InvalidOutputDatasetError(
-                    "One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor)."
+                    "One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor by default."
+                    " Set `check_lengths=False` in your `.eval(...)` call to disable this check."
                 )
 
     output_base_storage = get_base_storage(ds_out.storage)

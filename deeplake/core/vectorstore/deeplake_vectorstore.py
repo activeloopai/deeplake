@@ -8,6 +8,7 @@ import numpy as np
 import deeplake
 from deeplake.core.distance_type import DistanceType
 from deeplake.util.dataset import try_flushing
+from deeplake.util.path import convert_pathlib_to_string_if_needed
 
 from deeplake.api import dataset
 from deeplake.core.dataset import Dataset
@@ -24,10 +25,11 @@ from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
 from deeplake.core.vectorstore.vector_search.indra import index
-
 from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
+from deeplake.util.path import get_path_type
+
 
 logger = logging.getLogger(__name__)
 
@@ -62,13 +64,11 @@ class VectorStore:
             >>> data = VectorStore(
             ...        path = "./my_vector_store",
             ... )
-
             >>> # Create a vector store in the Deep Lake Managed Tensor Database
             >>> data = VectorStore(
             ...        path = "hub://org_id/dataset_name",
             ...        runtime = {"tensor_db": True},
             ... )
-
             >>> # Create a vector store with custom tensors
             >>> data = VectorStore(
             ...        path = "./my_vector_store",
@@ -130,8 +130,9 @@ class VectorStore:
             self.indra_installed = False  # pragma: no cover
 
         self._token = token
-        self.path = path
+        self.path = convert_pathlib_to_string_if_needed(path)
         self.logger = logger
+        self.org_id = org_id if get_path_type(self.path) == "local" else None
 
         feature_report_path(
             path,
@@ -158,22 +159,20 @@ class VectorStore:
         self.ingestion_batch_size = ingestion_batch_size
         self.index_params = utils.parse_index_params(index_params)
         self.num_workers = num_workers
-
-        if creds is None:
-            creds = {}
+        self.creds = creds or {}
 
         self.dataset = dataset_utils.create_or_load_dataset(
             tensor_params,
             path,
             self.token,
-            creds,
+            self.creds,
             self.logger,
             read_only,
             exec_option,
             embedding_function,
             overwrite,
             runtime,
-            org_id,
+            self.org_id,
             branch,
             **kwargs,
         )
@@ -232,14 +231,12 @@ class VectorStore:
             >>> metadatas = [{"timestamp": "01:20"}, {"timestamp": "01:22"}]
             >>> emebdding_fn = lambda x: [[1, 2, 3]] * len(x)
             >>> embedding_fn_2 = lambda x: [[4, 5]] * len(x)
-
             >>> # Directly upload embeddings
             >>> deeplake_vector_store.add(
             ...     text = texts,
             ...     embedding = embeddings,
             ...     metadata = metadatas,
             ... )
-
             >>> # Upload embedding via embedding function
             >>> deeplake_vector_store.add(
             ...     text = texts,
@@ -247,7 +244,6 @@ class VectorStore:
             ...     embedding_function = embedding_fn,
             ...     embedding_data = texts,
             ... )
-
             >>> # Upload embedding via embedding function to a user-defined embedding tensor
             >>> deeplake_vector_store.add(
             ...     text = texts,
@@ -256,14 +252,12 @@ class VectorStore:
             ...     embedding_data = texts,
             ...     embedding_tensor = "embedding_1",
             ... )
-
             >>> # Multiple embedding functions (user defined embedding tensors must be specified)
             >>> deeplake_vector_store.add(
             ...     embedding_tensor = ["embedding_1", "embedding_2"]
             ...     embedding_function = [embedding_fn, embedding_fn_2],
             ...     embedding_data = [texts, texts],
             ... )
-
             >>> # Alternative syntax for multiple embedding functions
             >>> deeplake_vector_store.add(
             ...     text = texts,
@@ -271,7 +265,6 @@ class VectorStore:
             ...     embedding_tensor_1 = (embedding_fn, texts),
             ...     embedding_tensor_2 = (embedding_fn_2, texts),
             ... )
-
             >>> # Add data to fully custom tensors
             >>> deeplake_vector_store.add(
             ...     tensor_A = [1, 2],
@@ -398,21 +391,18 @@ class VectorStore:
             ...        embedding = [1, 2, 3],
             ...        exec_option = "python",
             ... )
-
             >>> # Search using an embedding function and data for embedding
             >>> data = vector_store.search(
             ...        embedding_data = "What does this chatbot do?",
             ...        embedding_function = query_embedding_fn,
             ...        exec_option = "compute_engine",
             ... )
-
             >>> # Add a filter to your search
             >>> data = vector_store.search(
             ...        embedding = np.ones(3),
             ...        exec_option = "python",
             ...        filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"},...}, # Only valid for exec_option = "python"
             ... )
-
             >>> # Search using TQL
             >>> data = vector_store.search(
             ...        query = "select * where ..... <add TQL syntax>",
@@ -442,7 +432,6 @@ class VectorStore:
             return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictionary with data. Defaults to False. If ``True`` return_tensors is set to "*" beucase data is lazy-loaded and there is no cost to including all tensors in the view.
             deep_memory (bool): Whether to use the Deep Memory model for improving search results. Defaults to False if deep_memory is not specified in the Vector Store initialization.
                 If True, the distance metric is set to "deepmemory_distance", which represents the metric with which the model was trained. The search is performed using the Deep Memory model. If False, the distance metric is set to "COS" or whatever distance metric user specifies.
-            token (str, optional): Activeloop token, used for fetching user credentials. This is Optional, tokens are normally autogenerated. Defaults to None.
 
         ..
             # noqa: DAR101
@@ -488,9 +477,8 @@ class VectorStore:
 
         if deep_memory and not self.deep_memory:
             raise ValueError(
-                "Deep Memory dataset should have been created with runtime = {'tensor_db': True} during initialization. "
-                "Please create a new Vector Store with runtime = {'tensor_db': True} or deep copy with runtime = {'tensor_db': True}."
-                "NOTE: Deep Memory is only available for datasets stored in the Deep Lake Managed Database for paid accounts."
+                "Deep Memory is not available for this organization."
+                "Deep Memory is only available for waitlisted accounts."
             )
 
         utils.parse_search_args(
@@ -538,6 +526,9 @@ class VectorStore:
             embedding_tensor=embedding_tensor,
             return_tensors=return_tensors,
             return_view=return_view,
+            deep_memory=deep_memory,
+            token=self.token,
+            org_id=self.org_id,
         )
 
     def delete(
@@ -554,12 +545,10 @@ class VectorStore:
         Examples:
             >>> # Delete using ids:
             >>> data = vector_store.delete(ids)
-
             >>> # Delete data using filter
             >>> data = vector_store.delete(
             ...        filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"}},
             ... )
-
             >>> # Delete data using TQL
             >>> data = vector_store.delete(
             ...        query = "select * where ..... <add TQL syntax>",
@@ -650,7 +639,6 @@ class VectorStore:
             ...    embedding_tensor = "embedding",
             ...    embedding_function = embedding_function,
             ... )
-
             >>> # Update data using filter and several embedding_tensors, several embedding_source_tensors
             >>> # and several embedding_functions:
             >>> data = vector_store.update(
@@ -659,7 +647,6 @@ class VectorStore:
             ...     filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"}},
             ...     embedding_tensor = ["text_embedding", "metadata_embedding"]
             ... )
-
             >>> # Update data using TQL, if new embedding function is not specified the embedding_function used
             >>> # during initialization will be used
             >>> data = vector_store.update(

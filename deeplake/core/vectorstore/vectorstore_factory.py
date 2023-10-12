@@ -11,11 +11,19 @@ def vectorstore_factory(
 ):
     path_type = get_path_type(path)
 
+    dm_client = DeepMemoryBackendClient(token=kwargs.get("token"))
+    user_profile = dm_client.get_user_profile()
+
     if path_type == "hub":
-        dm_client = DeepMemoryBackendClient(token=kwargs.get("token"))
         # TODO: add support for windows
         dataset_id = path[6:].split("/")[0]
-        deepmemory_is_available = dm_client.deepmemory_is_available(dataset_id)
-        if kwargs.get("runtime") == {"tensor_db": True} and deepmemory_is_available:
-            return DeepMemoryVectorStore(path=path, client=dm_client, *args, **kwargs)
+    else:
+        # TODO: change user_profile to user_id
+        dataset_id = user_profile["name"]
+
+    deepmemory_is_available = dm_client.deepmemory_is_available(dataset_id)
+    if deepmemory_is_available:
+        return DeepMemoryVectorStore(
+            path=path, client=dm_client, org_id=dataset_id, *args, **kwargs
+        )
     return VectorStore(path=path, *args, **kwargs)

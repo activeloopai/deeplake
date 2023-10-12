@@ -6,6 +6,7 @@ from time import sleep
 
 import deeplake
 from deeplake import VectorStore
+from deeplake.tests.common import requires_libdeeplake
 
 
 class DummyEmbedder:
@@ -120,6 +121,7 @@ def test_deepmemory_train_and_cancel(
 @pytest.mark.slow
 @pytest.mark.timeout(600)
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+@requires_libdeeplake
 def test_deepmemory_evaluate(
     corpus_query_relevances_copy,
     questions_embeddings_and_relevances,
@@ -201,6 +203,7 @@ def test_deepmemory_evaluate(
 @pytest.mark.slow
 @pytest.mark.timeout(600)
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+@requires_libdeeplake
 def test_deepmemory_evaluate_log_queries(
     corpus_query_relevances_copy,
     questions_embeddings_and_relevances,
@@ -242,6 +245,7 @@ def test_deepmemory_evaluate_log_queries(
 @pytest.mark.slow
 @pytest.mark.timeout(600)
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+@requires_libdeeplake
 def test_deepmemory_evaluate_without_branch_name_with_logging(
     corpus_query_relevances_copy,
     questions_embeddings_and_relevances,
@@ -280,6 +284,7 @@ def test_deepmemory_evaluate_without_branch_name_with_logging(
 @pytest.mark.slow
 @pytest.mark.timeout(600)
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+@requires_libdeeplake
 def test_deepmemory_evaluate_without_logging(
     corpus_query_relevances_copy,
     questions_embeddings_and_relevances,
@@ -306,17 +311,19 @@ def test_deepmemory_evaluate_without_logging(
         },
     )
     sleep(15)
-    with pytest.raises(ValueError):
-        queries_dataset = VectorStore(
-            path=query_path,
-            token=hub_cloud_dev_token,
-            read_only=True,
-        )
+
+    queries_dataset = VectorStore(
+        path=query_path,
+        token=hub_cloud_dev_token,
+        read_only=True,
+    )
+    assert len(queries_dataset) == 0
 
 
 @pytest.mark.slow
 @pytest.mark.timeout(600)
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+@requires_libdeeplake
 def test_deepmemory_evaluate_without_branch_name(
     corpus_query_relevances_copy,
     questions_embeddings_and_relevances,
@@ -353,6 +360,7 @@ def test_deepmemory_evaluate_without_branch_name(
 @pytest.mark.slow
 @pytest.mark.timeout(600)
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+@requires_libdeeplake
 def test_deepmemory_evaluate_without_qvs_params(
     corpus_query_relevances_copy,
     questions_embeddings_and_relevances,
@@ -379,17 +387,19 @@ def test_deepmemory_evaluate_without_qvs_params(
     )
 
     sleep(15)
-    with pytest.raises(ValueError):
-        queries_dataset = VectorStore(
-            path=query_path,
-            token=hub_cloud_dev_token,
-            read_only=True,
-        )
+
+    queries_dataset = VectorStore(
+        path=query_path,
+        token=hub_cloud_dev_token,
+        read_only=True,
+    )
+    assert len(queries_dataset) == 0
 
 
 @pytest.mark.slow
 @pytest.mark.timeout(600)
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+@requires_libdeeplake
 def test_deepmemory_evaluate_with_embedding_func_in_init(
     corpus_query_relevances_copy,
     questions_embeddings_and_relevances,
@@ -533,3 +543,28 @@ def test_deepmemory_search(
     output = db.search(embedding=query_embedding, exec_option="compute_engine")
     assert len(output) == 4
     # TODO: add some logging checks
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+@pytest.mark.slow
+@requires_libdeeplake
+def test_deepmemory_search_on_local_datasets(
+    deep_memory_local_dataset, hub_cloud_dev_token
+):
+    corpus_path, queries_path = deep_memory_local_dataset
+
+    corpus = VectorStore(path=corpus_path, token=hub_cloud_dev_token)
+    queries = VectorStore(path=queries_path, token=hub_cloud_dev_token)
+
+    deep_memory_query_view = queries.search(
+        query="SELECT * WHERE deep_memory_recall > vector_search_recall",
+        return_view=True,
+    )
+
+    query_embedding = deep_memory_query_view[0].embedding.data()["value"]
+    correct_id = deep_memory_query_view[0].metadata.data()["value"]["relvence"][0][0]
+
+    output = corpus.search(embedding=query_embedding, deep_memory=True, k=10)
+
+    assert correct_id in output["id"]
+    assert "score" in output

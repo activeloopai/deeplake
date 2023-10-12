@@ -6,7 +6,6 @@ from deeplake.core.dataset import Dataset
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from deeplake.core.vectorstore.deep_memory import DeepMemory
 from deeplake.constants import DEFAULT_DEEPMEMORY_DISTANCE_METRIC
-from deeplake.util.exceptions import LockedException
 
 
 class DeepMemoryVectorStore(VectorStore):
@@ -17,6 +16,7 @@ class DeepMemoryVectorStore(VectorStore):
             token=self.token,
             embedding_function=self.embedding_function,
             client=client,
+            creds=self.creds,
         )
 
     def search(
@@ -34,12 +34,6 @@ class DeepMemoryVectorStore(VectorStore):
         return_view: bool = False,
         deep_memory: bool = False,
     ) -> Union[Dict, Dataset]:
-        if exec_option is not None and exec_option != "tensor_db":
-            self.logger.warning(
-                "Specifying `exec_option` is not supported for this dataset. "
-                "The search will be executed on the Deep Lake Managed Database."
-            )
-
         if deep_memory and not distance_metric:
             distance_metric = DEFAULT_DEEPMEMORY_DISTANCE_METRIC
 
@@ -51,8 +45,9 @@ class DeepMemoryVectorStore(VectorStore):
             distance_metric=distance_metric,
             query=query,
             filter=filter,
-            exec_option="tensor_db",
+            exec_option=exec_option,
             embedding_tensor=embedding_tensor,
             return_tensors=return_tensors,
             return_view=return_view,
+            deep_memory=deep_memory,
         )
