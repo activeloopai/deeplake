@@ -424,9 +424,9 @@ class DeepLakeDataLoader(DataLoader):
 
     def close(self):
         """Shuts down the workers and releases the resources."""
-        if self._iterator is not None:
+        if hasattr(self, "_iterator") and self._iterator is not None:
             self._iterator.close()
-        if self._dataloader is not None:
+        if hasattr(self, "_dataloader") and self._dataloader is not None:
             self._dataloader = None
 
     def pytorch(
@@ -697,7 +697,17 @@ class DeepLakeDataLoader(DataLoader):
                 "not equal after each initialization and iteration through the dataloader. If you intend to shuffle data while "
                 "preserving the offset for resuming iteration at a predictable index and order, please set a random seed using deeplake.random()"
             )
+        from indra.pytorch.tensorinfo import TensorsInfo  # type:ignore
 
+        info = TensorsInfo(
+            raw_tensors=raw_tensors or [],
+            htype_dict=htype_dict or {},
+            ndim_dict=ndim_dict or {},
+            tensor_info_dict=tensor_info_dict or {},
+            pil_compressed_tensors=pil_compressed_tensors or [],
+            json_tensors=json_tensors or [],
+            list_tensors=list_tensors or [],
+        )
         return INDRA_LOADER(  # type: ignore [misc]
             indra_dataset,
             batch_size=self._batch_size,
@@ -715,17 +725,11 @@ class DeepLakeDataLoader(DataLoader):
             return_index=self._return_index,
             primary_tensor=self._primary_tensor_name,
             buffer_size=self._buffer_size,
-            raw_tensors=raw_tensors,
-            pil_compressed_tensors=pil_compressed_tensors,
-            json_tensors=json_tensors,
-            list_tensors=list_tensors,
             persistent_workers=self._persistent_workers,
-            htype_dict=htype_dict,
-            ndim_dict=ndim_dict,
-            tensor_info_dict=tensor_info_dict,
             verbose=self._verbose,
             offset=self._offset,
             worker_init_fn=self.worker_init_fn,
+            info=info,
         )
 
     def __iter__(self):
