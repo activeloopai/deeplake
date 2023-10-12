@@ -433,3 +433,9 @@ def test_virtual_tensors(local_auth_ds_generator):
         reversed(range(100))
     )
     assert deeplake_indra_ds.score.sample_indices == slice(0, 100, 1)
+
+    deeplake_indra_ds = deeplake_ds.query(
+        "SELECT l2_norm(embeddings - ARRAY[0, 0, 0]) as score order by l2_norm(embeddings - ARRAY[0, 0, 0]) asc"
+    )
+    assert deeplake_indra_ds.sample_indices == slice(0, 100, 1)
+    assert deeplake_indra_ds.score.sample_indices == slice(0, 100, 1)
