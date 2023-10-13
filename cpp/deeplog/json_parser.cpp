@@ -97,7 +97,9 @@ namespace deeplog {
         if (wanted_type->Equals(json_field_value->type)) {
             return json_field_value;
         }
-        if (json_field_value->type->Equals(arrow::int64())) {
+        if (!json_field_value->is_valid) {
+            return arrow::MakeNullScalar(wanted_type);
+        } else if (json_field_value->type->Equals(arrow::int64())) {
             ARROW_ASSIGN_OR_RAISE(auto new_value, arrow::MakeScalar(wanted_type, std::dynamic_pointer_cast<arrow::Int64Scalar>(json_field_value)->value));
             return new_value;
         } else if (json_field_value->type->Equals(arrow::utf8())) {

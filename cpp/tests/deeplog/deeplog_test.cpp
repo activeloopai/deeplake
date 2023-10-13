@@ -242,36 +242,12 @@ TEST_F(DeeplogTest, checkpoint_collapses_actions) {
     EXPECT_EQ("final desc", std::dynamic_pointer_cast<arrow::StructScalar>(metadata_values.chunked_array()->GetScalar(0).ValueOrDie())->field("description").ValueOrDie()->ToString());
 }
 
-//TEST_F(DeeplogTest, manual) {
-//    auto log = deeplog::deeplog::create(test_dir, 4);
-//    auto metadata_snapshot = std::make_shared<deeplog::metadata_snapshot>(deeplog::metadata_snapshot(log));
-//
-//    auto tx = deeplog::optimistic_transaction(metadata_snapshot);
-//    tx.add(std::make_shared<deeplog::create_tensor_action>(deeplog::create_tensor_action(
-//            "123",
-//            "tensor name",
-//            "text",
-//            "other text",
-//            55,
-//            false,
-//            false,
-//            false,
-//            std::nullopt,
-//            std::nullopt,
-//            {
-//                    {"link1", deeplog::tensor_link("123", true, "456")},
-//                    {"link2", deeplog::tensor_link("789", false, "101112")},
-//            },
-//            6243,
-//            {1, 2, 3},
-//            {4, 5, 6},
-//            std::nullopt,
-//            std::nullopt,
-//            true,
-//            "1.3.2")));
-//
-//    tx.commit();
-//}
+TEST_F(DeeplogTest, manual) {
+    auto log = deeplog::deeplog::open("/Users/nvoxland/src/activeloopai/deeplake/tmp/write_deeplog_ds");
+    auto version = log->version("a19ad90613ba4b5d930f5b25d100397b");
+
+    std::cout << version << std::endl;
+}
 
 //TEST(IntTest, e2eTest) {
 //    auto test_dir = "../test-ds";

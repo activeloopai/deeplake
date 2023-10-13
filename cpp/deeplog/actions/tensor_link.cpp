@@ -9,20 +9,20 @@ namespace deeplog {
 
                            }));
 
-    tensor_link::tensor_link(const std::string &extend, const std::optional<bool> &flatten_sequence, const std::string &update)
+F    tensor_link::tensor_link(const std::optional<std::string> &extend, const std::optional<bool> &flatten_sequence, const std::optional<std::string> &update)
             : extend(extend), flatten_sequence(flatten_sequence), update(update) {}
 
     tensor_link::tensor_link(const std::shared_ptr<arrow::StructScalar> &value) {
-        extend = from_struct<std::string>("extend", value).value();
+        extend = from_struct<std::string>("extend", value);
         flatten_sequence = from_struct<bool>("flatten_sequence", value);
-        update = from_struct<std::string>("update", value).value();
+        update = from_struct<std::string>("update", value);
     }
 
     nlohmann::json tensor_link::to_json() const {
         nlohmann::json json;
-        json["extend"] = extend;
+        json["extend"] = to_json_value(extend);
         json["flatten_sequence"] = to_json_value(flatten_sequence);
-        json["update"] = update;
+        json["update"] = to_json_value(update);
         return json;
     }
 }

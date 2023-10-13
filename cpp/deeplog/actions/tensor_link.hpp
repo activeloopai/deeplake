@@ -10,11 +10,11 @@ namespace deeplog {
     public:
         static std::shared_ptr<arrow::StructType> arrow_type;
 
-        std::string extend;
+        std::optional<std::string> extend;
         std::optional<bool> flatten_sequence;
-        std::string update;
+        std::optional<std::string> update;
 
-        tensor_link(const std::string &extend, const std::optional<bool> &flatten_sequence, const std::string &update);
+        tensor_link(const std::optional<std::string> &extend, const std::optional<bool> &flatten_sequence, const std::optional<std::string> &update);
 
         explicit tensor_link(const std::shared_ptr<arrow::StructScalar> &struct_scalar);
 

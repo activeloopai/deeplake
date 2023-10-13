@@ -7,8 +7,52 @@
 #include "../../../deeplog/actions/create_commit_action.hpp"
 #include "../../../deeplog/actions/create_tensor_action.hpp"
 #include <variant>
+#include <iostream>
 
 namespace py_api {
+
+    std::shared_ptr<deeplog::create_tensor_action> create_tensor_action(std::string id,
+                                                                        std::string name,
+                                                                        std::optional<std::string> dtype,
+                                                                        std::string htype,
+                                                                        const long &length,
+                                                                        const bool &is_link,
+                                                                        const bool &is_sequence,
+                                                                        const bool &hidden,
+                                                                        const std::optional<std::string> &chunk_compression,
+                                                                        const std::optional<std::string> &sample_compression,
+                                                                        const std::map<std::string, std::map<std::string, pybind11::object>> &links,
+                                                                        const std::optional<long> &max_chunk_size,
+                                                                        const std::vector<unsigned long> &min_shape,
+                                                                        const std::vector<unsigned long> &max_shape,
+                                                                        const std::optional<long> &tiling_threshold,
+                                                                        const std::optional<std::string> &typestr,
+                                                                        const bool &verify,
+                                                                        std::string version) {
+
+        std::map<std::string, deeplog::tensor_link> links_map{};
+        for (const auto &link: links) {
+            std::optional<bool> flatten_sequence;
+            std::optional<std::string> extend;
+            std::optional<std::string> update;
+
+            if (link.second.contains("flatten_sequence")) {
+                flatten_sequence = link.second.at("flatten_sequence").cast<bool>();
+            }
+            if (link.second.contains("extend")) {
+                extend = link.second.at("extend").cast<std::string>();
+            }  if (link.second.contains("update")) {
+                update = link.second.at("update").cast<std::string>();
+            }
+            links_map.insert({link.first, deeplog::tensor_link(extend,
+                                                               flatten_sequence,
+                                                               update)});
+        }
+
+        return std::make_shared<deeplog::create_tensor_action>(std::move(id), std::move(name), std::move(dtype), std::move(htype), length, is_link, is_sequence, hidden,
+                                                               chunk_compression, sample_compression, std::move(links_map), max_chunk_size,
+                                                               min_shape, max_shape, tiling_threshold, typestr, verify, std::move(version));
+    }
 
     void actions::pybind(pybind11::module &module) {
         pybind11::class_<deeplog::action, std::shared_ptr<deeplog::action>>(module, "DeepLogAction");
@@ -41,13 +85,7 @@ namespace py_api {
                 .def_readonly("commit_time", &deeplog::create_commit_action::commit_time);
 
         pybind11::class_<deeplog::create_tensor_action, deeplog::action, std::shared_ptr<deeplog::create_tensor_action>>(module, "CreateTensorAction")
-                .def(pybind11::init<std::string, std::string, std::optional<std::string>, std::string, long, bool, bool, bool, std::optional<std::string>,
-                             std::optional<std::string>,
-                             std::map<std::string, deeplog::tensor_link>,
-                             std::optional<long>,
-                             std::vector<unsigned long>,
-                             std::vector<unsigned long>,
-                             std::optional<long>, std::optional<std::string>, bool, std::string>(),
+                .def(pybind11::init(&create_tensor_action),
                      pybind11::arg("id"),
                      pybind11::arg("name"),
                      pybind11::arg("dtype"),
@@ -107,5 +145,12 @@ namespace py_api {
                 .def_readonly("size", &deeplog::remove_file_action::size)
                 .def_readonly("deletion_timestamp", &deeplog::remove_file_action::deletion_time)
                 .def_readonly("data_change", &deeplog::remove_file_action::data_change);
+
+        pybind11::class_<deeplog::tensor_link, std::shared_ptr<deeplog::tensor_link>>(module, "TensorLink")
+                .def(pybind11::init<std::string, std::optional<bool>, std::string>(),
+                     pybind11::arg("extend"), pybind11::arg("flatten_sequence"), pybind11::arg("update"))
+                .def_readonly("extend", &deeplog::tensor_link::extend)
+                .def_readonly("flatten_sequence", &deeplog::tensor_link::flatten_sequence)
+                .def_readonly("update", &deeplog::tensor_link::update);
     }
 }
