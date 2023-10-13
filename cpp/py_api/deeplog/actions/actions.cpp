@@ -41,7 +41,8 @@ namespace py_api {
             }
             if (link.second.contains("extend")) {
                 extend = link.second.at("extend").cast<std::string>();
-            }  if (link.second.contains("update")) {
+            }
+            if (link.second.contains("update")) {
                 update = link.second.at("update").cast<std::string>();
             }
             links_map.insert({link.first, deeplog::tensor_link(extend,
@@ -86,6 +87,34 @@ namespace py_api {
 
         pybind11::class_<deeplog::create_tensor_action, deeplog::action, std::shared_ptr<deeplog::create_tensor_action>>(module, "CreateTensorAction")
                 .def(pybind11::init(&create_tensor_action),
+                     pybind11::arg("id"),
+                     pybind11::arg("name"),
+                     pybind11::arg("dtype"),
+                     pybind11::arg("htype"),
+                     pybind11::arg("length"),
+                     pybind11::arg("is_link"),
+                     pybind11::arg("is_sequence"),
+                     pybind11::arg("hidden"),
+                     pybind11::arg("chunk_compression"),
+                     pybind11::arg("sample_compression"),
+                     pybind11::arg("links"),
+                     pybind11::arg("max_chunk_size"),
+                     pybind11::arg("min_shape"),
+                     pybind11::arg("max_shape"),
+                     pybind11::arg("tiling_threshold"),
+                     pybind11::arg("typestr"),
+                     pybind11::arg("verify"),
+                     pybind11::arg("version")
+                )
+                .def(pybind11::init<std::string, std::string, std::optional<std::string>, std::string, long, bool, bool, bool,
+                             std::optional<std::string>, std::optional<std::string>, std::map<std::string, deeplog::tensor_link>,
+                             std::optional<long>,
+                             std::vector<unsigned long>,
+                             std::vector<unsigned long>,
+                             std::optional<long>,
+                             std::optional<std::string>,
+                             bool,
+                             std::string>(),
                      pybind11::arg("id"),
                      pybind11::arg("name"),
                      pybind11::arg("dtype"),
@@ -151,6 +180,17 @@ namespace py_api {
                      pybind11::arg("extend"), pybind11::arg("flatten_sequence"), pybind11::arg("update"))
                 .def_readonly("extend", &deeplog::tensor_link::extend)
                 .def_readonly("flatten_sequence", &deeplog::tensor_link::flatten_sequence)
-                .def_readonly("update", &deeplog::tensor_link::update);
+                .def_readonly("update", &deeplog::tensor_link::update)
+                .def("__getitem__", [](const deeplog::tensor_link &link, const std::string &key) -> std::variant<std::optional<std::string>, std::optional<bool>> {
+                    if (key == "extend") {
+                        return link.extend;
+                    } else if (key == "flatten_sequence") {
+                        return link.flatten_sequence;
+                    } else if (key == "update") {
+                        return link.update;
+                    } else {
+                        throw std::runtime_error("Invalid key");
+                    }
+                });
     }
 }

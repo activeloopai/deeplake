@@ -9,7 +9,7 @@ namespace deeplog {
 
                            }));
 
-F    tensor_link::tensor_link(const std::optional<std::string> &extend, const std::optional<bool> &flatten_sequence, const std::optional<std::string> &update)
+    tensor_link::tensor_link(const std::optional<std::string> &extend, const std::optional<bool> &flatten_sequence, const std::optional<std::string> &update)
             : extend(extend), flatten_sequence(flatten_sequence), update(update) {}
 
     tensor_link::tensor_link(const std::shared_ptr<arrow::StructScalar> &value) {
