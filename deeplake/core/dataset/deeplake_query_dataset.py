@@ -284,6 +284,15 @@ class DeepLakeQueryDataset(Dataset):
     def index(self):
         return self._index
 
+    @property
+    def sample_indices(self):
+        for t in self.tensors.values():
+            try:
+                return t.indra_tensor.indexes
+            except RuntimeError:
+                pass
+        return range(self.num_samples)
+
     def _tensors(
         self, include_hidden: bool = True, include_disabled=True
     ) -> Dict[str, Tensor]:
