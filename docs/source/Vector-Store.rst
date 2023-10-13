@@ -1,8 +1,8 @@
 Vector Store
 ============
-.. currentmodule:: deeplake.core.vectorstore
+.. currentmodule:: deeplake.core.vectorstore.deeplake_vectorstore
 
-Creating a Deep Lake Vector Store
+Creating a Deep Lake Vector Store 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autosummary::

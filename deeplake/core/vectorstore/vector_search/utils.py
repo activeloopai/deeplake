@@ -158,6 +158,8 @@ def check_length_of_each_tensor(tensors):
                 f"All of the tensors should have equal length. Currently tensors have different length: {tensor_lengths}"
             )
 
+    return tensor_length
+
 
 def create_tensor_to_length_str(tensors):
     tensor_lengths = "\n"

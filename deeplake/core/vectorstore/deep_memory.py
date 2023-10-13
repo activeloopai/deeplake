@@ -393,7 +393,7 @@ class DeepMemory:
         queries_data = {
             "text": queries,
             "metadata": [
-                {"relvence": relevance_per_doc} for relevance_per_doc in relevance
+                {"relevance": relevance_per_doc} for relevance_per_doc in relevance
             ],
             "embedding": query_embs,
             "id": [uuid.uuid4().hex for _ in range(len(queries))],

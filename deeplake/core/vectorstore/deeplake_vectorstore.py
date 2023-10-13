@@ -330,13 +330,7 @@ class VectorStore:
         )
 
         assert id_ is not None
-        utils.check_length_of_each_tensor(processed_tensors)
-
-        # In Case prefilled dataset which is already having index defined
-        # regenerate the index post ingestion.
-        index_regeneration = False
-        if len(self.dataset) > 0 and index.check_vdb_indexes(self.dataset):
-            index_regeneration = True
+        data_length = utils.check_length_of_each_tensor(processed_tensors)
 
         dataset_utils.extend_or_ingest_dataset(
             processed_tensors=processed_tensors,
@@ -348,13 +342,7 @@ class VectorStore:
             rate_limiter=rate_limiter,
         )
 
-        if utils.index_used(self.exec_option):
-            index.index_cache_cleanup(self.dataset)
-            self.distance_metric_index = index.validate_and_create_vector_index(
-                dataset=self.dataset,
-                index_params=self.index_params,
-                regenerate_index=index_regeneration,
-            )
+        self._update_index(regenerate_index=data_length > 0)
 
         try_flushing(self.dataset)
 
@@ -612,7 +600,11 @@ class VectorStore:
             return True
 
         dataset_utils.delete_and_without_commit(self.dataset, row_ids)
+
+        self._update_index(regenerate_index=len(row_ids) > 0 if row_ids else False)
+
         try_flushing(self.dataset)
+
         return True
 
     def update_embedding(
@@ -718,6 +710,9 @@ class VectorStore:
         )
 
         self.dataset[row_ids].update(embedding_tensor_data)
+
+        self._update_index(regenerate_index=len(row_ids) > 0 if row_ids else False)
+
         try_flushing(self.dataset)
 
     @staticmethod
@@ -783,6 +778,15 @@ class VectorStore:
     def __len__(self):
         """Length of the dataset"""
         return len(self.dataset)
+
+    def _update_index(self, regenerate_index=False):
+        if utils.index_used(self.exec_option):
+            index.index_cache_cleanup(self.dataset)
+            self.distance_metric_index = index.validate_and_create_vector_index(
+                dataset=self.dataset,
+                index_params=self.index_params,
+                regenerate_index=regenerate_index,
+            )
 
 
 DeepLakeVectorStore = VectorStore
