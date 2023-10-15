@@ -2,6 +2,7 @@ from deeplake.core.distance_type import DistanceType
 from deeplake.core.storage import azure, gcs, google_drive, local, lru_cache, memory
 from deeplake.core.vectorstore import utils
 from deeplake.constants import _INDEX_OPERATION_MAPPING
+from enum import Enum
 
 
 METRIC_TO_INDEX_METRIC = {
@@ -9,6 +10,13 @@ METRIC_TO_INDEX_METRIC = {
     "L1": "l1_norm",
     "COS": "cosine_similarity",
 }
+class INDEX_OP_TYPE(Enum):
+    NOOP = 0
+    CREATE_INDEX = 1
+    REMOVE_INDEX = 2
+    REGENERATE_INDEX = 3
+    INCREMENTAL_INDEX = 4
+
 
 
 def parse_index_distance_metric_from_params(
@@ -31,6 +39,42 @@ def parse_index_distance_metric_from_params(
         f"Invalid distance metric in the index: {distance_metric_index}. "
         f"Valid options are: {', '.join([e for e in list(METRIC_TO_INDEX_METRIC.keys())])}"
     )
+
+
+def check_index_params(self):
+    current_params = self.index_params
+    existing_params = utils.get_embedding_tensor(self.dataset).get_vdb_indexes()[0]
+    curr_distance_str = current_params.get("distance_metric", "COS")
+    curr_distance = get_index_metric(curr_distance_str.upper())
+
+    existing_distance = existing_params.get("distance", "COS")
+    if curr_distance == existing_distance:
+        current_additional_params_dict = current_params.get("additional_params", None)
+        existing_additional_params_dict = existing_params.get("additional_params", None)
+        if current_additional_params_dict == existing_additional_params_dict:
+            return True
+
+    return False
+
+def index_operation_type(self, index_regeneration, index_delete=False):
+    if not utils.index_used(self.exec_option):
+       return INDEX_OP_TYPE.NOOP
+
+    if index_delete:
+        return INDEX_OP_TYPE.REMOVE_INDEX
+
+    if not utils.index_exists(self.dataset):
+        threshold = self.index_params.get("threshold", -1)
+        below_threshold = threshold <= 0 or len(self.dataset) < threshold
+        if not below_threshold:
+            return INDEX_OP_TYPE.CREATE_INDEX
+    else:
+        if not index_regeneration and check_index_params(self):
+            return INDEX_OP_TYPE.INCREMENTAL_INDEX
+        else:
+            return INDEX_OP_TYPE.REGENERATE_INDEX
+
+    return INDEX_OP_TYPE.NOOP
 
 
 def get_index_metric(metric):
@@ -99,6 +143,37 @@ def index_cache_cleanup(dataset):
         is_embedding = utils.is_embedding_tensor(tensor)
         if is_embedding:
             tensor.unload_index_cache()
+
+
+# Routine to identify the index Operation.
+def index_operation(self, dml_type, rowids, index_regeneration=False, index_delete=False):
+    index_operation = index_operation_type(self, index_regeneration=index_regeneration,
+                                           index_delete=index_delete)
+    if index_operation == INDEX_OP_TYPE.NOOP:
+        return
+
+    emb_tensor = utils.get_embedding_tensor(self.dataset)
+    if index_operation == INDEX_OP_TYPE.CREATE_INDEX:
+        distance_str = self.index_params.get("distance_metric", "COS")
+        additional_params_dict = self.index_params.get("additional_params", None)
+        distance = get_index_metric(distance_str.upper())
+        index_cache_cleanup(self.dataset)
+        if additional_params_dict and len(additional_params_dict) > 0:
+            param_dict = normalize_additional_params(additional_params_dict)
+            emb_tensor.create_vdb_index(
+                "hnsw_1", distance=distance, additional_params=param_dict
+            )
+        else:
+            emb_tensor.create_vdb_index("hnsw_1", distance=distance)
+    elif index_operation == INDEX_OP_TYPE.INCREMENTAL_INDEX:
+        emb_tensor._incr_maintenance_vdb_indexes(rowids, dml_type)
+    elif index_operation == INDEX_OP_TYPE.REGENERATE_INDEX:
+        emb_tensor._regenerate_vdb_indexes()
+    elif index_operation == INDEX_OP_TYPE.REMOVE_INDEX:
+        vdb_indexes = emb_tensor.get_vdb_indexes()
+        emb_tensor.delete_vdb_index(vdb_indexes["id"])
+    else:
+        raise Exception("Unknown index operation")
 
 
 def validate_and_create_vector_index(dataset,

@@ -18,6 +18,7 @@ from deeplake.constants import (
     TARGET_BYTE_SIZE,
     DEFAULT_VECTORSTORE_DISTANCE_METRIC,
     DEFAULT_DEEPMEMORY_DISTANCE_METRIC,
+    _INDEX_OPERATION_MAPPING,
 )
 from deeplake.client.utils import read_token
 from deeplake.core.vectorstore import utils
@@ -25,6 +26,7 @@ from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
 from deeplake.core.vectorstore.vector_search.indra import index
+from deeplake.core.vectorstore.vector_search.indra.index import index_operation
 from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
@@ -180,14 +182,8 @@ class VectorStore:
         self._exec_option = exec_option
         self.verbose = verbose
         self.tensor_params = tensor_params
-        self.distance_metric_index = None
-        if utils.index_used(self.exec_option):
-            index.index_cache_cleanup(self.dataset)
-            self.distance_metric_index = index.validate_and_create_vector_index(
-                dataset=self.dataset,
-                index_params=self.index_params,
-                regenerate_index=False,
-            )
+        self.distance_metric_index = index.index_operation(self, dml_type=_INDEX_OPERATION_MAPPING["ADD"],
+                                                           rowids=list(range(0, len(self.dataset))))
         self.deep_memory = None
 
     @property
@@ -330,7 +326,7 @@ class VectorStore:
         )
 
         assert id_ is not None
-        data_length = utils.check_length_of_each_tensor(processed_tensors)
+        prev_data_length = utils.check_length_of_each_tensor(processed_tensors)
 
         dataset_utils.extend_or_ingest_dataset(
             processed_tensors=processed_tensors,
@@ -342,7 +338,9 @@ class VectorStore:
             rate_limiter=rate_limiter,
         )
 
-        self._update_index(regenerate_index=data_length > 0)
+        self.distance_metric_index = index.index_operation(self,
+                                                           dml_type=_INDEX_OPERATION_MAPPING["ADD"],
+                                                           rowids=list(range(prev_data_length, len(self.dataset))))
 
         try_flushing(self.dataset)
 
@@ -597,11 +595,14 @@ class VectorStore:
             delete_all,
         )
         if dataset_deleted:
+            index_operation(self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=row_ids, index_delete=True)
             return True
 
         dataset_utils.delete_and_without_commit(self.dataset, row_ids)
 
-        self._update_index(regenerate_index=len(row_ids) > 0 if row_ids else False)
+        # Regenerate vdb indexes.
+        index_operation(self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=row_ids)
+        #self._update_index(regenerate_index=len(row_ids) > 0 if row_ids else False)
 
         try_flushing(self.dataset)
 
@@ -711,7 +712,10 @@ class VectorStore:
 
         self.dataset[row_ids].update(embedding_tensor_data)
 
-        self._update_index(regenerate_index=len(row_ids) > 0 if row_ids else False)
+        # self._update_index(regenerate_index=len(row_ids) > 0 if row_ids else False)
+        # Regenerate Index
+        index_operation(self, dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
+                        rowids=row_ids)
 
         try_flushing(self.dataset)
 

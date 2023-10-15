@@ -1467,7 +1467,7 @@ class Tensor:
                 raise
         elif (operation_kind == _INDEX_OPERATION_MAPPING["REMOVE"]):
             try:
-                index = api.vdb.remove_sample_from_index(ts,
+                index = api.vdb.remove_samples_from_index(ts,
                                                          index_type="hnsw",
                                                          distance_type=distance,
                                                          remove_indices=row_ids,
@@ -1493,7 +1493,6 @@ class Tensor:
                 raise
         else:
             raise AssertionError(f"Invalid operation_kind: {operation_kind}")
-
 
     def create_vdb_index(
         self,
