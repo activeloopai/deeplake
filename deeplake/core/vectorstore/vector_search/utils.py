@@ -560,10 +560,6 @@ def is_embedding_tensor(tensor):
     )
 
 
-def index_used(exec_option):
-    """Check if the index is used for the exec_option"""
-    return exec_option in ("tensor_db", "compute_engine")
-
 def get_embedding_tensor(dataset):
     tensors = dataset.tensors
     for _, tensor in tensors.items():
@@ -572,14 +568,4 @@ def get_embedding_tensor(dataset):
     return None
 
 
-def index_exists(dataset):
-    """Check if the Index already exists."""
-    emb_tensor = get_embedding_tensor(dataset)
-    if emb_tensor is not None:
-        vdb_indexes = emb_tensor.get_vdb_indexes()
-        if len(vdb_indexes) == 0:
-            return False
-        else:
-            return True
-    else:
-        return False
+

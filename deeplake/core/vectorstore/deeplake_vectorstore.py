@@ -6,6 +6,7 @@ import jwt
 import numpy as np
 
 import deeplake
+from deeplake.core import index_maintenance
 from deeplake.core.distance_type import DistanceType
 from deeplake.util.dataset import try_flushing
 from deeplake.util.path import convert_pathlib_to_string_if_needed
@@ -25,8 +26,6 @@ from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
-from deeplake.core.vectorstore.vector_search.indra import index
-from deeplake.core.vectorstore.vector_search.indra.index import index_operation
 from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
@@ -182,8 +181,11 @@ class VectorStore:
         self._exec_option = exec_option
         self.verbose = verbose
         self.tensor_params = tensor_params
-        self.distance_metric_index = index.index_operation(self, dml_type=_INDEX_OPERATION_MAPPING["ADD"],
-                                                           rowids=list(range(0, len(self.dataset))))
+        self.distance_metric_index = index_maintenance.index_operation_vectorstore(self,
+                                                                                   dml_type=_INDEX_OPERATION_MAPPING[
+                                                                                       "ADD"],
+                                                                                   rowids=list(
+                                                                                       range(0, len(self.dataset))))
         self.deep_memory = None
 
     @property
@@ -338,10 +340,11 @@ class VectorStore:
             rate_limiter=rate_limiter,
         )
 
-        self.distance_metric_index = index.index_operation(self,
-                                                           dml_type=_INDEX_OPERATION_MAPPING["ADD"],
-                                                           rowids=list(range(prev_data_length, len(self.dataset))))
-
+        self.distance_metric_index = index_maintenance.index_operation_vectorstore(self,
+                                                                                   dml_type=_INDEX_OPERATION_MAPPING[
+                                                                                       "ADD"],
+                                                                                   rowids=list(range(prev_data_length,
+                                                                                                     len(self.dataset))))
         try_flushing(self.dataset)
 
         if self.verbose:
@@ -595,13 +598,14 @@ class VectorStore:
             delete_all,
         )
         if dataset_deleted:
-            index_operation(self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=row_ids, index_delete=True)
+            index_maintenance.index_operation_vectorstore(self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
+                                                          rowids=row_ids, index_delete=True)
             return True
 
         dataset_utils.delete_and_without_commit(self.dataset, row_ids)
 
         # Regenerate vdb indexes.
-        index_operation(self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=row_ids)
+        # index_maintenance.index_operation_vectorstore(self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=row_ids)
         #self._update_index(regenerate_index=len(row_ids) > 0 if row_ids else False)
 
         try_flushing(self.dataset)
@@ -714,8 +718,8 @@ class VectorStore:
 
         # self._update_index(regenerate_index=len(row_ids) > 0 if row_ids else False)
         # Regenerate Index
-        index_operation(self, dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
-                        rowids=row_ids)
+        # index_maintenance.index_operation_vectorstore(self, dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
+        #                                               rowids=row_ids)
 
         try_flushing(self.dataset)
 
@@ -782,15 +786,6 @@ class VectorStore:
     def __len__(self):
         """Length of the dataset"""
         return len(self.dataset)
-
-    def _update_index(self, regenerate_index=False):
-        if utils.index_used(self.exec_option):
-            index.index_cache_cleanup(self.dataset)
-            self.distance_metric_index = index.validate_and_create_vector_index(
-                dataset=self.dataset,
-                index_params=self.index_params,
-                regenerate_index=regenerate_index,
-            )
 
 
 DeepLakeVectorStore = VectorStore
