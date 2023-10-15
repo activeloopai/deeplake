@@ -152,7 +152,7 @@ def compress_bytes(
     if not buffer:
         return b""
     if compression == "lz4":
-        return lz4.frame.compress(buffer)
+        return lz4.block.compress(buffer)
     else:
         raise SampleCompressionError(
             (len(buffer),), compression, f"Not a byte compression: {compression}"
