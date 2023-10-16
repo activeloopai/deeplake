@@ -3043,3 +3043,12 @@ def test_change_htype_fail(local_ds_generator):
         ds.create_tensor("images3", htype="image", sample_compression="jpg")
         with pytest.raises(UnsupportedCompressionError):
             ds.images3.htype = "embedding"
+
+
+def test_append_non_uint8_to_image(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("images", htype="image", sample_compression="png")
+        ds.images.append(np.zeros((40, 40, 1), dtype=np.int16))
+        ds.images.append(np.zeros((40, 40, 1), dtype=np.uint8))
+
+    assert ds.images.dtype.name == "int16"
