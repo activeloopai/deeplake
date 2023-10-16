@@ -203,14 +203,10 @@ def index_cache_cleanup(dataset):
             tensor.unload_index_cache()
 
 
-
 # Routine to identify the index Operation.
-
-
-def index_operation_vectorstore(self, dml_type, rowids, index_regeneration=False, index_delete=False):
-
+def index_operation_vectorstore(self, dml_type, rowids, index_regeneration: bool = False, index_delete: bool = False):
     index_operation_type = index_operation_type_vectorstore(self, index_regeneration=index_regeneration,
-                                                           index_delete=index_delete)
+                                                            index_delete=index_delete)
     emb_tensor = fetch_embedding_tensor(self.dataset)
 
     if index_operation_type == INDEX_OP_TYPE.NOOP:
@@ -238,11 +234,10 @@ def index_operation_vectorstore(self, dml_type, rowids, index_regeneration=False
     else:
         raise Exception("Unknown index operation")
 
-# VectorStore specific logic
 
-def index_operation_dataset(self, dml_type, rowids, index_regeneration=False, index_delete=False):
+def index_operation_dataset(self, dml_type, rowids, index_regeneration: bool = False, index_delete: bool = False):
     index_operation_type = index_operation_type_dataset(self, index_regeneration=index_regeneration,
-                                                       index_delete=index_delete)
+                                                        index_delete=index_delete)
     emb_tensor = fetch_embedding_tensor(self)
 
     if index_operation_type == INDEX_OP_TYPE.NOOP:
@@ -256,60 +251,3 @@ def index_operation_dataset(self, dml_type, rowids, index_regeneration=False, in
         emb_tensor.delete_vdb_index(vdb_indexes["id"])
     else:
         raise Exception("Unknown index operation")
-
-
-def validate_and_create_vector_index(dataset,
-                                     index_params,
-                                     regenerate_index=False,
-                                     previous_dataset_len = 0):
-    """
-    Validate if the index is present in the dataset and create one if not present but required based on the specified index_params.
-    Currently only supports 1 index per dataset.
-
-    Returns: Distance metric for the index. If None, then no index is available.
-
-    TODO: Update to support multiple indexes per dataset, only once the TQL parser also supports that
-    """
-
-    threshold = index_params.get("threshold", -1)
-
-    below_threshold = threshold <= 0 or len(dataset) < threshold
-
-    tensors = dataset.tensors
-
-    # Check all tensors from the dataset.
-    for _, tensor in tensors.items():
-        is_embedding = is_embedding_tensor(tensor)
-
-        if is_embedding:
-            vdb_indexes = tensor.get_vdb_indexes()
-
-            if len(vdb_indexes) == 0 and not below_threshold:
-                try:
-                    distance_str = index_params.get("distance_metric", "L2")
-                    additional_params_dict = index_params.get("additional_params", None)
-                    distance = get_index_metric(distance_str.upper())
-                    if additional_params_dict and len(additional_params_dict) > 0:
-                        param_dict = normalize_additional_params(additional_params_dict)
-                        tensor.create_vdb_index(
-                            "hnsw_1", distance=distance, additional_params=param_dict
-                        )
-                    else:
-                        tensor.create_vdb_index("hnsw_1", distance=distance)
-
-                    return distance
-                except ValueError as e:
-                    raise e
-            elif len(vdb_indexes) > 0:
-                first_index = tensor.meta.vdb_indexes[0]
-                distance = first_index["distance"]
-                current_distance = index_params.get("distance_metric")
-                if distance == METRIC_TO_INDEX_METRIC[current_distance.upper()]:
-                    add_index = list(range(previous_dataset_len, len(dataset)))
-                    tensor._incr_maintenance_vdb_indexes(add_index, _INDEX_OPERATION_MAPPING["ADD"])
-                elif regenerate_index:
-                    tensor._regenerate_vdb_indexes()
-
-                return vdb_indexes[0]["distance"]
-
-    return None

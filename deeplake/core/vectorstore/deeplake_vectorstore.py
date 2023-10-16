@@ -328,7 +328,7 @@ class VectorStore:
         )
 
         assert id_ is not None
-        prev_data_length = utils.check_length_of_each_tensor(processed_tensors)
+        prev_data_length = len(self.dataset)
 
         dataset_utils.extend_or_ingest_dataset(
             processed_tensors=processed_tensors,
@@ -338,13 +338,13 @@ class VectorStore:
             embedding_tensor=embedding_tensor,
             batch_byte_size=batch_byte_size,
             rate_limiter=rate_limiter,
+            index_regeneration=False,
         )
 
         self.distance_metric_index = index_maintenance.index_operation_vectorstore(self,
-                                                                                   dml_type=_INDEX_OPERATION_MAPPING[
-                                                                                       "ADD"],
-                                                                                   rowids=list(range(prev_data_length,
-                                                                                                     len(self.dataset))))
+                                                                    dml_type=_INDEX_OPERATION_MAPPING["ADD"],
+                                                                    rowids=list(range(prev_data_length,
+                                                                    len(self.dataset))))
         try_flushing(self.dataset)
 
         if self.verbose:
@@ -602,11 +602,10 @@ class VectorStore:
                                                           rowids=row_ids, index_delete=True)
             return True
 
-        dataset_utils.delete_and_without_commit(self.dataset, row_ids)
+        dataset_utils.delete_and_without_commit(self.dataset, row_ids, index_maintenance=False)
 
         # Regenerate vdb indexes.
-        # index_maintenance.index_operation_vectorstore(self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=row_ids)
-        #self._update_index(regenerate_index=len(row_ids) > 0 if row_ids else False)
+        index_maintenance.index_operation_vectorstore(self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=row_ids)
 
         try_flushing(self.dataset)
 
@@ -714,12 +713,11 @@ class VectorStore:
             row_ids=row_ids,
         )
 
-        self.dataset[row_ids].update(embedding_tensor_data)
+        self.dataset[row_ids].update(embedding_tensor_data, index_maintenance=False)
 
-        # self._update_index(regenerate_index=len(row_ids) > 0 if row_ids else False)
         # Regenerate Index
-        # index_maintenance.index_operation_vectorstore(self, dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
-        #                                               rowids=row_ids)
+        index_maintenance.index_operation_vectorstore(self, dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
+                                                      rowids=row_ids)
 
         try_flushing(self.dataset)
 
