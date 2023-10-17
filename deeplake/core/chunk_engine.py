@@ -708,9 +708,16 @@ class ChunkEngine:
                     # assume uint8 if download fails
                     dtype = np.dtype("uint8")
             else:
-                dtype = get_dtype(
-                    next(filter(lambda x: x is not None, samples))
-                )  # first non empty sample
+                non_empty_samples = list(filter(lambda x: x is not None, samples))
+                for sample in non_empty_samples:
+                    try:
+                        dtype = get_dtype(sample)
+                        break
+                    except:
+                        pass
+                else:
+                    if not ignore_errors:
+                        raise ValueError("Could not determine dtype of samples")
             tensor_meta.set_dtype(dtype)
         if self._convert_to_list(samples):
             samples = list(samples)
