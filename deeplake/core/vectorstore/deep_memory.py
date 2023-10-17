@@ -405,25 +405,25 @@ class DeepMemory:
             eval_type = "with" if use_model else "without"
             print(f"---- Evaluating {eval_type} model ---- ")
             callect_data = False
-            for k in top_k:
-                callect_data = k == 10
+            # for k in top_k:
+            #     callect_data = k == 10
 
-                recall, queries_dict = recall_at_k(
-                    self.dataset,
-                    indra_dataset,
-                    relevance,
-                    top_k=k,
-                    query_embs=query_embs,
-                    metric=metric,
-                    collect_data=callect_data,
-                    use_model=use_model,
-                )
+            recall, queries_dict = recall_at_k(
+                self.dataset,
+                indra_dataset,
+                relevance,
+                top_k=k,
+                query_embs=query_embs,
+                metric=metric,
+                collect_data=callect_data,
+                use_model=use_model,
+            )
 
-                if callect_data:
-                    queries_data.update(queries_dict)
+            if callect_data:
+                queries_data.update(queries_dict)
 
-                print(f"Recall@{k}:\t {100*recall: .1f}%")
-                recalls[f"{eval_type} model"][f"recall@{k}"] = recall
+            print(f"Recall@{k}:\t {100*recall: .1f}%")
+            recalls[f"{eval_type} model"][f"recall@{k}"] = recall
 
         log_queries = parsed_qvs_params.get("log_queries")
         branch = parsed_qvs_params.get("branch")
@@ -473,28 +473,33 @@ def recall_at_k(
         correct_labels = [rel[0] for rel in query_relevance]
 
         # Compute the cosine similarity between the query and all data points
-        view_top_k = get_view_top_k(
+        view = get_view(
             metric=metric,
             query_emb=query_emb,
-            top_k=top_k,
             indra_dataset=indra_dataset,
         )
 
-        top_k_retrieved = [
-            sample.id.numpy() for sample in view_top_k
-        ]  # TODO: optimize this
+        top_k = [1, 3, 5, 10, 50, 100]
 
-        # Compute the recall: the fraction of relevant items found in the top k
-        num_relevant_in_top_k = len(
-            set(correct_labels).intersection(set(top_k_retrieved))
-        )
-        if len(correct_labels) == 0:
-            continue
-        recall = num_relevant_in_top_k / len(correct_labels)
+        for k in top_k:
+            collect_data = k == 10
+            view_top_k = view[:k]
 
-        if collect_data:
-            top_k_list.append(top_k_retrieved)
-        recalls.append(recall)
+            top_k_retrieved = [
+                sample.id.numpy() for sample in view_top_k
+            ]  # TODO: optimize this
+
+            # Compute the recall: the fraction of relevant items found in the top k
+            num_relevant_in_top_k = len(
+                set(correct_labels).intersection(set(top_k_retrieved))
+            )
+            if len(correct_labels) == 0:
+                continue
+            recall = num_relevant_in_top_k / len(correct_labels)
+
+            if collect_data:
+                top_k_list.append(top_k_retrieved)
+            recalls.append(recall)
 
     # Average the recalls for each query
     avg_recall = np.mean(np.array(recalls))
@@ -509,10 +514,9 @@ def recall_at_k(
     return avg_recall, queries_data
 
 
-def get_view_top_k(
+def get_view(
     metric: str,
     query_emb: Union[List[float], np.ndarray],
-    top_k: int,
     indra_dataset: Any,
     return_tensors: List[str] = ["text", "metadata", "id"],
     tql_filter: str = "",
@@ -520,7 +524,7 @@ def get_view_top_k(
     tql_filter_str = tql_filter if tql_filter == "" else " where " + tql_filter
     query_emb_str = ",".join([f"{q}" for q in query_emb])
     return_tensors_str = ", ".join(return_tensors)
-    tql = f"SELECT * FROM (SELECT {return_tensors_str}, ROW_NUMBER() as indices, {metric}(embedding, ARRAY[{query_emb_str}]) as score {tql_filter_str} order by {metric}(embedding, ARRAY[{query_emb_str}]) desc limit {top_k})"
+    tql = f"SELECT * FROM (SELECT {return_tensors_str}, ROW_NUMBER() as indices, {metric}(embedding, ARRAY[{query_emb_str}]) as score {tql_filter_str} order by {metric}(embedding, ARRAY[{query_emb_str}]) desc limit 100)"
     indra_view = indra_dataset.query(tql)
     return indra_view
 
