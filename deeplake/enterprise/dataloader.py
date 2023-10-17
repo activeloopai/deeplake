@@ -191,7 +191,6 @@ class DeepLakeDataLoader(DataLoader):
     def multiprocessing_context(self):
         return self.__multiprocessing_context
 
-
     @multiprocessing_context.setter
     def multiprocessing_context(self, multiprocessing_context):
         if multiprocessing_context is not None:
@@ -200,23 +199,36 @@ class DeepLakeDataLoader(DataLoader):
                     valid_start_methods = multiprocessing.get_all_start_methods()
                     if multiprocessing_context not in valid_start_methods:
                         raise ValueError(
-                            ('multiprocessing_context option '
-                             'should specify a valid start method in {!r}, but got '
-                             'multiprocessing_context={!r}').format(valid_start_methods, multiprocessing_context))
-                    multiprocessing_context = multiprocessing.get_context(multiprocessing_context)
+                            (
+                                "multiprocessing_context option "
+                                "should specify a valid start method in {!r}, but got "
+                                "multiprocessing_context={!r}"
+                            ).format(valid_start_methods, multiprocessing_context)
+                        )
+                    multiprocessing_context = multiprocessing.get_context(
+                        multiprocessing_context
+                    )
 
-                if not isinstance(multiprocessing_context, multiprocessing.context.BaseContext):
-                    raise TypeError(('multiprocessing_context option should be a valid context '
-                                     'object or a string specifying the start method, but got '
-                                     'multiprocessing_context={}').format(multiprocessing_context))
+                if not isinstance(
+                    multiprocessing_context, multiprocessing.context.BaseContext
+                ):
+                    raise TypeError(
+                        (
+                            "multiprocessing_context option should be a valid context "
+                            "object or a string specifying the start method, but got "
+                            "multiprocessing_context={}"
+                        ).format(multiprocessing_context)
+                    )
             else:
-                raise ValueError(('multiprocessing_context can only be used with '
-                                  'multi-process loading (num_workers > 0), but got '
-                                  'num_workers={}').format(self.num_workers))
+                raise ValueError(
+                    (
+                        "multiprocessing_context can only be used with "
+                        "multi-process loading (num_workers > 0), but got "
+                        "num_workers={}"
+                    ).format(self.num_workers)
+                )
 
         self.__multiprocessing_context = multiprocessing_context
-
-
 
     @property
     def _dataset_kind(self):
@@ -726,7 +738,7 @@ class DeepLakeDataLoader(DataLoader):
                 "not equal after each initialization and iteration through the dataloader. If you intend to shuffle data while "
                 "preserving the offset for resuming iteration at a predictable index and order, please set a random seed using deeplake.random()"
             )
-        from indra.pytorch.tensorinfo import TensorsInfo, LoaderMetaInfo # type:ignore
+        from indra.pytorch.tensorinfo import TensorsInfo, LoaderMetaInfo  # type:ignore
 
         info = TensorsInfo(
             raw_tensors=raw_tensors or [],
@@ -748,7 +760,7 @@ class DeepLakeDataLoader(DataLoader):
             prefetch_factor=self._prefetch_factor,
             offset=self._offset,
             primary_tensor=self._primary_tensor_name,
-            worker_init_fn=self.worker_init_fn
+            worker_init_fn=self.worker_init_fn,
         )
 
         return INDRA_LOADER(  # type: ignore [misc]
