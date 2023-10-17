@@ -1,4 +1,5 @@
 import uuid
+from collections import defaultdict
 from typing import Any, Dict, Optional, List, Union, Callable, Tuple
 from time import time
 
@@ -404,26 +405,20 @@ class DeepMemory:
         ]:
             eval_type = "with" if use_model else "without"
             print(f"---- Evaluating {eval_type} model ---- ")
-            callect_data = False
-            # for k in top_k:
-            #     callect_data = k == 10
-
-            recall, queries_dict = recall_at_k(
-                self.dataset,
+            avg_recalls, queries_dict = recall_at_k(
                 indra_dataset,
                 relevance,
-                top_k=k,
+                top_k=top_k,
                 query_embs=query_embs,
                 metric=metric,
-                collect_data=callect_data,
                 use_model=use_model,
             )
 
-            if callect_data:
-                queries_data.update(queries_dict)
+            queries_data.update(queries_dict)
 
-            print(f"Recall@{k}:\t {100*recall: .1f}%")
-            recalls[f"{eval_type} model"][f"recall@{k}"] = recall
+            for recall, recall_value in avg_recalls.items():
+                print(f"Recall@{recall}:\t {100*recall_value: .1f}%")
+                recalls[f"{eval_type} model"][f"recall@{recall}"] = recall_value
 
         log_queries = parsed_qvs_params.get("log_queries")
         branch = parsed_qvs_params.get("branch")
@@ -454,16 +449,14 @@ class DeepMemory:
 
 
 def recall_at_k(
-    dataset: Dataset,
     indra_dataset: Any,
     relevance: List[List[Tuple[str, int]]],
     query_embs: Union[List[np.ndarray], List[List[float]]],
     metric: str,
     top_k: int = 10,
-    collect_data: bool = False,
     use_model: bool = False,
 ):
-    recalls = []
+    recalls = defaultdict(list)
     top_k_list = []
 
     for query_idx, _ in enumerate(query_embs):
@@ -478,8 +471,6 @@ def recall_at_k(
             query_emb=query_emb,
             indra_dataset=indra_dataset,
         )
-
-        top_k = [1, 3, 5, 10, 50, 100]
 
         for k in top_k:
             collect_data = k == 10
@@ -499,19 +490,19 @@ def recall_at_k(
 
             if collect_data:
                 top_k_list.append(top_k_retrieved)
-            recalls.append(recall)
+            recalls[k].append(recall)
 
     # Average the recalls for each query
-    avg_recall = np.mean(np.array(recalls))
-    queries_data = {}
-    if collect_data:
-        model_type = "deep_memory" if use_model else "vector_search"
-
-        queries_data = {
-            f"{model_type}_top_10": top_k_list,
-            f"{model_type}_recall": recalls,
-        }
-    return avg_recall, queries_data
+    avg_recalls = {
+        f"{recall}": np.mean(np.array(recall_list))
+        for recall, recall_list in recalls.items()
+    }
+    model_type = "deep_memory" if use_model else "vector_search"
+    queries_data = {
+        f"{model_type}_top_10": top_k_list,
+        f"{model_type}_recall": recalls[10],
+    }
+    return avg_recalls, queries_data
 
 
 def get_view(
