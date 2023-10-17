@@ -46,6 +46,11 @@ class ShuffleBuffer:
         )
         self.pbar_closed = False
 
+    def reset(self):
+        self.buffer = list()
+        self.buffer_used = 0
+        self.num_torch_tensors = 0
+
     def exchange(self, sample):
         """Shuffle with existing elements in a buffer and return value if buffer is full or if `None` is provided as argument.
 
