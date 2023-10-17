@@ -693,19 +693,25 @@ class ChunkEngine:
             tensor_meta.set_htype(get_htype(samples))
         if tensor_meta.dtype is None and not all_empty:
             if tensor_meta.is_link:
-                # download one sample to get dtype
-                sample = next(filter(lambda x: x is not None, samples))
-                assert isinstance(sample, LinkedSample), "Sample must be LinkedSample"
-                dtype = np.dtype(
-                    read_linked_sample(
-                        sample.path, sample.creds_key, self.link_creds, True
-                    )._typestr
-                )
-                tensor_meta.set_dtype(dtype)
+                try:
+                    # download one sample to get dtype
+                    sample = next(filter(lambda x: x is not None, samples))
+                    assert isinstance(
+                        sample, LinkedSample
+                    ), "Sample must be LinkedSample"
+                    dtype = np.dtype(
+                        read_linked_sample(
+                            sample.path, sample.creds_key, self.link_creds, True
+                        )._typestr
+                    )
+                except:
+                    # assume uint8 if download fails
+                    dtype = np.dtype("uint8")
             else:
-                tensor_meta.set_dtype(
-                    get_dtype(next(filter(lambda x: x is not None, samples)))
+                dtype = get_dtype(
+                    next(filter(lambda x: x is not None, samples))
                 )  # first non empty sample
+            tensor_meta.set_dtype(dtype)
         if self._convert_to_list(samples):
             samples = list(samples)
         if self._is_temp_label_tensor:

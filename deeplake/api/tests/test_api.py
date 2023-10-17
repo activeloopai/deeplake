@@ -2680,12 +2680,12 @@ def test_tensor_dtype_bug(local_path):
         ds.abc.append(deeplake.link(f"{data_path}/standard.nii.gz"))
 
     assert ds.abc[0].numpy().shape == (4, 5, 7)
-    assert ds.abc.dtype == np.dtype("<U1")
+    assert ds.abc.dtype == np.dtype("uint8")
 
     ds2 = ds.copy(f"{local_path}_2", overwrite=True)
 
     assert ds2.abc[0].numpy().shape == (4, 5, 7)
-    assert ds2.abc.dtype == np.dtype("<U1")
+    assert ds2.abc.dtype == np.dtype("uint8")
 
 
 def test_iterate_with_groups(memory_ds):
