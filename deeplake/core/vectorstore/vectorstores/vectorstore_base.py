@@ -48,7 +48,7 @@ class VectorStoreBase(ABC):
         creds: Optional[Union[Dict, str]] = None,
         **kwargs: Any,
     ) -> None:
-        ...
+        pass
 
     @abstractmethod
     def add(
@@ -61,7 +61,7 @@ class VectorStoreBase(ABC):
         num_workers: Optional[int] = None,
         **tensors,
     ) -> Optional[List[str]]:
-        ...
+        pass
 
     @abstractmethod
     def search(
@@ -78,7 +78,7 @@ class VectorStoreBase(ABC):
         return_tensors: Optional[List[str]] = None,
         return_view: bool = False,
     ) -> Union[Dict, deeplake.core.dataset.Dataset]:
-        ...
+        pass
 
     @abstractmethod
     def delete(
@@ -90,7 +90,7 @@ class VectorStoreBase(ABC):
         exec_option: Optional[str] = None,
         delete_all: Optional[bool] = None,
     ) -> bool:
-        ...
+        pass
 
     @abstractmethod
     def update_embedding(
@@ -104,7 +104,7 @@ class VectorStoreBase(ABC):
         embedding_source_tensor: Union[str, List[str]] = "text",
         embedding_tensor: Optional[Union[str, List[str]]] = None,
     ):
-        ...
+        pass
 
     @staticmethod
     def delete_by_path(
@@ -112,20 +112,20 @@ class VectorStoreBase(ABC):
         token: Optional[str] = None,
         creds: Optional[Union[Dict, str]] = None,
     ) -> None:
-        ...
+        pass
 
     @abstractmethod
     def commit(self, allow_empty: bool = True) -> None:
-        ...
+        pass
 
     @abstractmethod
     def tensors(self):
-        ...
+        pass
 
     @abstractmethod
     def summary(self):
-        ...
+        pass
 
     @abstractmethod
     def __len__(self):
-        ...
+        pass

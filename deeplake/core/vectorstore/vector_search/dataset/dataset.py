@@ -257,12 +257,12 @@ def get_embedding(embedding, embedding_data, embedding_function=None):
 
 
 def preprocess_tensors(
-    embedding_data=None, embedding_tensor=None, dataset=None, **tensors
+    embedding_data=None, embedding_tensor=None, dataset_tensors=None, **tensors
 ):
     # generate id list equal to the length of the tensors
     # dont use None tensors to get length of tensor
     not_none_tensors, num_items = get_not_none_tensors(tensors, embedding_data)
-    ids_tensor = get_id_tensor(dataset)
+    ids_tensor = get_id_tensor(dataset_tensors)
     tensors = populate_id_tensor_if_needed(
         ids_tensor, tensors, not_none_tensors, num_items
     )
@@ -271,7 +271,9 @@ def preprocess_tensors(
 
     for tensor_name, tensor_data in tensors.items():
         tensor_data = convert_tensor_data_to_list(tensor_data, tensors, ids_tensor)
-        tensor_data = read_tensor_data_if_needed(tensor_data, dataset, tensor_name)
+        tensor_data = read_tensor_data_if_needed(
+            tensor_data, dataset_tensors, tensor_name
+        )
         processed_tensors[tensor_name] = tensor_data
 
     if embedding_data:
@@ -281,9 +283,13 @@ def preprocess_tensors(
     return processed_tensors, tensors[ids_tensor]
 
 
-def read_tensor_data_if_needed(tensor_data, dataset, tensor_name):
+def read_tensor_data_if_needed(tensor_data, dataset_tensors, tensor_name):
     # generalize this method for other htypes that need reading.
-    if dataset and tensor_name != "id" and dataset[tensor_name].htype == "image":
+    for tensor in dataset_tensors:
+        if tensor["name"] == tensor_name:
+            break
+
+    if dataset_tensors and tensor_name != "id" and tensor["htype"] == "image":
         tensor_data = [
             deeplake.read(data) if isinstance(data, str) else data
             for data in tensor_data
@@ -329,8 +335,12 @@ def populate_id_tensor_if_needed(ids_tensor, tensors, not_none_tensors, num_item
     return tensors
 
 
-def get_id_tensor(dataset):
-    return "ids" if "ids" in dataset.tensors else "id"
+def get_id_tensor(dataset_tensors):
+    default_id_tensor_name = "id"
+    for tensor in dataset_tensors:
+        if tensor["name"] == "ids":
+            default_id_tensor_name = "ids"
+    return default_id_tensor_name
 
 
 def create_elements(
@@ -441,17 +451,21 @@ def extend_or_ingest_dataset(
         )
 
 
-def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):
+def convert_id_to_row_id(
+    ids, dataset, search_fn, query, exec_option, filter, return_view=True
+):
     if ids is None:
         delete_view = search_fn(
             filter=filter,
             query=query,
             exec_option=exec_option,
-            return_view=True,
+            return_view=return_view,
             k=int(1e9),
         )
 
     else:
+        if dataset is None:
+            raise ValueError("ids tensor is not supported with `managed_db`")
         # backwards compatibility
         tensors = dataset.tensors
         id_tensor = "id"
@@ -460,8 +474,12 @@ def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):
 
         delete_view = dataset.filter(lambda x: x[id_tensor].data()["value"] in ids)
 
-    row_ids = list(delete_view.sample_indices)
-    return row_ids
+    if return_view:
+        row_ids = list(delete_view.sample_indices)
+    else:
+        row_ids = list(delete_view["indices"])
+
+    return row_ids, delete_view
 
 
 def check_arguments_compatibility(
@@ -484,7 +502,7 @@ def check_arguments_compatibility(
 
 
 def search_row_ids(
-    dataset: deeplake.core.dataset.Dataset,
+    dataset_tensors: deeplake.core.dataset.Dataset,
     search_fn: Callable,
     ids: Optional[List[str]] = None,
     filter: Optional[Union[Dict, Callable]] = None,
@@ -503,13 +521,13 @@ def search_row_ids(
     if select_all:
         return None
 
-    row_ids = convert_id_to_row_id(
+    row_ids, delete_view = convert_id_to_row_id(
         ids=ids,
-        dataset=dataset,
+        dataset=dataset_tensors,
         search_fn=search_fn,
         query=query,
         exec_option=exec_option,
         filter=filter,
     )
 
-    return row_ids
+    return row_ids, delete_view

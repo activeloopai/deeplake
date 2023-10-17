@@ -38,7 +38,9 @@ def parse_exec_option(dataset, exec_option, indra_installed):
         return exec_option
 
 
-def parse_return_tensors(dataset, return_tensors, embedding_tensor, return_view):
+def parse_return_tensors(
+    dataset_tensors, return_tensors, embedding_tensor, return_view
+):
     """Select the best selection of data and tensors to be returned"""
     if return_view:
         return_tensors = "*"
@@ -46,8 +48,8 @@ def parse_return_tensors(dataset, return_tensors, embedding_tensor, return_view)
     if not return_tensors or return_tensors == "*":
         return_tensors = [
             tensor
-            for tensor in dataset.tensors
-            if (tensor != embedding_tensor or return_tensors == "*")
+            for tensor in dataset_tensors
+            if (tensor["name"] != embedding_tensor or return_tensors == "*")
         ]
     return return_tensors
 
@@ -176,14 +178,14 @@ def parse_search_args(**kwargs):
             )
 
 
-def get_embedding_tensor(embedding_tensor, embedding_source_tensor, dataset):
+def get_embedding_tensor(embedding_tensor, embedding_source_tensor, dataset_tensors):
     if embedding_source_tensor is None:
         raise ValueError("`embedding_source_tensor` was not specified")
 
     embedding_tensor = get_embedding_tensors(
         embedding_tensor=embedding_tensor,
         tensor_args={},
-        dataset=dataset,
+        dataset=dataset_tensors,
     )
 
     return embedding_tensor
@@ -236,7 +238,7 @@ def parse_tensors_kwargs(tensors, embedding_function, embedding_data, embedding_
 
 
 def parse_update_arguments(
-    dataset,
+    dataset_tensors,
     embedding_function=None,
     initial_embedding_function=None,
     embedding_source_tensor=None,
@@ -248,7 +250,7 @@ def parse_update_arguments(
         )
 
     embedding_tensor = get_embedding_tensor(
-        embedding_tensor, embedding_source_tensor, dataset
+        embedding_tensor, embedding_source_tensor, dataset_tensors
     )
     if isinstance(embedding_tensor, list) and len(embedding_tensor) == 1:
         embedding_tensor = embedding_tensor[0]
@@ -310,7 +312,7 @@ def convert_embedding_source_tensor_to_embeddings(
 
 
 def parse_add_arguments(
-    dataset,
+    dataset_tensors,
     embedding_function=None,
     initial_embedding_function=None,
     embedding_data=None,
@@ -332,13 +334,13 @@ def parse_add_arguments(
             embedding_function,
             embedding_data,
             tensors,
-            dataset,
+            dataset_tensors,
         )
         return (embedding_function, embedding_data, embedding_tensor, tensors)
 
     if initial_embedding_function:
         if not embedding_data:
-            check_tensor_name_consistency(tensors, dataset.tensors, None)
+            check_tensor_name_consistency(tensors, dataset_tensors, None)
             return (None, None, None, tensors)
 
         (
@@ -374,7 +376,7 @@ def check_embedding_function_embedding_tensor_consistency(
     embedding_function,
     embedding_data,
     tensors,
-    dataset,
+    dataset_tensors,
 ):
     if not embedding_data:
         raise ValueError(
@@ -385,7 +387,7 @@ def check_embedding_function_embedding_tensor_consistency(
     if not isinstance(embedding_function, list):
         embedding_function = [embedding_function] * len(embedding_data)
 
-    embedding_tensor = get_embedding_tensors(embedding_tensor, tensors, dataset)
+    embedding_tensor = get_embedding_tensors(embedding_tensor, tensors, dataset_tensors)
 
     assert len(embedding_function) == len(
         embedding_data
@@ -394,7 +396,7 @@ def check_embedding_function_embedding_tensor_consistency(
         embedding_tensor
     ), "embedding_function and embedding_tensor must be of the same length"
 
-    check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
+    check_tensor_name_consistency(tensors, dataset_tensors, embedding_tensor)
     return embedding_function, embedding_tensor
 
 
@@ -426,10 +428,10 @@ def check_tensor_name_consistency(tensors, dataset_tensors, embedding_tensor):
         raise ValueError(f"{missing_tensors} tensor(s) is/are missing.")
 
 
-def get_embedding_tensors(embedding_tensor, tensor_args, dataset) -> List[str]:
+def get_embedding_tensors(embedding_tensor, tensor_args, dataset_tensors) -> List[str]:
     """Get the embedding tensors to which embedding data should be uploaded."""
     if not embedding_tensor:
-        embedding_tensor = find_embedding_tensors(dataset)
+        embedding_tensor = find_embedding_tensors(dataset_tensors)
 
         if len(embedding_tensor) == 0:
             raise ValueError(
@@ -453,14 +455,14 @@ def get_embedding_tensors(embedding_tensor, tensor_args, dataset) -> List[str]:
     return embedding_tensor
 
 
-def find_embedding_tensors(dataset) -> List[str]:
+def find_embedding_tensors(dataset_tensors) -> List[str]:
     """Find all the embedding tensors in a dataset."""
     matching_tensors = []
-    for tensor in dataset.tensors:
+    for tensor in dataset_tensors:
         if (
-            dataset[tensor].htype == "embedding"
-            or tensor == "embedding"
-            or tensor == "embeddings"
+            tensor["htype"] == "embedding"
+            or tensor["name"] == "embedding"
+            or tensor["name"] == "embeddings"
         ):
             matching_tensors.append(tensor)
 

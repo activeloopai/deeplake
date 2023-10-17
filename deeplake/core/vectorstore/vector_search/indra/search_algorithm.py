@@ -18,6 +18,7 @@ def search(
     runtime: dict,
     return_tensors: List[str],
     return_view: bool = False,
+    return_tql: bool = False,
 ) -> Union[Dict, DeepLakeDataset]:
     """Generalized search algorithm that uses indra. It combines vector search and other TQL queries.
 
@@ -32,6 +33,7 @@ def search(
         runtime (dict): Runtime parameters for the query.
         return_tensors (List[str]): List of tensors to return data for.
         return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictinary with data. Defaults to False.
+        return_tql (bool): Return the TQL query string that was used for the search. Defaults to False.
 
     Raises:
         ValueError: If both tql_string and tql_filter are specified.
@@ -58,6 +60,9 @@ def search(
             tql_filter,
             return_tensors,
         )
+
+    if return_tql:
+        return tql_query
 
     if runtime:
         view, data = deeplake_dataset.query(

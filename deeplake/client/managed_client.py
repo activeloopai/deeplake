@@ -7,7 +7,7 @@ from deeplake.client.utils import (
 )
 from deeplake.client.config import (
     GET_VECTORSTORE_SUMMARY_SUFFIX,
-    LOAD_VECTORSTORE_SUFFIX,
+    INIT_VECTORSTORE_SUFFIX,
     CREATE_VECTORSTORE_SUFFIX,
     DELETE_VECTORSTORE_SUFFIX,
     FETCH_VECTORSTORE_INDICES_SUFFIX,
@@ -21,26 +21,46 @@ class ManagedServiceClient(DeepLakeBackendClient):
     def _process_response(self, response: Response):
         return response
 
-    def load_vectorstore(self, path: str, mode: str):
+    def init_vectorstore(
+        self, path: str, overwrite: bool, tensor_params: List[Dict[str, Any]]
+    ):
         response = self.request(
             method="GET",
-            relative_url=LOAD_VECTORSTORE_SUFFIX,
-            params={"path": path, "mode": mode},
+            relative_url=INIT_VECTORSTORE_SUFFIX,
+            params={
+                "path": path,
+                "overwrite": overwrite,
+                "tensor_params": tensor_params,
+            },
         )
         check_response_status(response)
         response = response.json()
 
-        return response["mode"]
+        return response["summary"]
 
     def get_vectorstore_summary(self, path: str):
         response = self.request(
             method="GET",
-            relative_url=LOAD_VECTORSTORE_SUFFIX,
-            params={"path": path},
+            relative_url=INIT_VECTORSTORE_SUFFIX,
+            params={
+                "path": path,
+            },
         )
         response = response.json()
 
         return response
+
+    def get_vectorstore_tensors(self, path: str):
+        response = self.request(
+            method="GET",
+            relative_url=INIT_VECTORSTORE_SUFFIX,
+            params={
+                "path": path,
+            },
+        )
+        response = response.json()
+
+        return response["tensors"]
 
     def create_vectorstore(self, path: str, tensor_params: List[Dict[str, Any]]):
         response = self.request(
@@ -86,3 +106,20 @@ class ManagedServiceClient(DeepLakeBackendClient):
         )
 
         return self._process_response(response)
+
+    def update_vectorstore_indices(
+        self, path: str, row_ids: List[Dict[str, Any]], embedding_tensor_data
+    ):
+        pass
+
+    def get_vectorstore_len(self, path):
+        response = self.request(
+            method="GET",
+            relative_url=INIT_VECTORSTORE_SUFFIX,
+            params={
+                "path": path,
+            },
+        )
+        response = response.json()
+
+        return response["length"]

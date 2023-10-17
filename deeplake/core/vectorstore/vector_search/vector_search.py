@@ -20,7 +20,7 @@ def search(
     k: Optional[int],
     distance_metric: str,
     exec_option: str,
-    deeplake_dataset: DeepLakeDataset,
+    deeplake_dataset: Optional[DeepLakeDataset] = None,
     return_tensors: Optional[List[str]] = None,
     query: Optional[str] = None,
     logger: Optional[logging.Logger] = None,
