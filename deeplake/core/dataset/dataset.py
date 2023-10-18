@@ -3241,7 +3241,7 @@ class Dataset:
             index_regeneration=index_regeneration,
         )
 
-    def update(self, sample: Dict[str, Any], index_regeneration: bool = True):
+    def update(self, sample: Dict[str, Any]):
         """Update existing samples in the dataset with new values.
 
         Examples:
@@ -3324,9 +3324,8 @@ class Dataset:
                         saved[k].append(old_sample)
                     self[k] = v
                 # Regenerate Index
-                if index_regeneration:
-                    index_maintenance.index_operation_dataset(self, dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
-                                                              rowids=list(self.index.values[0].indices(len(self))))
+                index_maintenance.index_operation_dataset(self, dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
+                                                            rowids=list(self.index.values[0].indices(len(self))))
             except Exception as e:
                 for k, v in saved.items():
                     # squeeze
@@ -3339,10 +3338,9 @@ class Dataset:
                             "Error while attempting to rollback updates"
                         ) from e2
                 # in case of error, regenerate index again to avoid index corruption
-                if index_regeneration:
-                    index_maintenance.index_operation_dataset(self, dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
-                                                              rowids=list(self.index.values[0].indices(len(self))),
-                                                              index_regeneration=True, index_delete=False)
+                index_maintenance.index_operation_dataset(self, dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
+                                                            rowids=list(self.index.values[0].indices(len(self))),
+                                                            index_regeneration=True, index_delete=False)
                 raise e
             finally:
                 # restore update hooks
@@ -4611,7 +4609,7 @@ class Dataset:
         self._pad_tensors = False
 
     @invalid_view_op
-    def pop(self, index: Optional[int] = None, index_maintenance = True):
+    def pop(self, index: Optional[int] = None):
         """
         Removes a sample from all the tensors of the dataset.
         For any tensor if the index >= len(tensor), the sample won't be popped from it.
@@ -4640,11 +4638,16 @@ class Dataset:
             for tensor in self.tensors.values():
                 if tensor.num_samples > index:
                     tensor.pop(index)
-        # Regenerate vdb indexes.
-        if index_maintenance:
-            index_maintenance.index_operation_dataset(self,
-                                                      dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
-                                                      rowids=[index])
+    
+    @invalid_view_op
+    def pop_multiple(self, index: List[int], progressbar=False):
+        if progressbar:
+            index = tqdm(index)
+        with self:
+            for i in index:
+                self.pop(i)
+        
+        index_maintenance.index_operation_dataset(self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=[index])
 
     @property
     def is_view(self) -> bool:
