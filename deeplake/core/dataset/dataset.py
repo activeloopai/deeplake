@@ -4640,7 +4640,7 @@ class Dataset:
             for tensor in self.tensors.values():
                 if tensor.num_samples > index:
                     tensor.pop(index)
-        # Regenerate vdb indexes.
+
         if index_maintenance:
             index_maintenance.index_operation_dataset(self,
                                                       dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],

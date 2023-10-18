@@ -99,7 +99,18 @@ def check_index_params(self):
 
     return False
 
-def index_operation_type_vectorstore(self, index_regeneration, index_delete=False):
+def check_incr_threshold(len_initial_data, len_changed_data):
+    """
+    Determine if the index should be regenerated or built incrementally.
+
+    :param len_initial_data: int, length of the original data
+    :param len_changed_data: int, length of the changed data
+    :return: bool, True if the index should be regenerated, False otherwise
+    """
+    threshold = 0.7 * len_initial_data
+    return len_changed_data < threshold
+
+def index_operation_type_vectorstore(self, changed_data_len, index_regeneration, index_delete=False):
     if not index_used(self.exec_option):
        return INDEX_OP_TYPE.NOOP
 
@@ -112,14 +123,15 @@ def index_operation_type_vectorstore(self, index_regeneration, index_delete=Fals
         if not below_threshold:
             return INDEX_OP_TYPE.CREATE_INDEX
     else:
-        if not index_regeneration and check_index_params(self):
+        if not index_regeneration and check_index_params(self) and check_incr_threshold(len(self.dataset),
+                                                                                        changed_data_len):
             return INDEX_OP_TYPE.INCREMENTAL_INDEX
         else:
             return INDEX_OP_TYPE.REGENERATE_INDEX
 
     return INDEX_OP_TYPE.NOOP
 
-def index_operation_type_dataset(self, index_regeneration, index_delete=False):
+def index_operation_type_dataset(self, changed_data_len, index_regeneration, index_delete=False):
 
     if not check_vdb_indexes(self):
         return INDEX_OP_TYPE.NOOP
@@ -127,7 +139,7 @@ def index_operation_type_dataset(self, index_regeneration, index_delete=False):
     if index_delete:
         return INDEX_OP_TYPE.REMOVE_INDEX
 
-    if not index_regeneration:
+    if not index_regeneration and check_incr_threshold(len(self), changed_data_len) :
         return INDEX_OP_TYPE.INCREMENTAL_INDEX
     else:
         return INDEX_OP_TYPE.REGENERATE_INDEX
@@ -205,7 +217,7 @@ def index_cache_cleanup(dataset):
 
 # Routine to identify the index Operation.
 def index_operation_vectorstore(self, dml_type, rowids, index_regeneration: bool = False, index_delete: bool = False):
-    index_operation_type = index_operation_type_vectorstore(self, index_regeneration=index_regeneration,
+    index_operation_type = index_operation_type_vectorstore(self, len(rowids), index_regeneration=index_regeneration,
                                                             index_delete=index_delete)
     emb_tensor = fetch_embedding_tensor(self.dataset)
 
@@ -236,7 +248,7 @@ def index_operation_vectorstore(self, dml_type, rowids, index_regeneration: bool
 
 
 def index_operation_dataset(self, dml_type, rowids, index_regeneration: bool = False, index_delete: bool = False):
-    index_operation_type = index_operation_type_dataset(self, index_regeneration=index_regeneration,
+    index_operation_type = index_operation_type_dataset(self, len(rowids), index_regeneration=index_regeneration,
                                                         index_delete=index_delete)
     emb_tensor = fetch_embedding_tensor(self)
 

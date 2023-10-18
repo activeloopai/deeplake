@@ -182,10 +182,8 @@ class VectorStore:
         self.verbose = verbose
         self.tensor_params = tensor_params
         self.distance_metric_index = index_maintenance.index_operation_vectorstore(self,
-                                                                                   dml_type=_INDEX_OPERATION_MAPPING[
-                                                                                       "ADD"],
-                                                                                   rowids=list(
-                                                                                       range(0, len(self.dataset))))
+                                                          dml_type=_INDEX_OPERATION_MAPPING["ADD"],
+                                                          rowids=list(range(0, len(self.dataset))))
         self.deep_memory = None
 
     @property
