@@ -138,6 +138,13 @@ class DeepLakeQueryTensor(tensor.Tensor):
         raise NotImplementedError("Virtual tensor does not have chunk engine.")
 
     @property
+    def sample_indices(self):
+        try:
+            return self.indra_tensor.indexes
+        except RuntimeError:
+            return range(self.num_samples)
+
+    @property
     def shape(self):
         if (
             not self.indra_tensor.is_sequence

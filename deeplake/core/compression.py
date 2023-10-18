@@ -25,11 +25,12 @@ from pathlib import Path
 from PIL import Image  # type: ignore
 from io import BytesIO
 
+import lz4.frame  # type: ignore
+import lz4.block  # type: ignore
 import mmap
 import struct
 import sys
 import re
-import numcodecs.lz4  # type: ignore
 from numpy.core.fromnumeric import compress  # type: ignore
 import math
 from pathlib import Path
@@ -42,12 +43,6 @@ try:
 except ImportError:
     _PYAV_INSTALLED = False
 
-try:
-    import lz4.frame  # type: ignore
-
-    _LZ4_INSTALLED = True
-except ImportError:
-    _LZ4_INSTALLED = False
 
 try:
     import nibabel as nib  # type: ignore
@@ -157,7 +152,7 @@ def compress_bytes(
     if not buffer:
         return b""
     if compression == "lz4":
-        return numcodecs.lz4.compress(buffer)
+        return lz4.block.compress(buffer)
     else:
         raise SampleCompressionError(
             (len(buffer),), compression, f"Not a byte compression: {compression}"
@@ -173,15 +168,9 @@ def decompress_bytes(
         # weird edge case of lz4 + empty string
         if buffer == b"\x00\x00\x00\x00\x00":
             return b""
-        if (
-            buffer[:4] == b'\x04"M\x18'
-        ):  # python-lz4 magic number (backward compatiblity)
-            if not _LZ4_INSTALLED:
-                raise ModuleNotFoundError(
-                    "Module lz4 not found. Install using `pip install lz4`."
-                )
+        if buffer[:4] == b'\x04"M\x18':  # python-lz4 magic number
             return lz4.frame.decompress(buffer)
-        return numcodecs.lz4.decompress(buffer)
+        return lz4.block.decompress(buffer)
     else:
         raise SampleDecompressionError()
 

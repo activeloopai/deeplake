@@ -15,7 +15,7 @@ from typing import (
 )
 from deeplake.api.info import Info
 from deeplake.core.link_creds import LinkCreds
-from deeplake.core.linked_sample import LinkedSample
+from deeplake.core.linked_sample import LinkedSample, read_linked_sample
 from deeplake.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
 from deeplake.core.serialize import HEADER_SIZE_BYTES, text_to_bytes
 from deeplake.core.tensor_link import (
@@ -692,9 +692,33 @@ class ChunkEngine:
         if tensor_meta.htype is None and not all_empty:
             tensor_meta.set_htype(get_htype(samples))
         if tensor_meta.dtype is None and not all_empty:
-            tensor_meta.set_dtype(
-                get_dtype(next(filter(lambda x: x is not None, samples)))
-            )  # first non empty sample
+            if tensor_meta.is_link:
+                try:
+                    # download one sample to get dtype
+                    sample = next(filter(lambda x: x is not None, samples))
+                    assert isinstance(
+                        sample, LinkedSample
+                    ), "Sample must be LinkedSample"
+                    dtype = np.dtype(
+                        read_linked_sample(
+                            sample.path, sample.creds_key, self.link_creds, True
+                        )._typestr
+                    )
+                except:
+                    # assume uint8 if download fails
+                    dtype = np.dtype("uint8")
+            else:
+                non_empty_samples = list(filter(lambda x: x is not None, samples))
+                for sample in non_empty_samples:
+                    try:
+                        dtype = get_dtype(sample)
+                        break
+                    except:
+                        pass
+                else:
+                    if not ignore_errors:
+                        raise ValueError("Could not determine dtype of samples")
+            tensor_meta.set_dtype(dtype)
         if self._convert_to_list(samples):
             samples = list(samples)
         if self._is_temp_label_tensor:

@@ -43,7 +43,7 @@ def test_populate_compressed_samples(local_ds, cat_path, flower_path):
         tiling_threshold=1 * MB,
     )
 
-    assert images.meta.dtype == "uint8"
+    assert images.meta.dtype == None
     assert images.meta.sample_compression == "png"
 
     _populate_compressed_samples(images, cat_path, flower_path)
@@ -73,7 +73,7 @@ def test_populate_compressed_samples(local_ds, cat_path, flower_path):
 def test_iterate_compressed_samples(local_ds, cat_path, flower_path):
     images = local_ds.create_tensor(TENSOR_KEY, htype="image", sample_compression="png")
 
-    assert images.meta.dtype == "uint8"
+    assert images.meta.dtype == None
     assert images.meta.sample_compression == "png"
 
     _populate_compressed_samples(images, cat_path, flower_path)

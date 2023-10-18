@@ -423,3 +423,19 @@ def test_virtual_tensors(local_auth_ds_generator):
         assert deeplake_indra_ds.score[100 - i].numpy() == [
             np.sqrt(2.0 / (i + 1) / (i + 1))
         ]
+
+    assert list(deeplake_indra_ds.sample_indices) == list(range(100))
+    deeplake_indra_ds = deeplake_ds.query(
+        "SELECT *, l2_norm(embeddings - ARRAY[0, 0, 0]) as score order by l2_norm(embeddings - ARRAY[0, 0, 0]) asc"
+    )
+    assert list(deeplake_indra_ds.sample_indices) == list(reversed(range(100)))
+    assert list(deeplake_indra_ds.embeddings.sample_indices) == list(
+        reversed(range(100))
+    )
+    assert list(deeplake_indra_ds.score.sample_indices) == list(range(100))
+
+    deeplake_indra_ds = deeplake_ds.query(
+        "SELECT l2_norm(embeddings - ARRAY[0, 0, 0]) as score order by l2_norm(embeddings - ARRAY[0, 0, 0]) asc"
+    )
+    assert list(deeplake_indra_ds.sample_indices) == list(range(100))
+    assert list(deeplake_indra_ds.score.sample_indices) == list(range(100))

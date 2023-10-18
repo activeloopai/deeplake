@@ -3361,7 +3361,7 @@ class Dataset:
         message: Optional[str] = None,
         copy: bool = False,
     ):
-        if self.has_head_changes:
+        if self.has_head_changes and not self.is_optimized:
             raise DatasetViewSavingError(
                 "The dataset's HEAD node has uncommitted changes. Please create a commit on"
                 " the dataset object [ds.commit(<insert optional message>)] prior to saving the view."
@@ -3386,6 +3386,8 @@ class Dataset:
         if tql_query:
             info["tql_query"] = tql_query
             info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
+        if not (query or tql_query):
+            info["source-dataset-index"] = self.index.to_json()
         return info
 
     def _lock_queries_json(self):
@@ -3505,10 +3507,29 @@ class Dataset:
         """Saves this view under ".queries" sub directory of same storage."""
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
+        # creating sub-view of optimized view
+        if self.is_optimized:
+            view_entry = self._view_entry
+            ds = view_entry._src_ds.no_view_dataset
+
+            if copy:
+                view_info = view_entry.info
+                info["source-dataset"] = ds.path
+                info["source-dataset-version"] = view_info["source-dataset-version"]
+                if "source-dataset-index" in view_info:
+                    original_idx = Index.from_json(view_info["source-dataset-index"])
+                    combined_idx = original_idx[self.index]
+                    info["source-dataset-index"] = combined_idx.to_json()
+            else:
+                info["source-dataset-version"] = (
+                    info["source-dataset-version"] or FIRST_COMMIT_ID
+                )
+        else:
+            ds = self
         path = f".queries/{hash}"
-        vds = self._sub_ds(path, empty=True, verbose=False)
+        vds = ds._sub_ds(path, empty=True, verbose=False)
         self._write_vds(vds, info, copy, tensors, num_workers, scheduler, ignore_errors)
-        self._append_to_queries_json(info)
+        ds._append_to_queries_json(info)
         return vds
 
     def _save_view_in_path(
@@ -3683,7 +3704,8 @@ class Dataset:
                     raise NotImplementedError(
                         "Saving views inplace is not supported for in-memory datasets."
                     )
-                if self.read_only and not base._locked_out:
+
+                if self.read_only and not base._locked_out and not self.is_optimized:
                     if isinstance(self, deeplake.core.dataset.DeepLakeCloudDataset):
                         try:
                             with self._temp_write_access():
