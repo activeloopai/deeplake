@@ -453,7 +453,7 @@ def recall_at_k(
     relevance: List[List[Tuple[str, int]]],
     query_embs: Union[List[np.ndarray], List[List[float]]],
     metric: str,
-    top_k: int = 10,
+    top_k: List[int] = [1, 3, 5, 10, 50, 100],
     use_model: bool = False,
 ):
     recalls = defaultdict(list)
