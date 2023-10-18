@@ -181,11 +181,11 @@ class VectorStore:
         self._exec_option = exec_option
         self.verbose = verbose
         self.tensor_params = tensor_params
-        self.distance_metric_index = index_maintenance.index_operation_vectorstore(self,
-                                                                                   dml_type=_INDEX_OPERATION_MAPPING[
-                                                                                       "ADD"],
-                                                                                   rowids=list(
-                                                                                       range(0, len(self.dataset))))
+        self.distance_metric_index = index_maintenance.index_operation_vectorstore(
+            self,
+            dml_type=_INDEX_OPERATION_MAPPING["ADD"],
+            rowids=list(range(0, len(self.dataset))),
+        )
         self.deep_memory = None
 
     @property
@@ -341,10 +341,11 @@ class VectorStore:
             index_regeneration=False,
         )
 
-        self.distance_metric_index = index_maintenance.index_operation_vectorstore(self,
-                                                                    dml_type=_INDEX_OPERATION_MAPPING["ADD"],
-                                                                    rowids=list(range(prev_data_length,
-                                                                    len(self.dataset))))
+        self.distance_metric_index = index_maintenance.index_operation_vectorstore(
+            self,
+            dml_type=_INDEX_OPERATION_MAPPING["ADD"],
+            rowids=list(range(prev_data_length, len(self.dataset))),
+        )
         try_flushing(self.dataset)
 
         if self.verbose:
@@ -598,8 +599,12 @@ class VectorStore:
             delete_all,
         )
         if dataset_deleted:
-            index_maintenance.index_operation_vectorstore(self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
-                                                          rowids=row_ids, index_delete=True)
+            index_maintenance.index_operation_vectorstore(
+                self,
+                dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
+                rowids=row_ids,
+                index_delete=True,
+            )
             return True
 
         self.dataset.pop_multiple(row_ids)

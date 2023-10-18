@@ -9,6 +9,8 @@ METRIC_TO_INDEX_METRIC = {
     "L1": "l1_norm",
     "COS": "cosine_similarity",
 }
+
+
 class INDEX_OP_TYPE(Enum):
     NOOP = 0
     CREATE_INDEX = 1
@@ -28,6 +30,7 @@ def is_embedding_tensor(tensor):
         or tensor.key in valid_names
     )
 
+
 def validate_embedding_tensor(tensor):
     """Check if a tensor is an embedding tensor."""
 
@@ -39,12 +42,14 @@ def validate_embedding_tensor(tensor):
         or tensor.key in valid_names
     )
 
+
 def fetch_embedding_tensor(dataset):
     tensors = dataset.tensors
     for _, tensor in tensors.items():
         if validate_embedding_tensor(tensor):
             return tensor
     return None
+
 
 def index_exists(dataset):
     """Check if the Index already exists."""
@@ -58,9 +63,11 @@ def index_exists(dataset):
     else:
         return False
 
+
 def index_used(exec_option):
     """Check if the index is used for the exec_option"""
     return exec_option in ("tensor_db", "compute_engine")
+
 
 def parse_index_distance_metric_from_params(
     logger, distance_metric_index, distance_metric
@@ -99,9 +106,10 @@ def check_index_params(self):
 
     return False
 
+
 def index_operation_type_vectorstore(self, index_regeneration, index_delete=False):
     if not index_used(self.exec_option):
-       return INDEX_OP_TYPE.NOOP
+        return INDEX_OP_TYPE.NOOP
 
     if index_delete:
         return INDEX_OP_TYPE.REMOVE_INDEX
@@ -119,8 +127,8 @@ def index_operation_type_vectorstore(self, index_regeneration, index_delete=Fals
 
     return INDEX_OP_TYPE.NOOP
 
-def index_operation_type_dataset(self, index_regeneration, index_delete=False):
 
+def index_operation_type_dataset(self, index_regeneration, index_delete=False):
     if not check_vdb_indexes(self):
         return INDEX_OP_TYPE.NOOP
 
@@ -204,9 +212,12 @@ def index_cache_cleanup(dataset):
 
 
 # Routine to identify the index Operation.
-def index_operation_vectorstore(self, dml_type, rowids, index_regeneration: bool = False, index_delete: bool = False):
-    index_operation_type = index_operation_type_vectorstore(self, index_regeneration=index_regeneration,
-                                                            index_delete=index_delete)
+def index_operation_vectorstore(
+    self, dml_type, rowids, index_regeneration: bool = False, index_delete: bool = False
+):
+    index_operation_type = index_operation_type_vectorstore(
+        self, index_regeneration=index_regeneration, index_delete=index_delete
+    )
     emb_tensor = fetch_embedding_tensor(self.dataset)
 
     if index_operation_type == INDEX_OP_TYPE.NOOP:
@@ -235,9 +246,12 @@ def index_operation_vectorstore(self, dml_type, rowids, index_regeneration: bool
         raise Exception("Unknown index operation")
 
 
-def index_operation_dataset(self, dml_type, rowids, index_regeneration: bool = False, index_delete: bool = False):
-    index_operation_type = index_operation_type_dataset(self, index_regeneration=index_regeneration,
-                                                        index_delete=index_delete)
+def index_operation_dataset(
+    self, dml_type, rowids, index_regeneration: bool = False, index_delete: bool = False
+):
+    index_operation_type = index_operation_type_dataset(
+        self, index_regeneration=index_regeneration, index_delete=index_delete
+    )
     emb_tensor = fetch_embedding_tensor(self)
 
     if index_operation_type == INDEX_OP_TYPE.NOOP:
