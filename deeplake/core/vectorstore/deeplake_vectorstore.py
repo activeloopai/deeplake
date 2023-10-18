@@ -600,10 +600,7 @@ class VectorStore:
                                                           rowids=row_ids, index_delete=True)
             return True
 
-        dataset_utils.delete_and_without_commit(self.dataset, row_ids, index_maintenance=False)
-
-        # Regenerate vdb indexes.
-        index_maintenance.index_operation_vectorstore(self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=row_ids)
+        self.dataset.pop_multiple(row_ids)
 
         try_flushing(self.dataset)
 
@@ -711,11 +708,7 @@ class VectorStore:
             row_ids=row_ids,
         )
 
-        self.dataset[row_ids].update(embedding_tensor_data, index_maintenance=False)
-
-        # Regenerate Index
-        index_maintenance.index_operation_vectorstore(self, dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
-                                                      rowids=row_ids)
+        self.dataset[row_ids].update(embedding_tensor_data)
 
         try_flushing(self.dataset)
 
