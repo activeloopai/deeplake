@@ -547,7 +547,6 @@ def find_embedding_tensors(dataset) -> List[str]:
     return matching_tensors
 
 
-
 def is_embedding_tensor(tensor):
     """Check if a tensor is an embedding tensor."""
 
@@ -566,6 +565,3 @@ def get_embedding_tensor(dataset):
         if is_embedding_tensor(tensor):
             return tensor
     return None
-
-
-

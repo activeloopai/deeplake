@@ -157,27 +157,27 @@ _LOCKABLE_STORAGES = {S3Provider, GCSProvider, AzureProvider, LocalProvider}
 
 class Dataset:
     def __init__(
-            self,
-            storage: LRUCache,
-            index: Optional[Index] = None,
-            group_index: str = "",
-            read_only: Optional[bool] = None,
-            public: Optional[bool] = False,
-            token: Optional[str] = None,
-            org_id: Optional[str] = None,
-            verbose: bool = True,
-            version_state: Optional[Dict[str, Any]] = None,
-            path: Optional[Union[str, pathlib.Path]] = None,
-            address: Optional[str] = None,
-            is_iteration: bool = False,
-            link_creds=None,
-            pad_tensors: bool = False,
-            lock_enabled: bool = True,
-            lock_timeout: Optional[int] = 0,
-            enabled_tensors: Optional[List[str]] = None,
-            view_base: Optional["Dataset"] = None,
-            libdeeplake_dataset=None,
-            **kwargs,
+        self,
+        storage: LRUCache,
+        index: Optional[Index] = None,
+        group_index: str = "",
+        read_only: Optional[bool] = None,
+        public: Optional[bool] = False,
+        token: Optional[str] = None,
+        org_id: Optional[str] = None,
+        verbose: bool = True,
+        version_state: Optional[Dict[str, Any]] = None,
+        path: Optional[Union[str, pathlib.Path]] = None,
+        address: Optional[str] = None,
+        is_iteration: bool = False,
+        link_creds=None,
+        pad_tensors: bool = False,
+        lock_enabled: bool = True,
+        lock_timeout: Optional[int] = 0,
+        enabled_tensors: Optional[List[str]] = None,
+        view_base: Optional["Dataset"] = None,
+        libdeeplake_dataset=None,
+        **kwargs,
     ):
         """Initializes a new or existing dataset.
 
@@ -342,9 +342,9 @@ class Dataset:
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
         pad_tensors = self._pad_tensors
         if (
-                warn
-                and not pad_tensors
-                and min(tensor_lengths, default=0) != max(tensor_lengths, default=0)
+            warn
+            and not pad_tensors
+            and min(tensor_lengths, default=0) != max(tensor_lengths, default=0)
         ):
             warning(
                 "The length of tensors in the dataset is different. The len(ds) returns the length of the "
@@ -430,9 +430,9 @@ class Dataset:
         version_state = self.version_state
         # share version state if at HEAD
         if (
-                not self._view_use_parent_commit
-                and self._view_base
-                and version_state["commit_node"].is_head_node
+            not self._view_use_parent_commit
+            and self._view_base
+            and version_state["commit_node"].is_head_node
         ):
             uid = self._view_id
 
@@ -483,11 +483,11 @@ class Dataset:
         self._view_base = None
 
     def __getitem__(
-            self,
-            item: Union[
-                str, int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index
-            ],
-            is_iteration: bool = False,
+        self,
+        item: Union[
+            str, int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index
+        ],
+        is_iteration: bool = False,
     ):
         is_iteration = is_iteration or self.is_iteration
         if isinstance(item, str):
@@ -524,16 +524,16 @@ class Dataset:
                 raise TensorDoesNotExistError(item)
         elif isinstance(item, (int, slice, list, tuple, Index, type(Ellipsis))):
             if (
-                    isinstance(item, list)
-                    and len(item)
-                    and (
+                isinstance(item, list)
+                and len(item)
+                and (
                     isinstance(item[0], str)
                     or (
-                            isinstance(item[0], (list, tuple))
-                            and len(item[0])
-                            and isinstance(item[0][0], str)
+                        isinstance(item[0], (list, tuple))
+                        and len(item[0])
+                        and isinstance(item[0][0], str)
                     )
-            )
+                )
             ):
                 group_index = self.group_index
                 enabled_tensors = [
@@ -609,22 +609,22 @@ class Dataset:
 
     @invalid_view_op
     def create_tensor(
-            self,
-            name: str,
-            htype: str = UNSPECIFIED,
-            dtype: Union[str, np.dtype] = UNSPECIFIED,
-            sample_compression: str = UNSPECIFIED,
-            chunk_compression: str = UNSPECIFIED,
-            hidden: bool = False,
-            create_sample_info_tensor: bool = True,
-            create_shape_tensor: bool = True,
-            create_id_tensor: bool = True,
-            verify: bool = True,
-            exist_ok: bool = False,
-            verbose: bool = True,
-            downsampling: Optional[Tuple[int, int]] = None,
-            tiling_threshold: Optional[int] = None,
-            **kwargs,
+        self,
+        name: str,
+        htype: str = UNSPECIFIED,
+        dtype: Union[str, np.dtype] = UNSPECIFIED,
+        sample_compression: str = UNSPECIFIED,
+        chunk_compression: str = UNSPECIFIED,
+        hidden: bool = False,
+        create_sample_info_tensor: bool = True,
+        create_shape_tensor: bool = True,
+        create_id_tensor: bool = True,
+        verify: bool = True,
+        exist_ok: bool = False,
+        verbose: bool = True,
+        downsampling: Optional[Tuple[int, int]] = None,
+        tiling_threshold: Optional[int] = None,
+        **kwargs,
     ):
         """Creates a new tensor in the dataset.
 
@@ -712,21 +712,21 @@ class Dataset:
 
     @invalid_view_op
     def _create_tensor(
-            self,
-            name: str,
-            htype: str = UNSPECIFIED,
-            dtype: Union[str, np.dtype] = UNSPECIFIED,
-            sample_compression: str = UNSPECIFIED,
-            chunk_compression: str = UNSPECIFIED,
-            hidden: bool = False,
-            create_sample_info_tensor: bool = True,
-            create_shape_tensor: bool = True,
-            create_id_tensor: bool = True,
-            verify: bool = True,
-            exist_ok: bool = False,
-            verbose: bool = True,
-            downsampling: Optional[Tuple[int, int]] = None,
-            **kwargs,
+        self,
+        name: str,
+        htype: str = UNSPECIFIED,
+        dtype: Union[str, np.dtype] = UNSPECIFIED,
+        sample_compression: str = UNSPECIFIED,
+        chunk_compression: str = UNSPECIFIED,
+        hidden: bool = False,
+        create_sample_info_tensor: bool = True,
+        create_shape_tensor: bool = True,
+        create_id_tensor: bool = True,
+        verify: bool = True,
+        exist_ok: bool = False,
+        verbose: bool = True,
+        downsampling: Optional[Tuple[int, int]] = None,
+        **kwargs,
     ):
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self)
@@ -846,13 +846,13 @@ class Dataset:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
         if create_sample_info_tensor and htype in (
-                "image",
-                "audio",
-                "video",
-                "dicom",
-                "point_cloud",
-                "mesh",
-                "nifti",
+            "image",
+            "audio",
+            "video",
+            "dicom",
+            "point_cloud",
+            "mesh",
+            "nifti",
         ):
             self._create_sample_info_tensor(name)
         if create_shape_tensor and htype not in ("text", "json"):
@@ -945,15 +945,15 @@ class Dataset:
         )
 
     def _create_downsampled_tensor(
-            self,
-            tensor: str,
-            htype: str,
-            dtype: Union[str, np.dtype],
-            sample_compression: str,
-            chunk_compression: str,
-            meta_kwargs: Dict[str, Any],
-            downsampling_factor: int,
-            number_of_layers: int,
+        self,
+        tensor: str,
+        htype: str,
+        dtype: Union[str, np.dtype],
+        sample_compression: str,
+        chunk_compression: str,
+        meta_kwargs: Dict[str, Any],
+        downsampling_factor: int,
+        number_of_layers: int,
     ):
         downsampled_tensor = get_downsampled_tensor_key(tensor, downsampling_factor)
         if number_of_layers == 1:
@@ -1054,14 +1054,14 @@ class Dataset:
         for t_name in [
             func(name)
             for func in (
-                    get_sample_id_tensor_key,
-                    get_sample_info_tensor_key,
-                    get_sample_shape_tensor_key,
+                get_sample_id_tensor_key,
+                get_sample_info_tensor_key,
+                get_sample_shape_tensor_key,
             )
         ]:
             t_key = self.meta.tensor_names.get(t_name)
             if t_key and tensor_exists(
-                    t_key, self.storage, self.version_state["commit_id"]
+                t_key, self.storage, self.version_state["commit_id"]
             ):
                 self._delete_tensor(t_name, large_ok=True)
 
@@ -1134,7 +1134,7 @@ class Dataset:
 
     @invalid_view_op
     def create_tensor_like(
-            self, name: str, source: "Tensor", unlink: bool = False
+        self, name: str, source: "Tensor", unlink: bool = False
     ) -> "Tensor":
         """Copies the ``source`` tensor's meta information and creates a new tensor with it. No samples are copied, only the meta/info for the tensor is.
 
@@ -1194,14 +1194,14 @@ class Dataset:
         meta.rename_tensor(name, new_name)
 
         for func in (
-                get_sample_id_tensor_key,
-                get_sample_info_tensor_key,
-                get_sample_shape_tensor_key,
+            get_sample_id_tensor_key,
+            get_sample_info_tensor_key,
+            get_sample_shape_tensor_key,
         ):
             t_old, t_new = map(func, (name, new_name))
             t_key = self.meta.tensor_names.get(t_old)
             if t_key and tensor_exists(
-                    t_key, self.storage, self.version_state["commit_id"]
+                t_key, self.storage, self.version_state["commit_id"]
             ):
                 self._rename_tensor(t_old, t_new)
 
@@ -1300,8 +1300,8 @@ class Dataset:
 
         root = self.root
         for tensor in filter(
-                lambda x: x.startswith(name),
-                map(lambda y: y.meta.name or y.key, self.tensors.values()),
+            lambda x: x.startswith(name),
+            map(lambda y: y.meta.name or y.key, self.tensors.values()),
         ):
             root._rename_tensor(
                 tensor,
@@ -1437,7 +1437,7 @@ class Dataset:
             return False
 
         if isinstance(storage, tuple(_LOCKABLE_STORAGES)) and (
-                not self.read_only or self._locked_out
+            not self.read_only or self._locked_out
         ):
             if not deeplake.constants.LOCKS_ENABLED:
                 return True
@@ -1522,11 +1522,11 @@ class Dataset:
     @invalid_view_op
     @suppress_iteration_warning
     def merge(
-            self,
-            target_id: str,
-            conflict_resolution: Optional[str] = None,
-            delete_removed_tensors: bool = False,
-            force: bool = False,
+        self,
+        target_id: str,
+        conflict_resolution: Optional[str] = None,
+        delete_removed_tensors: bool = False,
+        force: bool = False,
     ):
         """Merges the target_id into the current dataset.
 
@@ -1580,8 +1580,8 @@ class Dataset:
         except KeyError:
             pass
         if (
-                isinstance(self.base_storage, tuple(_LOCKABLE_STORAGES))
-                and not deeplake.constants.LOCKS_ENABLED
+            isinstance(self.base_storage, tuple(_LOCKABLE_STORAGES))
+            and not deeplake.constants.LOCKS_ENABLED
         ):
             lock_dataset(self, version=target_commit)
             locked = True
@@ -1598,13 +1598,13 @@ class Dataset:
             self.storage.maybe_flush()
 
     def _commit(
-            self,
-            message: Optional[str] = None,
-            hash: Optional[str] = None,
-            flush_version_control_info: bool = True,
-            *,
-            is_checkpoint: bool = False,
-            total_samples_processed: int = 0,
+        self,
+        message: Optional[str] = None,
+        hash: Optional[str] = None,
+        flush_version_control_info: bool = True,
+        *,
+        is_checkpoint: bool = False,
+        total_samples_processed: int = 0,
     ) -> str:
         if self._is_filtered_view:
             raise Exception(
@@ -1638,7 +1638,7 @@ class Dataset:
 
     @invalid_view_op
     def checkout(
-            self, address: str, create: bool = False, reset: bool = False
+        self, address: str, create: bool = False, reset: bool = False
     ) -> Optional[str]:
         """Checks out to a specific commit_id or branch. If ``create = True``, creates a new branch with name ``address``.
 
@@ -1711,12 +1711,12 @@ class Dataset:
             return reset_and_checkout(self, address, e)
 
     def _checkout(
-            self,
-            address: str,
-            create: bool = False,
-            hash: Optional[str] = None,
-            verbose: bool = True,
-            flush_version_control_info: bool = False,
+        self,
+        address: str,
+        create: bool = False,
+        hash: Optional[str] = None,
+        verbose: bool = True,
+        flush_version_control_info: bool = False,
     ) -> Optional[str]:
         if self._is_filtered_view:
             raise Exception(
@@ -1855,7 +1855,7 @@ class Dataset:
             commit_node = commit_node.parent
 
     def diff(
-            self, id_1: Optional[str] = None, id_2: Optional[str] = None, as_dict=False
+        self, id_1: Optional[str] = None, id_2: Optional[str] = None, as_dict=False
     ) -> Optional[Dict]:
         """Returns/displays the differences between commits/branches.
 
@@ -2002,8 +2002,8 @@ class Dataset:
                 if locked:
                     self.storage.disable_readonly()
                     if (
-                            isinstance(storage, LRUCache)
-                            and storage.next_storage is not None
+                        isinstance(storage, LRUCache)
+                        and storage.next_storage is not None
                     ):
                         storage.next_storage.disable_readonly()
                 else:
@@ -2019,25 +2019,25 @@ class Dataset:
         self._set_read_only(value, True)
 
     def pytorch(
-            self,
-            transform: Optional[Callable] = None,
-            tensors: Optional[Sequence[str]] = None,
-            num_workers: int = 1,
-            batch_size: int = 1,
-            drop_last: bool = False,
-            collate_fn: Optional[Callable] = None,
-            pin_memory: bool = False,
-            shuffle: bool = False,
-            buffer_size: int = 2048,
-            use_local_cache: bool = False,
-            progressbar: bool = False,
-            return_index: bool = True,
-            pad_tensors: bool = False,
-            transform_kwargs: Optional[Dict[str, Any]] = None,
-            decode_method: Optional[Dict[str, str]] = None,
-            cache_size: int = 32 * MB,
-            *args,
-            **kwargs,
+        self,
+        transform: Optional[Callable] = None,
+        tensors: Optional[Sequence[str]] = None,
+        num_workers: int = 1,
+        batch_size: int = 1,
+        drop_last: bool = False,
+        collate_fn: Optional[Callable] = None,
+        pin_memory: bool = False,
+        shuffle: bool = False,
+        buffer_size: int = 2048,
+        use_local_cache: bool = False,
+        progressbar: bool = False,
+        return_index: bool = True,
+        pad_tensors: bool = False,
+        transform_kwargs: Optional[Dict[str, Any]] = None,
+        decode_method: Optional[Dict[str, str]] = None,
+        cache_size: int = 32 * MB,
+        *args,
+        **kwargs,
     ):
         """Converts the dataset into a pytorch Dataloader.
 
@@ -2202,14 +2202,14 @@ class Dataset:
         return dataloader(self, ignore_errors=ignore_errors, verbose=verbose)
 
     def filter(
-            self,
-            function: Union[Callable, str],
-            num_workers: int = 0,
-            scheduler: str = "threaded",
-            progressbar: bool = True,
-            save_result: bool = False,
-            result_path: Optional[str] = None,
-            result_ds_args: Optional[dict] = None,
+        self,
+        function: Union[Callable, str],
+        num_workers: int = 0,
+        scheduler: str = "threaded",
+        progressbar: bool = True,
+        save_result: bool = False,
+        result_path: Optional[str] = None,
+        result_ds_args: Optional[dict] = None,
     ):
         """Filters the dataset in accordance of filter function ``f(x: sample) -> bool``
 
@@ -2263,10 +2263,10 @@ class Dataset:
         return ret
 
     def query(
-            self,
-            query_string: str,
-            runtime: Optional[Dict] = None,
-            return_data: bool = False,
+        self,
+        query_string: str,
+        runtime: Optional[Dict] = None,
+        return_data: bool = False,
     ):
         """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given query results. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
@@ -2340,10 +2340,10 @@ class Dataset:
         return result
 
     def sample_by(
-            self,
-            weights: Union[str, list, tuple],
-            replace: Optional[bool] = True,
-            size: Optional[int] = None,
+        self,
+        weights: Union[str, list, tuple],
+        replace: Optional[bool] = True,
+        size: Optional[int] = None,
     ):
         """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given weighted sampler applied.
         To use this, install deeplake with ``pip install deeplake[enterprise]``.
@@ -2401,7 +2401,7 @@ class Dataset:
         }
 
     def _set_derived_attributes(
-            self, verbose: bool = True, address: Optional[str] = None
+        self, verbose: bool = True, address: Optional[str] = None
     ):
         """Sets derived attributes during init and unpickling."""
         if self.is_first_load:
@@ -2426,7 +2426,7 @@ class Dataset:
             group_index = self.group_index
             group_filter = (
                 lambda t: (not group_index or t.key.startswith(group_index + "/"))
-                          and t.key not in self.meta.hidden_tensors
+                and t.key not in self.meta.hidden_tensors
             )
             group_tensors = filter(
                 group_filter, self.version_state["full_tensors"].values()
@@ -2459,10 +2459,10 @@ class Dataset:
         return self._ds_diff
 
     def tensorflow(
-            self,
-            tensors: Optional[Sequence[str]] = None,
-            tobytes: Union[bool, Sequence[str]] = False,
-            fetch_chunks: bool = True,
+        self,
+        tensors: Optional[Sequence[str]] = None,
+        tobytes: Union[bool, Sequence[str]] = False,
+        fetch_chunks: bool = True,
     ):
         """Converts the dataset into a tensorflow compatible format.
 
@@ -2607,9 +2607,9 @@ class Dataset:
         deeplake_reporter.feature_report(feature_name="summary", parameters={})
 
         if (
-                not self.index.is_trivial()
-                and self.max_len >= deeplake.constants.VIEW_SUMMARY_SAFE_LIMIT
-                and not force
+            not self.index.is_trivial()
+            and self.max_len >= deeplake.constants.VIEW_SUMMARY_SAFE_LIMIT
+            and not force
         ):
             raise ValueError(
                 "Dataset views with more than 10000 samples might take a long time to summarize. Use `force=True` to override."
@@ -2678,7 +2678,7 @@ class Dataset:
         }
 
     def _all_tensors_filtered(
-            self, include_hidden: bool = True, include_disabled=True
+        self, include_hidden: bool = True, include_disabled=True
     ) -> List[str]:
         """Names of all tensors belonging to this group, including those within sub groups"""
         hidden_tensors = self.meta.hidden_tensors
@@ -2688,12 +2688,12 @@ class Dataset:
             relpath(t, self.group_index)
             for t in tensor_names
             if (not self.group_index or t.startswith(self.group_index + "/"))
-               and (include_hidden or tensor_names[t] not in hidden_tensors)
-               and (include_disabled or enabled_tensors is None or t in enabled_tensors)
+            and (include_hidden or tensor_names[t] not in hidden_tensors)
+            and (include_disabled or enabled_tensors is None or t in enabled_tensors)
         ]
 
     def _tensors(
-            self, include_hidden: bool = True, include_disabled=True
+        self, include_hidden: bool = True, include_disabled=True
     ) -> Dict[str, Tensor]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
         version_state = self.version_state
@@ -2935,11 +2935,11 @@ class Dataset:
         return self.root._create_group(full_name)
 
     def rechunk(
-            self,
-            tensors: Optional[Union[str, List[str]]] = None,
-            num_workers: int = 0,
-            scheduler: str = "threaded",
-            progressbar: bool = True,
+        self,
+        tensors: Optional[Union[str, List[str]]] = None,
+        num_workers: int = 0,
+        scheduler: str = "threaded",
+        progressbar: bool = True,
     ):
         """Rewrites the underlying chunks to make their sizes optimal.
         This is usually needed in cases where a lot of updates have been made to the data.
@@ -3001,12 +3001,12 @@ class Dataset:
         return True
 
     def _append_or_extend(
-            self,
-            sample: Dict[str, Any],
-            extend: bool = False,
-            skip_ok: bool = False,
-            append_empty: bool = False,
-            index_regeneration: bool = True,
+        self,
+        sample: Dict[str, Any],
+        extend: bool = False,
+        skip_ok: bool = False,
+        append_empty: bool = False,
+        index_regeneration: bool = True,
     ):
         """Append or extend samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
@@ -3119,18 +3119,18 @@ class Dataset:
                             ) from e2
                     raise e
             # Regenerate Index.
-            if index_regeneration:
-                index_maintenance.index_operation_dataset(self, dml_type=_INDEX_OPERATION_MAPPING["ADD"],
-                                                          row_ids=new_row_ids)
+            if not extend and index_regeneration:
+                index_maintenance.index_operation_dataset(
+                    self, dml_type=_INDEX_OPERATION_MAPPING["ADD"], row_ids=new_row_ids
+                )
 
     def extend(
-            self,
-            samples: Dict[str, Any],
-            skip_ok: bool = False,
-            append_empty: bool = False,
-            ignore_errors: bool = False,
-            progressbar: bool = False,
-            index_regeneration: bool = True,
+        self,
+        samples: Dict[str, Any],
+        skip_ok: bool = False,
+        append_empty: bool = False,
+        ignore_errors: bool = False,
+        progressbar: bool = False,
     ):
         """Appends multiple rows of samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
@@ -3165,47 +3165,53 @@ class Dataset:
                 raise ValueError(
                     f"Incoming samples are not of equal lengths. Incoming sample sizes: {sizes}"
                 )
+        new_row_ids = list(range(len(self), len(self) + n))
         [f() for f in list(self._update_hooks.values())]
         if extend:
             if ignore_errors:
                 warnings.warn(
                     "`ignore_errors` argument will be ignored while extending with numpy arrays or tensors."
                 )
-            return self._append_or_extend(
+            self._append_or_extend(
                 samples,
                 extend=True,
                 skip_ok=skip_ok,
                 append_empty=append_empty,
-                index_regeneration=index_regeneration,
+                index_regeneration=True,
             )
-        with self:
-            if progressbar:
-                indices = tqdm(range(n))
-            else:
-                indices = range(n)
-            for i in indices:
-                try:
-                    self.append(
-                        {k: v[i] for k, v in samples.items()},
-                        skip_ok=skip_ok,
-                        append_empty=append_empty,
-                        index_regeneration=index_regeneration,
-                    )
-                except Exception as e:
-                    if ignore_errors:
-                        continue
-                    else:
-                        if isinstance(e, SampleAppendError):
-                            raise SampleExtendError(str(e)) from e.__cause__
-                        raise e
+        else:
+            with self:
+                if progressbar:
+                    indices = tqdm(range(n))
+                else:
+                    indices = range(n)
+                for i in indices:
+                    try:
+                        self._append_or_extend(
+                            {k: v[i] for k, v in samples.items()},
+                            extend=False,
+                            skip_ok=skip_ok,
+                            append_empty=append_empty,
+                            index_regeneration=False,
+                        )
+                    except Exception as e:
+                        if ignore_errors:
+                            continue
+                        else:
+                            if isinstance(e, SampleAppendError):
+                                raise SampleExtendError(str(e)) from e.__cause__
+                            raise e
+        index_maintenance.index_operation_dataset(
+            self, dml_type=_INDEX_OPERATION_MAPPING["ADD"], row_ids=new_row_ids
+        )
 
     @invalid_view_op
     def append(
-            self,
-            sample: Dict[str, Any],
-            skip_ok: bool = False,
-            append_empty: bool = False,
-            index_regeneration: bool = True,
+        self,
+        sample: Dict[str, Any],
+        skip_ok: bool = False,
+        append_empty: bool = False,
+        index_regeneration: bool = True,
     ):
         """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
@@ -3264,7 +3270,7 @@ class Dataset:
             )
 
         def get_sample_from_engine(
-                engine, idx, is_link, compression, dtype, decompress
+            engine, idx, is_link, compression, dtype, decompress
         ):
             # tiled data will always be decompressed
             decompress = decompress or engine._is_tiled_sample(idx)
@@ -3324,8 +3330,11 @@ class Dataset:
                         saved[k].append(old_sample)
                     self[k] = v
                 # Regenerate Index
-                index_maintenance.index_operation_dataset(self, dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
-                                                            rowids=list(self.index.values[0].indices(len(self))))
+                index_maintenance.index_operation_dataset(
+                    self,
+                    dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
+                    rowids=list(self.index.values[0].indices(len(self))),
+                )
             except Exception as e:
                 for k, v in saved.items():
                     # squeeze
@@ -3338,9 +3347,13 @@ class Dataset:
                             "Error while attempting to rollback updates"
                         ) from e2
                 # in case of error, regenerate index again to avoid index corruption
-                index_maintenance.index_operation_dataset(self, dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
-                                                            rowids=list(self.index.values[0].indices(len(self))),
-                                                            index_regeneration=True, index_delete=False)
+                index_maintenance.index_operation_dataset(
+                    self,
+                    dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
+                    rowids=list(self.index.values[0].indices(len(self))),
+                    index_regeneration=True,
+                    index_delete=False,
+                )
                 raise e
             finally:
                 # restore update hooks
@@ -3358,10 +3371,10 @@ class Dataset:
         )
 
     def _get_view_info(
-            self,
-            id: Optional[str] = None,
-            message: Optional[str] = None,
-            copy: bool = False,
+        self,
+        id: Optional[str] = None,
+        message: Optional[str] = None,
+        copy: bool = False,
     ):
         if self.has_head_changes and not self.is_optimized:
             raise DatasetViewSavingError(
@@ -3446,15 +3459,15 @@ class Dataset:
         raise KeyError(f"View with id {id} not found.")
 
     def _write_vds(
-            self,
-            vds,
-            info: dict,
-            copy: Optional[bool] = False,
-            tensors: Optional[List[str]] = None,
-            num_workers: Optional[int] = 0,
-            scheduler: str = "threaded",
-            ignore_errors: bool = False,
-            unlink=True,
+        self,
+        vds,
+        info: dict,
+        copy: Optional[bool] = False,
+        tensors: Optional[List[str]] = None,
+        num_workers: Optional[int] = 0,
+        scheduler: str = "threaded",
+        ignore_errors: bool = False,
+        unlink=True,
     ):
         """Writes the indices of this view to a vds."""
         vds._allow_view_updates = True
@@ -3497,14 +3510,14 @@ class Dataset:
                 pass
 
     def _save_view_in_subdir(
-            self,
-            id: Optional[str],
-            message: Optional[str],
-            copy: bool,
-            tensors: Optional[List[str]],
-            num_workers: int,
-            scheduler: str,
-            ignore_errors: bool,
+        self,
+        id: Optional[str],
+        message: Optional[str],
+        copy: bool,
+        tensors: Optional[List[str]],
+        num_workers: int,
+        scheduler: str,
+        ignore_errors: bool,
     ):
         """Saves this view under ".queries" sub directory of same storage."""
         info = self._get_view_info(id, message, copy)
@@ -3524,7 +3537,7 @@ class Dataset:
                     info["source-dataset-index"] = combined_idx.to_json()
             else:
                 info["source-dataset-version"] = (
-                        info["source-dataset-version"] or FIRST_COMMIT_ID
+                    info["source-dataset-version"] or FIRST_COMMIT_ID
                 )
         else:
             ds = self
@@ -3535,16 +3548,16 @@ class Dataset:
         return vds
 
     def _save_view_in_path(
-            self,
-            path: str,
-            id: Optional[str],
-            message: Optional[str],
-            copy: bool,
-            tensors: Optional[List[str]],
-            num_workers: int,
-            scheduler: str,
-            ignore_errors: bool,
-            **ds_args,
+        self,
+        path: str,
+        id: Optional[str],
+        message: Optional[str],
+        copy: bool,
+        tensors: Optional[List[str]],
+        num_workers: int,
+        scheduler: str,
+        ignore_errors: bool,
+        **ds_args,
     ):
         """Saves this view at a given dataset path"""
         if os.path.abspath(path) == os.path.abspath(self.path):
@@ -3558,17 +3571,17 @@ class Dataset:
         return vds
 
     def save_view(
-            self,
-            message: Optional[str] = None,
-            path: Optional[Union[str, pathlib.Path]] = None,
-            id: Optional[str] = None,
-            optimize: bool = False,
-            tensors: Optional[List[str]] = None,
-            num_workers: int = 0,
-            scheduler: str = "threaded",
-            verbose: bool = True,
-            ignore_errors: bool = False,
-            **ds_args,
+        self,
+        message: Optional[str] = None,
+        path: Optional[Union[str, pathlib.Path]] = None,
+        id: Optional[str] = None,
+        optimize: bool = False,
+        tensors: Optional[List[str]] = None,
+        num_workers: int = 0,
+        scheduler: str = "threaded",
+        verbose: bool = True,
+        ignore_errors: bool = False,
+        **ds_args,
     ) -> str:
         """Saves a dataset view as a virtual dataset (VDS)
 
@@ -3647,18 +3660,18 @@ class Dataset:
         )
 
     def _save_view(
-            self,
-            path: Optional[Union[str, pathlib.Path]] = None,
-            id: Optional[str] = None,
-            message: Optional[str] = None,
-            optimize: bool = False,
-            tensors: Optional[List[str]] = None,
-            num_workers: int = 0,
-            scheduler: str = "threaded",
-            verbose: bool = True,
-            _ret_ds: bool = False,
-            ignore_errors: bool = False,
-            **ds_args,
+        self,
+        path: Optional[Union[str, pathlib.Path]] = None,
+        id: Optional[str] = None,
+        message: Optional[str] = None,
+        optimize: bool = False,
+        tensors: Optional[List[str]] = None,
+        num_workers: int = 0,
+        scheduler: str = "threaded",
+        verbose: bool = True,
+        _ret_ds: bool = False,
+        ignore_errors: bool = False,
+        **ds_args,
     ) -> Union[str, Any]:
         """Saves a dataset view as a virtual dataset (VDS)
 
@@ -3803,10 +3816,10 @@ class Dataset:
         return ret
 
     def _get_empty_vds(
-            self,
-            vds_path: Optional[Union[str, pathlib.Path]] = None,
-            query: Optional[str] = None,
-            **vds_args,
+        self,
+        vds_path: Optional[Union[str, pathlib.Path]] = None,
+        query: Optional[str] = None,
+        **vds_args,
     ):
         """Returns an empty VDS with this dataset as the source dataset. Internal.
 
@@ -3870,13 +3883,13 @@ class Dataset:
         raise KeyError(f"No view with id {id} found in the dataset.")
 
     def load_view(
-            self,
-            id: str,
-            optimize: Optional[bool] = False,
-            tensors: Optional[List[str]] = None,
-            num_workers: int = 0,
-            scheduler: str = "threaded",
-            progressbar: Optional[bool] = True,
+        self,
+        id: str,
+        optimize: Optional[bool] = False,
+        tensors: Optional[List[str]] = None,
+        num_workers: int = 0,
+        scheduler: str = "threaded",
+        progressbar: Optional[bool] = True,
     ):
         """Loads the view and returns the :class:`~deeplake.core.dataset.dataset.Dataset` by id. Equivalent to ds.get_view(id).load().
 
@@ -3951,15 +3964,15 @@ class Dataset:
         raise KeyError(f"No view with id {id} found in the dataset.")
 
     def _sub_ds(
-            self,
-            path,
-            empty=False,
-            memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
-            local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
-            read_only=None,
-            lock=True,
-            verbose=True,
-            token=None,
+        self,
+        path,
+        empty=False,
+        memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
+        local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
+        read_only=None,
+        lock=True,
+        verbose=True,
+        token=None,
     ):
         """Loads a nested dataset. Internal.
 
@@ -4007,12 +4020,12 @@ class Dataset:
         return ret
 
     def _link_tensors(
-            self,
-            src: str,
-            dest: str,
-            extend_f: str,
-            update_f: Optional[str] = None,
-            flatten_sequence: Optional[bool] = None,
+        self,
+        src: str,
+        dest: str,
+        extend_f: str,
+        update_f: Optional[str] = None,
+        flatten_sequence: Optional[bool] = None,
     ):
         """Internal. Links a source tensor to a destination tensor. Appends / updates made to the source tensor will be reflected in the destination tensor.
 
@@ -4049,8 +4062,8 @@ class Dataset:
         for k in keys:
             fullpath = k if root else posixpath.join(self.group_index, k)
             if (
-                    self.version_state["tensor_names"].get(fullpath)
-                    in self.version_state["full_tensors"]
+                self.version_state["tensor_names"].get(fullpath)
+                in self.version_state["full_tensors"]
             ):
                 ret.append(k)
             else:
@@ -4060,28 +4073,28 @@ class Dataset:
                 hidden = self.meta.hidden_tensors
                 ret += filter(
                     lambda t: t.startswith(fullpath)
-                              and t not in hidden
-                              and (enabled_tensors is None or t in enabled_tensors),
+                    and t not in hidden
+                    and (enabled_tensors is None or t in enabled_tensors),
                     self.version_state["tensor_names"],
                 )
         return ret
 
     def _copy(
-            self,
-            dest: Union[str, pathlib.Path],
-            runtime: Optional[Dict] = None,
-            tensors: Optional[List[str]] = None,
-            overwrite: bool = False,
-            creds=None,
-            token=None,
-            num_workers: int = 0,
-            scheduler="threaded",
-            progressbar=True,
-            public: bool = False,
-            unlink: bool = False,
-            create_vds_index_tensor: bool = False,
-            ignore_errors: bool = False,
-            verbose: bool = True,
+        self,
+        dest: Union[str, pathlib.Path],
+        runtime: Optional[Dict] = None,
+        tensors: Optional[List[str]] = None,
+        overwrite: bool = False,
+        creds=None,
+        token=None,
+        num_workers: int = 0,
+        scheduler="threaded",
+        progressbar=True,
+        public: bool = False,
+        unlink: bool = False,
+        create_vds_index_tensor: bool = False,
+        ignore_errors: bool = False,
+        verbose: bool = True,
     ):
         if isinstance(dest, str):
             path = dest
@@ -4101,8 +4114,8 @@ class Dataset:
                 t
                 for t in self.tensors
                 if (
-                        self.tensors[t].base_htype != "video"
-                        or deeplake.constants._UNLINK_VIDEOS
+                    self.tensors[t].base_htype != "video"
+                    or deeplake.constants._UNLINK_VIDEOS
                 )
             ]
             if unlink
@@ -4117,9 +4130,9 @@ class Dataset:
 
         def _is_unlink_tensor(tensor):
             if (
-                    unlink
-                    and tensor.is_link
-                    and (tensor.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
+                unlink
+                and tensor.is_link
+                and (tensor.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
             ):
                 return True
 
@@ -4203,17 +4216,17 @@ class Dataset:
         return dest_ds
 
     def copy(
-            self,
-            dest: Union[str, pathlib.Path],
-            runtime: Optional[dict] = None,
-            tensors: Optional[List[str]] = None,
-            overwrite: bool = False,
-            creds=None,
-            token=None,
-            num_workers: int = 0,
-            scheduler="threaded",
-            progressbar=True,
-            public: bool = False,
+        self,
+        dest: Union[str, pathlib.Path],
+        runtime: Optional[dict] = None,
+        tensors: Optional[List[str]] = None,
+        overwrite: bool = False,
+        creds=None,
+        token=None,
+        num_workers: int = 0,
+        scheduler="threaded",
+        progressbar=True,
+        public: bool = False,
     ):
         """Copies this dataset or dataset view to ``dest``. Version control history is not included.
 
@@ -4306,12 +4319,12 @@ class Dataset:
         self.version_state["branch_commit_map"] = version_info["branch_commit_map"]
 
     def connect(
-            self,
-            creds_key: str,
-            dest_path: Optional[str] = None,
-            org_id: Optional[str] = None,
-            ds_name: Optional[str] = None,
-            token: Optional[str] = None,
+        self,
+        creds_key: str,
+        dest_path: Optional[str] = None,
+        org_id: Optional[str] = None,
+        ds_name: Optional[str] = None,
+        token: Optional[str] = None,
     ):
         """Connect a Deep Lake cloud dataset through a deeplake path.
 
@@ -4398,10 +4411,10 @@ class Dataset:
         save_link_creds(self.link_creds, self.storage)
 
     def populate_creds(
-            self,
-            creds_key: str,
-            creds: Optional[dict] = None,
-            from_environment: bool = False,
+        self,
+        creds_key: str,
+        creds: Optional[dict] = None,
+        from_environment: bool = False,
     ):
         """Populates the creds key added in add_creds_key with the given creds. These creds are used to fetch the external data.
         This needs to be done everytime the dataset is reloaded for datasets that contain links to external data.
@@ -4427,10 +4440,10 @@ class Dataset:
         self.link_creds.populate_creds(creds_key, creds)
 
     def update_creds_key(
-            self,
-            creds_key: str,
-            new_creds_key: Optional[str] = None,
-            managed: Optional[bool] = None,
+        self,
+        creds_key: str,
+        new_creds_key: Optional[str] = None,
+        managed: Optional[bool] = None,
     ):
         """Updates the name and/or management status of a creds key.
 
@@ -4483,7 +4496,7 @@ class Dataset:
         )
 
     def visualize(
-            self, width: Union[int, str, None] = None, height: Union[int, str, None] = None
+        self, width: Union[int, str, None] = None, height: Union[int, str, None] = None
     ):
         """
         Visualizes the dataset in the Jupyter notebook.
@@ -4530,14 +4543,14 @@ class Dataset:
         return tensor in self.tensors
 
     def _optimize_saved_view(
-            self,
-            id: str,
-            tensors: Optional[List[str]] = None,
-            external=False,
-            unlink=True,
-            num_workers=0,
-            scheduler="threaded",
-            progressbar=True,
+        self,
+        id: str,
+        tensors: Optional[List[str]] = None,
+        external=False,
+        unlink=True,
+        num_workers=0,
+        scheduler="threaded",
+        progressbar=True,
     ):
         try:
             with self._temp_write_access():
@@ -4647,15 +4660,17 @@ class Dataset:
             for i in index:
                 self.pop(i)
 
-        index_maintenance.index_operation_dataset(self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=[index])
+        index_maintenance.index_operation_dataset(
+            self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=[index]
+        )
 
     @property
     def is_view(self) -> bool:
         """Returns ``True`` if this dataset is a view and ``False`` otherwise."""
         return (
-                not self.index.is_trivial()
-                or hasattr(self, "_vds")
-                or hasattr(self, "_view_entry")
+            not self.index.is_trivial()
+            or hasattr(self, "_vds")
+            or hasattr(self, "_view_entry")
         )
 
     @property
