@@ -161,7 +161,7 @@ class TransformDataset:
                 # First sample in tensor
                 # Flush to set meta attributes
                 if dtype is None:
-                    self.flush()
+                    self.flush(clear_on_fail=False)
                     return
                 sizeof_item = self._calculate_sample_size(item, dtype, htype)
             except:
@@ -201,22 +201,29 @@ class TransformDataset:
         updated_tensors[full_name] = len(items)
         tensor.items.clear()
 
-    def _rollback(self, updated_tensors):
+    def _rollback(self, updated_tensors, no_dtype_tensors):
         for t in updated_tensors:
             chunk_engine = self.all_chunk_engines[t]
             num_samples = updated_tensors[t]
             for _ in range(num_samples):
                 chunk_engine.pop(link_callback=chunk_engine._transform_pop_callback)
 
+            if t in no_dtype_tensors:
+                meta = chunk_engine.tensor_meta
+                meta.dtype = None
+                meta.typestr = None
+                meta.is_dirty = True
+
     def _clear(self):
         for tensor in self.data.values():
             tensor.items.clear()
         self.cache_used = 0
 
-    def flush(self):
+    def flush(self, clear_on_fail=True):
         all_chunk_engines = self.all_chunk_engines
         label_temp_tensors = self.label_temp_tensors
         updated_tensors = {}
+        no_dtype_tensors = []
         try:
             for name, tensor in self.data.items():
                 if not tensor.is_group:
@@ -224,6 +231,11 @@ class TransformDataset:
                     updated_tensors[name] = 0
                     chunk_engine = all_chunk_engines[name]
                     callback = chunk_engine._transform_callback
+
+                    meta = chunk_engine.tensor_meta
+                    if meta.length == 0 and meta.dtype is None:
+                        # for rolling back dtype change
+                        no_dtype_tensors.append(name)
 
                     if tensor.numpy_only:
                         self._flush_numpy_tensor_to_chunk_engine(
@@ -234,9 +246,10 @@ class TransformDataset:
                             name, tensor, chunk_engine, callback, updated_tensors
                         )
             self.start_input_idx = None
+            self._clear()
         except Exception as e:
-            self._rollback(updated_tensors)
+            self._rollback(updated_tensors, no_dtype_tensors)
+            if clear_on_fail:
+                self._clear()
             e = e.__cause__ if isinstance(e, SampleAppendError) else e  # type: ignore
             raise SampleAppendError(name) from e
-        finally:
-            self._clear()

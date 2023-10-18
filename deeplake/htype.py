@@ -50,7 +50,7 @@ UNSPECIFIED = "unspecified"
 HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.DEFAULT: {"dtype": None},
     htype.IMAGE: {
-        "dtype": "uint8",
+        "dtype": None,
         "intrinsics": None,
         "_info": ["intrinsics"],
     },
