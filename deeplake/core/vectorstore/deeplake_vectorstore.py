@@ -338,14 +338,15 @@ class VectorStore:
             embedding_tensor=embedding_tensor,
             batch_byte_size=batch_byte_size,
             rate_limiter=rate_limiter,
-            index_regeneration=False,
         )
 
-        self.distance_metric_index = index_maintenance.index_operation_vectorstore(
-            self,
-            dml_type=_INDEX_OPERATION_MAPPING["ADD"],
-            rowids=list(range(prev_data_length, len(self.dataset))),
-        )
+        if not index_maintenance.check_vdb_indexes(self.dataset):
+            self.distance_metric_index = index_maintenance.index_operation_vectorstore(
+                self,
+                dml_type=_INDEX_OPERATION_MAPPING["ADD"],
+                rowids=list(range(prev_data_length, len(self.dataset))),
+            )
+
         try_flushing(self.dataset)
 
         if self.verbose:

@@ -3118,10 +3118,9 @@ class Dataset:
                                 "Error while attempting to rollback appends"
                             ) from e2
                     raise e
-            # Regenerate Index.
             if not extend and index_regeneration:
                 index_maintenance.index_operation_dataset(
-                    self, dml_type=_INDEX_OPERATION_MAPPING["ADD"], row_ids=new_row_ids
+                    self, dml_type=_INDEX_OPERATION_MAPPING["ADD"], rowids=new_row_ids
                 )
 
     def extend(
@@ -3140,7 +3139,6 @@ class Dataset:
             append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
             ignore_errors (bool): Skip samples that cause errors while extending, if set to ``True``.
             progressbar (bool): Displays a progress bar if set to ``True``.
-            index_regeneration (bool): Regenerate VDB indexes when base data is modified.
 
         Raises:
             KeyError: If any tensor in the dataset is not a key in ``samples`` and ``skip_ok`` is ``False``.
@@ -3201,8 +3199,8 @@ class Dataset:
                             if isinstance(e, SampleAppendError):
                                 raise SampleExtendError(str(e)) from e.__cause__
                             raise e
-        index_maintenance.index_operation_dataset(
-            self, dml_type=_INDEX_OPERATION_MAPPING["ADD"], row_ids=new_row_ids
+            index_maintenance.index_operation_dataset(
+                self, dml_type=_INDEX_OPERATION_MAPPING["ADD"], rowids=new_row_ids
         )
 
     @invalid_view_op
@@ -3244,7 +3242,7 @@ class Dataset:
             extend=False,
             skip_ok=skip_ok,
             append_empty=append_empty,
-            index_regeneration=index_regeneration,
+            index_regeneration=True,
         )
 
     def update(self, sample: Dict[str, Any]):
@@ -4661,16 +4659,16 @@ class Dataset:
                 self.pop(i)
 
         index_maintenance.index_operation_dataset(
-            self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=[index]
+            self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=index
         )
 
     @property
     def is_view(self) -> bool:
         """Returns ``True`` if this dataset is a view and ``False`` otherwise."""
         return (
-            not self.index.is_trivial()
-            or hasattr(self, "_vds")
-            or hasattr(self, "_view_entry")
+                not self.index.is_trivial()
+                or hasattr(self, "_vds")
+                or hasattr(self, "_view_entry")
         )
 
     @property

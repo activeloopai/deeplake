@@ -414,7 +414,6 @@ def extend(
     dataset: deeplake.core.dataset.Dataset,
     batch_byte_size: int,
     rate_limiter: Dict,
-    index_regeneration: bool = True,
 ):
     """
     Function to extend the dataset with new data.
@@ -460,7 +459,7 @@ def extend(
             processed_tensors[tensor] = return_embedded_data
 
     dataset.extend(
-        processed_tensors, progressbar=True, index_regeneration=index_regeneration
+        processed_tensors, progressbar=True,
     )
 
 
@@ -550,7 +549,6 @@ def extend_or_ingest_dataset(
         dataset,
         batch_byte_size,
         rate_limiter,
-        index_regeneration=index_regeneration,
     )
 
 
