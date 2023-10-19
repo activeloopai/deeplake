@@ -26,7 +26,7 @@ from deeplake.util.exceptions import (
     TensorDoesNotExistError,
     DatasetHandlerError,
 )
-from deeplake.core.vectorstore.vector_search.indra.index_maintenance import (
+from deeplake.core.index_maintenance import (
     METRIC_TO_INDEX_METRIC,
 )
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
@@ -1182,7 +1182,7 @@ def test_update_embedding(
     vector_store.delete_by_path(path + "_multi", token=ds.token)
 
 
-@requires_libdeeplake
+#@requires_libdeeplake
 def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
     number_of_data = 1000
     texts, embeddings, ids, metadatas, _ = utils.create_data(
@@ -1226,6 +1226,79 @@ def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
     assert es[0]["id"] == "hnsw_1"
     assert es[0]["distance"] == "l2_norm"
     assert es[0]["type"] == "hnsw"
+
+    vector_store.delete_by_path(local_path, token=ds.token)
+
+
+@requires_libdeeplake
+def test_vdb_index_incr_maint(local_path, capsys, hub_cloud_dev_token):
+    number_of_data = 1000
+    texts, embeddings, ids, metadatas, _ = utils.create_data(
+        number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
+    )
+
+    txt1 = texts[:250]
+    md1 = metadatas[:250]
+    ids1 = ids[:250]
+    emb1 = embeddings[:250]
+
+    txt2 = texts[250:500]
+    md2 = metadatas[250:500]
+    ids2 = ids[250:500]
+    emb2 = embeddings[250:500]
+
+    txt3 = texts[500:750]
+    md3 = metadatas[500:750]
+    ids3 = ids[500:750]
+    emb3 = embeddings[500:750]
+
+    txt4 = texts[750:1000]
+    md4 = metadatas[750:1000]
+    ids4 = ids[750:1000]
+    emb4 = embeddings[750:1000]
+
+    # initialize vector store object with vdb index threshold as 200.
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        verbose=True,
+        exec_option="compute_engine",
+        index_params={"threshold": 200, "distance_metric": "L2"},
+        token=hub_cloud_dev_token,
+    )
+
+    vector_store.add(embedding=emb1, text=txt1, id=ids1, metadata=md1)
+    vector_store.add(embedding=emb2, text=txt2, id=ids2, metadata=md2)
+    vector_store.add(embedding=emb3, text=txt3, id=ids3, metadata=md3)
+    vector_store.add(embedding=emb4, text=txt4, id=ids4, metadata=md4)
+
+    assert len(vector_store) == number_of_data
+    assert set(vector_store.dataset.tensors) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
+    assert set(vector_store.tensors()) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
+
+    # Check if the index is recreated properly.
+    ds = vector_store.dataset
+    es = ds.embedding.get_vdb_indexes()
+    assert len(es) == 1
+    assert es[0]["id"] == "hnsw_1"
+    assert es[0]["distance"] == "l2_norm"
+    assert es[0]["type"] == "hnsw"
+
+    ds.append()
 
     vector_store.delete_by_path(local_path, token=ds.token)
 
