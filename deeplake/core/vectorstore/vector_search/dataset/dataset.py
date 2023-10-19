@@ -459,7 +459,8 @@ def extend(
             processed_tensors[tensor] = return_embedded_data
 
     dataset.extend(
-        processed_tensors, progressbar=True,
+        processed_tensors,
+        progressbar=True,
     )
 
 
