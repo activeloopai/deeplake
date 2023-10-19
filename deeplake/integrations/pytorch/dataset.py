@@ -144,7 +144,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
             streaming.list_blocks()
         )
 
-    def __iter__(self: "TorchDataset"):
+    def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
         schedule: Schedule = self.schedules[0]
 
