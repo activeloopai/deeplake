@@ -3006,7 +3006,6 @@ class Dataset:
         extend: bool = False,
         skip_ok: bool = False,
         append_empty: bool = False,
-        index_regeneration: bool = True,
     ):
         """Append or extend samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
@@ -3118,10 +3117,6 @@ class Dataset:
                                 "Error while attempting to rollback appends"
                             ) from e2
                     raise e
-            if not extend and index_regeneration:
-                index_maintenance.index_operation_dataset(
-                    self, dml_type=_INDEX_OPERATION_MAPPING["ADD"], rowids=new_row_ids
-                )
 
     def extend(
         self,
@@ -3175,7 +3170,6 @@ class Dataset:
                 extend=True,
                 skip_ok=skip_ok,
                 append_empty=append_empty,
-                index_regeneration=True,
             )
         else:
             with self:
@@ -3190,7 +3184,6 @@ class Dataset:
                             extend=False,
                             skip_ok=skip_ok,
                             append_empty=append_empty,
-                            index_regeneration=False,
                         )
                     except Exception as e:
                         if ignore_errors:
@@ -3199,8 +3192,8 @@ class Dataset:
                             if isinstance(e, SampleAppendError):
                                 raise SampleExtendError(str(e)) from e.__cause__
                             raise e
-            index_maintenance.index_operation_dataset(
-                self, dml_type=_INDEX_OPERATION_MAPPING["ADD"], rowids=new_row_ids
+        index_maintenance.index_operation_dataset(
+            self, dml_type=_INDEX_OPERATION_MAPPING["ADD"], rowids=new_row_ids
         )
 
     @invalid_view_op
@@ -3209,7 +3202,6 @@ class Dataset:
         sample: Dict[str, Any],
         skip_ok: bool = False,
         append_empty: bool = False,
-        index_regeneration: bool = True,
     ):
         """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
@@ -3237,12 +3229,16 @@ class Dataset:
             >>> ds.append({"data": [1, 2, 3, 4], "labels":[0, 1, 2, 3]})
 
         """
+        new_row_ids = [len(self)]
         self._append_or_extend(
             sample,
             extend=False,
             skip_ok=skip_ok,
             append_empty=append_empty,
             index_regeneration=True,
+        )
+        index_maintenance.index_operation_dataset(
+            self, dml_type=_INDEX_OPERATION_MAPPING["ADD"], rowids=new_row_ids
         )
 
     def update(self, sample: Dict[str, Any]):
@@ -4666,9 +4662,9 @@ class Dataset:
     def is_view(self) -> bool:
         """Returns ``True`` if this dataset is a view and ``False`` otherwise."""
         return (
-                not self.index.is_trivial()
-                or hasattr(self, "_vds")
-                or hasattr(self, "_view_entry")
+            not self.index.is_trivial()
+            or hasattr(self, "_vds")
+            or hasattr(self, "_view_entry")
         )
 
     @property
