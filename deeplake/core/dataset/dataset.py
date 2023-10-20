@@ -4648,6 +4648,7 @@ class Dataset:
 
     @invalid_view_op
     def pop_multiple(self, index: List[int], progressbar=False):
+        index = sorted(index, reverse=True)
         if progressbar:
             index = tqdm(index)
         with self:

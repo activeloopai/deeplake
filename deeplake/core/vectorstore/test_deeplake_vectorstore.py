@@ -26,7 +26,7 @@ from deeplake.util.exceptions import (
     TensorDoesNotExistError,
     DatasetHandlerError,
 )
-from deeplake.core.vectorstore.vector_search.indra.index_maintenance import (
+from deeplake.core.index_maintenance import (
     METRIC_TO_INDEX_METRIC,
 )
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
