@@ -539,7 +539,6 @@ def extend_or_ingest_dataset(
     embedding_data,
     batch_byte_size,
     rate_limiter,
-    index_regeneration=False,
 ):
     # TODO: Add back the old logic with checkpointing after indexing is fixed
     extend(

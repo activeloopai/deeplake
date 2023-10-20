@@ -177,6 +177,7 @@ class Dataset:
         enabled_tensors: Optional[List[str]] = None,
         view_base: Optional["Dataset"] = None,
         libdeeplake_dataset=None,
+        index_params: Optional[Dict[str, Union[int, str]]] = None,
         **kwargs,
     ):
         """Initializes a new or existing dataset.
@@ -238,6 +239,7 @@ class Dataset:
         d["link_creds"] = link_creds
         d["enabled_tensors"] = enabled_tensors
         d["libdeeplake_dataset"] = libdeeplake_dataset
+        d["index_params"] = index_params
         d["_info"] = None
         d["_ds_diff"] = None
         d["_view_id"] = str(uuid.uuid4())

@@ -159,6 +159,7 @@ class VectorStore:
 
         self.ingestion_batch_size = ingestion_batch_size
         self.index_params = utils.parse_index_params(index_params)
+        kwargs["index_params"] = self.index_params
         self.num_workers = num_workers
         self.creds = creds or {}
 

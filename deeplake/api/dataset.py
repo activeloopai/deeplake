@@ -101,6 +101,7 @@ class dataset:
         check_integrity: bool = True,
         lock_enabled: Optional[bool] = True,
         lock_timeout: Optional[int] = 0,
+        index_params: Optional[Dict[str, Union[int, str]]] = None,
     ):
         """Returns a :class:`~deeplake.core.dataset.Dataset` object referencing either a new or existing dataset.
 
@@ -171,6 +172,7 @@ class dataset:
             check_integrity (bool): If the param is True it will do integrity check during dataset loading otherwise the check is not performed
             lock_timeout (int): Number of seconds to wait before throwing a LockException. If None, wait indefinitely
             lock_enabled (bool): If true, the dataset manages a write lock. NOTE: Only set to False if you are managing concurrent access externally
+            index_params: Optional[Dict[str, Union[int, str]]] = None : The index parameters used while creating vector store is passed down to dataset.
 
         ..
             # noqa: DAR101
@@ -253,6 +255,7 @@ class dataset:
             "verbose": verbose,
             "lock_timeout": lock_timeout,
             "lock_enabled": lock_enabled,
+            "index_params" : index_params
         }
 
         if access_method == "stream":
@@ -363,6 +366,7 @@ class dataset:
         lock_enabled: Optional[bool] = True,
         lock_timeout: Optional[int] = 0,
         verbose: bool = True,
+        index_params: Optional[Dict[str, Union[int, str]]] = None,
     ) -> Dataset:
         """Creates an empty dataset
 
@@ -386,6 +390,7 @@ class dataset:
             verbose (bool): If True, logs will be printed. Defaults to True.
             lock_timeout (int): Number of seconds to wait before throwing a LockException. If None, wait indefinitely
             lock_enabled (bool): If true, the dataset manages a write lock. NOTE: Only set to False if you are managing concurrent access externally.
+            index_params: Optional[Dict[str, Union[int, str]]]: Index parameters used while creating vector store, passed down to dataset.
 
         Returns:
             Dataset: Dataset created using the arguments provided.
@@ -435,6 +440,7 @@ class dataset:
                     "overwrite": overwrite,
                     "lock_enabled": lock_enabled,
                     "lock_timeout": lock_timeout,
+                    "index_params": index_params,
                 },
                 token=token,
             )
@@ -462,6 +468,7 @@ class dataset:
             "verbose": verbose,
             "lock_timeout": lock_timeout,
             "lock_enabled": lock_enabled,
+            "index_params": index_params,
         }
         ret = dataset._load(dataset_kwargs, create=True)
         return ret
@@ -483,6 +490,7 @@ class dataset:
         check_integrity: bool = True,
         lock_timeout: Optional[int] = 0,
         lock_enabled: Optional[bool] = True,
+        index_params: Optional[Dict[str, Union[int, str]]] = None,
     ) -> Dataset:
         """Loads an existing dataset
 
@@ -598,7 +606,7 @@ class dataset:
             feature_report_path(
                 path,
                 "load",
-                {"lock_enabled": lock_enabled, "lock_timeout": lock_timeout},
+                {"lock_enabled": lock_enabled, "lock_timeout": lock_timeout, "index_params": index_params},
                 token=token,
             )
         except Exception as e:
@@ -618,6 +626,7 @@ class dataset:
             "verbose": verbose,
             "lock_timeout": lock_timeout,
             "lock_enabled": lock_enabled,
+            "index_params": index_params,
         }
 
         if access_method == "stream":

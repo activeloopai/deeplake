@@ -149,6 +149,13 @@ def index_operation_type_vectorstore(
 def index_operation_type_dataset(
     self, changed_data_len, index_regeneration, index_delete=False
 ):
+
+    if not index_exists(self):
+        threshold = self.index_params.get("threshold", -1)
+        below_threshold = threshold <= 0 or len(self) < threshold
+        if not below_threshold:
+            return INDEX_OP_TYPE.CREATE_INDEX
+
     if not check_vdb_indexes(self):
         return INDEX_OP_TYPE.NOOP
 
@@ -282,6 +289,18 @@ def index_operation_dataset(
 
     if index_operation_type == INDEX_OP_TYPE.NOOP:
         return
+    elif index_operation_type == INDEX_OP_TYPE.CREATE_INDEX:
+        distance_str = self.index_params.get("distance_metric", "COS")
+        additional_params_dict = self.index_params.get("additional_params", None)
+        distance = get_index_metric(distance_str.upper())
+        index_cache_cleanup(self)
+        if additional_params_dict and len(additional_params_dict) > 0:
+            param_dict = normalize_additional_params(additional_params_dict)
+            emb_tensor.create_vdb_index(
+                "hnsw_1", distance=distance, additional_params=param_dict
+            )
+        else:
+            emb_tensor.create_vdb_index("hnsw_1", distance=distance)
     elif index_operation_type == INDEX_OP_TYPE.INCREMENTAL_INDEX:
         emb_tensor._incr_maintenance_vdb_indexes(rowids, dml_type)
     elif index_operation_type == INDEX_OP_TYPE.REGENERATE_INDEX:
