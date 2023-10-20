@@ -328,7 +328,6 @@ class VectorStore:
         )
 
         assert id_ is not None
-        prev_data_length = len(self.dataset)
 
         dataset_utils.extend_or_ingest_dataset(
             processed_tensors=processed_tensors,
@@ -339,13 +338,6 @@ class VectorStore:
             batch_byte_size=batch_byte_size,
             rate_limiter=rate_limiter,
         )
-
-        if not index_maintenance.check_vdb_indexes(self.dataset):
-            self.distance_metric_index = index_maintenance.index_operation_vectorstore(
-                self,
-                dml_type=_INDEX_OPERATION_MAPPING["ADD"],
-                rowids=list(range(prev_data_length, len(self.dataset))),
-            )
 
         try_flushing(self.dataset)
 
