@@ -31,3 +31,12 @@ DEFAULT_REQUEST_TIMEOUT = 170
 
 DEEPLAKE_AUTH_TOKEN = "ACTIVELOOP_TOKEN"
 ORG_PERMISSION_SUFFIX = "/api/organizations/{}/features/dataset_query"
+
+# ManagedService Endpoints
+INIT_VECTORSTORE_SUFFIX = "/api/dlserver/vectorstore/init"
+GET_VECTORSTORE_SUMMARY_SUFFIX = "/api/dlserver/vectorstore/{}/{}summary"
+DELETE_VECTORSTORE_SUFFIX = "/api/dlserver/vectorstore/delete"
+
+VECTORSTORE_SEARCH_SUFFIX = "/api/dlserver/vectorstore/search"
+VECTORSTORE_ADD_SUFFIX = "/api/dlserver/vectorstore/add"
+VECTORSTORE_REMOVE_INDICES_SUFFIX = "/api/dlserver/vectorstore/remove"
