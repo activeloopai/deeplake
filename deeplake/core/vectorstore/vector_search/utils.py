@@ -558,10 +558,3 @@ def is_embedding_tensor(tensor):
         or tensor.key in valid_names
     )
 
-
-def get_embedding_tensor(dataset):
-    tensors = dataset.tensors
-    for _, tensor in tensors.items():
-        if is_embedding_tensor(tensor):
-            return tensor
-    return None

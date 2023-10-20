@@ -526,7 +526,6 @@ def test_index_basic(local_path, hub_cloud_dev_token):
         token=hub_cloud_dev_token,
     )
 
-    vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
     assert vector_store.distance_metric_index is None
 
@@ -535,16 +534,20 @@ def test_index_basic(local_path, hub_cloud_dev_token):
         path=local_path, token=hub_cloud_dev_token, index_params={"threshold": 1}
     )
 
+    vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
+    es = vector_store.dataset.embedding.get_vdb_indexes()
+
     assert (
-        vector_store.distance_metric_index
+        es[0]['distance']
         == METRIC_TO_INDEX_METRIC[DEFAULT_VECTORSTORE_DISTANCE_METRIC]
     )
 
     # Then test behavior when index is added previously and the dataset is reloaded
     vector_store = VectorStore(path=local_path, token=hub_cloud_dev_token)
+    es = vector_store.dataset.embedding.get_vdb_indexes()
 
     assert (
-        vector_store.distance_metric_index
+        es[0]['distance']
         == METRIC_TO_INDEX_METRIC[DEFAULT_VECTORSTORE_DISTANCE_METRIC]
     )
 
@@ -701,6 +704,7 @@ def test_delete(local_path, hub_cloud_dev_token):
     assert_vectorstore_structure(vector_store, 10)
 
     # delete the data in the dataset by id:
+    print(len(vector_store.dataset))
     vector_store.delete(row_ids=[4, 8, 9])
     assert len(vector_store.dataset) == NUMBER_OF_DATA - 3
 
@@ -1298,7 +1302,117 @@ def test_vdb_index_incr_maint(local_path, capsys, hub_cloud_dev_token):
     assert es[0]["distance"] == "l2_norm"
     assert es[0]["type"] == "hnsw"
 
-    ds.append()
+    #search the embeddings.
+    query1 = ds.embedding[1].numpy()
+    query300 = ds.embedding[300].numpy()
+    query700 = ds.embedding[700].numpy()
+
+    s1 = ','.join(str(c) for c in query1)
+    view1 = ds.query(f"select *  order by cosine_similarity(embedding ,array[{s1}]) DESC limit 1")
+    res1 = list(view1.sample_indices)
+    assert(res1[0], 1)
+
+    s300 = ','.join(str(c) for c in query300)
+    view300 = ds.query(f"select *  order by cosine_similarity(embedding ,array[{s300}]) DESC limit 1")
+    res300 = list(view300.sample_indices)
+    assert(res300[0], 300)
+
+    s700 = ','.join(str(c) for c in query700)
+    view700 = ds.query(f"select *  order by cosine_similarity(embedding ,array[{s700}]) DESC limit 1")
+    res700 = list(view700.sample_indices)
+    assert(view700[0], 700)
+
+    vector_store.delete_by_path(local_path, token=ds.token)
+
+@requires_libdeeplake
+def test_vdb_index_incr_maint_append(local_path, capsys, hub_cloud_dev_token):
+    number_of_data = 400
+    texts, embeddings, ids, metadatas, _ = utils.create_data(
+        number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
+    )
+
+    txt1 = texts[:100]
+    md1 = metadatas[:100]
+    ids1 = ids[:100]
+    emb1 = embeddings[:100]
+
+    txt2 = texts[100:101]
+    md2 = metadatas[100:101]
+    ids2 = ids[100:101]
+    emb2 = embeddings[100:101]
+
+    txt3 = texts[101:102]
+    md3 = metadatas[101:102]
+    ids3 = ids[101:102]
+    emb3 = embeddings[101:102]
+
+    txt4 = texts[102:103]
+    md4 = metadatas[102:103]
+    ids4 = ids[102:103]
+    emb4 = embeddings[102:103]
+
+    # initialize vector store object with vdb index threshold as 200.
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        verbose=True,
+        exec_option="compute_engine",
+        index_params={"threshold": 200, "distance_metric": "L2"},
+        token=hub_cloud_dev_token,
+    )
+
+    vector_store.add(embedding=emb1, text=txt1, id=ids1, metadata=md1)
+    ds = vector_store.dataset
+    ds.append({"embedding": emb2, "text": txt2, "id" : ids2, "metadata" : md2})
+    ds.append({"embedding": emb3, "text": txt3, "id": ids3, "metadata": md3})
+    ds.append({"embedding": emb4, "text": txt4, "id": ids4, "metadata": md4})
+
+
+    assert len(vector_store) == number_of_data
+    assert set(vector_store.dataset.tensors) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
+    assert set(vector_store.tensors()) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
+
+    # Check if the index is recreated properly.
+    ds = vector_store.dataset
+    es = ds.embedding.get_vdb_indexes()
+    assert len(es) == 1
+    assert es[0]["id"] == "hnsw_1"
+    assert es[0]["distance"] == "l2_norm"
+    assert es[0]["type"] == "hnsw"
+
+    #search the embeddings.
+    query1 = ds.embedding[1].numpy()
+    query300 = ds.embedding[300].numpy()
+    query700 = ds.embedding[700].numpy()
+
+    s1 = ','.join(str(c) for c in query1)
+    view1 = ds.query(f"select *  order by cosine_similarity(embedding ,array[{s1}]) DESC limit 1")
+    res1 = list(view1.sample_indices)
+    assert(res1[0], 1)
+
+    s300 = ','.join(str(c) for c in query300)
+    view300 = ds.query(f"select *  order by cosine_similarity(embedding ,array[{s300}]) DESC limit 1")
+    res300 = list(view300.sample_indices)
+    assert(res300[0], 300)
+
+    s700 = ','.join(str(c) for c in query700)
+    view700 = ds.query(f"select *  order by cosine_similarity(embedding ,array[{s700}]) DESC limit 1")
+    res700 = list(view700.sample_indices)
+    assert(view700[0], 700)
 
     vector_store.delete_by_path(local_path, token=ds.token)
 

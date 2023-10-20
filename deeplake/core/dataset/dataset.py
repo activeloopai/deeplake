@@ -3235,7 +3235,6 @@ class Dataset:
             extend=False,
             skip_ok=skip_ok,
             append_empty=append_empty,
-            index_regeneration=True,
         )
         index_maintenance.index_operation_dataset(
             self, dml_type=_INDEX_OPERATION_MAPPING["ADD"], rowids=new_row_ids
