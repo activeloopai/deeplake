@@ -151,6 +151,8 @@ def index_operation_type_dataset(
 ):
 
     if not index_exists(self):
+        if self.index_params is None:
+            return INDEX_OP_TYPE.NOOP
         threshold = self.index_params.get("threshold", -1)
         below_threshold = threshold <= 0 or len(self) < threshold
         if not below_threshold:
