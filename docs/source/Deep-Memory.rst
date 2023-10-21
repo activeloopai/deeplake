@@ -7,7 +7,7 @@ Deep Memory
     :language: sql
 
 This page describes  :meth:`ds.query <deeplake.core.vectostore.deep_memory>`. DeepMemory is a deep learning model that is trained on the dataset 
-to improve the search results, by alligning queries with the corpus dataset. It gives up to +22% of recall improvement on an eval dataset. 
+to improve the search results, by aligning queries with the corpus dataset. It gives up to +22% of recall improvement on an eval dataset. 
 To use deep_memory, please subscribe to our waitlist.
 
 Syntax
@@ -27,8 +27,8 @@ To start training you should first create a vectostore object, and then preproce
 ... )
 
 To train a deepmemory model you need to preprocess the dataset so that, ``corpus``, will become a list of list of tuples, where outer 
-list corresponds to the query and inner list to the relevent documents. Each tuple should contain the document id (``id`` tensor from the corpus dataset) 
-and the relevence score (range is 0-1, where 0 represents unrelated document and 1 related). ``queries`` should be a list of strings.
+list corresponds to the query and inner list to the relevant documents. Each tuple should contain the document id (``id`` tensor from the corpus dataset) 
+and the relevance score (range is 0-1, where 0 represents unrelated document and 1 related). ``queries`` should be a list of strings.
 
 >>> job_id = db.deep_memory.train(
 ...     corpus: List[List[Tuple[str, float]]] = corpus,
@@ -77,8 +77,8 @@ ID                          STATUS     RESULTS                      PROGRESS
 
 Once the training is completed, you can use ``db.deep_memory.evaluate`` to evaluate the model performance on the custom dataset.
 Once again you would need to preprocess the dataset so that, ``corpus``, will become a list of list of tuples, where outer 
-list corresponds to the query and inner list to the relevent documents. Each tuple should contain the document id (``id`` tensor from the corpus dataset) 
-and the relevence score (range is 0-1, where 0 represents unrelated document and 1 related). ``queries`` should be a list of strings.
+list corresponds to the query and inner list to the relevant documents. Each tuple should contain the document id (``id`` tensor from the corpus dataset) 
+and the relevance score (range is 0-1, where 0 represents unrelated document and 1 related). ``queries`` should be a list of strings.
 
 >>> recalls = db.deep_memory.evaluate(
 ...     corpus: List[List[Tuple[str, float]]] = corpus,
