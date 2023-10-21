@@ -8,6 +8,7 @@ from deeplake.core.storage.provider import StorageProvider
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.util.exceptions import PathNotEmptyException
 from deeplake.util.path import relpath
+from deeplake.deeplog.actions import AddFileAction
 
 try:
     from azure.identity import DefaultAzureCredential
@@ -102,6 +103,7 @@ class AzureProvider(StorageProvider):
             f"{self.root_folder}/{path}"
         )
         blob_client.upload_blob(content, overwrite=True)
+        self.deeplog.commit([AddFileAction(path)])
 
     def __getitem__(self, path):
         return self.get_bytes(path)

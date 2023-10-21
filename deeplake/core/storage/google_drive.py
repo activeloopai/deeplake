@@ -6,6 +6,7 @@ import posixpath
 import pickle
 from typing import Dict, Optional, Union
 from deeplake.util.hash import hash_inputs
+from deeplake.deeplog.actions import AddFileAction
 import logging
 
 try:
@@ -318,9 +319,11 @@ class GDriveProvider(StorageProvider):
                 parent_id = self.root_id
             file = self._create_file(basename, FILE, parent_id, content)
             self._set_id(path, file.get("id"))
+            self.deeplog.commit([AddFileAction(path)])
             return
 
         self._write_to_file(id, content)
+        self.deeplog.commit([AddFileAction(path)])
         return
 
     def __delitem__(self, path):

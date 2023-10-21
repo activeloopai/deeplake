@@ -1,5 +1,7 @@
 import os
 
+from deeplake.deeplog import DeepLog
+
 import deeplake
 import jwt
 import pathlib
@@ -101,6 +103,7 @@ class dataset:
         check_integrity: bool = True,
         lock_enabled: Optional[bool] = True,
         lock_timeout: Optional[int] = 0,
+        log_format: int = 4,
     ):
         """Returns a :class:`~deeplake.core.dataset.Dataset` object referencing either a new or existing dataset.
 
@@ -253,6 +256,7 @@ class dataset:
             "verbose": verbose,
             "lock_timeout": lock_timeout,
             "lock_enabled": lock_enabled,
+            "log_format": log_format,
         }
 
         if access_method == "stream":
@@ -363,6 +367,7 @@ class dataset:
         lock_enabled: Optional[bool] = True,
         lock_timeout: Optional[int] = 0,
         verbose: bool = True,
+        log_format: int = 4,
     ) -> Dataset:
         """Creates an empty dataset
 
@@ -386,7 +391,7 @@ class dataset:
             verbose (bool): If True, logs will be printed. Defaults to True.
             lock_timeout (int): Number of seconds to wait before throwing a LockException. If None, wait indefinitely
             lock_enabled (bool): If true, the dataset manages a write lock. NOTE: Only set to False if you are managing concurrent access externally.
-
+            log_format (int): The log format to use for the dataset. Can be: 3 or 4. Defaults to 3.
         Returns:
             Dataset: Dataset created using the arguments provided.
 
@@ -462,6 +467,7 @@ class dataset:
             "verbose": verbose,
             "lock_timeout": lock_timeout,
             "lock_enabled": lock_enabled,
+            "log_format": log_format,
         }
         ret = dataset._load(dataset_kwargs, create=True)
         return ret
@@ -713,6 +719,15 @@ class dataset:
 
     @staticmethod
     def _load(dataset_kwargs, access_method=None, create=False, check_integrity=True):
+        if create:
+            dataset_kwargs["storage"].set_deeplog(
+                DeepLog.create(dataset_kwargs["storage"], dataset_kwargs["log_format"])
+            )
+        else:
+            dataset_kwargs["storage"].set_deeplog(
+                DeepLog.open(dataset_kwargs["storage"])
+            )
+
         if access_method in ("stream", None):
             ret = dataset_factory(**dataset_kwargs)
             if create:

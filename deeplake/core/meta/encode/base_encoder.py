@@ -73,6 +73,8 @@ class Encoder(ABC):
             encoded = np.array(encoded, dtype=self.dtype)
 
         if encoded is None:
+            if self.__class__.__name__ == "ChunkEngine":
+                print("Reinitializing...")
             encoded = np.zeros((0, self._num_columns), dtype=self.dtype)
         self._encoded = encoded
 

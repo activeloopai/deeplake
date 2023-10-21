@@ -21,6 +21,7 @@ from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
 from deeplake.core.version_control.commit_chunk_map import CommitChunkMap  # type: ignore
 from deeplake.core.storage import LRUCache
 from deeplake.core.lock import Lock, PersistentLock
+from deeplake.deeplog.adapters import parse_commit_id
 from deeplake.util.exceptions import (
     CheckoutError,
     CommitError,
@@ -49,6 +50,7 @@ from deeplake.constants import COMMIT_INFO_FILENAME
 from deeplake.util.path import relpath
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.hooks import dataset_committed
+from deeplake.deeplog import DeepLog, DeepLogSnapshot
 from datetime import datetime
 import deeplake.core.dataset
 
@@ -1093,6 +1095,28 @@ def _get_dataset_meta_at_commit(storage, commit_id):
     return meta
 
 
+def _get_deeplog_meta_at_commit(
+    deeplog: DeepLog, branch_id: str, branch_version: int
+) -> DatasetMeta:
+    meta = DatasetMeta()
+    tensor_data = DeepLogSnapshot(branch_id, branch_version, deeplog).tensors()
+
+    meta.tensors = [action.id for action in tensor_data]
+    meta.tensor_names = {action.name: action.id for action in tensor_data}
+    meta.hidden_tensors = [action.id for action in tensor_data if action.hidden]
+    meta.version = deeplake.__version__
+    meta.default_index = [
+        {
+            "start": None,
+            "step": None,
+            "stop": None,
+        }
+    ]
+    meta.groups = []
+
+    return meta
+
+
 def load_meta(dataset: "deeplake.core.dataset.Dataset"):
     """Loads the meta info for the version state."""
     from deeplake.core.tensor import Tensor
@@ -1102,7 +1126,15 @@ def load_meta(dataset: "deeplake.core.dataset.Dataset"):
     storage.clear_deeplake_objects()
     dataset._info = None
     dataset._ds_diff = None
-    meta = _get_dataset_meta_at_commit(storage, version_state["commit_id"])
+
+    deeplog = dataset.storage.deeplog
+    if deeplog.log_format() < 4:
+        meta = _get_dataset_meta_at_commit(storage, version_state["commit_id"])
+    else:
+        branch_id, branch_version = parse_commit_id(version_state["commit_id"])
+        meta = _get_deeplog_meta_at_commit(
+            dataset.storage.deeplog, branch_id, branch_version
+        )
 
     ffw_dataset_meta(meta)
     version_state["meta"] = meta

@@ -1,4 +1,5 @@
 import posixpath
+from typing import Tuple
 from deeplake.constants import (
     CHUNKS_FOLDER,
     COMMIT_INFO_FILENAME,
@@ -25,6 +26,7 @@ from deeplake.constants import (
     QUERIES_FILENAME,
     QUERIES_LOCK_FILENAME,
 )
+from deeplake.deeplog import DeepLog, DeepLogSnapshot
 from deeplake.util.exceptions import (
     S3GetError,
     S3GetAccessError,
@@ -37,6 +39,12 @@ def get_chunk_key(key: str, chunk_name: str, commit_id: str) -> str:
         return "/".join((key, CHUNKS_FOLDER, f"{chunk_name}"))
 
     return "/".join(("versions", commit_id, key, CHUNKS_FOLDER, f"{chunk_name}"))
+
+
+def split_chunk_key(key: str) -> Tuple[str, str, str]:
+    key = key.strip("/")
+    _, commit_id, key, _, chunk_name = key.split("/")
+    return commit_id, key, chunk_name
 
 
 def get_dataset_meta_key(commit_id: str) -> str:
@@ -195,7 +203,9 @@ def dataset_exists(storage, commit_id=None) -> bool:
     """
     try:
         return (
-            get_dataset_meta_key(commit_id or FIRST_COMMIT_ID) in storage
+            "_deeplake_log/_meta/00000000000000000001.json" in storage
+            or "_deeplake_log/_meta/_last_checkpoint.json" in storage
+            or get_dataset_meta_key(commit_id or FIRST_COMMIT_ID) in storage
             or get_version_control_info_key() in storage
         )
     except S3GetAccessError as err:
@@ -210,6 +220,13 @@ def tensor_exists(key: str, storage, commit_id: str) -> bool:
         return True
     except KeyError:
         return False
+
+
+def tensor_exists_in_log(
+    deeplog: DeepLog, tensor_id: str, branch: str, branch_version: int
+) -> bool:
+    snapshot = DeepLogSnapshot(branch, branch_version, deeplog)
+    return tensor_id in [tensor.id for tensor in snapshot.tensors()]
 
 
 def get_queries_key() -> str:

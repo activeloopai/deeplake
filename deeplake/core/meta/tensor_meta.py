@@ -157,11 +157,7 @@ class TensorMeta(Meta):
         if not kwargs:
             kwargs = HTYPE_CONFIGURATIONS[htype]
 
-        _validate_htype_exists(htype)
-        _validate_htype_overwrites(htype, kwargs)
-        _replace_unspecified_values(htype, kwargs)
-        _validate_required_htype_overwrites(htype, kwargs)
-        _format_values(htype, kwargs)
+        validate_and_process_kwargs(htype, kwargs)
 
         required_meta = _required_meta_from_htype(htype)
         required_meta.update(kwargs)
@@ -238,6 +234,26 @@ class TensorMeta(Meta):
 
     def __str__(self):
         return str(self.__getstate__())
+
+    def _action_kwargs(self):
+        return {
+            "dtype": self.dtype,
+            "htype": self.htype,
+            "length": self.length,
+            "is_link": self.is_link,
+            "is_sequence": self.is_sequence,
+            "hidden": self.hidden,
+            "chunk_compression": self.chunk_compression,
+            "sample_compression": self.sample_compression,
+            "links": self.links,
+            "max_chunk_size": self.max_chunk_size,
+            "min_shape": self.min_shape,
+            "max_shape": self.max_shape,
+            "tiling_threshold": self.tiling_threshold,
+            "typestr": self.typestr,
+            "verify": self.verify,
+            "version": self.version,
+        }
 
 
 def _validate_links(links: dict):
@@ -418,3 +434,11 @@ def _is_dtype_supported_by_numpy(dtype: str) -> bool:
         return True
     except:
         return False
+
+
+def validate_and_process_kwargs(htype, kwargs):
+    _validate_htype_exists(htype)
+    _validate_htype_overwrites(htype, kwargs)
+    _replace_unspecified_values(htype, kwargs)
+    _validate_required_htype_overwrites(htype, kwargs)
+    _format_values(htype, kwargs)

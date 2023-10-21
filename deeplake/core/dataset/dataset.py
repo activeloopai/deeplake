@@ -13,10 +13,12 @@ from time import time, sleep
 from tqdm import tqdm
 
 import deeplake
+from deeplake.deeplog import DeepLogSnapshot, MetadataSnapshot
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
 from deeplake.core.sample import Sample
 from deeplake.core.linked_sample import LinkedSample
+from deeplake.deeplog.adapters import to_commit_id
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
 from deeplake.util.version_control import (
@@ -144,6 +146,7 @@ from deeplake.util.version_control import (
 from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
 from deeplake.core.dataset.invalid_view import InvalidView
+from deeplake.deeplog import DeepLog
 from deeplake.hooks import dataset_read
 from collections import defaultdict
 from itertools import chain
@@ -309,6 +312,10 @@ class Dataset:
                 if self._vc_info_updated:
                     self._flush_vc_info()
                 self.storage.flush()
+
+    @property
+    def deeplog(self) -> DeepLog:
+        return self.storage.deeplog
 
     @property
     def num_samples(self) -> int:
@@ -834,6 +841,7 @@ class Dataset:
             overwrite=True,
             **meta_kwargs,
         )
+        self._refresh_snapshots()
         meta: DatasetMeta = self.meta
         ffw_dataset_meta(meta)
         meta.add_tensor(name, key, hidden=hidden)
@@ -1350,6 +1358,19 @@ class Dataset:
             )
         return commit_id
 
+    def _refresh_snapshots(self):
+        """
+        If using deeplog, update the version state.
+        This needs to be called after any transaction commits to move the version read along
+        """
+        if self.deeplog.log_format() > 3:
+            branch = self.version_state["branch"]
+            old_version_state = self.version_state
+            self.version_state = None
+            self._load_version_info(branch)
+            self.version_state.update(old_version_state)
+            load_meta(self)
+
     def _load_version_info(self, address=None):
         """Loads data from version_control_file otherwise assume it doesn't exist and load all empty"""
         if self.version_state:
@@ -1359,39 +1380,83 @@ class Dataset:
             address = "main"
 
         version_state = {}
-        try:
+        if self.storage.deeplog.log_format() < 4:
             try:
-                version_info = load_version_info(self.storage)
-            except Exception as e:
-                version_info = rebuild_version_info(self.storage)
-                if version_info is None:
-                    raise e
-            version_state["branch_commit_map"] = version_info["branch_commit_map"]
-            version_state["commit_node_map"] = version_info["commit_node_map"]
+                try:
+                    version_info = load_version_info(self.storage)
+                except Exception as e:
+                    version_info = rebuild_version_info(self.storage)
+                    if version_info is None:
+                        raise e
+                version_state["branch_commit_map"] = version_info["branch_commit_map"]
+                version_state["commit_node_map"] = version_info["commit_node_map"]
 
-            commit_id = self._get_commit_id_for_address(address, version_state)
+                commit_id = self._get_commit_id_for_address(address, version_state)
+
+                version_state["commit_id"] = commit_id
+                version_state["commit_node"] = version_state["commit_node_map"][
+                    commit_id
+                ]
+                version_state["branch"] = version_state["commit_node"].branch
+            except Exception as e:
+                if isinstance(e, CheckoutError):
+                    raise e from None
+                if address != "main":
+                    raise CheckoutError(
+                        f"Address {address} not found. Ensure the commit id / branch name is correct."
+                    )
+                branch = "main"
+                version_state["branch"] = branch
+                version_state["branch_commit_map"] = {}
+                version_state["commit_node_map"] = {}
+                # used to identify that this is the first commit so its data will not be in similar directory structure to the rest
+                commit_id = FIRST_COMMIT_ID
+                commit_node = CommitNode(branch, commit_id)
+                version_state["commit_id"] = commit_id
+                version_state["commit_node"] = commit_node
+                version_state["branch_commit_map"][branch] = commit_id
+                version_state["commit_node_map"][commit_id] = commit_node
+        else:
+            deeplog = self.storage.deeplog
+            metadata_snapshot = MetadataSnapshot(deeplog)
+            branch_id = metadata_snapshot.find_branch(address).id
+            snapshot = DeepLogSnapshot(branch_id, deeplog)
+            branch_data = metadata_snapshot.branches()
+            commit_data = snapshot.commits()
+
+            branch_names = {}
+            branch_ids = {}
+            for branch in branch_data:
+                branch_names[branch.id] = branch.name
+                branch_ids[branch.name] = branch.id
+
+            version_state["branch_commit_map"] = {}
+            version_state["commit_node_map"] = {}
+            for commit_info in commit_data:
+                version_state["commit_node_map"][
+                    to_commit_id(commit_info.branch_id, commit_info.branch_version)
+                ] = CommitNode(
+                    branch_names[commit_info.branch_id],
+                    to_commit_id(commit_info.branch_id, commit_info.branch_version),
+                )
+
+            for branch_info in branch_data:
+                # create head commit for branch
+                branch_version = self.storage.deeplog.version(branch_info.id)
+                head_commit_id = to_commit_id(branch_info.id, branch_version)
+                if head_commit_id not in version_state["commit_node_map"]:
+                    version_state["commit_node_map"][head_commit_id] = CommitNode(
+                        branch_names[branch_info.id], head_commit_id
+                    )
+
+                version_state["branch_commit_map"][branch_info.name] = branch_info.id
+
+            commit_id = to_commit_id(snapshot.branch_id, snapshot.version)
 
             version_state["commit_id"] = commit_id
             version_state["commit_node"] = version_state["commit_node_map"][commit_id]
             version_state["branch"] = version_state["commit_node"].branch
-        except Exception as e:
-            if isinstance(e, CheckoutError):
-                raise e from None
-            if address != "main":
-                raise CheckoutError(
-                    f"Address {address} not found. Ensure the commit id / branch name is correct."
-                )
-            branch = "main"
-            version_state["branch"] = branch
-            version_state["branch_commit_map"] = {}
-            version_state["commit_node_map"] = {}
-            # used to identify that this is the first commit so its data will not be in similar directory structure to the rest
-            commit_id = FIRST_COMMIT_ID
-            commit_node = CommitNode(branch, commit_id)
-            version_state["commit_id"] = commit_id
-            version_state["commit_node"] = commit_node
-            version_state["branch_commit_map"][branch] = commit_id
-            version_state["commit_node_map"][commit_id] = commit_node
+
         # keeps track of the full unindexed tensors
         version_state["full_tensors"] = {}
         version_state["tensor_names"] = {}
@@ -1931,11 +1996,12 @@ class Dataset:
                 # cannot create a new dataset when in read_only mode.
                 raise CouldNotCreateNewDatasetException(self.path)
             meta = DatasetMeta()
-            key = get_dataset_meta_key(self.version_state["commit_id"])
             self.version_state["meta"] = meta
-            self.storage.register_deeplake_object(key, meta)
-            self._register_dataset()
-            self.flush()
+            if self.deeplog.log_format() < 4:
+                key = get_dataset_meta_key(self.version_state["commit_id"])
+                self.storage.register_deeplake_object(key, meta)
+                self._register_dataset()
+                self.flush()
 
     def _register_dataset(self):
         if not self.__dict__["org_id"]:
@@ -1996,21 +2062,22 @@ class Dataset:
                 storage.next_storage.enable_readonly()
             self._unlock()
         else:
-            try:
-                locked = self._lock(err=err)
-                if locked:
-                    self.storage.disable_readonly()
-                    if (
-                        isinstance(storage, LRUCache)
-                        and storage.next_storage is not None
-                    ):
-                        storage.next_storage.disable_readonly()
-                else:
+            if storage.deeplog.log_format() < 4:
+                try:
+                    locked = self._lock(err=err)
+                    if locked:
+                        self.storage.disable_readonly()
+                        if (
+                            isinstance(storage, LRUCache)
+                            and storage.next_storage is not None
+                        ):
+                            storage.next_storage.disable_readonly()
+                    else:
+                        self.__dict__["_read_only"] = True
+                except LockedException as e:
                     self.__dict__["_read_only"] = True
-            except LockedException as e:
-                self.__dict__["_read_only"] = True
-                if err:
-                    raise e
+                    if err:
+                        raise e
 
     @read_only.setter
     @invalid_view_op
@@ -2500,7 +2567,7 @@ class Dataset:
         self.storage.flush()
 
     def _flush_vc_info(self):
-        if self._vc_info_updated:
+        if self.deeplog.log_format() < 4 and self._vc_info_updated:
             save_version_info(self.version_state, self.storage)
             for node in self.version_state["commit_node_map"].values():
                 if node._info_updated:

@@ -1,6 +1,7 @@
 import deeplake
 from deeplake.core.linked_chunk_engine import LinkedChunkEngine
 from deeplake.core.storage.lru_cache import LRUCache
+from deeplake.deeplog.adapters import get_tensor_metadata, parse_commit_id
 from deeplake.util.downsample import apply_partial_downsample
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.core.version_control.commit_chunk_map import CommitChunkMap
@@ -35,6 +36,7 @@ from deeplake.util.keys import (
     get_sample_id_tensor_key,
     get_sample_info_tensor_key,
     get_sample_shape_tensor_key,
+    tensor_exists_in_log,
 )
 from deeplake.util.modified import get_modified_indexes
 from deeplake.util.class_label import convert_to_text
@@ -65,11 +67,20 @@ from deeplake.util.object_3d.mesh import (
     parse_mesh_to_dict,
     get_mesh_vertices,
 )
-from deeplake.util.htype import parse_complex_htype
+from deeplake.deeplog.actions import CreateTensorAction
+from deeplake.deeplog import DeepLogSnapshot, OptimisticTransaction, atomic
+from deeplake.deeplog.adapters import parse_commit_id, to_commit_id
+
 from deeplake.htype import (
-    HTYPE_CONVERSION_LHS,
-    HTYPE_CONSTRAINTS,
     HTYPE_SUPPORTED_COMPRESSIONS,
+    HTYPE_CONSTRAINTS,
+    HTYPE_CONVERSION_LHS,
+)
+from deeplake.util.htype import parse_complex_htype
+from deeplake.htype import htype as HTYPE
+from deeplake.core.meta.tensor_meta import (
+    validate_and_process_kwargs,
+    _required_meta_from_htype,
 )
 import warnings
 import webbrowser
@@ -107,24 +118,48 @@ def create_tensor(
     commit_id = version_state["commit_id"]
     if not overwrite and tensor_exists(key, storage, commit_id):
         raise TensorAlreadyExistsError(key)
-
-    meta_key = get_tensor_meta_key(key, commit_id)
-    meta = TensorMeta(
-        htype=htype,
+    tensor_options = dict(
         sample_compression=sample_compression,
         chunk_compression=chunk_compression,
         **kwargs,
     )
-    storage[meta_key] = meta  # type: ignore
 
-    if commit_id != FIRST_COMMIT_ID:
-        cmap_key = get_tensor_commit_chunk_map_key(key, commit_id)
-        cmap = CommitChunkMap()
-        storage[cmap_key] = cmap  # type: ignore
+    if storage.deeplog.log_format() < 4:
+        meta_key = get_tensor_meta_key(key, commit_id)
+        meta = TensorMeta(htype=htype, **tensor_options)
+        storage[meta_key] = meta  # type: ignore
 
-    diff_key = get_tensor_commit_diff_key(key, commit_id)
-    diff = CommitDiff(created=True)
-    storage[diff_key] = diff  # type: ignore
+        if commit_id != FIRST_COMMIT_ID:
+            cmap_key = get_tensor_commit_chunk_map_key(key, commit_id)
+            cmap = CommitChunkMap()
+            storage[cmap_key] = cmap  # type: ignore
+
+        diff_key = get_tensor_commit_diff_key(key, commit_id)
+        diff = CommitDiff(created=True)
+        storage[diff_key] = diff  # type: ignore
+    else:
+        if htype in (None, UNSPECIFIED):
+            htype = HTYPE.DEFAULT
+        validate_and_process_kwargs(htype, tensor_options)
+
+        required_meta = _required_meta_from_htype(htype)
+        info_keys = required_meta.pop("_info", [])
+        for info_key in info_keys:
+            required_meta.pop(info_key)
+        required_meta.update(tensor_options)
+        if not required_meta.get("links"):
+            required_meta["links"] = {}
+        required_meta["version"] = deeplake.__version__
+
+        deeplog = storage.deeplog
+        branch_id, branch_version = parse_commit_id(commit_id)
+        snapshot = DeepLogSnapshot(branch_id, branch_version, deeplog)
+        transaction = OptimisticTransaction(snapshot)
+        transaction.add(CreateTensorAction(id=key, name=key, **required_meta))
+        transaction.commit()
+        version_state["commit_id"] = to_commit_id(
+            branch_id, deeplog.version(branch_id)
+        )  # TODO: have a function to update version_state on any update
 
 
 def delete_tensor(key: str, dataset):
@@ -220,7 +255,7 @@ class Tensor:
     def __init__(
         self,
         key: str,
-        dataset,
+        dataset: "deeplake.core.dataset.Dataset",
         index: Optional[Index] = None,
         is_iteration: bool = False,
         chunk_engine: Optional[ChunkEngine] = None,
@@ -251,13 +286,31 @@ class Tensor:
         self.is_iteration = is_iteration
         commit_id = self.version_state["commit_id"]
 
-        if not self.is_iteration and not tensor_exists(
-            self.key, self.storage, commit_id
-        ):
-            raise TensorDoesNotExistError(self.key)
+        if dataset.storage.deeplog.log_format() < 4:
+            if not self.is_iteration and not tensor_exists(
+                self.key, self.storage, commit_id
+            ):
+                raise TensorDoesNotExistError(self.key)
 
-        meta_key = get_tensor_meta_key(self.key, commit_id)
-        meta = self.storage.get_deeplake_object(meta_key, TensorMeta)
+            meta_key = get_tensor_meta_key(self.key, commit_id)
+            meta = self.storage.get_deeplake_object(meta_key, TensorMeta)
+        else:
+            branch_id, branch_version = parse_commit_id(commit_id)
+            if not self.is_iteration and not tensor_exists_in_log(
+                dataset.storage.deeplog,
+                self.key,
+                branch_id,
+                branch_version,
+            ):
+                raise TensorDoesNotExistError(self.key)
+
+            meta = get_tensor_metadata(
+                self.key,
+                dataset.storage.deeplog,
+                branch_id,
+                branch_version,
+            )
+
         if chunk_engine is not None:
             self.chunk_engine = chunk_engine
         elif meta.is_link:
@@ -289,6 +342,7 @@ class Tensor:
             ].chunk_engine
 
     @invalid_view_op
+    @atomic
     def extend(
         self,
         samples: Union[np.ndarray, Sequence[InputSample], "Tensor"],
@@ -396,6 +450,7 @@ class Tensor:
             raise TypeError("Info must be set with type Dict")
 
     @invalid_view_op
+    @atomic
     def append(self, sample: InputSample):
         """Appends a single sample to the end of the tensor. Can be an array, scalar value, or the return value from :func:`deeplake.read`,
         which can be used to load files. See examples down below.
