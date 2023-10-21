@@ -74,7 +74,7 @@ Deep Lake datasets are instantly visualized with bounding boxes, masks, annotati
 
 ## 🚀 Performance
 
-Deep Lake's efficient enterprise dataloaders built in C++ speeds up data streaming by >2x compared to Hub 2.x (Ofeidis et al. 2022, Hambardzumyan et al. 2023)
+Deep Lake's parformant dataloader built in C++ speeds up data streaming by >2x compared to Hub 2.x (Ofeidis et al. 2022, Hambardzumyan et al. 2023)
 
 <div align="center">
 <a href="https://arxiv.org/pdf/2209.10785.pdf"><img src="docs/source/_static/img/benchmarks.png" type="image"></a>
@@ -86,10 +86,6 @@ Deep Lake's efficient enterprise dataloaders built in C++ speeds up data streami
 Deep Lake can be installed using pip:
 ```sh
 pip3 install deeplake
-```
-Optimized C++ implementations of Deep Lake's query engine and dataloaders can be installed using: 
-```sh
-pip3 install "deeplake[enterprise]"
 ```
 **By default, Deep Lake does not install dependencies for audio, video, google-cloud, and other features. Details on all installation options are [available here](https://docs.deeplake.ai/en/latest/Installation.html).**
 
