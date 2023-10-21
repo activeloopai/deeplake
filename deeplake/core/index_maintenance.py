@@ -246,7 +246,7 @@ def index_operation_vectorstore(
 ):
     index_operation_type = index_operation_type_vectorstore(
         self,
-        len(rowids),
+        len(rowids) if rowids is not None else 0,
         index_regeneration=index_regeneration,
         index_delete=index_delete,
     )
