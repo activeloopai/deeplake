@@ -169,8 +169,6 @@ def index_operation_type_dataset(
     else:
         return INDEX_OP_TYPE.REGENERATE_INDEX
 
-    return INDEX_OP_TYPE.NOOP
-
 
 def get_index_metric(metric):
     if metric not in METRIC_TO_INDEX_METRIC:
