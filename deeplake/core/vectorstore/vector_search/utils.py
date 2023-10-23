@@ -557,4 +557,3 @@ def is_embedding_tensor(tensor):
         or tensor.meta.name in valid_names
         or tensor.key in valid_names
     )
-

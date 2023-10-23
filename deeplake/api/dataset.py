@@ -255,7 +255,7 @@ class dataset:
             "verbose": verbose,
             "lock_timeout": lock_timeout,
             "lock_enabled": lock_enabled,
-            "index_params" : index_params
+            "index_params": index_params,
         }
 
         if access_method == "stream":
@@ -606,7 +606,11 @@ class dataset:
             feature_report_path(
                 path,
                 "load",
-                {"lock_enabled": lock_enabled, "lock_timeout": lock_timeout, "index_params": index_params},
+                {
+                    "lock_enabled": lock_enabled,
+                    "lock_timeout": lock_timeout,
+                    "index_params": index_params,
+                },
                 token=token,
             )
         except Exception as e:

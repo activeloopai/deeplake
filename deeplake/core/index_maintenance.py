@@ -149,7 +149,6 @@ def index_operation_type_vectorstore(
 def index_operation_type_dataset(
     self, changed_data_len, index_regeneration, index_delete=False
 ):
-
     if not index_exists(self):
         if self.index_params is None:
             return INDEX_OP_TYPE.NOOP

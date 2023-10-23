@@ -607,7 +607,7 @@ class Dataset:
         if isinstance(tensor, Dataset):
             raise TypeError("Tensor groups do not support item assignment")
         tensor.index = Index()
-        tensor[self.index] = value
+        tensor._update(self.index, value)
 
     @invalid_view_op
     def create_tensor(
@@ -3088,11 +3088,11 @@ class Dataset:
                     num_chunks = enc.num_chunks
                     num_samples = tensor.meta.length
                     if extend:
-                        tensor.extend(v)
+                        tensor._extend(v)
                         if extend_extra_nones:
-                            tensor.extend([None] * extend_extra_nones)
+                            tensor._extend([None] * extend_extra_nones)
                     else:
-                        tensor.append(v)
+                        tensor._append(v)
                     tensors_appended.append(k)
                 except Exception as e:
                     if extend:
@@ -4616,19 +4616,8 @@ class Dataset:
     def _disable_padding(self):
         self._pad_tensors = False
 
-    @invalid_view_op
-    def pop(self, index: Optional[int] = None):
-        """
-        Removes a sample from all the tensors of the dataset.
-        For any tensor if the index >= len(tensor), the sample won't be popped from it.
-
-        Args:
-            index (int, Optional): The index of the sample to be removed. If it is ``None``, the index becomes the ``length of the longest tensor - 1``.
-
-        Raises:
-            IndexError: If the index is out of range.
-        """
-        max_len = max((t.num_samples for t in self.tensors.values()), default=0)
+    def _pop(self, index: Optional[int] = None):
+        max_len = self.max_len
         if max_len == 0:
             raise IndexError("Can't pop from empty dataset.")
 
@@ -4645,16 +4634,34 @@ class Dataset:
         with self:
             for tensor in self.tensors.values():
                 if tensor.num_samples > index:
-                    tensor.pop(index)
+                    tensor._pop(index)
+
+    @invalid_view_op
+    def pop(self, index: Optional[int] = None):
+        """
+        Removes a sample from all the tensors of the dataset.
+        For any tensor if the index >= len(tensor), the sample won't be popped from it.
+
+        Args:
+            index (int, Optional): The index of the sample to be removed. If it is ``None``, the index becomes the ``length of the longest tensor - 1``.
+
+        Raises:
+            IndexError: If the index is out of range.
+        """
+        self._pop(index)
+        row_ids = [index if index is not None else self.max_len - 1]
+        index_maintenance.index_operation_dataset(
+            self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=row_ids
+        )
 
     @invalid_view_op
     def pop_multiple(self, index: List[int], progressbar=False):
-        index = sorted(index, reverse=True)
+        rev_index = sorted(index, reverse=True)
         if progressbar:
-            index = tqdm(index)
+            rev_index = tqdm(rev_index)
         with self:
-            for i in index:
-                self.pop(i)
+            for i in rev_index:
+                self._pop(i)
 
         index_maintenance.index_operation_dataset(
             self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=index
