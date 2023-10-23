@@ -280,11 +280,6 @@ def get_results(
     progress = response["progress"]
     for progress_key, progress_value in progress.items():
         if progress_key == BEST_RECALL:
-            curr_recall, curr_improvement = progress_value.split("%")[:2]
-
-            recall = recall or curr_recall
-            improvement = improvement or curr_improvement
-
             if "(" not in improvement:
                 improvement = f"(+{improvement}%)"
 

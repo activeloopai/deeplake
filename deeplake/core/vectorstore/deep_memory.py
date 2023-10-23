@@ -6,8 +6,15 @@ import numpy as np
 
 import deeplake
 from deeplake.enterprise.dataloader import indra_available
-from deeplake.constants import DEFAULT_QUERIES_VECTORSTORE_TENSORS
+from deeplake.util.remove_cache import get_base_storage
+from deeplake.constants import (
+    DEFAULT_QUERIES_VECTORSTORE_TENSORS,
+    DEFAULT_MEMORY_CACHE_SIZE,
+    DEFAULT_LOCAL_CACHE_SIZE,
+)
+from deeplake.util.storage import get_storage_and_cache_chain
 from deeplake.core.dataset import Dataset
+from deeplake.core.dataset.deeplake_cloud_dataset import DeepLakeCloudDataset
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from deeplake.client.client import DeepMemoryBackendClient
 from deeplake.client.utils import JobResponseStatusSchema
@@ -15,6 +22,7 @@ from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
 from deeplake.util.path import get_path_type
+from deeplake.util.version_control import load_meta
 
 
 class DeepMemory:
@@ -206,9 +214,22 @@ class DeepMemory:
             },
             token=self.token,
         )
+
+        _, storage = get_storage_and_cache_chain(
+            path=self.dataset.path,
+            db_engine={"tensor_db": True},
+            read_only=False,
+            creds=self.creds,
+            token=self.dataset.token,
+            memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
+            local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
+        )
+
+        loaded_dataset = DeepLakeCloudDataset(storage=storage)
+
         try:
             recall, improvement = _get_best_model(
-                self.dataset.embedding, job_id, latest_job=True
+                loaded_dataset.embedding, job_id, latest_job=True
             )
 
             recall = "{:.2f}".format(100 * recall)
@@ -228,6 +249,17 @@ class DeepMemory:
             },
             token=self.token,
         )
+        _, storage = get_storage_and_cache_chain(
+            path=self.dataset.path,
+            db_engine={"tensor_db": True},
+            read_only=False,
+            creds=self.creds,
+            token=self.dataset.token,
+            memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
+            local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
+        )
+        loaded_dataset = DeepLakeCloudDataset(storage=storage)
+
         response = self.client.list_jobs(
             dataset_path=self.dataset.path,
         )
@@ -243,7 +275,7 @@ class DeepMemory:
         for job in jobs:
             try:
                 recall, delta = _get_best_model(
-                    self.dataset.embedding,
+                    loaded_dataset.embedding,
                     job,
                     latest_job=job == latest_job,
                 )
