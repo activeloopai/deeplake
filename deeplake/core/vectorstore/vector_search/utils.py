@@ -1,11 +1,15 @@
+import functools
+import time
+import types
 from abc import ABC, abstractmethod
 
-from deeplake.constants import MB, DEFAULT_VECTORSTORE_INDEX_PARAMS
+from deeplake.constants import MB, DEFAULT_VECTORSTORE_INDEX_PARAMS, TARGET_BYTE_SIZE
 from deeplake.enterprise.util import raise_indra_installation_error
 from deeplake.util.exceptions import TensorDoesNotExistError
 from deeplake.util.warnings import always_warn
 from deeplake.client.utils import read_token
 from deeplake.core.dataset import DeepLakeCloudDataset, Dataset
+from deeplake.core.vectorstore.embedder import DeepLakeEmbedder
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.util.path import get_path_type
 
@@ -14,7 +18,7 @@ import numpy as np
 import jwt
 import random
 import string
-from typing import Optional, List, Dict, Callable
+from typing import Optional, List, Dict
 
 EXEC_OPTION_TO_RUNTIME: Dict[str, Optional[Dict]] = {
     "compute_engine": None,
@@ -273,7 +277,12 @@ def get_embedding_tensor(embedding_tensor, embedding_source_tensor, dataset):
     return embedding_tensor
 
 
-def parse_tensors_kwargs(tensors, embedding_function, embedding_data, embedding_tensor):
+def parse_tensors_kwargs(
+    tensors,
+    embedding_function,
+    embedding_data,
+    embedding_tensor,
+):
     tensors = tensors.copy()
 
     # embedding_tensor = (embedding_function, embedding_data) syntax
@@ -306,11 +315,18 @@ def parse_tensors_kwargs(tensors, embedding_function, embedding_data, embedding_
                 "Cannot specify embedding tensors in both `tensors` and `embedding_tensor`."
             )
     else:
+        if isinstance(embedding_function, list):
+            embedding_function = [
+                create_embedding_function(fn_i) for fn_i in embedding_function
+            ]
+        else:
+            embedding_function = create_embedding_function(embedding_function)
         return embedding_function, embedding_data, embedding_tensor, tensors
 
     # separate embedding functions, data and tensors
     for k, v in filtered.items():
-        funcs.append(v[0])
+        func = create_embedding_function(v[0])
+        funcs.append(func)
         data.append(v[1])
         tensors_.append(k)
         # remove embedding tensors (tuple format) from tensors
@@ -352,10 +368,33 @@ def parse_update_arguments(
             "While single `embedding_tensor` was given. "
         )
 
+    if isinstance(embedding_function, list):
+        embedding_function = [
+            DeepLakeEmbedder(embedding_function=fn) for fn in embedding_function
+        ]
+    elif isinstance(
+        embedding_function,
+        (types.MethodType, types.FunctionType, types.LambdaType, functools.partial),
+    ):
+        embedding_function = DeepLakeEmbedder(embedding_function=embedding_function)
+    elif embedding_function is not None:
+        raise ValueError(
+            "Invalid `embedding_function` type. It should be either a function or a list of functions."
+        )
+
     final_embedding_function = embedding_function or initial_embedding_function
 
-    if isinstance(embedding_tensor, list) and callable(final_embedding_function):
+    if isinstance(embedding_tensor, list) and not isinstance(
+        final_embedding_function, list
+    ):
         final_embedding_function = [final_embedding_function] * len(embedding_tensor)
+
+    if isinstance(final_embedding_function, list):
+        final_embedding_function = [
+            fn.embed_documents for fn in final_embedding_function
+        ]
+    else:
+        final_embedding_function = final_embedding_function.embed_documents
 
     if isinstance(embedding_tensor, list) and isinstance(embedding_source_tensor, list):
         assert len(embedding_tensor) == len(embedding_source_tensor), (
@@ -418,7 +457,12 @@ def parse_add_arguments(
             tensors,
             dataset,
         )
-        return (embedding_function, embedding_data, embedding_tensor, tensors)
+        return (
+            [fn.embed_documents for fn in embedding_function],
+            embedding_data,
+            embedding_tensor,
+            tensors,
+        )
 
     if initial_embedding_function:
         if not embedding_data:
@@ -435,7 +479,12 @@ def parse_add_arguments(
             tensors,
             dataset,
         )
-        return (initial_embedding_function, embedding_data, embedding_tensor, tensors)
+        return (
+            [fn.embed_documents for fn in initial_embedding_function],
+            embedding_data,
+            embedding_tensor,
+            tensors,
+        )
 
     if embedding_tensor:
         raise ValueError(
@@ -562,3 +611,11 @@ def is_embedding_tensor(tensor):
 def index_used(exec_option):
     """Check if the index is used for the exec_option"""
     return exec_option in ("tensor_db", "compute_engine")
+
+
+def create_embedding_function(embedding_function):
+    if embedding_function:
+        return DeepLakeEmbedder(
+            embedding_function=embedding_function,
+        )
+    return None

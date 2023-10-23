@@ -17,6 +17,7 @@ from deeplake.constants import (
     VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE,
     MAX_BYTES_PER_MINUTE,
     TARGET_BYTE_SIZE,
+    VECTORSTORE_EXTEND_BATCH_SIZE,
 )
 from deeplake.util.exceptions import IncorrectEmbeddingShapeError
 
@@ -268,7 +269,7 @@ def get_embedding(embedding, embedding_data, embedding_function=None):
         if len(embedding_data) > 1:
             raise NotImplementedError("Searching batched queries is not supported yet.")
 
-        embedding = embedding_function(embedding_data)  # type: ignore
+        embedding = embedding_function.embed_query(embedding_data)  # type: ignore
 
     if embedding is not None and (
         isinstance(embedding, list) or embedding.dtype != "float32"
@@ -412,9 +413,9 @@ def extend(
     embedding_tensor: Union[str, List[str]],
     processed_tensors: Dict[str, Union[List[Any], np.ndarray]],
     dataset: deeplake.core.dataset.Dataset,
-    batch_byte_size: int,
     rate_limiter: Dict,
     index_regeneration: bool = False,
+    _extend_batch_size: int = VECTORSTORE_EXTEND_BATCH_SIZE,
 ):
     """
     Function to extend the dataset with new data.
@@ -425,7 +426,6 @@ def extend(
         embedding_tensor (Union[str, List[str]]): Name of the tensor(s) to store the embedding data.
         processed_tensors (Dict[str, List[Any]]): Dictionary of tensors to be added to the dataset.
         dataset (deeplake.core.dataset.Dataset): Dataset to be extended.
-        batch_byte_size (int): Batch size to use for parallel ingestion.
         rate_limiter (Dict): Rate limiter configuration.
         index_regeneration (bool): Denotes if index will be regenerated or not.
 
@@ -435,33 +435,48 @@ def extend(
 
 
     """
+    if embedding_data and not isinstance(embedding_data[0], list):
+        embedding_data = [embedding_data]
+
     if embedding_function:
-        for func, data, tensor in zip(
-            embedding_function, embedding_data, embedding_tensor
+        for idx in tqdm(
+            range(0, len(embedding_data[0]), _extend_batch_size), "creating embeddings"
         ):
-            data_iterator = data_iteratot_factory(
-                data, func, batch_byte_size, rate_limiter
-            )
-            embedded_data = []
+            batched_processed_tensors = {}
 
-            for data in tqdm(
-                data_iterator, total=len(data_iterator), desc="creating embeddings"
+            # computing batched embeddings
+            for func, data, tensor in zip(
+                embedding_function, embedding_data, embedding_tensor
             ):
-                embedded_data.append(data)
+                data_slice = data[idx : idx + _extend_batch_size]
+                embedded_data = func(data_slice, rate_limiter=rate_limiter)
+                try:
+                    return_embedded_data = np.vstack(embedded_data).astype(
+                        dtype=np.float32
+                    )
+                except ValueError:
+                    raise IncorrectEmbeddingShapeError()
 
-            try:
-                return_embedded_data = np.vstack(embedded_data).astype(dtype=np.float32)
-            except ValueError:
-                raise IncorrectEmbeddingShapeError()
+                if len(return_embedded_data) == 0:
+                    raise ValueError("embedding function returned empty list")
+                batched_processed_tensors[tensor] = return_embedded_data
 
-            if len(return_embedded_data) == 0:
-                raise ValueError("embedding function returned empty list")
+            # slicing other tensors:
+            for tensor_name, tensor_data in processed_tensors.items():
+                if tensor_name not in embedding_tensor:
+                    batched_processed_tensors[tensor_name] = tensor_data[  # type: ignore
+                        idx : idx + _extend_batch_size
+                    ]
 
-            processed_tensors[tensor] = return_embedded_data
-
-    dataset.extend(
-        processed_tensors, progressbar=True, index_regeneration=index_regeneration
-    )
+            dataset.extend(
+                batched_processed_tensors,
+                index_regeneration=index_regeneration,
+            )
+    else:
+        dataset.extend(
+            processed_tensors,
+            index_regeneration=index_regeneration,
+        )
 
 
 class DataIterator:
@@ -537,7 +552,6 @@ def extend_or_ingest_dataset(
     embedding_function,
     embedding_tensor,
     embedding_data,
-    batch_byte_size,
     rate_limiter,
     index_regeneration=False,
 ):
@@ -548,7 +562,6 @@ def extend_or_ingest_dataset(
         embedding_tensor,
         processed_tensors,
         dataset,
-        batch_byte_size,
         rate_limiter,
         index_regeneration=index_regeneration,
     )

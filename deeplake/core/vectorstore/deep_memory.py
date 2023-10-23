@@ -7,15 +7,24 @@ import numpy as np
 
 import deeplake
 from deeplake.enterprise.dataloader import indra_available
-from deeplake.constants import DEFAULT_QUERIES_VECTORSTORE_TENSORS
+from deeplake.util.remove_cache import get_base_storage
+from deeplake.constants import (
+    DEFAULT_QUERIES_VECTORSTORE_TENSORS,
+    DEFAULT_MEMORY_CACHE_SIZE,
+    DEFAULT_LOCAL_CACHE_SIZE,
+)
+from deeplake.util.storage import get_storage_and_cache_chain
 from deeplake.core.dataset import Dataset
+from deeplake.core.dataset.deeplake_cloud_dataset import DeepLakeCloudDataset
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from deeplake.client.client import DeepMemoryBackendClient
 from deeplake.client.utils import JobResponseStatusSchema
 from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
+from deeplake.util.dataset import try_flushing
 from deeplake.util.path import get_path_type
+from deeplake.util.version_control import load_meta
 
 
 class DeepMemory:
@@ -115,7 +124,6 @@ class DeepMemory:
             path=queries_path,
             overwrite=True,
             runtime=runtime,
-            embedding_function=embedding_function,
             token=token or self.token,
             creds=self.creds,
         )
@@ -126,6 +134,7 @@ class DeepMemory:
                 {"relevance": relevance_per_doc} for relevance_per_doc in relevance
             ],
             embedding_data=[query for query in queries],
+            embedding_function=embedding_function,
         )
 
         # do some rest_api calls to train the model
@@ -207,9 +216,22 @@ class DeepMemory:
             },
             token=self.token,
         )
+
+        _, storage = get_storage_and_cache_chain(
+            path=self.dataset.path,
+            db_engine={"tensor_db": True},
+            read_only=False,
+            creds=self.creds,
+            token=self.dataset.token,
+            memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
+            local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
+        )
+
+        loaded_dataset = DeepLakeCloudDataset(storage=storage)
+
         try:
             recall, improvement = _get_best_model(
-                self.dataset.embedding, job_id, latest_job=True
+                loaded_dataset.embedding, job_id, latest_job=True
             )
 
             recall = "{:.2f}".format(100 * recall)
@@ -229,6 +251,17 @@ class DeepMemory:
             },
             token=self.token,
         )
+        _, storage = get_storage_and_cache_chain(
+            path=self.dataset.path,
+            db_engine={"tensor_db": True},
+            read_only=False,
+            creds=self.creds,
+            token=self.dataset.token,
+            memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
+            local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
+        )
+        loaded_dataset = DeepLakeCloudDataset(storage=storage)
+
         response = self.client.list_jobs(
             dataset_path=self.dataset.path,
         )
@@ -244,7 +277,7 @@ class DeepMemory:
         for job in jobs:
             try:
                 recall, delta = _get_best_model(
-                    self.dataset.embedding,
+                    loaded_dataset.embedding,
                     job,
                     latest_job=job == latest_job,
                 )
@@ -353,6 +386,7 @@ class DeepMemory:
             },
             token=self.token,
         )
+        try_flushing(self.dataset)
         try:
             from indra import api  # type: ignore
 
@@ -374,9 +408,10 @@ class DeepMemory:
 
         start = time()
         query_embs: Union[List[np.ndarray], List[List[float]]]
+
         if embedding is not None:
             query_embs = embedding
-        elif embedding is None:
+        else:
             if self.embedding_function is not None:
                 embedding_function = (
                     embedding_function or self.embedding_function.embed_documents
