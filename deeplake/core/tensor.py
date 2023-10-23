@@ -800,7 +800,7 @@ class Tensor:
             row_index = self.index[Index(item)]
             row_ids = list(row_index.values[0].indices(self.num_samples))
             index_maintenance.index_operation_dataset(
-                self,
+                self.dataset,
                 dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
                 rowids=row_ids,
             )
@@ -1171,7 +1171,7 @@ class Tensor:
         if index_maintenance.is_embedding_tensor(self):
             row_ids = [index if index is not None else self.num_samples - 1]
             index_maintenance.index_operation_dataset(
-                self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=row_ids
+                self.dataset, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=row_ids
             )
 
     def _pop_links(self, global_sample_index: int):

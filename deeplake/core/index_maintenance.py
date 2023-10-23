@@ -147,9 +147,8 @@ def index_operation_type_vectorstore(
 
 
 def index_operation_type_dataset(
-    self, changed_data_len, index_regeneration, index_delete=False
+    self, num_rows, changed_data_len, index_regeneration, index_delete=False
 ):
-    num_rows = self.embedding.chunk_engine.num_samples
     if not index_exists(self):
         if self.index_params is None:
             return INDEX_OP_TYPE.NOOP
@@ -285,6 +284,7 @@ def index_operation_dataset(
 
     index_operation_type = index_operation_type_dataset(
         self,
+        emb_tensor.chunk_engine.num_samples,
         len(rowids),
         index_regeneration=index_regeneration,
         index_delete=index_delete,
