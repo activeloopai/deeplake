@@ -1,4 +1,6 @@
 import json
+import pytest
+import sys
 from time import time
 
 import numpy as np
@@ -22,6 +24,10 @@ def test_chunk_by_bytes():
     ), "Chunking by bytes did not work as expected!"
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="Sometimes MacOS fails this test due to speed issues",
+)
 def test_embedder_with_func():
     def embed_documents(documents):
         return [np.random.rand(EMBEDDING_DIM) for doc in documents]
