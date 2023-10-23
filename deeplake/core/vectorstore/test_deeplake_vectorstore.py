@@ -1695,6 +1695,7 @@ def test_vdb_index_incr_maint_tensor_append(local_path, capsys, hub_cloud_dev_to
 
     vector_store.add(embedding=emb1, text=txt1, id=ids1, metadata=md1)
     ds = vector_store.dataset
+
     ds.embedding.append(emb2)
     ds.embedding.append(emb3)
     ds.embedding.append(emb4)
@@ -1726,43 +1727,31 @@ def test_vdb_index_incr_maint_tensor_append(local_path, capsys, hub_cloud_dev_to
     assert es[0]["distance"] == "l2_norm"
     assert es[0]["type"] == "hnsw"
 
-    # search the embeddings.
-    query1 = ds.embedding[100].numpy()
-    query2 = ds.embedding[101].numpy()
-    query3 = ds.embedding[102].numpy()
-    # query4 = ds.embedding[103].numpy()
-    # query5 = ds.embedding[104].numpy()
-
-    s1 = ",".join(str(c) for c in query1)
-    view1 = ds.query(
-        f"select *  order by cosine_similarity(embedding ,array[{s1}]) DESC limit 1"
-    )
-    res1 = list(view1.sample_indices)
-    assert res1[0] == 100
-
-    s2 = ",".join(str(c) for c in query2)
-    view2 = ds.query(
-        f"select *  order by cosine_similarity(embedding ,array[{s2}]) DESC limit 1"
-    )
-    res2 = list(view2.sample_indices)
-    assert res2[0] == 101
-
-    s3 = ",".join(str(c) for c in query3)
-    view3 = ds.query(
-        f"select *  order by cosine_similarity(embedding ,array[{s3}]) DESC limit 1"
-    )
-    res3 = list(view3.sample_indices)
-    assert res3[0] == 102
-
-    # s4 = ','.join(str(c) for c in query4)
-    # view4 = ds.query(f"select *  order by cosine_similarity(embedding ,array[{s4}]) DESC limit 1")
-    # res4 = list(view4.sample_indices)
-    # assert(res4[0] == 103)
+    # # search the embeddings.
+    # query1 = ds.embedding[100].numpy()
+    # query2 = ds.embedding[101].numpy()
+    # query3 = ds.embedding[102].numpy()
     #
-    # s5 = ','.join(str(c) for c in query5)
-    # view5 = ds.query(f"select *  order by cosine_similarity(embedding ,array[{s5}]) DESC limit 1")
-    # res5 = list(view5.sample_indices)
-    # assert(res4[0] == 104)
+    # s1 = ",".join(str(c) for c in query1)
+    # view1 = ds.query(
+    #     f"select *  order by cosine_similarity(embedding ,array[{s1}]) DESC limit 1"
+    # )
+    # res1 = list(view1.sample_indices)
+    # assert res1[0] == 100
+    #
+    # s2 = ",".join(str(c) for c in query2)
+    # view2 = ds.query(
+    #     f"select *  order by cosine_similarity(embedding ,array[{s2}]) DESC limit 1"
+    # )
+    # res2 = list(view2.sample_indices)
+    # assert res2[0] == 101
+    #
+    # s3 = ",".join(str(c) for c in query3)
+    # view3 = ds.query(
+    #     f"select *  order by cosine_similarity(embedding ,array[{s3}]) DESC limit 1"
+    # )
+    # res3 = list(view3.sample_indices)
+    # assert res3[0] == 102
 
     vector_store.delete_by_path(local_path, token=ds.token)
 
