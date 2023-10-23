@@ -50,6 +50,17 @@ class DeepLakeEmbedder:
     ):
         self.embedding_function = embedding_function
 
+    def _get_embedding_func(self, default_func):
+        valid_function_types = (
+            types.MethodType,
+            types.FunctionType,
+            types.LambdaType,
+            functools.partial,
+        )
+        if isinstance(self.embedding_function, valid_function_types):
+            return self.embedding_function
+        return getattr(self.embedding_function, default_func)
+
     def embed_documents(
         self,
         documents: List[str],
@@ -59,28 +70,14 @@ class DeepLakeEmbedder:
             "batch_byte_size": TARGET_BYTE_SIZE,
         },
     ):
-        if isinstance(
-            self.embedding_function,
-            (types.MethodType, types.FunctionType, types.LambdaType, functools.partial),
-        ):
-            embedding_func = self.embedding_function
-        else:
-            embedding_func = self.embedding_function.embed_documents
+        embedding_func = self._get_embedding_func("embed_documents")
 
         if rate_limiter["enabled"]:
             return self._apply_rate_limiter(documents, embedding_func, rate_limiter)
         return embedding_func(documents)
 
-    def embed_query(
-        self,
-        query: str,
-    ):
-        if isinstance(
-            self.embedding_function,
-            (types.MethodType, types.FunctionType, types.LambdaType),
-        ):
-            return self.embedding_function(query)
-        return self.embedding_function.embed_query(query)
+    def embed_query(self, query: str):
+        return self._get_embedding_func("embed_query")(query)
 
     @staticmethod
     def _apply_rate_limiter(documents, embedding_function, rate_limiter):

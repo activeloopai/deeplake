@@ -496,73 +496,6 @@ def extend(
         dataset.extend(processed_tensors, index_regeneration=index_regeneration)
 
 
-class DataIterator:
-    def __init__(self, data, func, batch_byte_size):
-        self.data = chunk_by_bytes(data, batch_byte_size)
-        self.data_itr = iter(self.data)
-        self.index = 0
-        self.func = func
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self.index >= len(self.data):
-            raise StopIteration
-        batch = next(self.data_itr)
-        batch = self.func(batch)
-        self.index += 1
-        return batch
-
-    def __len__(self):
-        return len(self.data)
-
-
-class RateLimitedDataIterator:
-    def __init__(self, data, func, batch_byte_size, rate_limiter):
-        self.data = chunk_by_bytes(data, batch_byte_size)
-        self.data_iter = iter(self.data)
-        self.index = 0
-        self.rate_limiter = rate_limiter
-        self.bytes_per_minute = rate_limiter["bytes_per_minute"]
-        self.target_byte_size = batch_byte_size
-        self.func = func
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self.index >= len(self.data):
-            raise StopIteration
-        batch = next(self.data_iter)
-        self.index += 1
-        # Calculate the number of batches you can send each minute
-        batches_per_minute = self.bytes_per_minute / self.target_byte_size
-
-        # Calculate sleep time in seconds between batches
-        sleep_time = 60 / batches_per_minute
-
-        start = time.time()
-        batch = self.func(batch)
-        end = time.time()
-
-        # we need to take into account the time spent on openai call
-        diff = sleep_time - (end - start)
-        if diff > 0:
-            time.sleep(diff)
-        return batch
-
-    def __len__(self):
-        return len(self.data)
-
-
-def data_iteratot_factory(data, func, batch_byte_size, rate_limiter):
-    if rate_limiter["enabled"]:
-        return RateLimitedDataIterator(data, func, batch_byte_size, rate_limiter)
-    else:
-        return DataIterator(data, func, batch_byte_size)
-
-
 def extend_or_ingest_dataset(
     processed_tensors,
     dataset,
@@ -582,41 +515,6 @@ def extend_or_ingest_dataset(
         rate_limiter,
         index_regeneration=index_regeneration,
     )
-
-
-def chunk_by_bytes(data, target_byte_size=TARGET_BYTE_SIZE):
-    """
-    Splits a list of strings into chunks where each chunk has approximately the given target byte size.
-
-    Args:
-    - strings (list of str): List of strings to be chunked.
-    - target_byte_size (int): The target byte size for each chunk.
-
-    Returns:
-    - list of lists containing the chunked strings.
-    """
-    # Calculate byte sizes for all strings
-    sizes = [len(s.encode("utf-8")) for s in data]
-
-    chunks = []
-    current_chunk = []
-    current_chunk_size = 0
-    index = 0
-
-    while index < len(data):
-        if current_chunk_size + sizes[index] > target_byte_size:
-            chunks.append(current_chunk)
-            current_chunk = []
-            current_chunk_size = 0
-        current_chunk.append(data[index])
-        current_chunk_size += sizes[index]
-        index += 1
-
-    # Add the last chunk if it's not empty
-    if current_chunk:
-        chunks.append(current_chunk)
-
-    return chunks
 
 
 def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):
