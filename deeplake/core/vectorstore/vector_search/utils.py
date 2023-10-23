@@ -335,6 +335,54 @@ def parse_tensors_kwargs(
     return funcs, data, tensors_, tensors
 
 
+def _validate_embedding_functions(embedding_function, initial_embedding_function):
+    if embedding_function is None and initial_embedding_function is None:
+        raise ValueError(
+            "`embedding_function` was not specified during initialization of vector store or the update call"
+        )
+
+
+def _get_single_value_from_list(data):
+    if isinstance(data, list) and len(data) == 1:
+        return data[0]
+    return data
+
+
+def _validate_source_and_embedding_tensors(embedding_source_tensor, embedding_tensor):
+    if isinstance(embedding_source_tensor, str) and isinstance(embedding_tensor, list):
+        raise ValueError(
+            "Multiple `embedding_tensor` were specified while a single `embedding_source_tensor` was given."
+        )
+
+    if (
+        isinstance(embedding_source_tensor, list)
+        and len(embedding_source_tensor) > 1
+        and isinstance(embedding_tensor, str)
+    ):
+        raise ValueError(
+            "Multiple `embedding_source_tensor` were specified while a single `embedding_tensor` was given."
+        )
+
+
+def _convert_to_embedder_list(embedding_function):
+    if isinstance(embedding_function, list):
+        return [DeepLakeEmbedder(embedding_function=fn) for fn in embedding_function]
+
+    valid_function_types = (
+        types.MethodType,
+        types.FunctionType,
+        types.LambdaType,
+        functools.partial,
+    )
+    if isinstance(embedding_function, valid_function_types):
+        return DeepLakeEmbedder(embedding_function=embedding_function)
+
+    if embedding_function is not None:
+        raise ValueError(
+            "Invalid `embedding_function` type. It should be either a function or a list of functions."
+        )
+
+
 def parse_update_arguments(
     dataset,
     embedding_function=None,
@@ -342,46 +390,16 @@ def parse_update_arguments(
     embedding_source_tensor=None,
     embedding_tensor=None,
 ):
-    if embedding_function is None and initial_embedding_function is None:
-        raise ValueError(
-            "`embedding_function` was not specified during initialization of vector store or the update call"
-        )
+    _validate_embedding_functions(embedding_function, initial_embedding_function)
 
     embedding_tensor = get_embedding_tensor(
         embedding_tensor, embedding_source_tensor, dataset
     )
-    if isinstance(embedding_tensor, list) and len(embedding_tensor) == 1:
-        embedding_tensor = embedding_tensor[0]
+    embedding_tensor = _get_single_value_from_list(embedding_tensor)
 
-    if isinstance(embedding_source_tensor, str) and isinstance(embedding_tensor, list):
-        raise ValueError(
-            "Multiple `embedding_tensor` were specifed. "
-            "While single `embedding_source_tensor` was given. "
-        )
-    elif (
-        isinstance(embedding_source_tensor, list)
-        and len(embedding_source_tensor) > 1
-        and isinstance(embedding_tensor, str)
-    ):
-        raise ValueError(
-            "Multiple `embedding_source_tensor` were specifed. "
-            "While single `embedding_tensor` was given. "
-        )
+    _validate_source_and_embedding_tensors(embedding_source_tensor, embedding_tensor)
 
-    if isinstance(embedding_function, list):
-        embedding_function = [
-            DeepLakeEmbedder(embedding_function=fn) for fn in embedding_function
-        ]
-    elif isinstance(
-        embedding_function,
-        (types.MethodType, types.FunctionType, types.LambdaType, functools.partial),
-    ):
-        embedding_function = DeepLakeEmbedder(embedding_function=embedding_function)
-    elif embedding_function is not None:
-        raise ValueError(
-            "Invalid `embedding_function` type. It should be either a function or a list of functions."
-        )
-
+    embedding_function = _convert_to_embedder_list(embedding_function)
     final_embedding_function = embedding_function or initial_embedding_function
 
     if isinstance(embedding_tensor, list) and not isinstance(
