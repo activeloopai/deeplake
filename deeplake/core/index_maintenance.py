@@ -150,11 +150,12 @@ def index_operation_type_dataset(
     self, changed_data_len, index_regeneration, index_delete=False
 ):
 
+    num_rows = self.embedding.chunk_engine.num_samples
     if not index_exists(self):
         if self.index_params is None:
             return INDEX_OP_TYPE.NOOP
         threshold = self.index_params.get("threshold", -1)
-        below_threshold = threshold <= 0 or len(self) < threshold
+        below_threshold = threshold <= 0 or num_rows < threshold
         if not below_threshold:
             return INDEX_OP_TYPE.CREATE_INDEX
 
@@ -164,7 +165,7 @@ def index_operation_type_dataset(
     if index_delete:
         return INDEX_OP_TYPE.REMOVE_INDEX
 
-    if not index_regeneration and check_incr_threshold(len(self), changed_data_len):
+    if not index_regeneration and check_incr_threshold(num_rows, changed_data_len):
         return INDEX_OP_TYPE.INCREMENTAL_INDEX
     else:
         return INDEX_OP_TYPE.REGENERATE_INDEX
@@ -279,13 +280,16 @@ def index_operation_vectorstore(
 def index_operation_dataset(
     self, dml_type, rowids, index_regeneration: bool = False, index_delete: bool = False
 ):
+    emb_tensor = fetch_embedding_tensor(self)
+    if emb_tensor is None:
+        return
+
     index_operation_type = index_operation_type_dataset(
         self,
         len(rowids),
         index_regeneration=index_regeneration,
         index_delete=index_delete,
     )
-    emb_tensor = fetch_embedding_tensor(self)
 
     if index_operation_type == INDEX_OP_TYPE.NOOP:
         return
