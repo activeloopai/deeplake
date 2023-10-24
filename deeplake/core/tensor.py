@@ -1725,7 +1725,8 @@ class Tensor:
     def fetch_vdb_indexes(self) -> List[Dict[str, str]]:
         vdb_indexes = []
         if self.meta.htype == "embedding":
-            vdb_indexes.append(self.meta.vdb_indexes)
+            if (not self.meta.vdb_indexes is None) and len(self.meta.vdb_indexes) > 0:
+                vdb_indexes.extend(self.meta.vdb_indexes)
         return vdb_indexes
 
     def _check_compatibility_with_htype(self, htype):
