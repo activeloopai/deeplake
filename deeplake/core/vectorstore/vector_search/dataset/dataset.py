@@ -17,6 +17,7 @@ from deeplake.constants import (
     VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE,
     MAX_BYTES_PER_MINUTE,
     TARGET_BYTE_SIZE,
+    VECTORSTORE_EXTEND_BATCH_SIZE,
 )
 from deeplake.util.exceptions import IncorrectEmbeddingShapeError
 
@@ -268,7 +269,7 @@ def get_embedding(embedding, embedding_data, embedding_function=None):
         if len(embedding_data) > 1:
             raise NotImplementedError("Searching batched queries is not supported yet.")
 
-        embedding = embedding_function(embedding_data)  # type: ignore
+        embedding = embedding_function.embed_query(embedding_data)  # type: ignore
 
     if embedding is not None and (
         isinstance(embedding, list) or embedding.dtype != "float32"
@@ -406,129 +407,93 @@ def update_embedding_info(logger, dataset, embedding_function):
     set_embedding_info(dataset[embeddings_tensors[0]], embedding_function)
 
 
+def _compute_batched_embeddings(
+    embedding_function,
+    embedding_data,
+    embedding_tensor,
+    start_idx,
+    end_idx,
+    rate_limiter,
+):
+    """
+    Computes embeddings for a given slice of data.
+    """
+    batched_processed_tensors = {}
+
+    for func, data, tensor in zip(embedding_function, embedding_data, embedding_tensor):
+        data_slice = data[start_idx:end_idx]
+        embedded_data = func(data_slice, rate_limiter=rate_limiter)
+
+        try:
+            return_embedded_data = np.vstack(embedded_data).astype(dtype=np.float32)
+        except ValueError:
+            raise IncorrectEmbeddingShapeError()
+
+        if len(return_embedded_data) == 0:
+            raise ValueError("embedding function returned empty list")
+
+        batched_processed_tensors[tensor] = return_embedded_data
+
+    return batched_processed_tensors
+
+
+def _slice_non_embedding_tensors(
+    processed_tensors, embedding_tensor, start_idx, end_idx
+):
+    """
+    Slices tensors that are not embeddings for a given range.
+    """
+    batched_processed_tensors = {}
+
+    for tensor_name, tensor_data in processed_tensors.items():
+        if tensor_name not in embedding_tensor:
+            batched_processed_tensors[tensor_name] = tensor_data[start_idx:end_idx]
+
+    return batched_processed_tensors
+
+
 def extend(
     embedding_function: List[Callable],
     embedding_data: List[Any],
     embedding_tensor: Union[str, List[str]],
     processed_tensors: Dict[str, Union[List[Any], np.ndarray]],
     dataset: deeplake.core.dataset.Dataset,
-    batch_byte_size: int,
     rate_limiter: Dict,
     index_regeneration: bool = False,
+    _extend_batch_size: int = VECTORSTORE_EXTEND_BATCH_SIZE,
 ):
     """
     Function to extend the dataset with new data.
-
-    Args:
-        embedding_function (List[Callable]): List of embedding functions to be used to create embedding data.
-        embedding_data (List[Any]): List of data to be embedded.
-        embedding_tensor (Union[str, List[str]]): Name of the tensor(s) to store the embedding data.
-        processed_tensors (Dict[str, List[Any]]): Dictionary of tensors to be added to the dataset.
-        dataset (deeplake.core.dataset.Dataset): Dataset to be extended.
-        batch_byte_size (int): Batch size to use for parallel ingestion.
-        rate_limiter (Dict): Rate limiter configuration.
-        index_regeneration (bool): Denotes if index will be regenerated or not.
-
-    Raises:
-        IncorrectEmbeddingShapeError: If embeding function shapes is incorrect.
-        ValueError: If embedding function returned empty list
-
-
     """
+    if embedding_data and not isinstance(embedding_data[0], list):
+        embedding_data = [embedding_data]
+
     if embedding_function:
-        for func, data, tensor in zip(
-            embedding_function, embedding_data, embedding_tensor
+        for idx in tqdm(
+            range(0, len(embedding_data[0]), _extend_batch_size), "creating embeddings"
         ):
-            data_iterator = data_iteratot_factory(
-                data, func, batch_byte_size, rate_limiter
+            batch_start, batch_end = idx, idx + _extend_batch_size
+
+            batched_embeddings = _compute_batched_embeddings(
+                embedding_function,
+                embedding_data,
+                embedding_tensor,
+                batch_start,
+                batch_end,
+                rate_limiter,
             )
-            embedded_data = []
 
-            for data in tqdm(
-                data_iterator, total=len(data_iterator), desc="creating embeddings"
-            ):
-                embedded_data.append(data)
+            batched_tensors = _slice_non_embedding_tensors(
+                processed_tensors, embedding_tensor, batch_start, batch_end
+            )
 
-            try:
-                return_embedded_data = np.vstack(embedded_data).astype(dtype=np.float32)
-            except ValueError:
-                raise IncorrectEmbeddingShapeError()
+            batched_processed_tensors = {**batched_embeddings, **batched_tensors}
 
-            if len(return_embedded_data) == 0:
-                raise ValueError("embedding function returned empty list")
-
-            processed_tensors[tensor] = return_embedded_data
-
-    dataset.extend(
-        processed_tensors, progressbar=True, index_regeneration=index_regeneration
-    )
-
-
-class DataIterator:
-    def __init__(self, data, func, batch_byte_size):
-        self.data = chunk_by_bytes(data, batch_byte_size)
-        self.data_itr = iter(self.data)
-        self.index = 0
-        self.func = func
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self.index >= len(self.data):
-            raise StopIteration
-        batch = next(self.data_itr)
-        batch = self.func(batch)
-        self.index += 1
-        return batch
-
-    def __len__(self):
-        return len(self.data)
-
-
-class RateLimitedDataIterator:
-    def __init__(self, data, func, batch_byte_size, rate_limiter):
-        self.data = chunk_by_bytes(data, batch_byte_size)
-        self.data_iter = iter(self.data)
-        self.index = 0
-        self.rate_limiter = rate_limiter
-        self.bytes_per_minute = rate_limiter["bytes_per_minute"]
-        self.target_byte_size = batch_byte_size
-        self.func = func
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self.index >= len(self.data):
-            raise StopIteration
-        batch = next(self.data_iter)
-        self.index += 1
-        # Calculate the number of batches you can send each minute
-        batches_per_minute = self.bytes_per_minute / self.target_byte_size
-
-        # Calculate sleep time in seconds between batches
-        sleep_time = 60 / batches_per_minute
-
-        start = time.time()
-        batch = self.func(batch)
-        end = time.time()
-
-        # we need to take into account the time spent on openai call
-        diff = sleep_time - (end - start)
-        if diff > 0:
-            time.sleep(diff)
-        return batch
-
-    def __len__(self):
-        return len(self.data)
-
-
-def data_iteratot_factory(data, func, batch_byte_size, rate_limiter):
-    if rate_limiter["enabled"]:
-        return RateLimitedDataIterator(data, func, batch_byte_size, rate_limiter)
+            dataset.extend(
+                batched_processed_tensors, index_regeneration=index_regeneration
+            )
     else:
-        return DataIterator(data, func, batch_byte_size)
+        dataset.extend(processed_tensors, index_regeneration=index_regeneration)
 
 
 def extend_or_ingest_dataset(
@@ -537,7 +502,6 @@ def extend_or_ingest_dataset(
     embedding_function,
     embedding_tensor,
     embedding_data,
-    batch_byte_size,
     rate_limiter,
     index_regeneration=False,
 ):
@@ -548,45 +512,9 @@ def extend_or_ingest_dataset(
         embedding_tensor,
         processed_tensors,
         dataset,
-        batch_byte_size,
         rate_limiter,
         index_regeneration=index_regeneration,
     )
-
-
-def chunk_by_bytes(data, target_byte_size=TARGET_BYTE_SIZE):
-    """
-    Splits a list of strings into chunks where each chunk has approximately the given target byte size.
-
-    Args:
-    - strings (list of str): List of strings to be chunked.
-    - target_byte_size (int): The target byte size for each chunk.
-
-    Returns:
-    - list of lists containing the chunked strings.
-    """
-    # Calculate byte sizes for all strings
-    sizes = [len(s.encode("utf-8")) for s in data]
-
-    chunks = []
-    current_chunk = []
-    current_chunk_size = 0
-    index = 0
-
-    while index < len(data):
-        if current_chunk_size + sizes[index] > target_byte_size:
-            chunks.append(current_chunk)
-            current_chunk = []
-            current_chunk_size = 0
-        current_chunk.append(data[index])
-        current_chunk_size += sizes[index]
-        index += 1
-
-    # Add the last chunk if it's not empty
-    if current_chunk:
-        chunks.append(current_chunk)
-
-    return chunks
 
 
 def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):
