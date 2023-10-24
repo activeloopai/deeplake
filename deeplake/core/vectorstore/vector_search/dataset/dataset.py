@@ -459,7 +459,6 @@ def extend(
     processed_tensors: Dict[str, Union[List[Any], np.ndarray]],
     dataset: deeplake.core.dataset.Dataset,
     rate_limiter: Dict,
-    index_regeneration: bool = False,
     _extend_batch_size: int = VECTORSTORE_EXTEND_BATCH_SIZE,
 ):
     """
@@ -489,11 +488,9 @@ def extend(
 
             batched_processed_tensors = {**batched_embeddings, **batched_tensors}
 
-            dataset.extend(
-                batched_processed_tensors, index_regeneration=index_regeneration
-            )
+            dataset.extend(batched_processed_tensors)
     else:
-        dataset.extend(processed_tensors, index_regeneration=index_regeneration)
+        dataset.extend(processed_tensors)
 
 
 def extend_or_ingest_dataset(

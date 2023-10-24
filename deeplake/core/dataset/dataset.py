@@ -3016,7 +3016,6 @@ class Dataset:
             sample (dict): Dictionary with tensor names as keys and samples as values.
             skip_ok (bool): Skip tensors not in ``sample`` if set to ``True``.
             append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
-            index_regeneration (bool): VDB Index regeneration will occur by default.
 
         Raises:
             KeyError: If any tensor in the dataset is not a key in ``sample`` and ``skip_ok`` is ``False``.
@@ -3211,7 +3210,6 @@ class Dataset:
             sample (dict): Dictionary with tensor names as keys and samples as values.
             skip_ok (bool): Skip tensors not in ``sample`` if set to ``True``.
             append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
-            index_regeneration (bool): VDB Index regeneration will happen by default.
 
         Raises:
             KeyError: If any tensor in the dataset is not a key in ``sample`` and ``skip_ok`` is ``False``.
