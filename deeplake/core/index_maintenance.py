@@ -34,7 +34,7 @@ def is_embedding_tensor(tensor):
 def validate_embedding_tensor(tensor):
     """Check if a tensor is an embedding tensor."""
 
-    valid_names = ["embedding", "embeddings"]
+    valid_names = ["embedding"]
 
     return (
         tensor.htype == "embedding"
