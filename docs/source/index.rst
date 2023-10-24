@@ -37,7 +37,7 @@ Deep Lake is an open-source database for AI.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Enterprise Features
+   :caption: High-Performance Features
 
    Dataloader <Dataloader>
    Sampler <Sampler>
