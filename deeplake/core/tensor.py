@@ -1722,6 +1722,12 @@ class Tensor:
             raise Exception(f"Only supported for embedding tensors.")
         return self.meta.vdb_indexes
 
+    def fetch_vdb_indexes(self) -> List[Dict[str, str]]:
+        vdb_indexes = []
+        if self.meta.htype == "embedding":
+            vdb_indexes.append(self.meta.vdb_indexes)
+        return vdb_indexes
+
     def _check_compatibility_with_htype(self, htype):
         """Checks if the tensor is compatible with the given htype.
         Raises an error if not compatible.

@@ -55,7 +55,7 @@ def index_exists(dataset):
     """Check if the Index already exists."""
     emb_tensor = fetch_embedding_tensor(dataset)
     if emb_tensor is not None:
-        vdb_indexes = emb_tensor.get_vdb_indexes()
+        vdb_indexes = emb_tensor.fetch_vdb_indexes()
         if len(vdb_indexes) == 0:
             return False
         else:
