@@ -1184,7 +1184,7 @@ def test_update_embedding(
     vector_store.delete_by_path(path + "_multi", token=ds.token)
 
 
-# @requires_libdeeplake
+@requires_libdeeplake
 def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
     number_of_data = 1000
     texts, embeddings, ids, metadatas, _ = utils.create_data(
@@ -2264,6 +2264,7 @@ def test_parse_tensors_kwargs():
 
 
 @pytest.mark.slow
+@requires_libdeeplake
 def test_multiple_embeddings(local_path):
     vector_store = DeepLakeVectorStore(
         path=local_path,
