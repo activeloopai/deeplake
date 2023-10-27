@@ -1171,7 +1171,9 @@ class Tensor:
         if index_maintenance.is_embedding_tensor(self):
             row_ids = [index if index is not None else self.num_samples - 1]
             index_maintenance.index_operation_dataset(
-                self.dataset, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=row_ids
+                self.dataset,
+                dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
+                rowids=row_ids,
             )
 
     def _pop_links(self, global_sample_index: int):
@@ -1480,7 +1482,7 @@ class Tensor:
         id: str,
         distance: Union[DistanceType, str],
         operation_kind: int,
-        row_ids: List[int] = None,
+        row_ids: List[int] = [],
     ):
         self.storage.check_readonly()
         if self.meta.htype != "embedding":
@@ -1494,7 +1496,11 @@ class Tensor:
 
             ds = dataset_to_libdeeplake(self.dataset)
         ts = getattr(ds, self.meta.name)
-        from indra import api
+        from deeplake.enterprise.convert_to_libdeeplake import (
+            import_indra_api,
+        )
+
+        api = import_indra_api()
 
         commit_id = self.version_state["commit_id"]
         index_data = self.chunk_engine.base_storage[
@@ -1659,7 +1665,7 @@ class Tensor:
         except Exception as e:
             raise Exception(f"An error occurred while deleting VDB indexes: {e}")
 
-    def load_vdb_index(self, id: str, path: str = None):
+    def load_vdb_index(self, id: str, path: Optional[str] = None):
         if self.meta.htype != "embedding":
             raise Exception(f"Only supported for embedding tensors.")
         if not self.meta.contains_vdb_index(id):
