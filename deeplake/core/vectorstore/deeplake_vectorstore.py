@@ -489,7 +489,7 @@ class VectorStore:
             )
 
         if self.distance_metric_index:
-            distance_metric = index.parse_index_distance_metric_from_params(
+            distance_metric = index_maintenance.parse_index_distance_metric_from_params(
                 logger, self.distance_metric_index, distance_metric
             )
 

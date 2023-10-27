@@ -204,6 +204,7 @@ class Dataset:
             enabled_tensors (List[str], Optional): List of tensors that are enabled in this view. By default all tensors are enabled.
             view_base (Optional["Dataset"]): Base dataset of this view.
             libdeeplake_dataset : The libdeeplake dataset object corresponding to this dataset.
+            index_params: (Dict[str, Union[int, str]] Optional) VDB index parameter. Defaults to ``None.``
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
