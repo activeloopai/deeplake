@@ -321,7 +321,7 @@ DEFAULT_VECTORSTORE_DISTANCE_METRIC = "COS"
 DEFAULT_DEEPMEMORY_DISTANCE_METRIC = "deepmemory_distance"
 
 DEFAULT_VECTORSTORE_INDEX_PARAMS = {
-    "threshold": 100000,
+    "threshold": -1,
     "distance_metric": DEFAULT_VECTORSTORE_DISTANCE_METRIC,
     "additional_params": {
         "efConstruction": 600,
@@ -329,9 +329,3 @@ DEFAULT_VECTORSTORE_INDEX_PARAMS = {
     },
 }
 VECTORSTORE_EXTEND_BATCH_SIZE = 500
-
-_INDEX_OPERATION_MAPPING = {
-    "ADD": 1,
-    "REMOVE": 2,
-    "UPDATE": 3,
-}

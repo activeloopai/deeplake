@@ -154,7 +154,6 @@ def get_local_dataset(
     unlink,
     lock_timeout,
     lock_enabled,
-    index_params,
 ):
     local_path = get_local_storage_path(path, os.environ["DEEPLAKE_DOWNLOAD_PATH"])
     download = access_method == "download" or (
@@ -204,7 +203,6 @@ def get_local_dataset(
         reset=reset,
         lock_timeout=lock_timeout,
         lock_enabled=lock_enabled,
-        index_params=index_params,
     )
 
     storage = get_base_storage(ds.storage)

@@ -230,10 +230,10 @@ def delete_and_commit(dataset, ids):
     return True
 
 
-def delete_and_without_commit(dataset, ids, index_maintenance):
+def delete_and_without_commit(dataset, ids):
     with dataset:
         for id in sorted(ids)[::-1]:
-            dataset.pop(id, index_maintenance=index_maintenance)
+            dataset.pop(id)
 
 
 def delete_all_samples_if_specified(dataset, delete_all):
@@ -459,6 +459,7 @@ def extend(
     processed_tensors: Dict[str, Union[List[Any], np.ndarray]],
     dataset: deeplake.core.dataset.Dataset,
     rate_limiter: Dict,
+    index_regeneration: bool = False,
     _extend_batch_size: int = VECTORSTORE_EXTEND_BATCH_SIZE,
 ):
     """
@@ -488,9 +489,11 @@ def extend(
 
             batched_processed_tensors = {**batched_embeddings, **batched_tensors}
 
-            dataset.extend(batched_processed_tensors)
+            dataset.extend(
+                batched_processed_tensors, index_regeneration=index_regeneration
+            )
     else:
-        dataset.extend(processed_tensors)
+        dataset.extend(processed_tensors, index_regeneration=index_regeneration)
 
 
 def extend_or_ingest_dataset(
@@ -500,6 +503,7 @@ def extend_or_ingest_dataset(
     embedding_tensor,
     embedding_data,
     rate_limiter,
+    index_regeneration=False,
 ):
     # TODO: Add back the old logic with checkpointing after indexing is fixed
     extend(
@@ -509,6 +513,7 @@ def extend_or_ingest_dataset(
         processed_tensors,
         dataset,
         rate_limiter,
+        index_regeneration=index_regeneration,
     )
 
 

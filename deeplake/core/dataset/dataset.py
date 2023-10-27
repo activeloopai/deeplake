@@ -13,7 +13,6 @@ from time import time, sleep
 from tqdm import tqdm
 
 import deeplake
-from deeplake.core import index_maintenance
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
 from deeplake.core.sample import Sample
@@ -47,7 +46,6 @@ from deeplake.constants import (
     DEFAULT_READONLY,
     ENV_HUB_DEV_USERNAME,
     QUERY_MESSAGE_MAX_SIZE,
-    _INDEX_OPERATION_MAPPING,
 )
 from deeplake.core.fast_forwarding import ffw_dataset_meta
 from deeplake.core.index import Index
@@ -152,6 +150,7 @@ from itertools import chain
 import warnings
 import jwt
 
+
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider, AzureProvider, LocalProvider}
 
 
@@ -177,7 +176,6 @@ class Dataset:
         enabled_tensors: Optional[List[str]] = None,
         view_base: Optional["Dataset"] = None,
         libdeeplake_dataset=None,
-        index_params: Optional[Dict[str, Union[int, str]]] = None,
         **kwargs,
     ):
         """Initializes a new or existing dataset.
@@ -239,7 +237,6 @@ class Dataset:
         d["link_creds"] = link_creds
         d["enabled_tensors"] = enabled_tensors
         d["libdeeplake_dataset"] = libdeeplake_dataset
-        d["index_params"] = index_params
         d["_info"] = None
         d["_ds_diff"] = None
         d["_view_id"] = str(uuid.uuid4())
@@ -607,7 +604,7 @@ class Dataset:
         if isinstance(tensor, Dataset):
             raise TypeError("Tensor groups do not support item assignment")
         tensor.index = Index()
-        tensor._update(self.index, value)
+        tensor[self.index] = value
 
     @invalid_view_op
     def create_tensor(
@@ -3008,6 +3005,7 @@ class Dataset:
         extend: bool = False,
         skip_ok: bool = False,
         append_empty: bool = False,
+        index_regeneration: bool = True,
     ):
         """Append or extend samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
@@ -3016,6 +3014,7 @@ class Dataset:
             sample (dict): Dictionary with tensor names as keys and samples as values.
             skip_ok (bool): Skip tensors not in ``sample`` if set to ``True``.
             append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
+            index_regeneration (bool): VDB Index regeneration will occur by default.
 
         Raises:
             KeyError: If any tensor in the dataset is not a key in ``sample`` and ``skip_ok`` is ``False``.
@@ -3036,7 +3035,6 @@ class Dataset:
 
         """
         tensors = self.tensors
-        new_row_ids = list(range(len(self), len(self) + len(sample)))
         if isinstance(sample, Dataset):
             sample = sample.tensors
         if not isinstance(sample, dict):
@@ -3087,11 +3085,11 @@ class Dataset:
                     num_chunks = enc.num_chunks
                     num_samples = tensor.meta.length
                     if extend:
-                        tensor._extend(v)
+                        tensor.extend(v)
                         if extend_extra_nones:
-                            tensor._extend([None] * extend_extra_nones)
+                            tensor.extend([None] * extend_extra_nones)
                     else:
-                        tensor._append(v)
+                        tensor.append(v)
                     tensors_appended.append(k)
                 except Exception as e:
                     if extend:
@@ -3117,7 +3115,13 @@ class Dataset:
                             raise Exception(
                                 "Error while attempting to rollback appends"
                             ) from e2
+                    # Regenerate Index.
+                    if index_regeneration:
+                        self.regenerate_vdb_indexes()
                     raise e
+            # Regenerate Index.
+            if index_regeneration:
+                self.regenerate_vdb_indexes()
 
     def extend(
         self,
@@ -3126,6 +3130,7 @@ class Dataset:
         append_empty: bool = False,
         ignore_errors: bool = False,
         progressbar: bool = False,
+        index_regeneration=True,
     ):
         """Appends multiple rows of samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
@@ -3135,6 +3140,7 @@ class Dataset:
             append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
             ignore_errors (bool): Skip samples that cause errors while extending, if set to ``True``.
             progressbar (bool): Displays a progress bar if set to ``True``.
+            index_regeneration (bool): Regenerate VDB indexes when base data is modified.
 
         Raises:
             KeyError: If any tensor in the dataset is not a key in ``samples`` and ``skip_ok`` is ``False``.
@@ -3159,43 +3165,39 @@ class Dataset:
                 raise ValueError(
                     f"Incoming samples are not of equal lengths. Incoming sample sizes: {sizes}"
                 )
-        new_row_ids = list(range(len(self), len(self) + n))
         [f() for f in list(self._update_hooks.values())]
         if extend:
             if ignore_errors:
                 warnings.warn(
                     "`ignore_errors` argument will be ignored while extending with numpy arrays or tensors."
                 )
-            self._append_or_extend(
+            return self._append_or_extend(
                 samples,
                 extend=True,
                 skip_ok=skip_ok,
                 append_empty=append_empty,
+                index_regeneration=index_regeneration,
             )
-        else:
-            with self:
-                if progressbar:
-                    indices = tqdm(range(n))
-                else:
-                    indices = range(n)
-                for i in indices:
-                    try:
-                        self._append_or_extend(
-                            {k: v[i] for k, v in samples.items()},
-                            extend=False,
-                            skip_ok=skip_ok,
-                            append_empty=append_empty,
-                        )
-                    except Exception as e:
-                        if ignore_errors:
-                            continue
-                        else:
-                            if isinstance(e, SampleAppendError):
-                                raise SampleExtendError(str(e)) from e.__cause__
-                            raise e
-        index_maintenance.index_operation_dataset(
-            self, dml_type=_INDEX_OPERATION_MAPPING["ADD"], rowids=new_row_ids
-        )
+        with self:
+            if progressbar:
+                indices = tqdm(range(n))
+            else:
+                indices = range(n)
+            for i in indices:
+                try:
+                    self.append(
+                        {k: v[i] for k, v in samples.items()},
+                        skip_ok=skip_ok,
+                        append_empty=append_empty,
+                        index_regeneration=index_regeneration,
+                    )
+                except Exception as e:
+                    if ignore_errors:
+                        continue
+                    else:
+                        if isinstance(e, SampleAppendError):
+                            raise SampleExtendError(str(e)) from e.__cause__
+                        raise e
 
     @invalid_view_op
     def append(
@@ -3203,6 +3205,7 @@ class Dataset:
         sample: Dict[str, Any],
         skip_ok: bool = False,
         append_empty: bool = False,
+        index_regeneration: bool = True,
     ):
         """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
@@ -3210,6 +3213,7 @@ class Dataset:
             sample (dict): Dictionary with tensor names as keys and samples as values.
             skip_ok (bool): Skip tensors not in ``sample`` if set to ``True``.
             append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
+            index_regeneration (bool): VDB Index regeneration will happen by default.
 
         Raises:
             KeyError: If any tensor in the dataset is not a key in ``sample`` and ``skip_ok`` is ``False``.
@@ -3229,15 +3233,12 @@ class Dataset:
             >>> ds.append({"data": [1, 2, 3, 4], "labels":[0, 1, 2, 3]})
 
         """
-        new_row_ids = [len(self)]
         self._append_or_extend(
             sample,
             extend=False,
             skip_ok=skip_ok,
             append_empty=append_empty,
-        )
-        index_maintenance.index_operation_dataset(
-            self, dml_type=_INDEX_OPERATION_MAPPING["ADD"], rowids=new_row_ids
+            index_regeneration=index_regeneration,
         )
 
     def update(self, sample: Dict[str, Any]):
@@ -3323,11 +3324,8 @@ class Dataset:
                         saved[k].append(old_sample)
                     self[k] = v
                 # Regenerate Index
-                index_maintenance.index_operation_dataset(
-                    self,
-                    dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
-                    rowids=list(self.index.values[0].indices(len(self))),
-                )
+                self.regenerate_vdb_indexes()
+
             except Exception as e:
                 for k, v in saved.items():
                     # squeeze
@@ -3340,13 +3338,7 @@ class Dataset:
                             "Error while attempting to rollback updates"
                         ) from e2
                 # in case of error, regenerate index again to avoid index corruption
-                index_maintenance.index_operation_dataset(
-                    self,
-                    dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
-                    rowids=list(self.index.values[0].indices(len(self))),
-                    index_regeneration=True,
-                    index_delete=False,
-                )
+                self.regenerate_vdb_indexes()
                 raise e
             finally:
                 # restore update hooks
@@ -4614,8 +4606,19 @@ class Dataset:
     def _disable_padding(self):
         self._pad_tensors = False
 
-    def _pop(self, index: Optional[int] = None):
-        max_len = self.max_len
+    @invalid_view_op
+    def pop(self, index: Optional[int] = None):
+        """
+        Removes a sample from all the tensors of the dataset.
+        For any tensor if the index >= len(tensor), the sample won't be popped from it.
+
+        Args:
+            index (int, Optional): The index of the sample to be removed. If it is ``None``, the index becomes the ``length of the longest tensor - 1``.
+
+        Raises:
+            IndexError: If the index is out of range.
+        """
+        max_len = max((t.num_samples for t in self.tensors.values()), default=0)
         if max_len == 0:
             raise IndexError("Can't pop from empty dataset.")
 
@@ -4632,38 +4635,9 @@ class Dataset:
         with self:
             for tensor in self.tensors.values():
                 if tensor.num_samples > index:
-                    tensor._pop(index)
-
-    @invalid_view_op
-    def pop(self, index: Optional[int] = None):
-        """
-        Removes a sample from all the tensors of the dataset.
-        For any tensor if the index >= len(tensor), the sample won't be popped from it.
-
-        Args:
-            index (int, Optional): The index of the sample to be removed. If it is ``None``, the index becomes the ``length of the longest tensor - 1``.
-
-        Raises:
-            IndexError: If the index is out of range.
-        """
-        self._pop(index)
-        row_ids = [index if index is not None else self.max_len - 1]
-        index_maintenance.index_operation_dataset(
-            self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=row_ids
-        )
-
-    @invalid_view_op
-    def pop_multiple(self, index: List[int], progressbar=False):
-        rev_index = sorted(index, reverse=True)
-        if progressbar:
-            rev_index = tqdm(rev_index)
-        with self:
-            for i in rev_index:
-                self._pop(i)
-
-        index_maintenance.index_operation_dataset(
-            self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=index
-        )
+                    tensor.pop(index)
+            # Regenerate vdb indexes.
+            self.regenerate_vdb_indexes()
 
     @property
     def is_view(self) -> bool:
