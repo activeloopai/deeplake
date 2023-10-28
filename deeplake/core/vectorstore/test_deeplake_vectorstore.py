@@ -1526,6 +1526,19 @@ def test_vdb_index_incr_maint_append_pop(local_path, capsys, hub_cloud_dev_token
     res3 = list(view3.sample_indices)
     assert res3[0] == 3
 
+    vector_store.dataset.embedding.pop(2)
+    vector_store.dataset.id.pop(2)
+    vector_store.dataset.metadata.pop(2)
+    vector_store.dataset.text.pop(2)
+    s2 = ",".join(str(c) for c in query3)
+    view1 = ds.query(
+        f"select *  order by cosine_similarity(embedding, array[{s2}]) DESC limit 1"
+    )
+    res1 = list(view1.sample_indices)
+    assert res1[0] == 2
+
+    ds.append({"embedding": emb2, "text": txt2, "id": ids2, "metadata": md2})
+
     vector_store.delete(row_ids=[3])
     s3 = ",".join(str(c) for c in query3)
     view3 = ds.query(
@@ -1533,6 +1546,14 @@ def test_vdb_index_incr_maint_append_pop(local_path, capsys, hub_cloud_dev_token
     )
     res3 = list(view3.sample_indices)
     assert res3[0] != 3
+
+    vector_store.dataset.pop(2)
+    s2 = ",".join(str(c) for c in query2)
+    view2 = ds.query(
+        f"select *  order by cosine_similarity(embedding ,array[{s2}]) DESC limit 1"
+    )
+    res2 = list(view2.sample_indices)
+    assert res2[0] != 2
 
     vector_store.delete_by_path(local_path, token=ds.token)
 

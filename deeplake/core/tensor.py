@@ -1174,6 +1174,7 @@ class Tensor:
                 self.dataset,
                 dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
                 rowids=row_ids,
+                index_regeneration=True,
             )
 
     def _pop_links(self, global_sample_index: int):

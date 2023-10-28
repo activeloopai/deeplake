@@ -4650,7 +4650,7 @@ class Dataset:
         self._pop(index)
         row_ids = [index if index is not None else self.max_len - 1]
         index_maintenance.index_operation_dataset(
-            self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=row_ids
+            self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=row_ids, index_regeneration=True,
         )
 
     @invalid_view_op
@@ -4663,7 +4663,7 @@ class Dataset:
                 self._pop(i)
 
         index_maintenance.index_operation_dataset(
-            self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=index
+            self, dml_type=_INDEX_OPERATION_MAPPING["REMOVE"], rowids=index, index_regeneration=True,
         )
 
     @property
