@@ -252,11 +252,11 @@ def index_operation_vectorstore(
     if index_operation_type == INDEX_OP_TYPE.NOOP:
         return
 
+    index_cache_cleanup(self.dataset)
     if index_operation_type == INDEX_OP_TYPE.CREATE_INDEX:
         distance_str = self.index_params.get("distance_metric", "COS")
         additional_params_dict = self.index_params.get("additional_params", None)
         distance = get_index_metric(distance_str.upper())
-        index_cache_cleanup(self.dataset)
         if additional_params_dict and len(additional_params_dict) > 0:
             param_dict = normalize_additional_params(additional_params_dict)
             emb_tensor.create_vdb_index(
@@ -292,11 +292,12 @@ def index_operation_dataset(
 
     if index_operation_type == INDEX_OP_TYPE.NOOP:
         return
-    elif index_operation_type == INDEX_OP_TYPE.CREATE_INDEX:
+
+    index_cache_cleanup(self)
+    if index_operation_type == INDEX_OP_TYPE.CREATE_INDEX:
         distance_str = self.index_params.get("distance_metric", "COS")
         additional_params_dict = self.index_params.get("additional_params", None)
         distance = get_index_metric(distance_str.upper())
-        index_cache_cleanup(self)
         if additional_params_dict and len(additional_params_dict) > 0:
             param_dict = normalize_additional_params(additional_params_dict)
             emb_tensor.create_vdb_index(

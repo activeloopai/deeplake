@@ -1184,7 +1184,7 @@ def test_update_embedding(
     vector_store.delete_by_path(path + "_multi", token=ds.token)
 
 
-# @requires_libdeeplake
+@requires_libdeeplake
 def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
     number_of_data = 1000
     texts, embeddings, ids, metadatas, _ = utils.create_data(
@@ -1526,6 +1526,19 @@ def test_vdb_index_incr_maint_append_pop(local_path, capsys, hub_cloud_dev_token
     res3 = list(view3.sample_indices)
     assert res3[0] == 3
 
+    vector_store.dataset.embedding.pop(2)
+    vector_store.dataset.id.pop(2)
+    vector_store.dataset.metadata.pop(2)
+    vector_store.dataset.text.pop(2)
+    s2 = ",".join(str(c) for c in query3)
+    view1 = ds.query(
+        f"select *  order by cosine_similarity(embedding, array[{s2}]) DESC limit 1"
+    )
+    res1 = list(view1.sample_indices)
+    assert res1[0] == 2
+
+    ds.append({"embedding": emb2, "text": txt2, "id": ids2, "metadata": md2})
+
     vector_store.delete(row_ids=[3])
     s3 = ",".join(str(c) for c in query3)
     view3 = ds.query(
@@ -1533,6 +1546,14 @@ def test_vdb_index_incr_maint_append_pop(local_path, capsys, hub_cloud_dev_token
     )
     res3 = list(view3.sample_indices)
     assert res3[0] != 3
+
+    vector_store.dataset.pop(2)
+    s2 = ",".join(str(c) for c in query2)
+    view2 = ds.query(
+        f"select *  order by cosine_similarity(embedding ,array[{s2}]) DESC limit 1"
+    )
+    res2 = list(view2.sample_indices)
+    assert res2[0] != 2
 
     vector_store.delete_by_path(local_path, token=ds.token)
 
@@ -2264,6 +2285,7 @@ def test_parse_tensors_kwargs():
 
 
 @pytest.mark.slow
+@requires_libdeeplake
 def test_multiple_embeddings(local_path):
     vector_store = DeepLakeVectorStore(
         path=local_path,
