@@ -75,16 +75,3 @@ copybutton_prompt_text = ">>> |\.\.\. "
 copybutton_prompt_is_regexp = True
 
 master_doc = "index"
-
-
-from sphinx.ext.autodoc import ClassDocumenter
-
-
-def add_directive_header(self, sig):
-    ClassDocumenter.add_directive_header(self, sig)
-    # Remove the fully qualified class name from the init method
-    if self.objtype == "method" and self.name.split(".")[-1] == "__init__":
-        self.add_line(".. py:method:: __init__%s" % sig, "<autodoc>")
-
-
-ClassDocumenter.add_directive_header = add_directive_header
