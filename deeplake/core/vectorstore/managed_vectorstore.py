@@ -91,6 +91,11 @@ class ManagedVectorStore(DeepLakeVectorStore):
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
         """
+        if embedding_function is not None:
+            raise NotImplementedError(
+                "ManagedVectorStore does not support embedding_function for now."
+            )
+
         self._token = token
         self.path = convert_pathlib_to_string_if_needed(path)
 
@@ -102,7 +107,6 @@ class ManagedVectorStore(DeepLakeVectorStore):
         self.logger = logger
         self.org_id = None
         self.index_params = utils.parse_index_params(index_params)
-        self.embedding_function = embedding_function
         self.verbose = verbose
         self.tensor_params = tensor_params
         self.deep_memory = None

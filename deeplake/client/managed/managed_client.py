@@ -56,7 +56,7 @@ class ManagedServiceClient(DeepLakeBackendClient):
 
     def delete_vectorstore(self, path: str, force: bool = False):
         response = self.request(
-            method="POST",
+            method="DELETE",
             relative_url=DELETE_VECTORSTORE_SUFFIX,
             json={"dataset": path, "force": force},
         )

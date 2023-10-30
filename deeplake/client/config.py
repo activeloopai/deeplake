@@ -35,7 +35,7 @@ ORG_PERMISSION_SUFFIX = "/api/organizations/{}/features/dataset_query"
 # ManagedService Endpoints
 INIT_VECTORSTORE_SUFFIX = "/api/dlserver/vectorstore/init"
 GET_VECTORSTORE_SUMMARY_SUFFIX = "/api/dlserver/vectorstore/{}/{}/summary"
-DELETE_VECTORSTORE_SUFFIX = "/api/dlserver/vectorstore/delete"
+DELETE_VECTORSTORE_SUFFIX = "/api/dlserver/vectorstore"
 
 VECTORSTORE_SEARCH_SUFFIX = "/api/dlserver/vectorstore/search"
 VECTORSTORE_ADD_SUFFIX = "/api/dlserver/vectorstore/add"
