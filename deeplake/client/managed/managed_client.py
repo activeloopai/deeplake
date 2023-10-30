@@ -1,4 +1,5 @@
-from typing import Dict, List, Any, Optional
+import numpy as np
+from typing import Dict, List, Any, Optional, Union
 
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.utils import (
@@ -22,6 +23,11 @@ from deeplake.client.managed.models import (
 
 
 class ManagedServiceClient(DeepLakeBackendClient):
+    def _preprocess_embedding(self, embedding: Union[List[float], np.ndarray]):
+        if isinstance(embedding, np.ndarray):
+            return embedding.tolist()
+        return embedding
+
     def init_vectorstore(
         self,
         path: str,
@@ -48,6 +54,14 @@ class ManagedServiceClient(DeepLakeBackendClient):
             exists=data.get("exists", False),
         )
 
+    def delete_vectorstore(self, path: str, force: bool = False):
+        response = self.request(
+            method="POST",
+            relative_url=DELETE_VECTORSTORE_SUFFIX,
+            json={"dataset": path, "force": force},
+        )
+        check_response_status(response)
+
     def get_vectorstore_summary(self, path: str):
         org_id, dataset_id = path[6:].split("/")
         response = self.request(
@@ -64,11 +78,32 @@ class ManagedServiceClient(DeepLakeBackendClient):
             tensors=data["tensors"],
         )
 
-    def vectorstore_search(self, path: str, query: str):
+    def vectorstore_search(
+        self,
+        path: str,
+        embedding: Optional[Union[List[float], np.ndarray]] = None,
+        k: int = 4,
+        distance_metric: Optional[str] = None,
+        query: Optional[str] = None,
+        filter: Optional[Dict[str, str]] = None,
+        embedding_tensor: str = "embedding",
+        return_tensors: Optional[List[str]] = None,
+        deep_memory: bool = False,
+    ):
         response = self.request(
             method="POST",
             relative_url=VECTORSTORE_SEARCH_SUFFIX,
-            json={"dataset": path, "tql_query": query},
+            json={
+                "dataset": path,
+                "embedding": self._preprocess_embedding(embedding),
+                "k": k,
+                "distance_metric": distance_metric,
+                "query": query,
+                "filter": filter,
+                "embedding_tensor": embedding_tensor,
+                "return_tensors": return_tensors,
+                "deep_memory": deep_memory,
+            },
         )
         check_response_status(response)
         data = response.json()
@@ -85,6 +120,9 @@ class ManagedServiceClient(DeepLakeBackendClient):
         processed_tensors: List[Dict[str, List[Any]]],
         return_ids: bool = False,
     ):
+        for key, value in processed_tensors.items():
+            processed_tensors[key] = self._preprocess_embedding(value)
+
         response = self.request(
             method="POST",
             relative_url=VECTORSTORE_ADD_SUFFIX,
@@ -102,6 +140,7 @@ class ManagedServiceClient(DeepLakeBackendClient):
         path: str,
         indices: Optional[List[int]] = None,
         ids: Optional[List[str]] = None,
+        filter: Optional[Dict[str, str]] = None,
         query: Optional[str] = None,
         delete_all: bool = False,
     ):
@@ -112,6 +151,7 @@ class ManagedServiceClient(DeepLakeBackendClient):
                 "dataset": path,
                 "indices": indices,
                 "ids": ids,
+                "filter": filter,
                 "query": query,
                 "delete_all": delete_all,
             },
