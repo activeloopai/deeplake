@@ -35,6 +35,7 @@ class DeepMemory:
         embedding_function: Optional[Any] = None,
         token: Optional[str] = None,
         creds: Optional[Dict[str, Any]] = None,
+        logger: Optional[Any] = None,
     ):
         """Based Deep Memory class to train and evaluate models on DeepMemory managed service.
 
@@ -44,6 +45,7 @@ class DeepMemory:
             embedding_function (Optional[Any], optional): Embedding funtion class used to convert queries/documents to embeddings. Defaults to None.
             token (Optional[str], optional): API token for the DeepMemory managed service. Defaults to None.
             creds (Optional[Dict[str, Any]], optional): Credentials to access the dataset. Defaults to None.
+            logger (Optional[Any], optional): Logger object. Defaults to None.
 
         Raises:
             ImportError: if indra is not installed
@@ -63,6 +65,7 @@ class DeepMemory:
         self.embedding_function = embedding_function
         self.client = client
         self.creds = creds or {}
+        self.logger = logger
 
     def train(
         self,
@@ -94,6 +97,7 @@ class DeepMemory:
         Raises:
             ValueError: if embedding_function is not specified either during initialization or during training.
         """
+        self.logger.info("Starting DeepMemory training job")
         feature_report_path(
             path=self.dataset.path,
             feature_name="dm.train",
@@ -126,8 +130,10 @@ class DeepMemory:
             runtime=runtime,
             token=token or self.token,
             creds=self.creds,
+            verbose=False,
         )
 
+        self.logger.info("Preparing training data for deepmemory:")
         queries_vs.add(
             text=[query for query in queries],
             metadata=[
@@ -143,7 +149,9 @@ class DeepMemory:
             queries_path=queries_path,
         )
 
-        print(f"DeepMemory training job started. Job ID: {response['job_id']}")
+        self.logger.info(
+            f"DeepMemory training job started. Job ID: {response['job_id']}"
+        )
         return response["job_id"]
 
     def cancel(self, job_id: str):
@@ -439,7 +447,7 @@ class DeepMemory:
             (True, "deepmemory_distance"),
         ]:
             eval_type = "with" if use_model else "without"
-            print(f"---- Evaluating {eval_type} model ---- ")
+            print(f"---- Evaluating {eval_type} Deep Memory ---- ")
             avg_recalls, queries_dict = recall_at_k(
                 indra_dataset,
                 relevance,
