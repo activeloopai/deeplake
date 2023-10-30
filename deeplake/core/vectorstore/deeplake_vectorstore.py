@@ -337,6 +337,7 @@ class VectorStore:
             embedding_data=embedding_data,
             embedding_tensor=embedding_tensor,
             rate_limiter=rate_limiter,
+            logger=self.logger,
         )
 
         if self.verbose:

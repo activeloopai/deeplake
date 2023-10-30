@@ -461,6 +461,7 @@ def extend(
     dataset: deeplake.core.dataset.Dataset,
     rate_limiter: Dict,
     _extend_batch_size: int = VECTORSTORE_EXTEND_BATCH_SIZE,
+    logger=None,
 ):
     """
     Function to extend the dataset with new data.
@@ -472,7 +473,7 @@ def extend(
         number_of_batches = ceil(len(embedding_data[0]) / _extend_batch_size)
         progressbar_str = (
             f"Creating {len(embedding_data[0])} embeddings in "
-            f"{number_of_batches} batches of size {_extend_batch_size}:"
+            f"{number_of_batches} batches of size {min(_extend_batch_size, len(embedding_data[0]))}:"
         )
 
         for idx in tqdm(
@@ -498,7 +499,8 @@ def extend(
 
             dataset.extend(batched_processed_tensors, progressbar=False)
     else:
-        dataset.extend(processed_tensors, progressbar=False)
+        logger.info("Uploading data to deeplake dataset.")
+        dataset.extend(processed_tensors, progressbar=True)
 
 
 def populate_rate_limiter(rate_limiter):
@@ -530,6 +532,7 @@ def extend_or_ingest_dataset(
     embedding_tensor,
     embedding_data,
     rate_limiter,
+    logger,
 ):
     rate_limiter = populate_rate_limiter(rate_limiter)
     # TODO: Add back the old logic with checkpointing after indexing is fixed
@@ -540,6 +543,7 @@ def extend_or_ingest_dataset(
         processed_tensors,
         dataset,
         rate_limiter,
+        logger=logger,
     )
 
 
