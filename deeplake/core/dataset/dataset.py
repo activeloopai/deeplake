@@ -858,7 +858,7 @@ class Dataset:
             "nifti",
         ):
             self._create_sample_info_tensor(name)
-        if create_shape_tensor and htype not in ("text", "json"):
+        if create_shape_tensor and htype not in ("text", "json", "tag"):
             self._create_sample_shape_tensor(name, htype=htype)
         if create_id_tensor:
             self._create_sample_id_tensor(name)

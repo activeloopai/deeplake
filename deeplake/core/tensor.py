@@ -972,7 +972,7 @@ class Tensor:
         - For all else, returns dict with key "value" with value same as :meth:`numpy`.
         """
         htype = self.base_htype
-        if htype == "text":
+        if htype in ("text", "tag"):
             return {"value": self.text(fetch_chunks=fetch_chunks)}
         if htype == "json":
             return {"value": self.dict(fetch_chunks=fetch_chunks)}
@@ -1423,8 +1423,11 @@ class Tensor:
             return [sample[0] for sample in self.numpy(aslist=True)]
 
     def text(self, fetch_chunks: bool = False):
-        """Return text data. Only applicable for tensors with 'text' base htype."""
-        return self._extract_value("text", fetch_chunks=fetch_chunks)
+        """Return text data. Only applicable for tensors with 'text' or 'tag' base htype."""
+        if self.base_htype not in ("text", "tag"):
+            raise Exception("Only supported for text and tag tensors.")
+
+        return self._extract_value(self.base_htype, fetch_chunks=fetch_chunks)
 
     def dict(self, fetch_chunks: bool = False):
         """Return json data. Only applicable for tensors with 'json' base htype."""

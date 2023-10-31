@@ -147,7 +147,7 @@ class Sample:
 
     @property
     def is_text_like(self):
-        return self.htype in {"text", "list", "json"}
+        return self.htype in {"text", "list", "json", "tag"}
 
     @property
     def dtype(self):

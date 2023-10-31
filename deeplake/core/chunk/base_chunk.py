@@ -91,7 +91,7 @@ class BaseChunk(DeepLakeMemoryObject):
             else (len(tensor_meta.max_shape) if tensor_meta.max_shape else None)
         )
         self.is_text_like = (
-            self.htype in {"json", "list", "text"} or self.tensor_meta.is_link
+            self.htype in {"json", "list", "text", "tag"} or self.tensor_meta.is_link
         )
 
         self.compression = compression
