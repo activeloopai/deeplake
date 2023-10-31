@@ -1,3 +1,4 @@
+import logging
 import uuid
 from collections import defaultdict
 from typing import Any, Dict, Optional, List, Union, Callable, Tuple
@@ -32,20 +33,20 @@ class DeepMemory:
         self,
         dataset: Dataset,
         client: DeepMemoryBackendClient,
+        logger: logging.Logger,
         embedding_function: Optional[Any] = None,
         token: Optional[str] = None,
         creds: Optional[Dict[str, Any]] = None,
-        logger: Optional[Any] = None,
     ):
         """Based Deep Memory class to train and evaluate models on DeepMemory managed service.
 
         Args:
             dataset (Dataset): deeplake dataset object.
             client (DeepMemoryBackendClient): Client to interact with the DeepMemory managed service. Defaults to None.
+            logger (logging.Logger): Logger object.
             embedding_function (Optional[Any], optional): Embedding funtion class used to convert queries/documents to embeddings. Defaults to None.
             token (Optional[str], optional): API token for the DeepMemory managed service. Defaults to None.
             creds (Optional[Dict[str, Any]], optional): Credentials to access the dataset. Defaults to None.
-            logger (Optional[Any], optional): Logger object. Defaults to None.
 
         Raises:
             ImportError: if indra is not installed
