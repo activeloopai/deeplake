@@ -6,6 +6,7 @@ import jwt
 import numpy as np
 
 import deeplake
+from deeplake.core import index_maintenance
 from deeplake.core.distance_type import DistanceType
 from deeplake.util.dataset import try_flushing
 from deeplake.util.path import convert_pathlib_to_string_if_needed
@@ -18,13 +19,13 @@ from deeplake.constants import (
     TARGET_BYTE_SIZE,
     DEFAULT_VECTORSTORE_DISTANCE_METRIC,
     DEFAULT_DEEPMEMORY_DISTANCE_METRIC,
+    _INDEX_OPERATION_MAPPING,
 )
 from deeplake.client.utils import read_token
 from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
-from deeplake.core.vectorstore.vector_search.indra import index
 from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
@@ -41,7 +42,7 @@ class VectorStore:
         self,
         path: Union[str, pathlib.Path],
         tensor_params: List[Dict[str, object]] = DEFAULT_VECTORSTORE_TENSORS,
-        embedding_function: Optional[Callable] = None,
+        embedding_function: Optional[Any] = None,
         read_only: Optional[bool] = None,
         ingestion_batch_size: int = 1000,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
@@ -87,7 +88,7 @@ class VectorStore:
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             tensor_params (List[Dict[str, dict]], optional): List of dictionaries that contains information about tensors that user wants to create. See ``create_tensor`` in Deep Lake API docs for more information. Defaults to ``DEFAULT_VECTORSTORE_TENSORS``.
-            embedding_function (Optional[callable], optional): Function that converts the embeddable data into embeddings. Input to `embedding_function` is a list of data and output is a list of embeddings. Defaults to None.
+            embedding_function (Optional[Any], optional): Function or class that converts the embeddable data into embeddings. Input to `embedding_function` is a list of data and output is a list of embeddings. Defaults to None.
             read_only (bool, optional):  Opens dataset in read-only mode if True. Defaults to False.
             num_workers (int): Number of workers to use for parallel ingestion.
             ingestion_batch_size (int): Batch size to use for parallel ingestion.
@@ -158,8 +159,10 @@ class VectorStore:
 
         self.ingestion_batch_size = ingestion_batch_size
         self.index_params = utils.parse_index_params(index_params)
+        kwargs["index_params"] = self.index_params
         self.num_workers = num_workers
         self.creds = creds or {}
+        self.embedding_function = utils.create_embedding_function(embedding_function)
 
         self.dataset = dataset_utils.create_or_load_dataset(
             tensor_params,
@@ -176,18 +179,14 @@ class VectorStore:
             branch,
             **kwargs,
         )
-        self.embedding_function = embedding_function
         self._exec_option = exec_option
         self.verbose = verbose
         self.tensor_params = tensor_params
-        self.distance_metric_index = None
-        if utils.index_used(self.exec_option):
-            index.index_cache_cleanup(self.dataset)
-            self.distance_metric_index = index.validate_and_create_vector_index(
-                dataset=self.dataset,
-                index_params=self.index_params,
-                regenerate_index=False,
-            )
+        self.distance_metric_index = index_maintenance.index_operation_vectorstore(
+            self,
+            dml_type=_INDEX_OPERATION_MAPPING["ADD"],
+            rowids=list(range(0, len(self.dataset))),
+        )
         self.deep_memory = None
 
     @property
@@ -216,8 +215,8 @@ class VectorStore:
         rate_limiter: Dict = {
             "enabled": False,
             "bytes_per_minute": MAX_BYTES_PER_MINUTE,
+            "batch_byte_size": TARGET_BYTE_SIZE,
         },
-        batch_byte_size: int = TARGET_BYTE_SIZE,
         **tensors,
     ) -> Optional[List[str]]:
         """Adding elements to deeplake vector store.
@@ -280,8 +279,7 @@ class VectorStore:
             embedding_data (Optional[List]): Data to be converted into embeddings using the provided ``embedding_function``. Defaults to None.
             embedding_tensor (Optional[str]): Tensor where results from the embedding function will be stored. If None, the embedding tensor is automatically inferred (when possible). Defaults to None.
             return_ids (bool): Whether to return added ids as an ouput of the method. Defaults to False.
-            rate_limiter (Dict): Rate limiter configuration. Defaults to ``{"enabled": False, "bytes_per_minute": MAX_BYTES_PER_MINUTE}``.
-            batch_byte_size (int): Batch size to use for parallel ingestion. Defaults to ``TARGET_BYTE_SIZE``.
+            rate_limiter (Dict): Rate limiter configuration. Defaults to ``{"enabled": False, "bytes_per_minute": MAX_BYTES_PER_MINUTE, "batch_byte_size": TARGET_BYTE_SIZE}``.
             **tensors: Keyword arguments where the key is the tensor name, and the value is a list of samples that should be uploaded to that tensor.
 
         Returns:
@@ -301,14 +299,16 @@ class VectorStore:
             token=self.token,
             username=self.username,
         )
-
         (
             embedding_function,
             embedding_data,
             embedding_tensor,
             tensors,
         ) = utils.parse_tensors_kwargs(
-            tensors, embedding_function, embedding_data, embedding_tensor
+            tensors,
+            embedding_function,
+            embedding_data,
+            embedding_tensor,
         )
 
         (
@@ -330,7 +330,6 @@ class VectorStore:
         )
 
         assert id_ is not None
-        data_length = utils.check_length_of_each_tensor(processed_tensors)
 
         dataset_utils.extend_or_ingest_dataset(
             processed_tensors=processed_tensors,
@@ -338,11 +337,8 @@ class VectorStore:
             embedding_function=embedding_function,
             embedding_data=embedding_data,
             embedding_tensor=embedding_tensor,
-            batch_byte_size=batch_byte_size,
             rate_limiter=rate_limiter,
         )
-
-        self._update_index(regenerate_index=data_length > 0)
 
         try_flushing(self.dataset)
 
@@ -483,7 +479,7 @@ class VectorStore:
         return_tensors = utils.parse_return_tensors(
             self.dataset, return_tensors, embedding_tensor, return_view
         )
-
+        embedding_function = utils.create_embedding_function(embedding_function)
         query_emb: Optional[Union[List[float], np.ndarray[Any, Any]]] = None
         if query is None:
             query_emb = dataset_utils.get_embedding(
@@ -493,7 +489,7 @@ class VectorStore:
             )
 
         if self.distance_metric_index:
-            distance_metric = index.parse_index_distance_metric_from_params(
+            distance_metric = index_maintenance.parse_index_distance_metric_from_params(
                 logger, self.distance_metric_index, distance_metric
             )
 
@@ -597,11 +593,15 @@ class VectorStore:
             delete_all,
         )
         if dataset_deleted:
+            index_maintenance.index_operation_vectorstore(
+                self,
+                dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
+                rowids=row_ids,
+                index_delete=True,
+            )
             return True
 
-        dataset_utils.delete_and_without_commit(self.dataset, row_ids)
-
-        self._update_index(regenerate_index=len(row_ids) > 0 if row_ids else False)
+        self.dataset.pop_multiple(row_ids)
 
         try_flushing(self.dataset)
 
@@ -711,8 +711,6 @@ class VectorStore:
 
         self.dataset[row_ids].update(embedding_tensor_data)
 
-        self._update_index(regenerate_index=len(row_ids) > 0 if row_ids else False)
-
         try_flushing(self.dataset)
 
     @staticmethod
@@ -778,15 +776,6 @@ class VectorStore:
     def __len__(self):
         """Length of the dataset"""
         return len(self.dataset)
-
-    def _update_index(self, regenerate_index=False):
-        if utils.index_used(self.exec_option):
-            index.index_cache_cleanup(self.dataset)
-            self.distance_metric_index = index.validate_and_create_vector_index(
-                dataset=self.dataset,
-                index_params=self.index_params,
-                regenerate_index=regenerate_index,
-            )
 
 
 DeepLakeVectorStore = VectorStore

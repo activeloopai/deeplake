@@ -168,7 +168,7 @@ def test_deepmemory_print_status_and_list_jobs(capsys, precomputed_jobs_list):
         progress=None,
     )
     response_schema = JobResponseStatusSchema(response=pending_response)
-    response_schema.print_status(job_id)
+    response_schema.print_status(job_id, recall=None, importvement=None)
     captured = capsys.readouterr()
     assert captured.out == Status.pending
 
@@ -204,7 +204,7 @@ def test_deepmemory_print_status_and_list_jobs(capsys, precomputed_jobs_list):
         },
     )
     response_schema = JobResponseStatusSchema(response=failed_response)
-    response_schema.print_status(job_id)
+    response_schema.print_status(job_id, recall=None, importvement=None)
     captured = capsys.readouterr()
     assert captured.out == Status.failed
 
