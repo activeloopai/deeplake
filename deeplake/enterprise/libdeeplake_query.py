@@ -48,8 +48,8 @@ def query(dataset, query_string: str):
     dsv = ds.query(query_string)
     from deeplake.enterprise.convert_to_libdeeplake import INDRA_API
 
-    if not isinstance(dataset, DeepLakeQueryDataset) and INDRA_API.tql.parse(query_string).is_filter:  # type: ignore
-        indexes = dsv.indexes
+    if not isinstance(dataset, DeepLakeQueryDataset) and INDRA_API.tql.parse(query_string).is_filter and len(dsv.indexes) < 10000000:  # type: ignore
+        indexes = list(dsv.indexes)
         return dataset.no_view_dataset[indexes]
     else:
         view = DeepLakeQueryDataset(deeplake_ds=dataset, indra_ds=dsv)
