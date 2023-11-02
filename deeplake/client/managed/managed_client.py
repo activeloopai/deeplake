@@ -118,6 +118,8 @@ class ManagedServiceClient(DeepLakeBackendClient):
         self,
         path: str,
         processed_tensors: List[Dict[str, List[Any]]],
+        rate_limiter: Optional[Dict[str, Any]] = None,
+        batch_byte_size: Optional[int] = None,
         return_ids: bool = False,
     ):
         for key, value in processed_tensors.items():
@@ -126,7 +128,13 @@ class ManagedServiceClient(DeepLakeBackendClient):
         response = self.request(
             method="POST",
             relative_url=VECTORSTORE_ADD_SUFFIX,
-            json={"dataset": path, "data": processed_tensors, "return_ids": return_ids},
+            json={
+                "dataset": path,
+                "data": processed_tensors,
+                "rate_limiter": rate_limiter,
+                "batch_byte_size": batch_byte_size,
+                "return_ids": return_ids,
+            },
         )
         check_response_status(response)
         data = response.json().get("result", {})

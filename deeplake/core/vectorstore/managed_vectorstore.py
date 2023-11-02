@@ -273,7 +273,8 @@ class ManagedVectorStore(DeepLakeVectorStore):
         response = self.client.vectorstore_add(
             path=self.path,
             processed_tensors=processed_tensors,
-            # embedding_tensor=embedding_tensor,
+            rate_limiter=rate_limiter,
+            batch_byte_size=batch_byte_size,
             return_ids=return_ids,
         )
 
