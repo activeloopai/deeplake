@@ -104,6 +104,13 @@ class DeepMemory:
             },
             token=token or self.token,
         )
+        
+        if self.client is None:
+            raise Exception(
+                "Deep Memory is available only for waiting list users. "
+                "Please, follow the link and join the waiting list: https://www.deeplake.ai/deepmemory"
+            )
+        
         # TODO: Support for passing query_embeddings directly without embedding function
         corpus_path = self.dataset.path
         queries_path = corpus_path + "_queries"

@@ -30,6 +30,7 @@ from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
 from deeplake.util.path import get_path_type
+from deeplake.core.vectorstore.unsupported_deep_memory import DeepMemory
 
 
 logger = logging.getLogger(__name__)
@@ -187,7 +188,7 @@ class VectorStore:
             dml_type=_INDEX_OPERATION_MAPPING["ADD"],
             rowids=list(range(0, len(self.dataset))),
         )
-        self.deep_memory = None
+        self.deep_memory = DeepMemory()
 
     @property
     def token(self):
@@ -363,6 +364,7 @@ class VectorStore:
         return_tensors: Optional[List[str]] = None,
         return_view: bool = False,
         deep_memory: bool = False,
+        bm25: bool = False,
     ) -> Union[Dict, Dataset]:
         """VectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
@@ -457,9 +459,9 @@ class VectorStore:
         exec_option = exec_option or self.exec_option
 
         if deep_memory and not self.deep_memory:
-            raise ValueError(
-                "Deep Memory is not available for this organization."
-                "Deep Memory is only available for waitlisted accounts."
+            raise Exception(
+                "Deep Memory is available only for waiting list users. "
+                "Please, follow the link and join the waiting list: https://www.deeplake.ai/deepmemory"
             )
 
         utils.parse_search_args(
