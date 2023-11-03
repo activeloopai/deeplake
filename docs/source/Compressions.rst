@@ -61,7 +61,7 @@ Examples::
 Chunk Compression
 ~~~~~~~~~~~~~~~~~
 
-If chunk compression is specified when :meth:`creating tensors <deeplake.core.dataset.Dataset.create_tensor>`, addded samples will be
+If chunk compression is specified when :meth:`creating tensors <deeplake.core.dataset.Dataset.create_tensor>`, added samples will be
 clubbed together and compressed to the given format chunk-wise. If given data is already compressed, it will be uncompressed and then
 recompressed chunk-wise.
 
