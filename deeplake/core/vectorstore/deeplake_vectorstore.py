@@ -14,7 +14,7 @@ from deeplake.util.path import convert_pathlib_to_string_if_needed
 from deeplake.api import dataset
 from deeplake.core.dataset import Dataset
 from deeplake.constants import (
-    DEFAULT_VECTORSTORE_TENSORS,
+    # DEFAULT_VECTORSTORE_TENSORS,
     MAX_BYTES_PER_MINUTE,
     TARGET_BYTE_SIZE,
     DEFAULT_VECTORSTORE_DISTANCE_METRIC,
@@ -41,7 +41,7 @@ class VectorStore:
     def __init__(
         self,
         path: Union[str, pathlib.Path],
-        tensor_params: List[Dict[str, object]] = DEFAULT_VECTORSTORE_TENSORS,
+        tensor_params: List[Dict[str, object]] = None,
         embedding_function: Optional[Any] = None,
         read_only: Optional[bool] = None,
         ingestion_batch_size: int = 1000,
@@ -56,6 +56,11 @@ class VectorStore:
         org_id: Optional[str] = None,
         logger: logging.Logger = logger,
         branch: str = "main",
+<<<<<<< Updated upstream
+        data_type: Union[str, List[str]] = "text",
+=======
+        deep_memory: bool = False,
+>>>>>>> Stashed changes
         **kwargs: Any,
     ) -> None:
         """Creates an empty VectorStore or loads an existing one if it exists at the specified ``path``.
@@ -130,6 +135,7 @@ class VectorStore:
         except Exception:  # pragma: no cover
             self.indra_installed = False  # pragma: no cover
 
+        self.use_deep_memory = deep_memory
         self._token = token
         self.path = convert_pathlib_to_string_if_needed(path)
         self.logger = logger
@@ -165,18 +171,19 @@ class VectorStore:
         self.embedding_function = utils.create_embedding_function(embedding_function)
 
         self.dataset = dataset_utils.create_or_load_dataset(
-            tensor_params,
-            path,
-            self.token,
-            self.creds,
-            self.logger,
-            read_only,
-            exec_option,
-            embedding_function,
-            overwrite,
-            runtime,
-            self.org_id,
-            branch,
+            tensor_params=tensor_params,
+            path=path,
+            token=self.token,
+            creds=self.creds,
+            logger=self.logger,
+            read_only=read_only,
+            exec_option=exec_option,
+            embedding_function=embedding_function,
+            overwrite=overwrite,
+            runtime=runtime,
+            org_id=self.org_id,
+            branch=branch,
+            dataset_type=data_type,
             **kwargs,
         )
         self._exec_option = exec_option
@@ -340,7 +347,11 @@ class VectorStore:
             rate_limiter=rate_limiter,
         )
 
+<<<<<<< Updated upstream
         try_flushing(self.dataset)
+=======
+        self._update_index(regenerate_index=data_length > 0)
+>>>>>>> Stashed changes
 
         if self.verbose:
             self.dataset.summary()
@@ -455,6 +466,8 @@ class VectorStore:
             exec_option = "python"
 
         exec_option = exec_option or self.exec_option
+
+        deep_memory = deep_memory or self.use_deep_memory
 
         if deep_memory and not self.deep_memory:
             raise ValueError(

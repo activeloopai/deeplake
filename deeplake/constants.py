@@ -212,23 +212,23 @@ MAX_VECTORSTORE_INGESTION_RETRY_ATTEMPTS = 5
 MAX_CHECKPOINTING_INTERVAL = 100000
 VECTORSTORE_EXTEND_MAX_SIZE = 20000
 VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE = {"image": 2000}
-DEFAULT_VECTORSTORE_TENSORS = [
+DEFAULT_VECTORSTORE_TEXT_TENSORS = [
     {
-        "name": "text",
+        "name": "text/data",
         "htype": "text",
         "create_id_tensor": False,
         "create_sample_info_tensor": False,
         "create_shape_tensor": False,
     },
     {
-        "name": "metadata",
+        "name": "text/metadata",
         "htype": "json",
         "create_id_tensor": False,
         "create_sample_info_tensor": False,
         "create_shape_tensor": False,
     },
     {
-        "name": "embedding",
+        "name": "text/embedding",
         "htype": "embedding",
         "dtype": np.float32,
         "create_id_tensor": False,
@@ -237,7 +237,40 @@ DEFAULT_VECTORSTORE_TENSORS = [
         "max_chunk_size": 64 * MB,
     },
     {
-        "name": "id",
+        "name": "text/id",
+        "htype": "text",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+]
+
+DEFAULT_VECTORSTORE_IMAGE_TENSORS = [
+    {
+        "name": "image/data",
+        "htype": "image",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "image/metadata",
+        "htype": "json",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "image/embedding",
+        "htype": "embedding",
+        "dtype": np.float32,
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": True,
+        "max_chunk_size": 64 * MB,
+    },
+    {
+        "name": "image/id",
         "htype": "text",
         "create_id_tensor": False,
         "create_sample_info_tensor": False,

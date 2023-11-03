@@ -13,7 +13,7 @@ from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
     VECTORSTORE_EXTEND_MAX_SIZE,
-    DEFAULT_VECTORSTORE_TENSORS,
+    # DEFAULT_VECTORSTORE_TENSORS, 
     VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE,
     MAX_BYTES_PER_MINUTE,
     TARGET_BYTE_SIZE,
@@ -34,6 +34,7 @@ def create_or_load_dataset(
     overwrite,
     runtime,
     org_id,
+    data_type,
     branch="main",
     **kwargs,
 ):
@@ -77,6 +78,7 @@ def create_or_load_dataset(
         runtime,
         org_id,
         branch,
+        data_type,
         **kwargs,
     )
 
@@ -172,6 +174,7 @@ def create_dataset(
     runtime,
     org_id,
     branch,
+    data_type,
     **kwargs,
 ):
     if exec_option == "tensor_db" and (
@@ -196,12 +199,12 @@ def create_dataset(
         **kwargs,
     )
     dataset.checkout(branch)
-    create_tensors(tensor_params, dataset, logger, embedding_function)
+    create_tensors(tensor_params, dataset, logger, embedding_function, data_type)
 
     return dataset
 
 
-def create_tensors(tensor_params, dataset, logger, embedding_function):
+def create_tensors(tensor_params, dataset, logger, embedding_function, data_type):
     tensor_names = [tensor["name"] for tensor in tensor_params]
     if "id" not in tensor_names and "ids" not in tensor_names:
         tensor_params.append(
