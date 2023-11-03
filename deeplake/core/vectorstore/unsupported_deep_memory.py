@@ -6,11 +6,12 @@ import numpy as np
 
 
 class DeepMemory:
-    """ This the class that raises exceptions for users that don't have access to Deep Memory"""
+    """This the class that raises exceptions for users that don't have access to Deep Memory"""
+
     def __init__(*args, **kwargs):
         # Just some initialization to make sure that the class is not empty
-        pass 
-        
+        pass
+
     def train(
         self,
         queries: List[str],
