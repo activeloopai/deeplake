@@ -270,7 +270,7 @@ def get_embedding(embedding, embedding_data, embedding_function=None):
         if len(embedding_data) > 1:
             raise NotImplementedError("Searching batched queries is not supported yet.")
 
-        embedding = embedding_function.embed_query(embedding_data)  # type: ignore
+        embedding = embedding_function.embed_documents(embedding_data)  # type: ignore
 
     if embedding is not None and (
         isinstance(embedding, list) or embedding.dtype != "float32"

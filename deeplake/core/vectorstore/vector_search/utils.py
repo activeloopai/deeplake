@@ -133,7 +133,7 @@ def parse_return_tensors(dataset, return_tensors, embedding_tensor, return_view)
             if (tensor != embedding_tensor or return_tensors == "*")
         ]
     for tensor in return_tensors:
-        if tensor not in dataset.tensors:
+        if tensor not in dataset.tensors and tensor != "score":
             raise TensorDoesNotExistError(tensor)
 
     return return_tensors
