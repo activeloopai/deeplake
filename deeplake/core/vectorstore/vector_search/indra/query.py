@@ -45,9 +45,9 @@ def create_query_string(
     )
 
     order_str = "" if order is None else f" order by {distance_metric} {order}"
-    score_str = "" if order is None else f", score"
+    # score_str = "" if order is None else f", "
 
-    return f"select {tensor_list_str}{score_str} from (select *{distance_metric_str}{tql_filter_str}{order_str} limit {limit})"
+    return f"select {tensor_list_str} from (select *{distance_metric_str}{tql_filter_str}{order_str} limit {limit})"
 
 
 def create_query(
