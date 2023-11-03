@@ -583,3 +583,15 @@ def test_unsupported_deepmemory_users():
             queries=[],
             relevance=[],
         )
+    
+    with pytest.raises(Exception):
+        dm.status(job_id="123")
+        
+    with pytest.raises(Exception):
+        dm.list_jobs()
+        
+    with pytest.raises(Exception):
+        dm.evaluate(
+            queries=[],
+            relevance=[],
+        )
