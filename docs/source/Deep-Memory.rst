@@ -11,7 +11,7 @@ Deep Memory API
 
 
 Syntax
-~~~~~~~~
+~~~~~~
 .. role:: sql(code)
     :language: sql
 
