@@ -1,4 +1,5 @@
 import uuid
+from collections import defaultdict
 from typing import Any, Dict, Optional, List, Union, Callable, Tuple
 from time import time
 
@@ -6,15 +7,24 @@ import numpy as np
 
 import deeplake
 from deeplake.enterprise.dataloader import indra_available
-from deeplake.constants import DEFAULT_QUERIES_VECTORSTORE_TENSORS
+from deeplake.util.remove_cache import get_base_storage
+from deeplake.constants import (
+    DEFAULT_QUERIES_VECTORSTORE_TENSORS,
+    DEFAULT_MEMORY_CACHE_SIZE,
+    DEFAULT_LOCAL_CACHE_SIZE,
+)
+from deeplake.util.storage import get_storage_and_cache_chain
 from deeplake.core.dataset import Dataset
+from deeplake.core.dataset.deeplake_cloud_dataset import DeepLakeCloudDataset
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from deeplake.client.client import DeepMemoryBackendClient
 from deeplake.client.utils import JobResponseStatusSchema
 from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
+from deeplake.util.dataset import try_flushing
 from deeplake.util.path import get_path_type
+from deeplake.util.version_control import load_meta
 
 
 class DeepMemory:
@@ -94,6 +104,7 @@ class DeepMemory:
             },
             token=token or self.token,
         )
+
         # TODO: Support for passing query_embeddings directly without embedding function
         corpus_path = self.dataset.path
         queries_path = corpus_path + "_queries"
@@ -114,7 +125,6 @@ class DeepMemory:
             path=queries_path,
             overwrite=True,
             runtime=runtime,
-            embedding_function=embedding_function,
             token=token or self.token,
             creds=self.creds,
         )
@@ -125,6 +135,7 @@ class DeepMemory:
                 {"relevance": relevance_per_doc} for relevance_per_doc in relevance
             ],
             embedding_data=[query for query in queries],
+            embedding_function=embedding_function,
         )
 
         # do some rest_api calls to train the model
@@ -206,9 +217,22 @@ class DeepMemory:
             },
             token=self.token,
         )
+
+        _, storage = get_storage_and_cache_chain(
+            path=self.dataset.path,
+            db_engine={"tensor_db": True},
+            read_only=False,
+            creds=self.creds,
+            token=self.dataset.token,
+            memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
+            local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
+        )
+
+        loaded_dataset = DeepLakeCloudDataset(storage=storage)
+
         try:
             recall, improvement = _get_best_model(
-                self.dataset.embedding, job_id, latest_job=True
+                loaded_dataset.embedding, job_id, latest_job=True
             )
 
             recall = "{:.2f}".format(100 * recall)
@@ -228,6 +252,17 @@ class DeepMemory:
             },
             token=self.token,
         )
+        _, storage = get_storage_and_cache_chain(
+            path=self.dataset.path,
+            db_engine={"tensor_db": True},
+            read_only=False,
+            creds=self.creds,
+            token=self.dataset.token,
+            memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
+            local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
+        )
+        loaded_dataset = DeepLakeCloudDataset(storage=storage)
+
         response = self.client.list_jobs(
             dataset_path=self.dataset.path,
         )
@@ -243,7 +278,7 @@ class DeepMemory:
         for job in jobs:
             try:
                 recall, delta = _get_best_model(
-                    self.dataset.embedding,
+                    loaded_dataset.embedding,
                     job,
                     latest_job=job == latest_job,
                 )
@@ -352,6 +387,7 @@ class DeepMemory:
             },
             token=self.token,
         )
+        try_flushing(self.dataset)
         try:
             from indra import api  # type: ignore
 
@@ -373,9 +409,10 @@ class DeepMemory:
 
         start = time()
         query_embs: Union[List[np.ndarray], List[List[float]]]
+
         if embedding is not None:
             query_embs = embedding
-        elif embedding is None:
+        else:
             if self.embedding_function is not None:
                 embedding_function = (
                     embedding_function or self.embedding_function.embed_documents
@@ -404,26 +441,20 @@ class DeepMemory:
         ]:
             eval_type = "with" if use_model else "without"
             print(f"---- Evaluating {eval_type} model ---- ")
-            callect_data = False
-            for k in top_k:
-                callect_data = k == 10
+            avg_recalls, queries_dict = recall_at_k(
+                indra_dataset,
+                relevance,
+                top_k=top_k,
+                query_embs=query_embs,
+                metric=metric,
+                use_model=use_model,
+            )
 
-                recall, queries_dict = recall_at_k(
-                    self.dataset,
-                    indra_dataset,
-                    relevance,
-                    top_k=k,
-                    query_embs=query_embs,
-                    metric=metric,
-                    collect_data=callect_data,
-                    use_model=use_model,
-                )
+            queries_data.update(queries_dict)
 
-                if callect_data:
-                    queries_data.update(queries_dict)
-
-                print(f"Recall@{k}:\t {100*recall: .1f}%")
-                recalls[f"{eval_type} model"][f"recall@{k}"] = recall
+            for recall, recall_value in avg_recalls.items():
+                print(f"Recall@{recall}:\t {100*recall_value: .1f}%")
+                recalls[f"{eval_type} model"][f"recall@{recall}"] = recall_value
 
         log_queries = parsed_qvs_params.get("log_queries")
         branch = parsed_qvs_params.get("branch")
@@ -454,16 +485,14 @@ class DeepMemory:
 
 
 def recall_at_k(
-    dataset: Dataset,
     indra_dataset: Any,
     relevance: List[List[Tuple[str, int]]],
     query_embs: Union[List[np.ndarray], List[List[float]]],
     metric: str,
-    top_k: int = 10,
-    collect_data: bool = False,
+    top_k: List[int] = [1, 3, 5, 10, 50, 100],
     use_model: bool = False,
 ):
-    recalls = []
+    recalls = defaultdict(list)
     top_k_list = []
 
     for query_idx, _ in enumerate(query_embs):
@@ -473,46 +502,48 @@ def recall_at_k(
         correct_labels = [rel[0] for rel in query_relevance]
 
         # Compute the cosine similarity between the query and all data points
-        view_top_k = get_view_top_k(
+        view = get_view(
             metric=metric,
             query_emb=query_emb,
-            top_k=top_k,
             indra_dataset=indra_dataset,
         )
 
-        top_k_retrieved = [
-            sample.id.numpy() for sample in view_top_k
-        ]  # TODO: optimize this
+        for k in top_k:
+            collect_data = k == 10
+            view_top_k = view[:k]
 
-        # Compute the recall: the fraction of relevant items found in the top k
-        num_relevant_in_top_k = len(
-            set(correct_labels).intersection(set(top_k_retrieved))
-        )
-        if len(correct_labels) == 0:
-            continue
-        recall = num_relevant_in_top_k / len(correct_labels)
+            top_k_retrieved = [
+                sample.id.numpy() for sample in view_top_k
+            ]  # TODO: optimize this
 
-        if collect_data:
-            top_k_list.append(top_k_retrieved)
-        recalls.append(recall)
+            # Compute the recall: the fraction of relevant items found in the top k
+            num_relevant_in_top_k = len(
+                set(correct_labels).intersection(set(top_k_retrieved))
+            )
+            if len(correct_labels) == 0:
+                continue
+            recall = num_relevant_in_top_k / len(correct_labels)
+
+            if collect_data:
+                top_k_list.append(top_k_retrieved)
+            recalls[k].append(recall)
 
     # Average the recalls for each query
-    avg_recall = np.mean(np.array(recalls))
-    queries_data = {}
-    if collect_data:
-        model_type = "deep_memory" if use_model else "vector_search"
+    avg_recalls = {
+        f"{recall}": np.mean(np.array(recall_list))
+        for recall, recall_list in recalls.items()
+    }
+    model_type = "deep_memory" if use_model else "vector_search"
+    queries_data = {
+        f"{model_type}_top_10": top_k_list,
+        f"{model_type}_recall": recalls[10],
+    }
+    return avg_recalls, queries_data
 
-        queries_data = {
-            f"{model_type}_top_10": top_k_list,
-            f"{model_type}_recall": recalls,
-        }
-    return avg_recall, queries_data
 
-
-def get_view_top_k(
+def get_view(
     metric: str,
     query_emb: Union[List[float], np.ndarray],
-    top_k: int,
     indra_dataset: Any,
     return_tensors: List[str] = ["text", "metadata", "id"],
     tql_filter: str = "",
@@ -520,7 +551,7 @@ def get_view_top_k(
     tql_filter_str = tql_filter if tql_filter == "" else " where " + tql_filter
     query_emb_str = ",".join([f"{q}" for q in query_emb])
     return_tensors_str = ", ".join(return_tensors)
-    tql = f"SELECT * FROM (SELECT {return_tensors_str}, ROW_NUMBER() as indices, {metric}(embedding, ARRAY[{query_emb_str}]) as score {tql_filter_str} order by {metric}(embedding, ARRAY[{query_emb_str}]) desc limit {top_k})"
+    tql = f"SELECT * FROM (SELECT {return_tensors_str}, ROW_NUMBER() as indices, {metric}(embedding, ARRAY[{query_emb_str}]) as score {tql_filter_str} order by {metric}(embedding, ARRAY[{query_emb_str}]) desc limit 100)"
     indra_view = indra_dataset.query(tql)
     return indra_view
 

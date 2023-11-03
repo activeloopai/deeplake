@@ -144,8 +144,8 @@ class JobResponseStatusSchema:
     def print_status(
         self,
         job_id: Union[str, List[str]],
-        recall: Optional[str] = None,
-        importvement: Optional[str] = None,
+        recall: str,
+        importvement: str,
     ):
         if not isinstance(job_id, List):
             job_id = [job_id]
@@ -157,8 +157,8 @@ class JobResponseStatusSchema:
 
             if response["status"] == "completed":
                 response["results"] = get_results(
-                    response,
-                    " " * 30,
+                    response=response,
+                    indent=" " * 30,
                     add_vertical_bars=True,
                     recall=recall,
                     improvement=importvement,
@@ -217,8 +217,8 @@ class JobResponseStatusSchema:
             )
             if response_status == "completed":
                 response_results = get_results(
-                    response,
-                    "",
+                    response=response,
+                    indent="",
                     add_vertical_bars=False,
                     width=15,
                     recall=recalls[response_id],
@@ -271,20 +271,15 @@ class JobResponseStatusSchema:
 
 def get_results(
     response: Dict[str, Any],
+    improvement: str,
+    recall: str,
     indent: str,
     add_vertical_bars: bool,
     width: int = 21,
-    improvement: Optional[str] = None,
-    recall: Optional[str] = None,
 ):
     progress = response["progress"]
     for progress_key, progress_value in progress.items():
         if progress_key == BEST_RECALL:
-            curr_recall, curr_improvement = progress_value.split("%")[:2]
-
-            recall = recall or curr_recall
-            improvement = improvement or curr_improvement
-
             if "(" not in improvement:
                 improvement = f"(+{improvement}%)"
 

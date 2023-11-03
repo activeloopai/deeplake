@@ -6,8 +6,10 @@ import logging
 import numpy as np
 
 import deeplake
+from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore import DeepLakeVectorStore
+from deeplake.core.vectorstore.embedder import DeepLakeEmbedder
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
     DEFAULT_VECTORSTORE_TENSORS,
@@ -248,10 +250,10 @@ def test_embeding_data():
         dataset_utils.get_embedding(
             embedding=None, query=query, embedding_function=None
         )
-
+    embedding_function = utils.create_embedding_function(Embedding.embed_query)
     embedding = dataset_utils.get_embedding(
         embedding=None,
-        embedding_function=Embedding.embed_query,
+        embedding_function=embedding_function,
         embedding_data=[query],
     )
     assert embedding.dtype == np.float32
@@ -278,7 +280,7 @@ def test_embeding_data():
     embedding_vector = np.zeros((1, 1538))
     embedding = dataset_utils.get_embedding(
         embedding=embedding_vector,
-        embedding_function=Embedding.embed_query,
+        embedding_function=embedding_function,
         embedding_data=[query],
     )
     assert embedding.dtype == np.float32
@@ -389,8 +391,8 @@ def test_rate_limited_send(local_path):
     dataset.create_tensor("embedding", htype="embedding")
     dataset.create_tensor("text", htype="text")
 
-    embedding_function = mock_embedding_function
-    embedding_function.__module__ = "langchain.embeddings.openai"
+    embedding_function = DeepLakeEmbedder(mock_embedding_function).embed_documents
+    # embedding_function.__module__ = "langchain.embeddings.openai"
 
     data = ["a" * 10000] * 100  # 100 chunks of 10000 bytes
 
@@ -402,13 +404,16 @@ def test_rate_limited_send(local_path):
 
     start_time = time.time()
     dataset_utils.extend(
-        embedding_function=[mock_embedding_function],
+        embedding_function=[embedding_function],
         embedding_data=[data],
         embedding_tensor=["embedding"],
         processed_tensors=processed_tensors,
         dataset=dataset,
-        batch_byte_size=TARGET_BYTE_SIZE,
-        rate_limiter={"enabled": True, "bytes_per_minute": MAX_BYTES_PER_MINUTE},
+        rate_limiter={
+            "enabled": True,
+            "bytes_per_minute": MAX_BYTES_PER_MINUTE,
+            "batch_byte_size": TARGET_BYTE_SIZE,
+        },
     )
     end_time = time.time()
 
@@ -423,27 +428,3 @@ def test_rate_limited_send(local_path):
     assert (
         abs(elapsed_minutes - expected_time) <= tolerance
     ), "Rate limiting did not work as expected!"
-
-
-def test_chunk_by_bytest():
-    data = ["a" * 10000] * 10  # 10 chunks of 10000 bytes
-
-    batched_data = dataset_utils.chunk_by_bytes(data)
-    serialized_data = json.dumps(batched_data)
-    byte_size = len(serialized_data.encode("utf-8"))
-    list_wieght = 100
-    assert (
-        byte_size <= 100000 + list_wieght
-    ), "Chunking by bytes did not work as expected!"
-
-
-def test_chunk_by_bytes():
-    data = ["a" * 10000] * 10  # 10 chunks of 10000 bytes
-
-    batched_data = dataset_utils.chunk_by_bytes(data, target_byte_size=10)
-    serialized_data = json.dumps(batched_data)
-    byte_size = len(serialized_data.encode("utf-8"))
-    list_wieght = 100
-    assert (
-        byte_size <= 100000 + list_wieght
-    ), "Chunking by bytes did not work as expected!"

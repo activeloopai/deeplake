@@ -7,6 +7,10 @@ from time import sleep
 import deeplake
 from deeplake import VectorStore
 from deeplake.tests.common import requires_libdeeplake
+from deeplake.core.vectorstore.unsupported_deep_memory import (
+    DeepMemory as UnsupportedDeepMemory,
+)
+from deeplake.util.exceptions import DeepMemoryWaitingListError
 
 
 class DummyEmbedder:
@@ -568,3 +572,27 @@ def test_deepmemory_search_on_local_datasets(
 
     assert correct_id in output["id"]
     assert "score" in output
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+@pytest.mark.slow
+@requires_libdeeplake
+def test_unsupported_deepmemory_users():
+    dm = UnsupportedDeepMemory()
+    with pytest.raises(DeepMemoryWaitingListError):
+        dm.train(
+            queries=[],
+            relevance=[],
+        )
+
+    with pytest.raises(DeepMemoryWaitingListError):
+        dm.status(job_id="123")
+
+    with pytest.raises(DeepMemoryWaitingListError):
+        dm.list_jobs()
+
+    with pytest.raises(DeepMemoryWaitingListError):
+        dm.evaluate(
+            queries=[],
+            relevance=[],
+        )
