@@ -9,6 +9,7 @@ import deeplake
 from deeplake.core import index_maintenance
 from deeplake.core.distance_type import DistanceType
 from deeplake.util.dataset import try_flushing
+from deeplake.util.exceptions import DeepMemoryWaitingListError
 from deeplake.util.path import convert_pathlib_to_string_if_needed
 
 from deeplake.api import dataset
@@ -421,7 +422,7 @@ class VectorStore:
         Raises:
             ValueError: When invalid parameters are specified.
             ValueError: when deep_memory is True. Deep Memory is only available for datasets stored in the Deep Lake Managed Database for paid accounts.
-            Exception: if user is not waitlisted to use deep_memory.
+            DeepMemoryWaitingListError: if user is not waitlisted to use deep_memory.
 
         Returns:
             Dict: Dictionary where keys are tensor names and values are the results of the search
@@ -459,10 +460,7 @@ class VectorStore:
         exec_option = exec_option or self.exec_option
 
         if deep_memory and not self.deep_memory:
-            raise Exception(
-                "Deep Memory is available only for waiting list users. "
-                "Please, follow the link and join the waiting list: https://www.deeplake.ai/deepmemory"
-            )
+            raise DeepMemoryWaitingListError()
 
         utils.parse_search_args(
             embedding_data=embedding_data,
