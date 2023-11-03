@@ -11,7 +11,7 @@ import multiprocessing
 import sys
 from deeplake.util.check_latest_version import warn_if_update_required
 
-from deeplake.core.vectorstore import VectorStore
+from deeplake.core.llm import VectorStore
 
 
 if sys.platform == "darwin":

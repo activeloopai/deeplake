@@ -36,7 +36,7 @@ from deeplake.util.storage import storage_provider_from_hub_path
 from deeplake.core.storage.s3 import S3Provider
 from deeplake.core.storage.local import LocalProvider
 from deeplake.core.storage.azure import AzureProvider
-from deeplake.core.vectorstore import utils
+from deeplake.core.llm import utils
 from deeplake.tests.common import (
     SESSION_ID,
     current_test_name,
