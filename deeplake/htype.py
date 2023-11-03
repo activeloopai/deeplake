@@ -138,6 +138,11 @@ class constraints:
             )
 
     @staticmethod
+    def TAG(shape, dtype):
+        if dtype.name != "str":
+            raise IncompatibleHtypeError(constraints.dtype_error("tag", dtype))
+
+    @staticmethod
     def BBOX(shape, dtype):
         if len(shape) not in (2, 3):
             raise IncompatibleHtypeError(constraints.ndim_error("bbox", len(shape)))
@@ -187,6 +192,7 @@ class constraints:
 HTYPE_CONSTRAINTS: Dict[str, Callable] = {
     htype.IMAGE: constraints.IMAGE,
     htype.CLASS_LABEL: constraints.CLASS_LABEL,
+    htype.TAG: constraints.TAG,
     htype.BBOX: constraints.BBOX,
     htype.BBOX_3D: constraints.BBOX_3D,
     htype.EMBEDDING: constraints.EMBEDDING,
@@ -213,6 +219,7 @@ HTYPE_SUPPORTED_COMPRESSIONS = {
     htype.IMAGE_GRAY: _image_compressions,
     htype.VIDEO: VIDEO_COMPRESSIONS[:],
     htype.AUDIO: AUDIO_COMPRESSIONS[:],
+    htype.TAG: BYTE_COMPRESSIONS[:],
     htype.TEXT: BYTE_COMPRESSIONS[:],
     htype.LIST: BYTE_COMPRESSIONS[:],
     htype.JSON: BYTE_COMPRESSIONS[:],

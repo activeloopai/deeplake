@@ -1211,6 +1211,7 @@ def test_htypes_list():
         "point_cloud",
         "polygon",
         "segment_mask",
+        "tag",
         "text",
         "video",
     ]
