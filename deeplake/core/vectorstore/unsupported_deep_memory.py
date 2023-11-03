@@ -6,7 +6,7 @@ import numpy as np
 class DeepMemory:
     def __init__(*args, **kwargs):
         pass
-    
+
     def train(
         self,
         queries: List[str],
@@ -15,22 +15,22 @@ class DeepMemory:
         token: Optional[str] = None,
     ) -> str:
         raise Exception(
-                "Deep Memory is available only for waiting list users. "
-                "Please, follow the link and join the waiting list: https://www.deeplake.ai/deepmemory"
-            )
-        
+            "Deep Memory is available only for waiting list users. "
+            "Please, follow the link and join the waiting list: https://www.deeplake.ai/deepmemory"
+        )
+
     def status(self, job_id: str):
         raise Exception(
             "Deep Memory is available only for waiting list users. "
             "Please, follow the link and join the waiting list: https://www.deeplake.ai/deepmemory"
         )
-        
+
     def list_jobs(self, debug=False):
         raise Exception(
             "Deep Memory is available only for waiting list users. "
             "Please, follow the link and join the waiting list: https://www.deeplake.ai/deepmemory"
         )
-    
+
     def evaluate(
         self,
         relevance: List[List[Tuple[str, int]]],
@@ -43,4 +43,4 @@ class DeepMemory:
         raise Exception(
             "Deep Memory is available only for waiting list users. "
             "Please, follow the link and join the waiting list: https://www.deeplake.ai/deepmemory"
-        )   
+        )

@@ -364,7 +364,6 @@ class VectorStore:
         return_tensors: Optional[List[str]] = None,
         return_view: bool = False,
         deep_memory: bool = False,
-        bm25: bool = False,
     ) -> Union[Dict, Dataset]:
         """VectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
@@ -422,7 +421,8 @@ class VectorStore:
         Raises:
             ValueError: When invalid parameters are specified.
             ValueError: when deep_memory is True. Deep Memory is only available for datasets stored in the Deep Lake Managed Database for paid accounts.
-
+            Exception: if user is not waitlisted to use deep_memory.
+            
         Returns:
             Dict: Dictionary where keys are tensor names and values are the results of the search
         """
