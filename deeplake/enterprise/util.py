@@ -9,11 +9,13 @@ import os
 
 def raise_indra_installation_error(indra_import_error: Optional[Exception] = None):
     if not indra_import_error:
-        if os.name == 'nt':
-            raise ImportError("High performance features are requiring the libdeeplake package which is not available in Windows OS")
+        if os.name == "nt":
+            raise ImportError(
+                "High performance features require the libdeeplake package which is not available in Windows OS"
+            )
         else:
             raise ImportError(
-                "High performance features are requiring the libdeeplake package which can be installed using pip install libdeeplake."
+                "High performance features require the libdeeplake package. This package in typically installed by default, and you may install it separately using pip install libdeeplake."
             )
     raise ImportError(
         "Error while importing C++ backend. One of the dependencies might not be installed."
