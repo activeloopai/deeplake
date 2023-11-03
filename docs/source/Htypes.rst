@@ -221,6 +221,44 @@ Appending text labels
 
 >>> ds.labels.append(["cars", "airplanes"])
 
+.. _tag-htype:
+
+Tag Htype
+~~~~~~~~~
+
+- :bluebold:`Sample dimensions:` ``(1,)``
+
+This htype can be used to tag samples with a string value.
+
+:blue:`Creating a tag tensor`
+-----------------------------
+
+A tag tensor can be created using
+
+>>> ds.create_tensor("tags", htype="tag", chunk_compression="lz4")
+
+- Optional args:
+    - :ref:`chunk_compression <chunk_compression>`.
+
+- Supported compressions:
+
+>>> ["lz4"]
+
+:blue:`Appending tag samples`
+-----------------------------
+
+- Tag samples can be appended as ``str``.
+
+:bluebold:`Examples`
+
+Appending a tag
+
+>>> ds.tags.append("verified")
+
+Extending with list of tags
+
+>>> ds.tags.extend(["verified", "unverified"])
+
 .. _bbox-htype:
 
 Bounding Box Htype
