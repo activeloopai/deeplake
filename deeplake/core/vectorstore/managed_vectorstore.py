@@ -5,26 +5,18 @@ import numpy as np
 from typing import Optional, Any, List, Dict, Union, Callable
 
 
-from deeplake.util.dataset import try_flushing
 from deeplake.util.path import convert_pathlib_to_string_if_needed
 
 from deeplake.core.dataset import Dataset
 from deeplake.constants import (
-    DEFAULT_VECTORSTORE_TENSORS,
     MAX_BYTES_PER_MINUTE,
     TARGET_BYTE_SIZE,
-    DEFAULT_VECTORSTORE_DISTANCE_METRIC,
-    DEFAULT_DEEPMEMORY_DISTANCE_METRIC,
 )
 from deeplake.client.utils import read_token
 from deeplake.client.managed.managed_client import ManagedServiceClient
 
 from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from deeplake.core.vectorstore import utils
-from deeplake.core.vectorstore.vector_search import vector_search
-from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
-from deeplake.core.vectorstore.vector_search import filter as filter_utils
-from deeplake.core.vectorstore.vector_search.indra import index
 from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
@@ -375,7 +367,7 @@ class ManagedVectorStore(DeepLakeVectorStore):
                 "ManagedVectorStore does not support embedding_function search. Please pass a precalculated embedding."
             )
 
-        if not isinstance(filter, dict):
+        if filter is not None and not isinstance(filter, dict):
             raise NotImplementedError(
                 "Only Filter Dictionary is supported for the ManagedVectorStore."
             )
@@ -459,7 +451,7 @@ class ManagedVectorStore(DeepLakeVectorStore):
             username=self.username,
         )
 
-        if not isinstance(filter, dict):
+        if filter is not None and not isinstance(filter, dict):
             raise NotImplementedError(
                 "Only Filter Dictionary is supported for the ManagedVectorStore."
             )
@@ -528,7 +520,7 @@ class ManagedVectorStore(DeepLakeVectorStore):
             username=self.username,
         )
 
-        if not isinstance(filter, dict):
+        if filter is not None and not isinstance(filter, dict):
             raise NotImplementedError(
                 "Only Filter Dictionary is supported for the ManagedVectorStore."
             )
