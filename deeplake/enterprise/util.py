@@ -4,12 +4,19 @@ from deeplake.integrations.tf.common import collate_fn as tf_collate_fn
 from deeplake.util.iterable_ordered_dict import IterableOrderedDict
 from deeplake.core.storage import GCSProvider, GDriveProvider, MemoryProvider
 
+import os
+
 
 def raise_indra_installation_error(indra_import_error: Optional[Exception] = None):
     if not indra_import_error:
-        raise ImportError(
-            "This feature requires the libdeeplake package which can be installed using pip install deeplake[enterprise]. libdeeplake is available only on linux for python versions 3.6 through 3.10 and on macos for python versions 3.7 through 3.11"
-        )
+        if os.name == "nt":
+            raise ImportError(
+                "High performance features require the libdeeplake package which is not available in Windows OS"
+            )
+        else:
+            raise ImportError(
+                "High performance features require the libdeeplake package. This package in typically installed by default, and you may install it separately using pip install libdeeplake."
+            )
     raise ImportError(
         "Error while importing C++ backend. One of the dependencies might not be installed."
     ) from indra_import_error
