@@ -1,12 +1,16 @@
+from deeplake.util.exceptions import DeepMemoryWaitingListError
+
 from typing import List, Tuple, Optional, Callable, Union, Dict, Any
 
 import numpy as np
 
 
 class DeepMemory:
+    """ This the class that raises exceptions for users that don't have access to Deep Memory"""
     def __init__(*args, **kwargs):
-        pass
-
+        # Just some initialization to make sure that the class is not empty
+        pass 
+        
     def train(
         self,
         queries: List[str],
@@ -14,22 +18,13 @@ class DeepMemory:
         embedding_function: Optional[Callable[[str], np.ndarray]] = None,
         token: Optional[str] = None,
     ) -> str:
-        raise Exception(
-            "Deep Memory is available only for waiting list users. "
-            "Please, follow the link and join the waiting list: https://www.deeplake.ai/deepmemory"
-        )
+        raise DeepMemoryWaitingListError()
 
     def status(self, job_id: str):
-        raise Exception(
-            "Deep Memory is available only for waiting list users. "
-            "Please, follow the link and join the waiting list: https://www.deeplake.ai/deepmemory"
-        )
+        raise DeepMemoryWaitingListError()
 
     def list_jobs(self, debug=False):
-        raise Exception(
-            "Deep Memory is available only for waiting list users. "
-            "Please, follow the link and join the waiting list: https://www.deeplake.ai/deepmemory"
-        )
+        raise DeepMemoryWaitingListError()
 
     def evaluate(
         self,
@@ -40,7 +35,4 @@ class DeepMemory:
         top_k: List[int] = [1, 3, 5, 10, 50, 100],
         qvs_params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Dict[str, float]]:
-        raise Exception(
-            "Deep Memory is available only for waiting list users. "
-            "Please, follow the link and join the waiting list: https://www.deeplake.ai/deepmemory"
-        )
+        raise DeepMemoryWaitingListError()

@@ -1102,3 +1102,12 @@ class IncorrectEmbeddingShapeError(Exception):
 class IncompatibleHtypeError(Exception):
     def __init__(self, msg):
         super().__init__(msg)
+
+
+class DeepMemoryWaitingListError(Exception):
+    def __init__(self):
+        msg = (
+            "Deep Memory is available only for waiting list users. "
+            "Please, follow the link and join the waiting list: https://www.deeplake.ai/deepmemory"
+        )
+        super().__init__(msg)
