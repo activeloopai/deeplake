@@ -8,6 +8,7 @@ import numpy as np
 import deeplake
 from deeplake.core import index_maintenance
 from deeplake.core.distance_type import DistanceType
+from deeplake.util.exceptions import DeepMemoryWaitingListError
 from deeplake.util.path import convert_pathlib_to_string_if_needed
 
 from deeplake.api import dataset
@@ -29,6 +30,7 @@ from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
 from deeplake.util.path import get_path_type
+from deeplake.core.vectorstore.unsupported_deep_memory import DeepMemory
 
 
 logger = logging.getLogger(__name__)
@@ -186,7 +188,7 @@ class VectorStore:
             dml_type=_INDEX_OPERATION_MAPPING["ADD"],
             rowids=list(range(0, len(self.dataset))),
         )
-        self.deep_memory = None
+        self.deep_memory = DeepMemory()
 
     @property
     def token(self):
@@ -418,6 +420,7 @@ class VectorStore:
         Raises:
             ValueError: When invalid parameters are specified.
             ValueError: when deep_memory is True. Deep Memory is only available for datasets stored in the Deep Lake Managed Database for paid accounts.
+            DeepMemoryWaitingListError: if user is not waitlisted to use deep_memory.
 
         Returns:
             Dict: Dictionary where keys are tensor names and values are the results of the search
@@ -453,10 +456,7 @@ class VectorStore:
         exec_option = exec_option or self.exec_option
 
         if deep_memory and not self.deep_memory:
-            raise ValueError(
-                "Deep Memory is not available for this organization."
-                "Deep Memory is only available for waitlisted accounts."
-            )
+            raise DeepMemoryWaitingListError()
 
         utils.parse_search_args(
             embedding_data=embedding_data,

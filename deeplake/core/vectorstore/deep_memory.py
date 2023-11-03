@@ -109,6 +109,7 @@ class DeepMemory:
             },
             token=token or self.token,
         )
+
         # TODO: Support for passing query_embeddings directly without embedding function
         corpus_path = self.dataset.path
         queries_path = corpus_path + "_queries"
