@@ -17,6 +17,7 @@ class DeepMemoryVectorStore(VectorStore):
             embedding_function=self.embedding_function,
             client=client,
             creds=self.creds,
+            logger=self.logger,
         )
 
     def search(
