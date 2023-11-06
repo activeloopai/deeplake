@@ -1,6 +1,7 @@
 from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
 from typing import Optional, Union
+from deeplake.constants import INDRA_DATASET_SAMPLES_THRESHOLD
 
 import numpy as np
 
@@ -48,7 +49,7 @@ def query(dataset, query_string: str):
     dsv = ds.query(query_string)
     from deeplake.enterprise.convert_to_libdeeplake import INDRA_API
 
-    if not isinstance(dataset, DeepLakeQueryDataset) and INDRA_API.tql.parse(query_string).is_filter and len(dsv.indexes) < 10000000:  # type: ignore
+    if not isinstance(dataset, DeepLakeQueryDataset) and INDRA_API.tql.parse(query_string).is_filter and len(dsv.indexes) < INDRA_DATASET_SAMPLES_THRESHOLD:  # type: ignore
         indexes = list(dsv.indexes)
         return dataset.no_view_dataset[indexes]
     else:
@@ -116,5 +117,5 @@ def sample_by(
         dsv = ds.sample(weights, replace=replace)
     else:
         dsv = ds.sample(weights, replace=replace, size=size)
-    indexes = dsv.indexes
+    indexes = list(dsv.indexes)
     return dataset.no_view_dataset[indexes]
