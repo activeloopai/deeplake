@@ -46,6 +46,7 @@ from deeplake.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
     UnsupportedCompressionError,
+    EmbeddingTensorPopError,
 )
 from deeplake.util.iteration_warning import check_if_iteration
 from deeplake.hooks import dataset_read, dataset_written
@@ -352,7 +353,7 @@ class Tensor:
         """
         self._extend(samples, progressbar=progressbar, ignore_errors=ignore_errors)
         if index_maintenance.validate_embedding_tensor(self):
-            row_ids = list(range(self.num_samples, self.num_samples + len(samples)))
+            row_ids = list(range(self.num_samples - len(samples), self.num_samples))
             index_maintenance.index_operation_dataset(  # TODO: this might pick the wrong tensor when we support
                 self.dataset,  #       index for multiple tensors in the future
                 dml_type=_INDEX_OPERATION_MAPPING["ADD"],
@@ -1153,6 +1154,13 @@ class Tensor:
                         tensor[global_sample_index] = val
 
     def _pop(self, index: Optional[int] = None):
+        if (
+            index is not None
+            and index != self.num_samples - 1
+            and len(self.get_vdb_indexes()) > 0
+        ):
+            raise EmbeddingTensorPopError(self.meta.name, index)
+
         sample_id_tensor = self._sample_id_tensor
         if index is None:
             index = self.num_samples - 1
@@ -1174,7 +1182,6 @@ class Tensor:
                 self.dataset,
                 dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
                 rowids=row_ids,
-                index_regeneration=True,
             )
 
     def _pop_links(self, global_sample_index: int):
@@ -1488,14 +1495,13 @@ class Tensor:
         self.storage.check_readonly()
         if self.meta.htype != "embedding":
             raise Exception(f"Only supported for embedding tensors.")
-        if not self.dataset.libdeeplake_dataset is None:
-            ds = self.dataset.libdeeplake_dataset
-        else:
-            from deeplake.enterprise.convert_to_libdeeplake import (
-                dataset_to_libdeeplake,
-            )
+        self.invalidate_libdeeplake_dataset()
+        self.dataset.flush()
+        from deeplake.enterprise.convert_to_libdeeplake import (
+            dataset_to_libdeeplake,
+        )
 
-            ds = dataset_to_libdeeplake(self.dataset)
+        ds = dataset_to_libdeeplake(self.dataset)
         ts = getattr(ds, self.meta.name)
         from deeplake.enterprise.convert_to_libdeeplake import (
             import_indra_api,
@@ -1520,7 +1526,7 @@ class Tensor:
                 b = index.serialize()
                 commit_id = self.version_state["commit_id"]
                 self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
-                self.invalidate_libdeeplake_dataset()
+                self.storage.flush()
             except:
                 raise
         elif operation_kind == _INDEX_OPERATION_MAPPING["REMOVE"]:
@@ -1535,7 +1541,7 @@ class Tensor:
                 b = index.serialize()
                 commit_id = self.version_state["commit_id"]
                 self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
-                self.invalidate_libdeeplake_dataset()
+                self.storage.flush()
             except:
                 raise
         elif operation_kind == _INDEX_OPERATION_MAPPING["UPDATE"]:
@@ -1550,7 +1556,7 @@ class Tensor:
                 b = index.serialize()
                 commit_id = self.version_state["commit_id"]
                 self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
-                self.invalidate_libdeeplake_dataset()
+                self.storage.flush()
             except:
                 raise
         else:
@@ -1704,7 +1710,7 @@ class Tensor:
                 path=path,
             )
 
-    def unload_index_cache(self):
+    def unload_vdb_index_cache(self):
         if self.meta.htype != "embedding":
             raise Exception(f"Only supported for embedding tensors.")
         if not self.dataset.libdeeplake_dataset is None:

@@ -15,7 +15,6 @@ class INDEX_OP_TYPE(Enum):
     NOOP = 0
     CREATE_INDEX = 1
     REMOVE_INDEX = 2
-    REGENERATE_INDEX = 3
     INCREMENTAL_INDEX = 4
 
 
@@ -119,9 +118,7 @@ def check_incr_threshold(len_initial_data, len_changed_data):
     return len_changed_data < threshold
 
 
-def index_operation_type_vectorstore(
-    self, changed_data_len, index_regeneration, index_delete=False
-):
+def index_operation_type_vectorstore(self, changed_data_len, index_delete=False):
     if not index_used(self.exec_option):
         return INDEX_OP_TYPE.NOOP
 
@@ -134,10 +131,8 @@ def index_operation_type_vectorstore(
         if not below_threshold:
             return INDEX_OP_TYPE.CREATE_INDEX
     else:
-        if (
-            not index_regeneration
-            and check_index_params(self)
-            and check_incr_threshold(len(self.dataset), changed_data_len)
+        if check_index_params(self) and check_incr_threshold(
+            len(self.dataset), changed_data_len
         ):
             return INDEX_OP_TYPE.INCREMENTAL_INDEX
         else:
@@ -146,9 +141,7 @@ def index_operation_type_vectorstore(
     return INDEX_OP_TYPE.NOOP
 
 
-def index_operation_type_dataset(
-    self, num_rows, changed_data_len, index_regeneration, index_delete=False
-):
+def index_operation_type_dataset(self, num_rows, changed_data_len, index_delete=False):
     if not index_exists(self):
         if self.index_params is None:
             return INDEX_OP_TYPE.NOOP
@@ -163,7 +156,7 @@ def index_operation_type_dataset(
     if index_delete:
         return INDEX_OP_TYPE.REMOVE_INDEX
 
-    if not index_regeneration and check_incr_threshold(num_rows, changed_data_len):
+    if check_incr_threshold(num_rows, changed_data_len):
         return INDEX_OP_TYPE.INCREMENTAL_INDEX
     else:
         return INDEX_OP_TYPE.REGENERATE_INDEX
@@ -225,26 +218,11 @@ def check_vdb_indexes(dataset):
     return False
 
 
-def index_cache_cleanup(dataset):
-    # Gdrive and In memory datasets are not supported for libdeeplake
-    if dataset.path.startswith("gdrive://") or dataset.path.startswith("mem://"):
-        return
-
-    tensors = dataset.tensors
-    for _, tensor in tensors.items():
-        is_embedding = is_embedding_tensor(tensor)
-        if is_embedding:
-            tensor.unload_index_cache()
-
-
 # Routine to identify the index Operation.
-def index_operation_vectorstore(
-    self, dml_type, rowids, index_regeneration: bool = False, index_delete: bool = False
-):
+def index_operation_vectorstore(self, dml_type, rowids, index_delete: bool = False):
     index_operation_type = index_operation_type_vectorstore(
         self,
         len(rowids) if rowids is not None else 0,
-        index_regeneration=index_regeneration,
         index_delete=index_delete,
     )
     emb_tensor = fetch_embedding_tensor(self.dataset)
@@ -252,7 +230,6 @@ def index_operation_vectorstore(
     if index_operation_type == INDEX_OP_TYPE.NOOP:
         return
 
-    index_cache_cleanup(self.dataset)
     if index_operation_type == INDEX_OP_TYPE.CREATE_INDEX:
         distance_str = self.index_params.get("distance_metric", "COS")
         additional_params_dict = self.index_params.get("additional_params", None)
@@ -275,9 +252,7 @@ def index_operation_vectorstore(
         raise Exception("Unknown index operation")
 
 
-def index_operation_dataset(
-    self, dml_type, rowids, index_regeneration: bool = False, index_delete: bool = False
-):
+def index_operation_dataset(self, dml_type, rowids, index_delete: bool = False):
     emb_tensor = fetch_embedding_tensor(self)
     if emb_tensor is None:
         return
@@ -286,14 +261,12 @@ def index_operation_dataset(
         self,
         emb_tensor.chunk_engine.num_samples,
         len(rowids),
-        index_regeneration=index_regeneration,
         index_delete=index_delete,
     )
 
     if index_operation_type == INDEX_OP_TYPE.NOOP:
         return
 
-    index_cache_cleanup(self)
     if index_operation_type == INDEX_OP_TYPE.CREATE_INDEX:
         distance_str = self.index_params.get("distance_metric", "COS")
         additional_params_dict = self.index_params.get("additional_params", None)

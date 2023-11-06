@@ -1111,3 +1111,12 @@ class DeepMemoryWaitingListError(Exception):
             "Please, follow the link and join the waiting list: https://www.deeplake.ai/deepmemory"
         )
         super().__init__(msg)
+
+
+class EmbeddingTensorPopError(Exception):
+    def __init__(self, name, index):
+        super().__init__(
+            f"Can't pop sample from the middle of embedding tensor '{name}'. "
+            "This operation is not allowed because that will enforce regenerating vector search. "
+            "Hint: Swap the sample {index} with the last one and pop the last."
+        )
