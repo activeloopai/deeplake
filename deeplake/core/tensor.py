@@ -350,9 +350,10 @@ class Tensor:
         Raises:
             TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype.
         """
+        old_dataset_length = self.num_samples
         self._extend(samples, progressbar=progressbar, ignore_errors=ignore_errors)
         if index_maintenance.validate_embedding_tensor(self):
-            row_ids = list(range(self.num_samples, self.num_samples + len(samples)))
+            row_ids = list(range(old_dataset_length, old_dataset_length + len(samples)))
             index_maintenance.index_operation_dataset(  # TODO: this might pick the wrong tensor when we support
                 self.dataset,  #       index for multiple tensors in the future
                 dml_type=_INDEX_OPERATION_MAPPING["ADD"],
