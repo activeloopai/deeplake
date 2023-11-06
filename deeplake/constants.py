@@ -335,3 +335,10 @@ _INDEX_OPERATION_MAPPING = {
     "REMOVE": 2,
     "UPDATE": 3,
 }
+
+
+DEFAULT_RATE_LIMITER_KEY_TO_VALUE = {
+    "enabled": False,
+    "bytes_per_minute": MAX_BYTES_PER_MINUTE,
+    "batch_byte_size": TARGET_BYTE_SIZE,
+}
