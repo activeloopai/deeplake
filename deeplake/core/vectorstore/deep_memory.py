@@ -398,7 +398,7 @@ class DeepMemory:
 
         if not INDRA_INSTALLED:
             raise ImportError(
-                "indra is not installed. Please install indra to use this functionality with: pip install `deeplake[enterprise]`"
+                "The C++ library is not installed."
             )
 
         from indra import api  # type: ignore
