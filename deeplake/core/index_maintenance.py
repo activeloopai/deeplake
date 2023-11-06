@@ -15,6 +15,7 @@ class INDEX_OP_TYPE(Enum):
     NOOP = 0
     CREATE_INDEX = 1
     REMOVE_INDEX = 2
+    REGENERATE_INDEX = 3
     INCREMENTAL_INDEX = 4
 
 
