@@ -1618,44 +1618,6 @@ class Tensor:
         self.invalidate_libdeeplake_dataset()
         self.storage.flush()
 
-    def _regenerate_vdb_indexes(self):
-        try:
-            vdb_indexes = self.get_vdb_indexes()
-
-            for vdb_index in vdb_indexes:
-                self.delete_vdb_index(vdb_index["id"])
-                # Recreate it back.
-                self.create_vdb_index(
-                    vdb_index["id"],
-                    vdb_index["distance"],
-                    additional_params=vdb_index.get("additional_params", None),
-                )
-        except Exception as e:
-            raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
-
-    def _incr_maintenance_vdb_indexes(self, indexes, index_operation):
-        try:
-            is_embedding = self.htype == "embedding"
-            has_vdb_indexes = hasattr(self.meta, "vdb_indexes")
-            try:
-                vdb_index_ids_present = len(self.meta.vdb_indexes) > 0
-            except AttributeError:
-                vdb_index_ids_present = False
-
-            if is_embedding and has_vdb_indexes and vdb_index_ids_present:
-                for vdb_index in self.meta.vdb_indexes:
-                    # Maintain incrementally.
-                    distance = vdb_index["distance"]
-                    id = vdb_index["id"]
-                    self.update_vdb_index(
-                        id,
-                        distance=distance,
-                        operation_kind=index_operation,
-                        row_ids=indexes,
-                    )
-        except Exception as e:
-            raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
-
     def _verify_and_delete_vdb_indexes(self):
         try:
             is_embedding = self.htype == "embedding"

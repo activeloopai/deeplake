@@ -1,6 +1,5 @@
 from deeplake.core.distance_type import DistanceType
 from deeplake.core.storage import azure, gcs, google_drive, local, lru_cache, memory
-from deeplake.constants import _INDEX_OPERATION_MAPPING
 from enum import Enum
 
 
@@ -14,9 +13,8 @@ METRIC_TO_INDEX_METRIC = {
 class INDEX_OP_TYPE(Enum):
     NOOP = 0
     CREATE_INDEX = 1
-    REMOVE_INDEX = 2
-    REGENERATE_INDEX = 3
-    INCREMENTAL_INDEX = 4
+    REGENERATE_INDEX = 2
+    INCREMENTAL_INDEX = 3
 
 
 def is_embedding_tensor(tensor):
@@ -92,8 +90,12 @@ def parse_index_distance_metric_from_params(
 
 
 def check_index_params(self):
+    emb_tensor = fetch_embedding_tensor(self.dataset)
+    indexes = emb_tensor.get_vdb_indexes()
+    if len(indexes) == 0:
+        return False
     current_params = self.index_params
-    existing_params = fetch_embedding_tensor(self.dataset).get_vdb_indexes()[0]
+    existing_params = indexes[0]
     curr_distance_str = current_params.get("distance_metric", "COS")
     curr_distance = get_index_metric(curr_distance_str.upper())
 
@@ -107,42 +109,7 @@ def check_index_params(self):
     return False
 
 
-def check_incr_threshold(len_initial_data, len_changed_data):
-    """
-    Determine if the index should be regenerated or built incrementally.
-
-    :param len_initial_data: int, length of the original data
-    :param len_changed_data: int, length of the changed data
-    :return: bool, True if the index should be regenerated, False otherwise
-    """
-    threshold = 0.7 * len_initial_data
-    return len_changed_data < threshold
-
-
-def index_operation_type_vectorstore(self, changed_data_len, index_delete=False):
-    if not index_used(self.exec_option):
-        return INDEX_OP_TYPE.NOOP
-
-    if index_delete:
-        return INDEX_OP_TYPE.REMOVE_INDEX
-
-    if not index_exists(self.dataset):
-        threshold = self.index_params.get("threshold", -1)
-        below_threshold = threshold <= 0 or len(self.dataset) < threshold
-        if not below_threshold:
-            return INDEX_OP_TYPE.CREATE_INDEX
-    else:
-        if check_index_params(self) and check_incr_threshold(
-            len(self.dataset), changed_data_len
-        ):
-            return INDEX_OP_TYPE.INCREMENTAL_INDEX
-        else:
-            return INDEX_OP_TYPE.REGENERATE_INDEX
-
-    return INDEX_OP_TYPE.NOOP
-
-
-def index_operation_type_dataset(self, num_rows, changed_data_len, index_delete=False):
+def index_operation_type_dataset(self, num_rows, changed_data_len):
     if not index_exists(self):
         if self.index_params is None:
             return INDEX_OP_TYPE.NOOP
@@ -154,13 +121,7 @@ def index_operation_type_dataset(self, num_rows, changed_data_len, index_delete=
     if not check_vdb_indexes(self):
         return INDEX_OP_TYPE.NOOP
 
-    if index_delete:
-        return INDEX_OP_TYPE.REMOVE_INDEX
-
-    if check_incr_threshold(num_rows, changed_data_len):
-        return INDEX_OP_TYPE.INCREMENTAL_INDEX
-    else:
-        return INDEX_OP_TYPE.REGENERATE_INDEX
+    return INDEX_OP_TYPE.INCREMENTAL_INDEX
 
 
 def get_index_metric(metric):
@@ -218,42 +179,66 @@ def check_vdb_indexes(dataset):
             return True
     return False
 
+def _incr_maintenance_vdb_indexes(tensor, indexes, index_operation):
+    try:
+        is_embedding = tensor.htype == "embedding"
+        has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
+        try:
+            vdb_index_ids_present = len(tensor.meta.vdb_indexes) > 0
+        except AttributeError:
+            vdb_index_ids_present = False
+
+        if is_embedding and has_vdb_indexes and vdb_index_ids_present:
+            for vdb_index in tensor.meta.vdb_indexes:
+                # Maintain incrementally.
+                distance = vdb_index["distance"]
+                id = vdb_index["id"]
+                tensor.update_vdb_index(
+                    id,
+                    distance=distance,
+                    operation_kind=index_operation,
+                    row_ids=indexes,
+                )
+    except Exception as e:
+        raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
+
 
 # Routine to identify the index Operation.
-def index_operation_vectorstore(self, dml_type, rowids, index_delete: bool = False):
-    index_operation_type = index_operation_type_vectorstore(
-        self,
-        len(rowids) if rowids is not None else 0,
-        index_delete=index_delete,
-    )
+def index_operation_vectorstore(self):
+    if not index_used(self.exec_option):
+        return None
+
     emb_tensor = fetch_embedding_tensor(self.dataset)
 
-    if index_operation_type == INDEX_OP_TYPE.NOOP:
-        return
+    if index_exists(self.dataset) and check_index_params(self):
+        return emb_tensor.get_vdb_indexes()[0]["distance"]
 
-    if index_operation_type == INDEX_OP_TYPE.CREATE_INDEX:
-        distance_str = self.index_params.get("distance_metric", "COS")
-        additional_params_dict = self.index_params.get("additional_params", None)
-        distance = get_index_metric(distance_str.upper())
-        if additional_params_dict and len(additional_params_dict) > 0:
-            param_dict = normalize_additional_params(additional_params_dict)
-            emb_tensor.create_vdb_index(
-                "hnsw_1", distance=distance, additional_params=param_dict
-            )
-        else:
-            emb_tensor.create_vdb_index("hnsw_1", distance=distance)
-    elif index_operation_type == INDEX_OP_TYPE.INCREMENTAL_INDEX:
-        emb_tensor._incr_maintenance_vdb_indexes(rowids, dml_type)
-    elif index_operation_type == INDEX_OP_TYPE.REGENERATE_INDEX:
-        emb_tensor._regenerate_vdb_indexes()
-    elif index_operation_type == INDEX_OP_TYPE.REMOVE_INDEX:
-        vdb_indexes = emb_tensor.get_vdb_indexes()
-        emb_tensor.delete_vdb_index(vdb_indexes["id"])
+    threshold = self.index_params.get("threshold", -1)
+    below_threshold = threshold < 0 or len(self.dataset) < threshold
+    if below_threshold:
+        return None
+
+    if not check_index_params(self):
+        try:
+            vdb_indexes = emb_tensor.get_vdb_indexes()
+            for vdb_index in vdb_indexes:
+                emb_tensor.delete_vdb_index(vdb_index["id"])
+        except Exception as e:
+            raise Exception(f"An error occurred while removing VDB indexes: {e}")
+    distance_str = self.index_params.get("distance_metric", "COS")
+    additional_params_dict = self.index_params.get("additional_params", None)
+    distance = get_index_metric(distance_str.upper())
+    if additional_params_dict and len(additional_params_dict) > 0:
+        param_dict = normalize_additional_params(additional_params_dict)
+        emb_tensor.create_vdb_index(
+            "hnsw_1", distance=distance, additional_params=param_dict
+        )
     else:
-        raise Exception("Unknown index operation")
+        emb_tensor.create_vdb_index("hnsw_1", distance=distance)
+    return distance
 
 
-def index_operation_dataset(self, dml_type, rowids, index_delete: bool = False):
+def index_operation_dataset(self, dml_type, rowids):
     emb_tensor = fetch_embedding_tensor(self)
     if emb_tensor is None:
         return
@@ -262,13 +247,19 @@ def index_operation_dataset(self, dml_type, rowids, index_delete: bool = False):
         self,
         emb_tensor.chunk_engine.num_samples,
         len(rowids),
-        index_delete=index_delete,
     )
 
     if index_operation_type == INDEX_OP_TYPE.NOOP:
         return
 
-    if index_operation_type == INDEX_OP_TYPE.CREATE_INDEX:
+    if index_operation_type == INDEX_OP_TYPE.CREATE_INDEX or index_operation_type == INDEX_OP_TYPE.REGENERATE_INDEX:
+        if index_operation_type == INDEX_OP_TYPE.REGENERATE_INDEX:
+            try:
+                vdb_indexes = emb_tensor.get_vdb_indexes()
+                for vdb_index in vdb_indexes:
+                    emb_tensor.delete_vdb_index(vdb_index["id"])
+            except Exception as e:
+                raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
         distance_str = self.index_params.get("distance_metric", "COS")
         additional_params_dict = self.index_params.get("additional_params", None)
         distance = get_index_metric(distance_str.upper())
@@ -280,11 +271,6 @@ def index_operation_dataset(self, dml_type, rowids, index_delete: bool = False):
         else:
             emb_tensor.create_vdb_index("hnsw_1", distance=distance)
     elif index_operation_type == INDEX_OP_TYPE.INCREMENTAL_INDEX:
-        emb_tensor._incr_maintenance_vdb_indexes(rowids, dml_type)
-    elif index_operation_type == INDEX_OP_TYPE.REGENERATE_INDEX:
-        emb_tensor._regenerate_vdb_indexes()
-    elif index_operation_type == INDEX_OP_TYPE.REMOVE_INDEX:
-        vdb_indexes = emb_tensor.get_vdb_indexes()
-        emb_tensor.delete_vdb_index(vdb_indexes["id"])
+        _incr_maintenance_vdb_indexes(emb_tensor, rowids, dml_type)
     else:
         raise Exception("Unknown index operation")
