@@ -4631,6 +4631,9 @@ class Dataset:
         with self:
             for tensor in self.tensors.values():
                 if tensor.num_samples > index:
+                    tensor._check_for_pop(index)
+            for tensor in self.tensors.values():
+                if tensor.num_samples > index:
                     tensor._pop(index)
 
     @invalid_view_op

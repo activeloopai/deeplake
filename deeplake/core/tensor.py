@@ -1153,7 +1153,7 @@ class Tensor:
                         val = cast_to_type(val, tensor.dtype)
                         tensor[global_sample_index] = val
 
-    def _pop(self, index: Optional[int] = None):
+    def _check_for_pop(self, index: Optional[int] = None):
         if (
             index is not None
             and index != self.num_samples - 1
@@ -1161,6 +1161,7 @@ class Tensor:
         ):
             raise EmbeddingTensorPopError(self.meta.name, index)
 
+    def _pop(self, index: Optional[int] = None):
         sample_id_tensor = self._sample_id_tensor
         if index is None:
             index = self.num_samples - 1
@@ -1175,6 +1176,7 @@ class Tensor:
     @invalid_view_op
     def pop(self, index: Optional[int] = None):
         """Removes an element at the given index."""
+        self._check_for_pop(index)
         self._pop(index)
         if index_maintenance.is_embedding_tensor(self):
             row_ids = [index if index is not None else self.num_samples - 1]

@@ -179,6 +179,7 @@ def check_vdb_indexes(dataset):
             return True
     return False
 
+
 def _incr_maintenance_vdb_indexes(tensor, indexes, index_operation):
     try:
         is_embedding = tensor.htype == "embedding"
@@ -252,14 +253,19 @@ def index_operation_dataset(self, dml_type, rowids):
     if index_operation_type == INDEX_OP_TYPE.NOOP:
         return
 
-    if index_operation_type == INDEX_OP_TYPE.CREATE_INDEX or index_operation_type == INDEX_OP_TYPE.REGENERATE_INDEX:
+    if (
+        index_operation_type == INDEX_OP_TYPE.CREATE_INDEX
+        or index_operation_type == INDEX_OP_TYPE.REGENERATE_INDEX
+    ):
         if index_operation_type == INDEX_OP_TYPE.REGENERATE_INDEX:
             try:
                 vdb_indexes = emb_tensor.get_vdb_indexes()
                 for vdb_index in vdb_indexes:
                     emb_tensor.delete_vdb_index(vdb_index["id"])
             except Exception as e:
-                raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
+                raise Exception(
+                    f"An error occurred while regenerating VDB indexes: {e}"
+                )
         distance_str = self.index_params.get("distance_metric", "COS")
         additional_params_dict = self.index_params.get("additional_params", None)
         distance = get_index_metric(distance_str.upper())
