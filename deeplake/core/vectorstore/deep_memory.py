@@ -398,7 +398,7 @@ class DeepMemory:
 
         if not INDRA_INSTALLED:
             raise ImportError(
-                "The C++ library is not installed."
+                "The C++ library is not installed. The library should be installed using `pip install deeplake`, but if you want to install it separately, you may run `pip install libdeeplake`"
             )
 
         from indra import api  # type: ignore
@@ -421,7 +421,7 @@ class DeepMemory:
 
             if embedding_function is None:
                 raise ValueError(
-                    "Embedding function should be specifed either during initialization or during evaluation."
+                    "Embedding function should be specified either during initialization or during evaluation."
                 )
             query_embs = embedding_function(queries)
 
