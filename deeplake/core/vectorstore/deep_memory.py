@@ -29,12 +29,12 @@ from deeplake.util.path import get_path_type
 from deeplake.util.version_control import load_meta
 
 
-def deep_memory(func):
+def use_deep_memory(func):
     def wrapper(self, *args, **kwargs):
         use_deep_memory = kwargs.get("deep_memory")
         distance_metric = kwargs.get("distance_metric")
 
-        if use_deep_memory and distance_metric:
+        if use_deep_memory and distance_metric is None:
             kwargs["distance_metric"] = DEFAULT_DEEPMEMORY_DISTANCE_METRIC
 
         return func(self, *args, **kwargs)
