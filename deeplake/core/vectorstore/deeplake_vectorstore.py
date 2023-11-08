@@ -30,8 +30,7 @@ from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
 from deeplake.util.path import get_path_type
-from deeplake.core.vectorstore.unsupported_deep_memory import DeepMemory
-
+from deeplake.core.vectorstore.deep_memory import DeepMemory
 
 logger = logging.getLogger(__name__)
 
@@ -188,7 +187,13 @@ class VectorStore:
             dml_type=_INDEX_OPERATION_MAPPING["ADD"],
             rowids=list(range(0, len(self.dataset))),
         )
-        self.deep_memory = DeepMemory()
+        self.deep_memory = DeepMemory(
+            dataset=self.dataset,
+            token=self.token,
+            logger=self.logger,
+            embedding_function=self.embedding_function,
+            creds=self.creds,
+        )
 
     @property
     def token(self):

@@ -2,7 +2,7 @@ deeplake.core.vectorstore.deep_memory
 =========================
 .. currentmodule:: deeplake.core.vectorstore.deep_memory
 
-VectorStore
+DeepMemory
 ~~~~~~~~~~~
 .. autoclass:: DeepMemory()
     :members:
