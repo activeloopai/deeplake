@@ -146,7 +146,7 @@ class ManagedServiceClient(DeepLakeBackendClient):
     def vectorstore_remove_rows(
         self,
         path: str,
-        indices: Optional[List[int]] = None,
+        row_ids: Optional[List[int]] = None,
         ids: Optional[List[str]] = None,
         filter: Optional[Dict[str, str]] = None,
         query: Optional[str] = None,
@@ -157,7 +157,7 @@ class ManagedServiceClient(DeepLakeBackendClient):
             relative_url=VECTORSTORE_REMOVE_ROWS_SUFFIX,
             json={
                 "dataset": path,
-                "indices": indices,
+                "row_ids": row_ids,
                 "ids": ids,
                 "filter": filter,
                 "query": query,

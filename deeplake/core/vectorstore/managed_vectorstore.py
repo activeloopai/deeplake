@@ -458,7 +458,7 @@ class ManagedVectorStore(DeepLakeVectorStore):
 
         self.client.vectorstore_remove_rows(
             path=self.path,
-            indices=row_ids,
+            row_ids=row_ids,
             ids=ids,
             filter=filter,
             query=query,
