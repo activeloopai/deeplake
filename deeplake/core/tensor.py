@@ -1489,8 +1489,6 @@ class Tensor:
 
     def update_vdb_index(
         self,
-        id: str,
-        distance: Union[DistanceType, str],
         operation_kind: int,
         row_ids: List[int] = [],
     ):
@@ -1512,52 +1510,43 @@ class Tensor:
         api = import_indra_api()
 
         commit_id = self.version_state["commit_id"]
-        index_data = self.chunk_engine.base_storage[
-            get_tensor_vdb_index_key(self.key, commit_id, id)
-        ]
-
         if operation_kind == _INDEX_OPERATION_MAPPING["ADD"]:
             try:
-                index = api.vdb.add_samples_to_index(
+                indexes = api.vdb.add_samples_to_index(
                     ts,
-                    index_type="hnsw",
-                    distance_type=distance,
                     add_indices=row_ids,
-                    data=index_data,
                 )
-                b = index.serialize()
-                commit_id = self.version_state["commit_id"]
-                self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
+                for id, index in indexes:
+                    b = index.serialize()
+                    commit_id = self.version_state["commit_id"]
+                    self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
                 self.storage.flush()
             except:
                 raise
         elif operation_kind == _INDEX_OPERATION_MAPPING["REMOVE"]:
             try:
-                index = api.vdb.remove_samples_from_index(
+                indexes = api.vdb.remove_samples_from_index(
                     ts,
-                    index_type="hnsw",
-                    distance_type=distance,
                     remove_indices=row_ids,
-                    data=index_data,
                 )
-                b = index.serialize()
-                commit_id = self.version_state["commit_id"]
-                self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
+                for id, index in indexes:
+                    b = index.serialize()
+                    commit_id = self.version_state["commit_id"]
+                    self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
                 self.storage.flush()
             except:
                 raise
         elif operation_kind == _INDEX_OPERATION_MAPPING["UPDATE"]:
             try:
-                index = api.vdb.update_samples_in_index(
+                indexes = api.vdb.update_samples_in_index(
                     ts,
-                    index_type="hnsw",
-                    distance_type=distance,
                     update_indices=row_ids,
-                    data=index_data,
                 )
-                b = index.serialize()
-                commit_id = self.version_state["commit_id"]
-                self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
+                for id, index in indexes:
+                    b = index.serialize()
+                    commit_id = self.version_state["commit_id"]
+                    self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
+                    self.storage.flush()
                 self.storage.flush()
             except:
                 raise

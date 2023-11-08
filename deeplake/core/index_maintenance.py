@@ -191,12 +191,7 @@ def _incr_maintenance_vdb_indexes(tensor, indexes, index_operation):
 
         if is_embedding and has_vdb_indexes and vdb_index_ids_present:
             for vdb_index in tensor.meta.vdb_indexes:
-                # Maintain incrementally.
-                distance = vdb_index["distance"]
-                id = vdb_index["id"]
                 tensor.update_vdb_index(
-                    id,
-                    distance=distance,
                     operation_kind=index_operation,
                     row_ids=indexes,
                 )
