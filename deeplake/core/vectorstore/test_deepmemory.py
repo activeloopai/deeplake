@@ -6,10 +6,8 @@ from time import sleep
 
 import deeplake
 from deeplake import VectorStore
+from deeplake.core.vectorstore.deep_memory import DeepMemory
 from deeplake.tests.common import requires_libdeeplake
-from deeplake.core.vectorstore.unsupported_deep_memory import (
-    DeepMemory as UnsupportedDeepMemory,
-)
 from deeplake.util.exceptions import DeepMemoryWaitingListError
 
 
@@ -577,8 +575,8 @@ def test_deepmemory_search_on_local_datasets(
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 @pytest.mark.slow
 @requires_libdeeplake
-def test_unsupported_deepmemory_users():
-    dm = UnsupportedDeepMemory()
+def test_unsupported_deepmemory_users(local_ds):
+    dm = DeepMemory(local_ds=local_ds, logger=None)
     with pytest.raises(DeepMemoryWaitingListError):
         dm.train(
             queries=[],

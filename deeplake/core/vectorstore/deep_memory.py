@@ -645,37 +645,3 @@ def _get_best_model(embedding: Any, job_id: str, latest_job: bool = False):
                 best_recall = recall
                 best_delta = value["delta"]
     return best_recall, best_delta
-
-
-class DeepMemory:
-    """This the class that raises exceptions for users that don't have access to Deep Memory"""
-
-    def __init__(*args, **kwargs):
-        # Just some initialization to make sure that the class is not empty
-        pass
-
-    def train(
-        self,
-        queries: List[str],
-        relevance: List[List[Tuple[str, int]]],
-        embedding_function: Optional[Callable[[str], np.ndarray]] = None,
-        token: Optional[str] = None,
-    ) -> str:
-        raise DeepMemoryWaitingListError()
-
-    def status(self, job_id: str):
-        raise DeepMemoryWaitingListError()
-
-    def list_jobs(self, debug=False):
-        raise DeepMemoryWaitingListError()
-
-    def evaluate(
-        self,
-        relevance: List[List[Tuple[str, int]]],
-        queries: List[str],
-        embedding_function: Optional[Callable[..., List[np.ndarray]]] = None,
-        embedding: Optional[Union[List[np.ndarray], List[List[float]]]] = None,
-        top_k: List[int] = [1, 3, 5, 10, 50, 100],
-        qvs_params: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Dict[str, float]]:
-        raise DeepMemoryWaitingListError()
