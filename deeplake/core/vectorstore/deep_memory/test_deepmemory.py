@@ -6,7 +6,7 @@ from time import sleep
 
 import deeplake
 from deeplake import VectorStore
-from deeplake.core.vectorstore.deep_memory import DeepMemory
+from deeplake.core.vectorstore.deep_memory.deep_memory import DeepMemory
 from deeplake.tests.common import requires_libdeeplake
 from deeplake.util.exceptions import DeepMemoryWaitingListError
 from click.testing import CliRunner

@@ -1,36 +1,16 @@
 import logging
 import pathlib
 from typing import Optional, Any, List, Dict, Union, Callable
-import jwt
 
 import numpy as np
 
-import deeplake
-from deeplake.core import index_maintenance
-from deeplake.core.distance_type import DistanceType
-from deeplake.util.exceptions import DeepMemoryWaitingListError
-from deeplake.util.path import convert_pathlib_to_string_if_needed
-
-from deeplake.api import dataset
 from deeplake.core.dataset import Dataset
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     MAX_BYTES_PER_MINUTE,
     TARGET_BYTE_SIZE,
-    DEFAULT_VECTORSTORE_DISTANCE_METRIC,
-    DEFAULT_DEEPMEMORY_DISTANCE_METRIC,
-    _INDEX_OPERATION_MAPPING,
 )
-from deeplake.client.utils import read_token
-from deeplake.core.vectorstore import utils
-from deeplake.core.vectorstore.vector_search import vector_search
-from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
-from deeplake.core.vectorstore.vector_search import filter as filter_utils
-from deeplake.util.bugout_reporter import (
-    feature_report_path,
-)
-from deeplake.util.path import get_path_type
-from deeplake.core.vectorstore.deep_memory import DeepMemory, use_deep_memory
+from deeplake.core.vectorstore.dataset_handlers import get_dataset_handler
 
 logger = logging.getLogger(__name__)
 
@@ -123,99 +103,25 @@ class VectorStore:
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
         """
-        try:
-            from indra import api  # type: ignore
-
-            self.indra_installed = True
-        except Exception:  # pragma: no cover
-            self.indra_installed = False  # pragma: no cover
-
-        self._token = token
-        self.path = convert_pathlib_to_string_if_needed(path)
-        self.logger = logger
-        self.org_id = org_id if get_path_type(self.path) == "local" else None
-
-        feature_report_path(
-            path,
-            "vs.initialize",
-            {
-                "tensor_params": "default"
-                if tensor_params is not None
-                else tensor_params,
-                "embedding_function": True if embedding_function is not None else False,
-                "num_workers": num_workers,
-                "overwrite": overwrite,
-                "read_only": read_only,
-                "ingestion_batch_size": ingestion_batch_size,
-                "index_params": index_params,
-                "exec_option": exec_option,
-                "token": self.token,
-                "verbose": verbose,
-                "runtime": runtime,
-            },
-            token=self.token,
-            username=self.username,
-        )
-
-        self.ingestion_batch_size = ingestion_batch_size
-        self.index_params = utils.parse_index_params(index_params)
-        kwargs["index_params"] = self.index_params
-        self.num_workers = num_workers
-        self.creds = creds or {}
-        self.embedding_function = utils.create_embedding_function(embedding_function)
-
-        self.dataset = dataset_utils.create_or_load_dataset(
-            tensor_params,
-            path,
-            self.token,
-            self.creds,
-            self.logger,
-            read_only,
-            exec_option,
-            embedding_function,
-            overwrite,
-            runtime,
-            self.org_id,
-            branch,
+        self.dataset_handler = get_dataset_handler(
+            path=path,
+            tensor_params=tensor_params,
+            embedding_function=embedding_function,
+            read_only=read_only,
+            ingestion_batch_size=ingestion_batch_size,
+            index_params=index_params,
+            num_workers=num_workers,
+            exec_option=exec_option,
+            token=token,
+            overwrite=overwrite,
+            verbose=verbose,
+            runtime=runtime,
+            creds=creds,
+            org_id=org_id,
+            logger=logger,
+            branch=branch,
             **kwargs,
         )
-        self._exec_option = exec_option
-        self.verbose = verbose
-        self.tensor_params = tensor_params
-        self.distance_metric_index = index_maintenance.index_operation_vectorstore(
-            self,
-            dml_type=_INDEX_OPERATION_MAPPING["ADD"],
-            rowids=list(range(0, len(self.dataset))),
-        )
-        self.deep_memory = DeepMemory(
-            dataset=self.dataset,
-            token=self.token,
-            logger=self.logger,
-            embedding_function=self.embedding_function,
-            creds=self.creds,
-        )
-
-    @property
-    def token(self):
-        return self._token or read_token(from_env=True)
-
-    @property
-    def exec_option(self) -> str:
-        return utils.parse_exec_option(
-            self.dataset, self._exec_option, self.indra_installed, self.username
-        )
-
-    @property
-    def username(self) -> str:
-        username = "public"
-        if self.token is not None:
-            try:
-                username = jwt.decode(self.token, options={"verify_signature": False})[
-                    "id"
-                ]
-            except Exception:
-                pass
-        return username
 
     def add(
         self,
@@ -296,70 +202,15 @@ class VectorStore:
         Returns:
             Optional[List[str]]: List of ids if ``return_ids`` is set to True. Otherwise, None.
         """
-
-        feature_report_path(
-            path=self.path,
-            feature_name="vs.add",
-            parameters={
-                "tensors": list(tensors.keys()) if tensors else None,
-                "embedding_tensor": embedding_tensor,
-                "return_ids": return_ids,
-                "embedding_function": True if embedding_function is not None else False,
-                "embedding_data": True if embedding_data is not None else False,
-            },
-            token=self.token,
-            username=self.username,
-        )
-        (
-            embedding_function,
-            embedding_data,
-            embedding_tensor,
-            tensors,
-        ) = utils.parse_tensors_kwargs(
-            tensors,
-            embedding_function,
-            embedding_data,
-            embedding_tensor,
-        )
-
-        (
-            embedding_function,
-            embedding_data,
-            embedding_tensor,
-            tensors,
-        ) = utils.parse_add_arguments(
-            dataset=self.dataset,
-            initial_embedding_function=self.embedding_function,
+        return self.dataset_handler.add(
             embedding_function=embedding_function,
             embedding_data=embedding_data,
             embedding_tensor=embedding_tensor,
+            return_ids=return_ids,
+            rate_limiter=rate_limiter,
             **tensors,
         )
 
-        processed_tensors, id_ = dataset_utils.preprocess_tensors(
-            embedding_data, embedding_tensor, self.dataset, **tensors
-        )
-
-        assert id_ is not None
-
-        dataset_utils.extend_or_ingest_dataset(
-            processed_tensors=processed_tensors,
-            dataset=self.dataset,
-            embedding_function=embedding_function,
-            embedding_data=embedding_data,
-            embedding_tensor=embedding_tensor,
-            rate_limiter=rate_limiter,
-            logger=self.logger,
-        )
-
-        if self.verbose:
-            self.dataset.summary()
-
-        if return_ids:
-            return id_
-        return None
-
-    @use_deep_memory
     def search(
         self,
         embedding_data: Union[str, List[str], None] = None,
@@ -436,43 +287,9 @@ class VectorStore:
         Returns:
             Dict: Dictionary where keys are tensor names and values are the results of the search
         """
-
-        feature_report_path(
-            path=self.path,
-            feature_name="vs.search",
-            parameters={
-                "embedding_data": True if embedding_data is not None else False,
-                "embedding_function": True if embedding_function is not None else False,
-                "k": k,
-                "distance_metric": distance_metric,
-                "query": query[0:100] if query is not None else False,
-                "filter": True if filter is not None else False,
-                "exec_option": exec_option,
-                "embedding_tensor": embedding_tensor,
-                "embedding": True if embedding is not None else False,
-                "return_tensors": return_tensors,
-                "return_view": return_view,
-            },
-            token=self.token,
-            username=self.username,
-        )
-
-        if exec_option is None and self.exec_option != "python" and callable(filter):
-            self.logger.warning(
-                'Switching exec_option to "python" (runs on client) because filter is specified as a function. '
-                f'To continue using the original exec_option "{self.exec_option}", please specify the filter as a dictionary or use the "query" parameter to specify a TQL query.'
-            )
-            exec_option = "python"
-
-        exec_option = exec_option or self.exec_option
-
-        if deep_memory and not self.deep_memory:
-            raise DeepMemoryWaitingListError()
-
-        utils.parse_search_args(
+        return self.dataset_handler.search(
             embedding_data=embedding_data,
             embedding_function=embedding_function,
-            initial_embedding_function=self.embedding_function,
             embedding=embedding,
             k=k,
             distance_metric=distance_metric,
@@ -481,42 +298,8 @@ class VectorStore:
             exec_option=exec_option,
             embedding_tensor=embedding_tensor,
             return_tensors=return_tensors,
-        )
-
-        return_tensors = utils.parse_return_tensors(
-            self.dataset, return_tensors, embedding_tensor, return_view
-        )
-        embedding_function = utils.create_embedding_function(embedding_function)
-        query_emb: Optional[Union[List[float], np.ndarray[Any, Any]]] = None
-        if query is None:
-            query_emb = dataset_utils.get_embedding(
-                embedding,
-                embedding_data,
-                embedding_function=embedding_function or self.embedding_function,
-            )
-
-        if self.distance_metric_index:
-            distance_metric = index_maintenance.parse_index_distance_metric_from_params(
-                logger, self.distance_metric_index, distance_metric
-            )
-
-        distance_metric = distance_metric or DEFAULT_VECTORSTORE_DISTANCE_METRIC
-
-        return vector_search.search(
-            query=query,
-            logger=self.logger,
-            filter=filter,
-            query_embedding=query_emb,
-            k=k,
-            distance_metric=distance_metric,
-            exec_option=exec_option,
-            deeplake_dataset=self.dataset,
-            embedding_tensor=embedding_tensor,
-            return_tensors=return_tensors,
             return_view=return_view,
             deep_memory=deep_memory,
-            token=self.token,
-            org_id=self.org_id,
         )
 
     def delete(
@@ -566,51 +349,14 @@ class VectorStore:
             ValueError: If neither ``ids``, ``filter``, ``query``, nor ``delete_all`` are specified, or if an invalid ``exec_option`` is provided.
         """
 
-        feature_report_path(
-            path=self.path,
-            feature_name="vs.delete",
-            parameters={
-                "ids": True if ids is not None else False,
-                "row_ids": True if row_ids is not None else False,
-                "query": query[0:100] if query is not None else False,
-                "filter": True if filter is not None else False,
-                "exec_option": exec_option,
-                "delete_all": delete_all,
-            },
-            token=self.token,
-            username=self.username,
+        return self.dataset_handler.delete(
+            row_ids=row_ids,
+            ids=ids,
+            filter=filter,
+            query=query,
+            exec_option=exec_option,
+            delete_all=delete_all,
         )
-
-        if not row_ids:
-            row_ids = dataset_utils.search_row_ids(
-                dataset=self.dataset,
-                search_fn=self.search,
-                ids=ids,
-                filter=filter,
-                query=query,
-                select_all=delete_all,
-                exec_option=exec_option or self.exec_option,
-            )
-
-        (
-            self.dataset,
-            dataset_deleted,
-        ) = dataset_utils.delete_all_samples_if_specified(
-            self.dataset,
-            delete_all,
-        )
-        if dataset_deleted:
-            index_maintenance.index_operation_vectorstore(
-                self,
-                dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
-                rowids=row_ids,
-                index_delete=True,
-            )
-            return True
-
-        self.dataset.pop_multiple(row_ids)
-
-        return True
 
     def update_embedding(
         self,
@@ -668,54 +414,19 @@ class VectorStore:
             embedding_source_tensor (Union[str, List[str]], optional): Name of tensor with data that needs to be converted to embeddings. Defaults to `text`.
             embedding_tensor (Optional[Union[str, List[str]]], optional): Name of the tensor with embeddings. Defaults to None.
         """
-        feature_report_path(
-            path=self.path,
-            feature_name="vs.delete",
-            parameters={
-                "ids": True if ids is not None else False,
-                "row_ids": True if row_ids is not None else False,
-                "query": query[0:100] if query is not None else False,
-                "filter": True if filter is not None else False,
-                "exec_option": exec_option,
-            },
-            token=self.token,
-            username=self.username,
-        )
-
-        (
-            embedding_function,
-            embedding_source_tensor,
-            embedding_tensor,
-        ) = utils.parse_update_arguments(
-            dataset=self.dataset,
-            embedding_function=embedding_function,
-            initial_embedding_function=self.embedding_function,
-            embedding_source_tensor=embedding_source_tensor,
-            embedding_tensor=embedding_tensor,
-        )
-
-        if not row_ids:
-            row_ids = dataset_utils.search_row_ids(
-                dataset=self.dataset,
-                search_fn=self.search,
-                ids=ids,
-                filter=filter,
-                query=query,
-                exec_option=exec_option or self.exec_option,
-            )
-
-        embedding_tensor_data = utils.convert_embedding_source_tensor_to_embeddings(
-            dataset=self.dataset,
-            embedding_source_tensor=embedding_source_tensor,
-            embedding_tensor=embedding_tensor,
-            embedding_function=embedding_function,
+        self.dataset_handler.update_embedding(
             row_ids=row_ids,
+            ids=ids,
+            filter=filter,
+            query=query,
+            exec_option=exec_option,
+            embedding_function=embedding_function,
+            embedding_source_tensor=embedding_source_tensor,
+            embedding_tensor=embedding_tensor,
         )
 
-        self.dataset[row_ids].update(embedding_tensor_data)
-
-    @staticmethod
     def delete_by_path(
+        self,
         path: Union[str, pathlib.Path],
         token: Optional[str] = None,
         force: bool = False,
@@ -735,20 +446,9 @@ class VectorStore:
         Danger:
             This method permanently deletes all of your data if the Vector Store exists! Be very careful when using this method.
         """
-        token = token or read_token(from_env=True)
-
-        feature_report_path(
-            path,
-            "vs.delete_by_path",
-            parameters={
-                "path": path,
-                "token": token,
-                "force": force,
-                "creds": creds,
-            },
-            token=token,
+        self.dataset_handler.delete_by_path(
+            path=path, token=token, force=force, creds=creds
         )
-        deeplake.delete(path, large_ok=True, token=token, force=force, creds=creds)
 
     def commit(self, allow_empty: bool = True) -> None:
         """Commits the Vector Store.
@@ -756,7 +456,7 @@ class VectorStore:
         Args:
             allow_empty (bool): Whether to allow empty commits. Defaults to True.
         """
-        self.dataset.commit(allow_empty=allow_empty)
+        self.dataset_handler.commit(allow_empty=allow_empty)
 
     def checkout(self, branch: str = "main") -> None:
         """Checkout the Vector Store to a specific branch.
@@ -764,19 +464,19 @@ class VectorStore:
         Args:
             branch (str): Branch name to checkout. Defaults to "main".
         """
-        self.dataset.checkout(branch)
+        self.dataset_handler.checkout(branch)
 
     def tensors(self):
         """Returns the list of tensors present in the dataset"""
-        return self.dataset.tensors
+        return self.dataset_handler.tensors()
 
     def summary(self):
         """Prints a summary of the dataset"""
-        return self.dataset.summary()
+        return self.dataset_handler.summary()
 
     def __len__(self):
         """Length of the dataset"""
-        return len(self.dataset)
+        return len(self.dataset_handler)
 
 
 DeepLakeVectorStore = VectorStore

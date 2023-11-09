@@ -12,8 +12,7 @@ from deeplake.core.vectorstore.deeplake_vectorstore import (
     DeepLakeVectorStore,
     VectorStore,
 )
-from deeplake.core.vectorstore.deepmemory_vectorstore import DeepMemoryVectorStore
-from deeplake.core.vectorstore.embedder import DeepLakeEmbedder
+from deeplake.core.vectorstore.embeddings.embedder import DeepLakeEmbedder
 from deeplake.core.vectorstore import utils
 from deeplake.tests.common import requires_libdeeplake
 from deeplake.constants import (

@@ -24,7 +24,6 @@ from deeplake.client.utils import JobResponseStatusSchema
 from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
-from deeplake.util.dataset import try_flushing
 from deeplake.util.path import get_path_type
 from deeplake.util.version_control import load_meta
 
@@ -54,7 +53,7 @@ def access_control(func):
 class DeepMemory:
     def __init__(
         self,
-        dataset: Dataset,
+        dataset_or_path: Union[Dataset, str],
         logger: logging.Logger,
         embedding_function: Optional[Any] = None,
         token: Optional[str] = None,
@@ -81,7 +80,16 @@ class DeepMemory:
             },
             token=token,
         )
-        self.dataset = dataset
+
+        if not isinstance(dataset_or_path, Dataset):
+            self.path = dataset_or_path.path
+        elif isinstance(dataset_or_path, str):
+            self.path = dataset_or_path
+        else:
+            raise ValueError(
+                "dataset_or_path should be a Dataset object or a string path"
+            )
+
         self.token = token
         self.embedding_function = embedding_function
         self.client = self._get_dm_client()
@@ -123,7 +131,7 @@ class DeepMemory:
 
         self.logger.info("Starting DeepMemory training job")
         feature_report_path(
-            path=self.dataset.path,
+            path=self.path,
             feature_name="dm.train",
             parameters={
                 "queries": queries,
@@ -134,7 +142,7 @@ class DeepMemory:
         )
 
         # TODO: Support for passing query_embeddings directly without embedding function
-        corpus_path = self.dataset.path
+        corpus_path = self.path
         queries_path = corpus_path + "_queries"
 
         if embedding_function is None and self.embedding_function is None:
@@ -193,7 +201,7 @@ class DeepMemory:
             bool: True if job was cancelled successfully, False otherwise.
         """
         feature_report_path(
-            path=self.dataset.path,
+            path=self.path,
             feature_name="dm.cancel",
             parameters={
                 "job_id": job_id,
@@ -216,7 +224,7 @@ class DeepMemory:
             bool: True if job was deleted successfully, False otherwise.
         """
         feature_report_path(
-            path=self.dataset.path,
+            path=self.path,
             feature_name="dm.delete",
             parameters={
                 "job_id": job_id,
@@ -245,7 +253,7 @@ class DeepMemory:
             job_id (str): job_id of the training job.
         """
         feature_report_path(
-            path=self.dataset.path,
+            path=self.path,
             feature_name="dm.status",
             parameters={
                 "job_id": job_id,
@@ -254,11 +262,11 @@ class DeepMemory:
         )
 
         _, storage = get_storage_and_cache_chain(
-            path=self.dataset.path,
+            path=self.path,
             db_engine={"tensor_db": True},
             read_only=False,
             creds=self.creds,
-            token=self.dataset.token,
+            token=self.token,
             memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
             local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
         )
@@ -281,7 +289,7 @@ class DeepMemory:
     def list_jobs(self, debug=False):
         """List all training jobs on DeepMemory managed service."""
         feature_report_path(
-            path=self.dataset.path,
+            path=self.path,
             feature_name="dm.list_jobs",
             parameters={
                 "debug": debug,
@@ -289,18 +297,18 @@ class DeepMemory:
             token=self.token,
         )
         _, storage = get_storage_and_cache_chain(
-            path=self.dataset.path,
+            path=self.path,
             db_engine={"tensor_db": True},
             read_only=False,
             creds=self.creds,
-            token=self.dataset.token,
+            token=self.token,
             memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
             local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
         )
         loaded_dataset = DeepLakeCloudDataset(storage=storage)
 
         response = self.client.list_jobs(
-            dataset_path=self.dataset.path,
+            dataset_path=self.path,
         )
 
         response_status_schema = JobResponseStatusSchema(response=response)
@@ -403,7 +411,7 @@ class DeepMemory:
             ValueError: If no embedding_function is provided either during initialization or evaluation.
         """
         feature_report_path(
-            path=self.dataset.path,
+            path=self.path,
             feature_name="dm.evaluate",
             parameters={
                 "relevance": relevance,
@@ -415,7 +423,7 @@ class DeepMemory:
             },
             token=self.token,
         )
-        try_flushing(self.dataset)
+
         try:
             from indra import api  # type: ignore
 
@@ -430,7 +438,7 @@ class DeepMemory:
 
         from indra import api  # type: ignore
 
-        indra_dataset = api.dataset(self.dataset.path, token=self.token)
+        indra_dataset = api.dataset(self.path, token=self.token)
         api.tql.prepare_deepmemory_metrics(indra_dataset)
 
         parsed_qvs_params = parse_queries_params(qvs_params)
@@ -491,7 +499,7 @@ class DeepMemory:
             return recalls
 
         self.queries_dataset = deeplake.empty(
-            self.dataset.path + "_eval_queries",
+            self.path + "_eval_queries",
             token=self.token,
             creds=self.creds,
             overwrite=True,
@@ -512,7 +520,7 @@ class DeepMemory:
         return recalls
 
     def _get_dm_client(self):
-        path = self.dataset.path
+        path = self.path
         path_type = get_path_type(path)
 
         dm_client = DeepMemoryBackendClient(token=self.token)
