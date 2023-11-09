@@ -158,7 +158,7 @@ dl.field-list strong {
     font-family: IBMPlexMono;
 }
 
-/* Render fix for paranthesis touching text eg: (read_only) */
+/* Render fix for parenthesis touching text eg: (read_only) */
 dl.field-list dd em {
     padding-right: 2px;
 }

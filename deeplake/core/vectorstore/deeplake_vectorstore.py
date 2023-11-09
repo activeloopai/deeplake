@@ -8,7 +8,6 @@ import numpy as np
 import deeplake
 from deeplake.core import index_maintenance
 from deeplake.core.distance_type import DistanceType
-from deeplake.util.dataset import try_flushing
 from deeplake.util.exceptions import DeepMemoryWaitingListError
 from deeplake.util.path import convert_pathlib_to_string_if_needed
 
@@ -340,9 +339,8 @@ class VectorStore:
             embedding_data=embedding_data,
             embedding_tensor=embedding_tensor,
             rate_limiter=rate_limiter,
+            logger=self.logger,
         )
-
-        try_flushing(self.dataset)
 
         if self.verbose:
             self.dataset.summary()
@@ -447,8 +445,6 @@ class VectorStore:
             token=self.token,
             username=self.username,
         )
-
-        try_flushing(self.dataset)
 
         if exec_option is None and self.exec_option != "python" and callable(filter):
             self.logger.warning(
@@ -603,8 +599,6 @@ class VectorStore:
 
         self.dataset.pop_multiple(row_ids)
 
-        try_flushing(self.dataset)
-
         return True
 
     def update_embedding(
@@ -677,8 +671,6 @@ class VectorStore:
             username=self.username,
         )
 
-        try_flushing(self.dataset)
-
         (
             embedding_function,
             embedding_source_tensor,
@@ -710,8 +702,6 @@ class VectorStore:
         )
 
         self.dataset[row_ids].update(embedding_tensor_data)
-
-        try_flushing(self.dataset)
 
     @staticmethod
     def delete_by_path(

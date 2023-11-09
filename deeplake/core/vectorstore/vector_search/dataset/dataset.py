@@ -18,6 +18,7 @@ from deeplake.constants import (
     MAX_BYTES_PER_MINUTE,
     TARGET_BYTE_SIZE,
     VECTORSTORE_EXTEND_BATCH_SIZE,
+    DEFAULT_RATE_LIMITER_KEY_TO_VALUE,
 )
 from deeplake.util.exceptions import IncorrectEmbeddingShapeError
 
@@ -460,6 +461,7 @@ def extend(
     dataset: deeplake.core.dataset.Dataset,
     rate_limiter: Dict,
     _extend_batch_size: int = VECTORSTORE_EXTEND_BATCH_SIZE,
+    logger=None,
 ):
     """
     Function to extend the dataset with new data.
@@ -468,8 +470,15 @@ def extend(
         embedding_data = [embedding_data]
 
     if embedding_function:
+        number_of_batches = ceil(len(embedding_data[0]) / _extend_batch_size)
+        progressbar_str = (
+            f"Creating {len(embedding_data[0])} embeddings in "
+            f"{number_of_batches} batches of size {min(_extend_batch_size, len(embedding_data[0]))}:"
+        )
+
         for idx in tqdm(
-            range(0, len(embedding_data[0]), _extend_batch_size), "creating embeddings"
+            range(0, len(embedding_data[0]), _extend_batch_size),
+            progressbar_str,
         ):
             batch_start, batch_end = idx, idx + _extend_batch_size
 
@@ -488,9 +497,32 @@ def extend(
 
             batched_processed_tensors = {**batched_embeddings, **batched_tensors}
 
-            dataset.extend(batched_processed_tensors)
+            dataset.extend(batched_processed_tensors, progressbar=False)
     else:
-        dataset.extend(processed_tensors)
+        logger.info("Uploading data to deeplake dataset.")
+        dataset.extend(processed_tensors, progressbar=True)
+
+
+def populate_rate_limiter(rate_limiter):
+    if rate_limiter is None or rate_limiter == {}:
+        return {
+            "enabled": False,
+            "bytes_per_minute": MAX_BYTES_PER_MINUTE,
+            "batch_byte_size": TARGET_BYTE_SIZE,
+        }
+    else:
+        rate_limiter_keys = ["enabled", "bytes_per_minute", "batch_byte_size"]
+
+        for key in rate_limiter_keys:
+            if key not in rate_limiter:
+                rate_limiter[key] = DEFAULT_RATE_LIMITER_KEY_TO_VALUE[key]
+
+        for item in rate_limiter:
+            if item not in rate_limiter_keys:
+                raise ValueError(
+                    f"Invalid rate_limiter key: {item}. Valid keys are: 'enabled', 'bytes_per_minute', 'batch_byte_size'."
+                )
+        return rate_limiter
 
 
 def extend_or_ingest_dataset(
@@ -500,7 +532,9 @@ def extend_or_ingest_dataset(
     embedding_tensor,
     embedding_data,
     rate_limiter,
+    logger,
 ):
+    rate_limiter = populate_rate_limiter(rate_limiter)
     # TODO: Add back the old logic with checkpointing after indexing is fixed
     extend(
         embedding_function,
@@ -509,6 +543,7 @@ def extend_or_ingest_dataset(
         processed_tensors,
         dataset,
         rate_limiter,
+        logger=logger,
     )
 
 
