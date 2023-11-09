@@ -68,15 +68,7 @@ def search(
             return_tensors,
         )
 
-    if runtime:
-        view, data = deeplake_dataset.query(
-            tql_query, runtime=runtime, return_data=True
-        )
-        if return_view:
-            return view
-
-        return_data = data
-    elif deep_memory:
+    if deep_memory:
         if not INDRA_INSTALLED:
             raise raise_indra_installation_error(indra_import_error=None)
 
@@ -102,6 +94,15 @@ def search(
         return_data = {}
         for tensor in view.tensors:
             return_data[tensor] = utils.parse_tensor_return(view[tensor])
+
+    elif runtime:
+        view, data = deeplake_dataset.query(
+            tql_query, runtime=runtime, return_data=True
+        )
+        if return_view:
+            return view
+
+        return_data = data
 
     else:
         if not INDRA_INSTALLED:
