@@ -8,7 +8,7 @@ import numpy as np
 import deeplake
 from deeplake.core import index_maintenance
 from deeplake.core.distance_type import DistanceType
-from deeplake.util.exceptions import DeepMemoryWaitingListError
+from deeplake.util.dataset import try_flushing
 from deeplake.util.path import convert_pathlib_to_string_if_needed
 
 from deeplake.api import dataset
@@ -22,15 +22,15 @@ from deeplake.constants import (
     _INDEX_OPERATION_MAPPING,
 )
 from deeplake.client.utils import read_token
-from deeplake.core.vectorstore import utils
-from deeplake.core.vectorstore.vector_search import vector_search
-from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
-from deeplake.core.vectorstore.vector_search import filter as filter_utils
+from deeplake.core.llm import utils
+from deeplake.core.llm.vector_search import vector_search
+from deeplake.core.llm.vector_search import dataset as dataset_utils
+from deeplake.core.llm.vector_search import filter as filter_utils
 from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
 from deeplake.util.path import get_path_type
-from deeplake.core.vectorstore.deep_memory import DeepMemory, use_deep_memory
+
 
 logger = logging.getLogger(__name__)
 
@@ -187,13 +187,7 @@ class VectorStore:
             dml_type=_INDEX_OPERATION_MAPPING["ADD"],
             rowids=list(range(0, len(self.dataset))),
         )
-        self.deep_memory = DeepMemory(
-            dataset=self.dataset,
-            token=self.token,
-            logger=self.logger,
-            embedding_function=self.embedding_function,
-            creds=self.creds,
-        )
+        self.deep_memory = None
 
     @property
     def token(self):
@@ -209,12 +203,7 @@ class VectorStore:
     def username(self) -> str:
         username = "public"
         if self.token is not None:
-            try:
-                username = jwt.decode(self.token, options={"verify_signature": False})[
-                    "id"
-                ]
-            except Exception:
-                pass
+            username = jwt.decode(self.token, options={"verify_signature": False})["id"]
         return username
 
     def add(
@@ -349,8 +338,9 @@ class VectorStore:
             embedding_data=embedding_data,
             embedding_tensor=embedding_tensor,
             rate_limiter=rate_limiter,
-            logger=self.logger,
         )
+
+        try_flushing(self.dataset)
 
         if self.verbose:
             self.dataset.summary()
@@ -359,7 +349,6 @@ class VectorStore:
             return id_
         return None
 
-    @use_deep_memory
     def search(
         self,
         embedding_data: Union[str, List[str], None] = None,
@@ -431,12 +420,10 @@ class VectorStore:
         Raises:
             ValueError: When invalid parameters are specified.
             ValueError: when deep_memory is True. Deep Memory is only available for datasets stored in the Deep Lake Managed Database for paid accounts.
-            DeepMemoryWaitingListError: if user is not waitlisted to use deep_memory.
 
         Returns:
             Dict: Dictionary where keys are tensor names and values are the results of the search
         """
-
         feature_report_path(
             path=self.path,
             feature_name="vs.search",
@@ -457,6 +444,8 @@ class VectorStore:
             username=self.username,
         )
 
+        try_flushing(self.dataset)
+
         if exec_option is None and self.exec_option != "python" and callable(filter):
             self.logger.warning(
                 'Switching exec_option to "python" (runs on client) because filter is specified as a function. '
@@ -467,7 +456,10 @@ class VectorStore:
         exec_option = exec_option or self.exec_option
 
         if deep_memory and not self.deep_memory:
-            raise DeepMemoryWaitingListError()
+            raise ValueError(
+                "Deep Memory is not available for this organization."
+                "Deep Memory is only available for waitlisted accounts."
+            )
 
         utils.parse_search_args(
             embedding_data=embedding_data,
@@ -610,6 +602,8 @@ class VectorStore:
 
         self.dataset.pop_multiple(row_ids)
 
+        try_flushing(self.dataset)
+
         return True
 
     def update_embedding(
@@ -682,6 +676,8 @@ class VectorStore:
             username=self.username,
         )
 
+        try_flushing(self.dataset)
+
         (
             embedding_function,
             embedding_source_tensor,
@@ -713,6 +709,8 @@ class VectorStore:
         )
 
         self.dataset[row_ids].update(embedding_tensor_data)
+
+        try_flushing(self.dataset)
 
     @staticmethod
     def delete_by_path(

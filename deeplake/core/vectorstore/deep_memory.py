@@ -8,16 +8,17 @@ import numpy as np
 
 import deeplake
 from deeplake.enterprise.dataloader import indra_available
+from deeplake.util.exceptions import DeepMemoryWaitingListError
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.constants import (
     DEFAULT_QUERIES_VECTORSTORE_TENSORS,
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
+    DEFAULT_DEEPMEMORY_DISTANCE_METRIC,
 )
 from deeplake.util.storage import get_storage_and_cache_chain
 from deeplake.core.dataset import Dataset
 from deeplake.core.dataset.deeplake_cloud_dataset import DeepLakeCloudDataset
-from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from deeplake.client.client import DeepMemoryBackendClient
 from deeplake.client.utils import JobResponseStatusSchema
 from deeplake.util.bugout_reporter import (
@@ -28,11 +29,32 @@ from deeplake.util.path import get_path_type
 from deeplake.util.version_control import load_meta
 
 
+def use_deep_memory(func):
+    def wrapper(self, *args, **kwargs):
+        use_deep_memory = kwargs.get("deep_memory")
+        distance_metric = kwargs.get("distance_metric")
+
+        if use_deep_memory and distance_metric is None:
+            kwargs["distance_metric"] = DEFAULT_DEEPMEMORY_DISTANCE_METRIC
+
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
+def access_control(func):
+    def wrapper(self, *args, **kwargs):
+        if self.client is None:
+            raise DeepMemoryWaitingListError()
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
 class DeepMemory:
     def __init__(
         self,
         dataset: Dataset,
-        client: DeepMemoryBackendClient,
         logger: logging.Logger,
         embedding_function: Optional[Any] = None,
         token: Optional[str] = None,
@@ -42,7 +64,6 @@ class DeepMemory:
 
         Args:
             dataset (Dataset): deeplake dataset object.
-            client (DeepMemoryBackendClient): Client to interact with the DeepMemory managed service. Defaults to None.
             logger (logging.Logger): Logger object.
             embedding_function (Optional[Any], optional): Embedding funtion class used to convert queries/documents to embeddings. Defaults to None.
             token (Optional[str], optional): API token for the DeepMemory managed service. Defaults to None.
@@ -56,7 +77,6 @@ class DeepMemory:
             feature_name="dm.initialize",
             parameters={
                 "embedding_function": True if embedding_function is not None else False,
-                "client": client,
                 "token": token,
             },
             token=token,
@@ -64,10 +84,11 @@ class DeepMemory:
         self.dataset = dataset
         self.token = token
         self.embedding_function = embedding_function
-        self.client = client
+        self.client = self._get_dm_client()
         self.creds = creds or {}
         self.logger = logger
 
+    @access_control
     def train(
         self,
         queries: List[str],
@@ -98,6 +119,8 @@ class DeepMemory:
         Raises:
             ValueError: if embedding_function is not specified either during initialization or during training.
         """
+        from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
+
         self.logger.info("Starting DeepMemory training job")
         feature_report_path(
             path=self.dataset.path,
@@ -156,6 +179,7 @@ class DeepMemory:
         )
         return response["job_id"]
 
+    @access_control
     def cancel(self, job_id: str):
         """Cancel a training job on DeepMemory managed service.
 
@@ -178,6 +202,7 @@ class DeepMemory:
         )
         return self.client.cancel_job(job_id=job_id)
 
+    @access_control
     def delete(self, job_id: str):
         """Delete a training job on DeepMemory managed service.
 
@@ -200,6 +225,7 @@ class DeepMemory:
         )
         return self.client.delete_job(job_id=job_id)
 
+    @access_control
     def status(self, job_id: str):
         """Get the status of a training job on DeepMemory managed service.
 
@@ -251,6 +277,7 @@ class DeepMemory:
             improvement = None
         self.client.check_status(job_id=job_id, recall=recall, improvement=improvement)
 
+    @access_control
     def list_jobs(self, debug=False):
         """List all training jobs on DeepMemory managed service."""
         feature_report_path(
@@ -305,6 +332,7 @@ class DeepMemory:
         )
         return reposnse_str
 
+    @access_control
     def evaluate(
         self,
         relevance: List[List[Tuple[str, int]]],
@@ -374,7 +402,6 @@ class DeepMemory:
             ImportError: If `indra` is not installed.
             ValueError: If no embedding_function is provided either during initialization or evaluation.
         """
-
         feature_report_path(
             path=self.dataset.path,
             feature_name="dm.evaluate",
@@ -483,6 +510,25 @@ class DeepMemory:
         self.queries_dataset.extend(queries_data, progressbar=True)
         self.queries_dataset.commit()
         return recalls
+
+    def _get_dm_client(self):
+        path = self.dataset.path
+        path_type = get_path_type(path)
+
+        dm_client = DeepMemoryBackendClient(token=self.token)
+        user_profile = dm_client.get_user_profile()
+
+        if path_type == "hub":
+            # TODO: add support for windows
+            dataset_id = path[6:].split("/")[0]
+        else:
+            # TODO: change user_profile to user_id
+            dataset_id = user_profile["name"]
+
+        deepmemory_is_available = dm_client.deepmemory_is_available(dataset_id)
+        if deepmemory_is_available:
+            return dm_client
+        return None
 
 
 def recall_at_k(
