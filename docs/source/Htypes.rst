@@ -226,9 +226,9 @@ Appending text labels
 Tag Htype
 ~~~~~~~~~
 
-- :bluebold:`Sample dimensions:` ``(1,)``
+- :bluebold:`Sample dimensions:` ``(# tags,)``
 
-This htype can be used to tag samples with a string value.
+This htype can be used to tag samples with one or more string values.
 
 :blue:`Creating a tag tensor`
 -----------------------------
@@ -247,7 +247,7 @@ A tag tensor can be created using
 :blue:`Appending tag samples`
 -----------------------------
 
-- Tag samples can be appended as ``str``.
+- Tag samples can be appended as ``str`` or ``list`` of ``str``.
 
 :bluebold:`Examples`
 
