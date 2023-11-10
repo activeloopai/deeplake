@@ -8,9 +8,6 @@ import deeplake
 from deeplake.client.utils import read_token
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DISTANCE_METRIC,
-    DEFAULT_VECTORSTORE_TENSORS,
-    MAX_BYTES_PER_MINUTE,
-    TARGET_BYTE_SIZE,
     _INDEX_OPERATION_MAPPING,
 )
 from deeplake.core import index_maintenance
