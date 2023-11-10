@@ -43,15 +43,18 @@ class DataFrame(StructuredDataset):
         self._initialize_params(column_params)
 
     def _initialize_params(self, column_params):
-        column_params = column_params or {}
-        for key in self.source.columns:
-            params = column_params.get(key)
-            if params:
-                if "name" not in params:
-                    params["name"] = sanitize_tensor_name(key)
-            else:
-                column_params[key] = {"name": sanitize_tensor_name(key)}
-        self.column_params = column_params
+        self.column_params = (
+            {
+                key: {**params, "name": params.get("name", sanitize_tensor_name(key))}
+                if params and "name" not in params
+                else params or {"name": sanitize_tensor_name(key)}
+                for key, params in column_params.items()
+            }
+            if column_params
+            else {
+                key: {"name": sanitize_tensor_name(key)} for key in self.source.columns
+            }
+        )
 
     def _get_most_frequent_image_extension(self, fn_iterator: List[str]):
         # TODO: Make this generic and work for any htype that requires compression
