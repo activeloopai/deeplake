@@ -596,3 +596,18 @@ def test_unsupported_deepmemory_users():
             queries=[],
             relevance=[],
         )
+
+
+def test_deepmemory_list_jobs_with_no_jobs(
+    corpus_query_relevances_copy, hub_cloud_dev_token
+):
+    corpus, queries, relevances, _ = corpus_query_relevances_copy
+
+    db = VectorStore(
+        path=corpus,
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+    )
+
+    output_str = db.deep_memory.list_jobs(debug=True)
+    assert output_str == "No Deep Memory training jobs were found for this dataset"

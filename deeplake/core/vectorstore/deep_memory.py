@@ -278,7 +278,13 @@ class DeepMemory:
 
         response_status_schema = JobResponseStatusSchema(response=response)
 
-        jobs = [job["id"] for job in response]
+        jobs = self._get_jobs(response)
+        if jobs is None:
+            reposnse_str = "No Deep Memory training jobs were found for this dataset"
+            print(reposnse_str)
+            if debug:
+                return reposnse_str
+            return None
 
         recalls = {}
         deltas = {}
@@ -483,6 +489,12 @@ class DeepMemory:
         self.queries_dataset.extend(queries_data, progressbar=True)
         self.queries_dataset.commit()
         return recalls
+
+    def _get_jobs(self, response):
+        jobs = None
+        if response is not None and len(response) > 0:
+            jobs = [job["id"] for job in response]
+        return jobs
 
 
 def recall_at_k(
