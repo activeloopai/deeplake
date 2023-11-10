@@ -28,6 +28,7 @@ class DHBase(ABC):
     def __init__(
         self,
         path: Union[str, pathlib.Path],
+        dataset: Optional[Dataset] = None,
         tensor_params: List[Dict[str, object]] = DEFAULT_VECTORSTORE_TENSORS,
         embedding_function: Optional[Any] = None,
         read_only: Optional[bool] = None,
@@ -44,15 +45,21 @@ class DHBase(ABC):
         logger: logging.Logger = None,
         **kwargs: Any,
     ):
-        try:
-            from indra import api  # type: ignore
-
-            self.indra_installed = True
-        except Exception:  # pragma: no cover
-            self.indra_installed = False  # pragma: no cover
+        self.path = path
+        self.dataset = dataset
+        if dataset and path:
+            raise ValueError(
+                "Only one of `dataset` or path should be provided to the dataset handler."
+            )
+        elif not dataset and not path:
+            raise ValueError("Either `dataset` or path should be provided.")
+        elif self.path:
+            self.path = convert_pathlib_to_string_if_needed(path)
+        else:
+            self.dataset = dataset
+            self.path = dataset.path
 
         self._token = token
-        self.path = convert_pathlib_to_string_if_needed(path)
         self.logger = logger
         self.org_id = org_id if get_path_type(self.path) == "local" else None
 
@@ -73,6 +80,7 @@ class DHBase(ABC):
                 "token": self.token,
                 "verbose": verbose,
                 "runtime": runtime,
+                "path": self.path,
             },
             token=self.token,
             username=self.username,
@@ -84,7 +92,6 @@ class DHBase(ABC):
         self.num_workers = num_workers
         self.creds = creds or {}
         self.embedding_function = utils.create_embedding_function(embedding_function)
-        self.dataset = None
 
     @property
     def token(self):
@@ -194,13 +201,4 @@ class DHBase(ABC):
         Args:
             branch (str): Branch name to checkout. Defaults to "main".
         """
-        raise NotImplementedError()
-
-    @abstractmethod
-    def delete_by_path(
-        path: Union[str, pathlib.Path],
-        token: Optional[str] = None,
-        force: bool = False,
-        creds: Optional[Union[Dict, str]] = None,
-    ) -> None:
         raise NotImplementedError()

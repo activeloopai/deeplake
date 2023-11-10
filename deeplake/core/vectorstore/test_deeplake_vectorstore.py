@@ -246,7 +246,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         token=hub_cloud_dev_token,
     )
 
-    assert vector_store.exec_option == "compute_engine"
+    assert vector_store.dataset_handler.exec_option == "compute_engine"
 
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
@@ -272,7 +272,13 @@ def test_search_basic(local_path, hub_cloud_dev_token):
 
     assert len(data_p["text"]) == 1
     assert (
-        sum([tensor in data_p.keys() for tensor in vector_store.dataset.tensors]) == 2
+        sum(
+            [
+                tensor in data_p.keys()
+                for tensor in vector_store.dataset_handler.dataset.tensors
+            ]
+        )
+        == 2
     )  # One for each return_tensors
     assert len(data_p.keys()) == 3  # One for each return_tensors + score
 
@@ -282,7 +288,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         read_only=True,
         token=hub_cloud_dev_token,
     )
-    assert vector_store_cloud.exec_option == "compute_engine"
+    assert vector_store_cloud.dataset_handler.exec_option == "compute_engine"
 
     # Use indra implementation to search the data
     data_ce = vector_store_cloud.search(
@@ -292,21 +298,26 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     )
     assert len(data_ce["text"]) == 2
     assert (
-        sum([tensor in data_ce.keys() for tensor in vector_store_cloud.dataset.tensors])
+        sum(
+            [
+                tensor in data_ce.keys()
+                for tensor in vector_store_cloud.dataset_handler.dataset.tensors
+            ]
+        )
         == 2
     )  # One for each return_tensors
     assert len(data_ce.keys()) == 3  # One for each return_tensors + score
 
     with pytest.raises(ValueError):
         vector_store_cloud.search(
-            query=f"SELECT * WHERE id=='{vector_store_cloud.dataset.id[0].numpy()[0]}'",
+            query=f"SELECT * WHERE id=='{vector_store_cloud.dataset_handler.dataset.id[0].numpy()[0]}'",
             embedding=query_embedding,
             k=2,
             return_tensors=["id", "text"],
         )
 
     # Run a full custom query
-    test_text = vector_store_cloud.dataset.text[0].data()["value"]
+    test_text = vector_store_cloud.dataset_handler.dataset.text[0].data()["value"]
     data_q = vector_store_cloud.search(
         query=f"select * where text == '{test_text}'",
     )
@@ -314,9 +325,12 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert len(data_q["text"]) == 1
     assert data_q["text"][0] == test_text
     assert sum(
-        [tensor in data_q.keys() for tensor in vector_store_cloud.dataset.tensors]
+        [
+            tensor in data_q.keys()
+            for tensor in vector_store_cloud.dataset_handler.dataset.tensors
+        ]
     ) == len(
-        vector_store_cloud.dataset.tensors
+        vector_store_cloud.dataset_handler.dataset.tensors
     )  # One for each tensor - embedding + score
 
     # Run a filter query using a json
@@ -327,7 +341,13 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     )
     assert len(data_e_j["text"]) == 1
     assert (
-        sum([tensor in data_e_j.keys() for tensor in vector_store.dataset.tensors]) == 2
+        sum(
+            [
+                tensor in data_e_j.keys()
+                for tensor in vector_store.dataset_handler.dataset.tensors
+            ]
+        )
+        == 2
     )  # One for each return_tensors
     assert len(data_e_j.keys()) == 2
 
@@ -342,7 +362,13 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     )
     assert len(data_e_f["text"]) == 1
     assert (
-        sum([tensor in data_e_f.keys() for tensor in vector_store.dataset.tensors]) == 2
+        sum(
+            [
+                tensor in data_e_f.keys()
+                for tensor in vector_store.dataset_handler.dataset.tensors
+            ]
+        )
+        == 2
     )  # One for each return_tensors
     assert len(data_e_f.keys()) == 2
 
@@ -353,8 +379,10 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         k=2,
         return_tensors=["id", "text"],
         filter={
-            "metadata": vector_store_cloud.dataset.metadata[0].data()["value"],
-            "text": vector_store_cloud.dataset.text[0].data()["value"],
+            "metadata": vector_store_cloud.dataset_handler.dataset.metadata[0].data()[
+                "value"
+            ],
+            "text": vector_store_cloud.dataset_handler.dataset.text[0].data()["value"],
         },
     )
     assert len(data_ce_f["text"]) == 1
@@ -362,7 +390,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         sum(
             [
                 tensor in data_ce_f.keys()
-                for tensor in vector_store_cloud.dataset.tensors
+                for tensor in vector_store_cloud.dataset_handler.dataset.tensors
             ]
         )
         == 2
@@ -402,7 +430,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         path=local_path, overwrite=True, token=hub_cloud_dev_token, exec_option=None
     )
 
-    assert vector_store_none_exec.exec_option == "compute_engine"
+    assert vector_store_none_exec.dataset_handler.exec_option == "compute_engine"
 
     # Check that filter_fn with cloud dataset (and therefore "compute_engine" exec option) switches to "python" automatically.
     with pytest.warns(None):
@@ -455,7 +483,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         )
 
     vector_store = DeepLakeVectorStore(path="mem://xyz")
-    assert vector_store.exec_option == "python"
+    assert vector_store.dataset_handler.exec_option == "python"
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
     data = vector_store.search(
@@ -509,7 +537,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     vector_store = DeepLakeVectorStore(
         path="mem://xyz", embedding_function=embedding_fn3
     )
-    assert vector_store.exec_option == "python"
+    assert vector_store.dataset_handler.exec_option == "python"
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
     result = vector_store.search(embedding_data=["dummy"])
     assert len(result) == 4
@@ -525,7 +553,7 @@ def test_index_basic(local_path, hub_cloud_dev_token):
         token=hub_cloud_dev_token,
     )
 
-    assert vector_store.distance_metric_index is None
+    assert vector_store.dataset_handler.distance_metric_index is None
 
     # Then test behavior when index is added
     vector_store = VectorStore(
@@ -533,7 +561,7 @@ def test_index_basic(local_path, hub_cloud_dev_token):
     )
 
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
-    es = vector_store.dataset.embedding.get_vdb_indexes()
+    es = vector_store.dataset_handler.dataset.embedding.get_vdb_indexes()
 
     assert (
         es[0]["distance"] == METRIC_TO_INDEX_METRIC[DEFAULT_VECTORSTORE_DISTANCE_METRIC]
@@ -541,32 +569,44 @@ def test_index_basic(local_path, hub_cloud_dev_token):
 
     # Then test behavior when index is added previously and the dataset is reloaded
     vector_store = VectorStore(path=local_path, token=hub_cloud_dev_token)
-    es = vector_store.dataset.embedding.get_vdb_indexes()
+    es = vector_store.dataset_handler.dataset.embedding.get_vdb_indexes()
 
     assert (
         es[0]["distance"] == METRIC_TO_INDEX_METRIC[DEFAULT_VECTORSTORE_DISTANCE_METRIC]
     )
 
     # Test index with sample updates
-    pre_update_index = vector_store.dataset.embedding.get_vdb_indexes()[0]
+    pre_update_index = vector_store.dataset_handler.dataset.embedding.get_vdb_indexes()[
+        0
+    ]
     vector_store.add(
         embedding=[embeddings[0]], text=[texts[0]], metadata=[metadatas[0]]
     )
-    post_update_index = vector_store.dataset.embedding.get_vdb_indexes()[0]
+    post_update_index = (
+        vector_store.dataset_handler.dataset.embedding.get_vdb_indexes()[0]
+    )
 
     assert pre_update_index == post_update_index
 
     # Test index with sample deletion
-    pre_delete_index = vector_store.dataset.embedding.get_vdb_indexes()[0]
+    pre_delete_index = vector_store.dataset_handler.dataset.embedding.get_vdb_indexes()[
+        0
+    ]
     vector_store.delete(row_ids=[len(vector_store) - 1])
-    post_delete_index = vector_store.dataset.embedding.get_vdb_indexes()[0]
+    post_delete_index = (
+        vector_store.dataset_handler.dataset.embedding.get_vdb_indexes()[0]
+    )
 
     assert pre_delete_index == post_delete_index
 
     # Test index with sample updating
-    pre_update_index = vector_store.dataset.embedding.get_vdb_indexes()[0]
+    pre_update_index = vector_store.dataset_handler.dataset.embedding.get_vdb_indexes()[
+        0
+    ]
     vector_store.update_embedding(row_ids=[0], embedding_function=embedding_fn)
-    post_update_index = vector_store.dataset.embedding.get_vdb_indexes()[0]
+    post_update_index = (
+        vector_store.dataset_handler.dataset.embedding.get_vdb_indexes()[0]
+    )
 
     assert pre_update_index == post_update_index
 
@@ -636,7 +676,7 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
             filter={"metadata": {"abcdefg": 28}},
         )
 
-    test_id = vector_store.dataset.id[0].data()["value"]
+    test_id = vector_store.dataset_handler.dataset.id[0].data()["value"]
 
     data_ce_q = vector_store.search(
         query=f"select * where id == '{test_id}'",
@@ -667,7 +707,7 @@ def test_search_managed(hub_cloud_dev_token):
         exec_option="tensor_db",
     )
 
-    assert "vectordb/" in vector_store.dataset.base_storage.path
+    assert "vectordb/" in vector_store.dataset_handler.dataset.base_storage.path
 
     assert len(data_ce["score"]) == len(data_db["score"])
     assert all(
@@ -700,23 +740,26 @@ def test_delete(local_path, hub_cloud_dev_token):
     assert_vectorstore_structure(vector_store, 10)
 
     # delete the data in the dataset by id:
-    print(len(vector_store.dataset))
+    print(len(vector_store.dataset_handler.dataset))
     vector_store.delete(row_ids=[4, 8, 9])
-    assert len(vector_store.dataset) == NUMBER_OF_DATA - 3
+    assert len(vector_store.dataset_handler.dataset) == NUMBER_OF_DATA - 3
 
     vector_store.delete(filter={"metadata": {"abc": 1}})
-    assert len(vector_store.dataset) == NUMBER_OF_DATA - 4
+    assert len(vector_store.dataset_handler.dataset) == NUMBER_OF_DATA - 4
 
     vector_store.delete(ids=["7"])
-    assert len(vector_store.dataset) == NUMBER_OF_DATA - 5
+    assert len(vector_store.dataset_handler.dataset) == NUMBER_OF_DATA - 5
 
     with pytest.raises(ValueError):
         vector_store.delete()
 
-    tensors_before_delete = vector_store.dataset.tensors
+    tensors_before_delete = vector_store.dataset_handler.dataset.tensors
     vector_store.delete(delete_all=True)
-    assert len(vector_store.dataset) == 0
-    assert vector_store.dataset.tensors.keys() == tensors_before_delete.keys()
+    assert len(vector_store.dataset_handler.dataset) == 0
+    assert (
+        vector_store.dataset_handler.dataset.tensors.keys()
+        == tensors_before_delete.keys()
+    )
 
     vector_store.delete_by_path(local_path)
     dirs = os.listdir("./")
@@ -744,7 +787,7 @@ def test_delete(local_path, hub_cloud_dev_token):
 
     # delete the data in the dataset by id:
     vector_store_b.delete(row_ids=[0])
-    assert len(vector_store_b.dataset) == NUMBER_OF_DATA - 1
+    assert len(vector_store_b.dataset_handler.dataset) == NUMBER_OF_DATA - 1
 
     ds = deeplake.empty(local_path, overwrite=True)
     ds.create_tensor("id", htype="text")
@@ -802,21 +845,25 @@ def assert_updated_vector_store(
 
     if callable(embedding_function) and isinstance(embedding_tensor, str):
         np.testing.assert_array_equal(
-            vector_store.dataset[embedding_tensor][row_ids].numpy(),
+            vector_store.dataset_handler.dataset[embedding_tensor][row_ids].numpy(),
             new_embeddings,
         )
 
     if callable(embedding_function) and isinstance(embedding_tensor, list):
         for i in range(len(embedding_tensor)):
             np.testing.assert_array_equal(
-                vector_store.dataset[embedding_tensor[i]][row_ids].numpy(),
+                vector_store.dataset_handler.dataset[embedding_tensor[i]][
+                    row_ids
+                ].numpy(),
                 new_embeddings[i],
             )
 
     if isinstance(embedding_function, list) and isinstance(embedding_tensor, list):
         for i in range(len(embedding_tensor)):
             np.testing.assert_array_equal(
-                vector_store.dataset[embedding_tensor[i]][row_ids].numpy(),
+                vector_store.dataset_handler.dataset[embedding_tensor[i]][
+                    row_ids
+                ].numpy(),
                 new_embeddings[i],
             )
 
@@ -1202,7 +1249,7 @@ def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
     vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
 
     assert len(vector_store) == number_of_data
-    assert set(vector_store.dataset.tensors) == set(
+    assert set(vector_store.dataset_handler.dataset.tensors) == set(
         [
             "embedding",
             "id",
@@ -1220,7 +1267,7 @@ def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
     )
 
     # Check if the index is recreated properly.
-    ds = vector_store.dataset
+    ds = vector_store.dataset_handler.dataset
     es = ds.embedding.get_vdb_indexes()
     assert len(es) == 1
     assert es[0]["id"] == "hnsw_1"
@@ -1273,7 +1320,7 @@ def test_vdb_index_incr_maint(local_path, capsys, hub_cloud_dev_token):
     vector_store.add(embedding=emb4, text=txt4, id=ids4, metadata=md4)
 
     assert len(vector_store) == number_of_data
-    assert set(vector_store.dataset.tensors) == set(
+    assert set(vector_store.dataset_handler.dataset.tensors) == set(
         [
             "embedding",
             "id",
@@ -1291,7 +1338,7 @@ def test_vdb_index_incr_maint(local_path, capsys, hub_cloud_dev_token):
     )
 
     # Check if the index is recreated properly.
-    ds = vector_store.dataset
+    ds = vector_store.dataset_handler.dataset
     es = ds.embedding.get_vdb_indexes()
     assert len(es) == 1
     assert es[0]["id"] == "hnsw_1"
@@ -1365,13 +1412,13 @@ def test_vdb_index_incr_maint_extend(local_path, capsys, hub_cloud_dev_token):
     )
 
     vector_store.add(embedding=emb1, text=txt1, id=ids1, metadata=md1)
-    ds = vector_store.dataset
+    ds = vector_store.dataset_handler.dataset
     ds.extend({"embedding": emb2, "text": txt2, "id": ids2, "metadata": md2})
     ds.extend({"embedding": emb3, "text": txt3, "id": ids3, "metadata": md3})
     ds.extend({"embedding": emb4, "text": txt4, "id": ids4, "metadata": md4})
 
     assert len(vector_store) == number_of_data
-    assert set(vector_store.dataset.tensors) == set(
+    assert set(vector_store.dataset_handler.dataset.tensors) == set(
         [
             "embedding",
             "id",
@@ -1389,7 +1436,7 @@ def test_vdb_index_incr_maint_extend(local_path, capsys, hub_cloud_dev_token):
     )
 
     # Check if the index is recreated properly.
-    ds = vector_store.dataset
+    ds = vector_store.dataset_handler.dataset
     es = ds.embedding.get_vdb_indexes()
     assert len(es) == 1
     assert es[0]["id"] == "hnsw_1"
@@ -1466,14 +1513,14 @@ def test_vdb_index_incr_maint_append_pop(local_path, capsys, hub_cloud_dev_token
         token=hub_cloud_dev_token,
     )
 
-    ds = vector_store.dataset
+    ds = vector_store.dataset_handler.dataset
     ds.append({"embedding": emb1, "text": txt1, "id": ids1, "metadata": md1})
     ds.append({"embedding": emb2, "text": txt2, "id": ids2, "metadata": md2})
     ds.append({"embedding": emb3, "text": txt3, "id": ids3, "metadata": md3})
     ds.append({"embedding": emb4, "text": txt4, "id": ids4, "metadata": md4})
 
     # assert len(vector_store) == number_of_data
-    assert set(vector_store.dataset.tensors) == set(
+    assert set(vector_store.dataset_handler.dataset.tensors) == set(
         [
             "embedding",
             "id",
@@ -1524,10 +1571,10 @@ def test_vdb_index_incr_maint_append_pop(local_path, capsys, hub_cloud_dev_token
     res3 = list(view3.sample_indices)
     assert res3[0] == 3
 
-    vector_store.dataset.embedding.pop(2)
-    vector_store.dataset.id.pop(2)
-    vector_store.dataset.metadata.pop(2)
-    vector_store.dataset.text.pop(2)
+    vector_store.dataset_handler.dataset.embedding.pop(2)
+    vector_store.dataset_handler.dataset.id.pop(2)
+    vector_store.dataset_handler.dataset.metadata.pop(2)
+    vector_store.dataset_handler.dataset.text.pop(2)
     s2 = ",".join(str(c) for c in query3)
     view1 = ds.query(
         f"select *  order by cosine_similarity(embedding, array[{s2}]) DESC limit 1"
@@ -1545,7 +1592,7 @@ def test_vdb_index_incr_maint_append_pop(local_path, capsys, hub_cloud_dev_token
     res3 = list(view3.sample_indices)
     assert res3[0] != 3
 
-    vector_store.dataset.pop(2)
+    vector_store.dataset_handler.dataset.pop(2)
     s2 = ",".join(str(c) for c in query2)
     view2 = ds.query(
         f"select *  order by cosine_similarity(embedding ,array[{s2}]) DESC limit 1"
@@ -1597,13 +1644,13 @@ def test_vdb_index_incr_maint_update(local_path, capsys, hub_cloud_dev_token):
     )
 
     vector_store.add(embedding=emb1, text=txt1, id=ids1, metadata=md1)
-    ds = vector_store.dataset
+    ds = vector_store.dataset_handler.dataset
     ds.append({"embedding": emb2, "text": txt2, "id": ids2, "metadata": md2})
     ds.append({"embedding": emb3, "text": txt3, "id": ids3, "metadata": md3})
     ds.append({"embedding": emb4, "text": txt4, "id": ids4, "metadata": md4})
 
     # assert len(vector_store) == number_of_data
-    assert set(vector_store.dataset.tensors) == set(
+    assert set(vector_store.dataset_handler.dataset.tensors) == set(
         [
             "embedding",
             "id",
@@ -1714,7 +1761,7 @@ def test_vdb_index_incr_maint_tensor_append(local_path, capsys, hub_cloud_dev_to
     )
 
     vector_store.add(embedding=emb1, text=txt1, id=ids1, metadata=md1)
-    ds = vector_store.dataset
+    ds = vector_store.dataset_handler.dataset
 
     ds.embedding.append(emb2)
     ds.embedding.append(emb3)
@@ -1722,7 +1769,7 @@ def test_vdb_index_incr_maint_tensor_append(local_path, capsys, hub_cloud_dev_to
     # ds.embedding[104] = emb5
 
     # assert len(vector_store) == number_of_data
-    assert set(vector_store.dataset.tensors) == set(
+    assert set(vector_store.dataset_handler.dataset.tensors) == set(
         [
             "embedding",
             "id",
@@ -1778,7 +1825,7 @@ def test_vdb_index_incr_maint_tensor_append(local_path, capsys, hub_cloud_dev_to
 
 def assert_vectorstore_structure(vector_store, number_of_data):
     assert len(vector_store) == number_of_data
-    assert set(vector_store.dataset.tensors) == {
+    assert set(vector_store.dataset_handler.dataset.tensors) == {
         "embedding",
         "id",
         "metadata",
@@ -1790,14 +1837,14 @@ def assert_vectorstore_structure(vector_store, number_of_data):
         "metadata",
         "text",
     }
-    assert vector_store.dataset.embedding.htype == "embedding"
-    assert vector_store.dataset.id.htype == "text"
-    assert vector_store.dataset.metadata.htype == "json"
-    assert vector_store.dataset.text.htype == "text"
-    assert vector_store.dataset.embedding.dtype == "float32"
-    assert vector_store.dataset.id.dtype == "str"
-    assert vector_store.dataset.metadata.dtype == "str"
-    assert vector_store.dataset.text.dtype == "str"
+    assert vector_store.dataset_handler.dataset.embedding.htype == "embedding"
+    assert vector_store.dataset_handler.dataset.id.htype == "text"
+    assert vector_store.dataset_handler.dataset.metadata.htype == "json"
+    assert vector_store.dataset_handler.dataset.text.htype == "text"
+    assert vector_store.dataset_handler.dataset.embedding.dtype == "float32"
+    assert vector_store.dataset_handler.dataset.id.dtype == "str"
+    assert vector_store.dataset_handler.dataset.metadata.dtype == "str"
+    assert vector_store.dataset_handler.dataset.text.dtype == "str"
 
 
 @pytest.mark.slow
@@ -1877,10 +1924,10 @@ def test_ingestion_images(local_path):
 
     ids = vector_store.add(image=images, embedding=embeddings, return_ids=True)
 
-    assert "image" in vector_store.dataset.tensors
-    assert "embedding" in vector_store.dataset.tensors
-    assert len(vector_store.dataset.image[0].numpy().shape) == 3
-    assert len(vector_store.dataset.image[1].numpy().shape) == 3
+    assert "image" in vector_store.dataset_handler.dataset.tensors
+    assert "embedding" in vector_store.dataset_handler.dataset.tensors
+    assert len(vector_store.dataset_handler.dataset.image[0].numpy().shape) == 3
+    assert len(vector_store.dataset_handler.dataset.image[1].numpy().shape) == 3
     assert len(ids) == 10
 
 
@@ -1896,7 +1943,7 @@ def test_parse_add_arguments(local_path):
     with pytest.raises(ValueError):
         # Throw error because embedding_function requires embed_data_from
         utils.parse_add_arguments(
-            dataset=deeplake_vector_store.dataset,
+            dataset=deeplake_vector_store.dataset_handler.dataset,
             initial_embedding_function=embedding_fn,
             embedding_function=embedding_fn,
             embeding_tensor="embedding",
@@ -1908,7 +1955,7 @@ def test_parse_add_arguments(local_path):
     with pytest.raises(ValueError):
         # Throw error because embedding function is not specified anywhere
         utils.parse_add_arguments(
-            dataset=deeplake_vector_store.dataset,
+            dataset=deeplake_vector_store.dataset_handler.dataset,
             embedding_data=texts,
             embeding_tensor="embedding",
             text=texts,
@@ -1919,7 +1966,7 @@ def test_parse_add_arguments(local_path):
     with pytest.raises(ValueError):
         # Throw error because data is not specified for all tensors
         utils.parse_add_arguments(
-            dataset=deeplake_vector_store.dataset,
+            dataset=deeplake_vector_store.dataset_handler.dataset,
             text=texts,
             id=ids,
             metadata=metadatas,
@@ -1933,7 +1980,7 @@ def test_parse_add_arguments(local_path):
             embed_data_from,
             tensors,
         ) = utils.parse_add_arguments(
-            dataset=deeplake_vector_store.dataset,
+            dataset=deeplake_vector_store.dataset_handler.dataset,
             initial_embedding_function=embedding_fn,
             embedding_tensor="embedding",
             text=texts,
@@ -1948,7 +1995,7 @@ def test_parse_add_arguments(local_path):
         embed_data_from,
         tensors,
     ) = utils.parse_add_arguments(
-        dataset=deeplake_vector_store.dataset,
+        dataset=deeplake_vector_store.dataset_handler.dataset,
         initial_embedding_function=embedding_fn_dp,
         text=texts,
         id=ids,
@@ -1968,7 +2015,7 @@ def test_parse_add_arguments(local_path):
     with pytest.raises(ValueError):
         # initial embedding function specified and embeding_tensor is not specified
         utils.parse_add_arguments(
-            dataset=deeplake_vector_store.dataset,
+            dataset=deeplake_vector_store.dataset_handler.dataset,
             initial_embedding_function=embedding_fn_dp,
             embedding_data=texts,
             text=texts,
@@ -1980,7 +2027,7 @@ def test_parse_add_arguments(local_path):
     with pytest.raises(ValueError):
         # Throw error because embedding_function and embedding are specified
         utils.parse_add_arguments(
-            dataset=deeplake_vector_store.dataset,
+            dataset=deeplake_vector_store.dataset_handler.dataset,
             initial_embedding_function=embedding_fn_dp,
             embedding_function=embedding_fn_dp,
             embedding_data=texts,
@@ -1994,7 +2041,7 @@ def test_parse_add_arguments(local_path):
     with pytest.raises(ValueError):
         # initial_embedding_function is specified and embeding_tensor, embed_data_from and embedding is specified.
         utils.parse_add_arguments(
-            dataset=deeplake_vector_store.dataset,
+            dataset=deeplake_vector_store.dataset_handler.dataset,
             initial_embedding_function=embedding_fn_dp,
             embedding_tensor="embedding",
             embedding_data=texts,
@@ -2007,7 +2054,7 @@ def test_parse_add_arguments(local_path):
     with pytest.raises(ValueError):
         # initial_embedding_function is not specified and embeding_tensor, embed_data_from and embedding is specified.
         utils.parse_add_arguments(
-            dataset=deeplake_vector_store.dataset,
+            dataset=deeplake_vector_store.dataset_handler.dataset,
             embeding_tensor="embedding",
             embedding_data=texts,
             text=texts,
@@ -2018,7 +2065,7 @@ def test_parse_add_arguments(local_path):
 
     with pytest.raises(ValueError):
         utils.parse_add_arguments(
-            dataset=deeplake_vector_store.dataset,
+            dataset=deeplake_vector_store.dataset_handler.dataset,
             embedding_function=embedding_fn_dp,
             initial_embedding_function=embedding_fn_dp,
             embedding_data=texts,
@@ -2035,7 +2082,7 @@ def test_parse_add_arguments(local_path):
         embedding_tensors,
         tensors,
     ) = utils.parse_add_arguments(
-        dataset=deeplake_vector_store.dataset,
+        dataset=deeplake_vector_store.dataset_handler.dataset,
         embedding_function=embedding_fn2_dp,
         embedding_data=texts,
         embedding_tensor="embedding",
@@ -2056,7 +2103,7 @@ def test_parse_add_arguments(local_path):
         embedding_tensors,
         tensors,
     ) = utils.parse_add_arguments(
-        dataset=deeplake_vector_store.dataset,
+        dataset=deeplake_vector_store.dataset_handler.dataset,
         embedding_function=embedding_fn2_dp,
         embedding_data="text",
         embedding_tensor="embedding",
@@ -2090,7 +2137,7 @@ def test_parse_add_arguments(local_path):
     # There are two embedding but an embedding_tensor is not specified, so it's not clear where to add the embedding data
     with pytest.raises(ValueError):
         utils.parse_add_arguments(
-            dataset=deeplake_vector_store.dataset,
+            dataset=deeplake_vector_store.dataset_handler.dataset,
             embedding_function=embedding_fn2_dp,
             embedding_data="text",
             text=texts,
@@ -2113,7 +2160,7 @@ def test_parse_add_arguments(local_path):
     # There is no embedding tensor, so it's not clear where to add the embedding data
     with pytest.raises(ValueError):
         utils.parse_add_arguments(
-            dataset=deeplake_vector_store.dataset,
+            dataset=deeplake_vector_store.dataset_handler.dataset,
             embedding_function=embedding_fn2_dp,
             embedding_data=texts,
             text=texts,
@@ -2142,7 +2189,7 @@ def test_parse_add_arguments(local_path):
         embedding_tensors,
         tensors,
     ) = utils.parse_add_arguments(
-        dataset=deeplake_vector_store.dataset,
+        dataset=deeplake_vector_store.dataset_handler.dataset,
         embedding_function=embedding_fn2_dp,
         embedding_data=texts,
         text=texts,
@@ -2163,7 +2210,7 @@ def test_parse_add_arguments(local_path):
         embedding_tensor,
         tensors,
     ) = utils.parse_add_arguments(
-        dataset=deeplake_vector_store.dataset,
+        dataset=deeplake_vector_store.dataset_handler.dataset,
         initial_embedding_function=embedding_fn_dp,
         text=texts,
         id=ids,
@@ -2186,7 +2233,7 @@ def test_parse_add_arguments(local_path):
             embedding_tensor,
             tensors,
         ) = utils.parse_add_arguments(
-            dataset=deeplake_vector_store.dataset,
+            dataset=deeplake_vector_store.dataset_handler.dataset,
             text=texts,
             id=ids,
             metadata=metadatas,
@@ -2200,7 +2247,7 @@ def test_parse_add_arguments(local_path):
             embedding_tensor,
             tensors,
         ) = utils.parse_add_arguments(
-            dataset=deeplake_vector_store.dataset,
+            dataset=deeplake_vector_store.dataset_handler.dataset,
             text=texts,
             id=ids,
             metadata=metadatas,
@@ -2214,7 +2261,7 @@ def test_parse_add_arguments(local_path):
             embedding_tensor,
             tensors,
         ) = utils.parse_add_arguments(
-            dataset=deeplake_vector_store.dataset,
+            dataset=deeplake_vector_store.dataset_handler.dataset,
             text=texts,
             id=ids,
             metadata=metadatas,
@@ -2347,7 +2394,9 @@ def test_multiple_embeddings(local_path):
     )
 
     # test with initial embedding function
-    vector_store.embedding_function = DeepLakeEmbedder(embedding_function=embedding_fn)
+    vector_store.dataset_handler.embedding_function = DeepLakeEmbedder(
+        embedding_function=embedding_fn
+    )
     vector_store.add(
         text=texts,
         embedding_data=[texts, texts],
@@ -2370,11 +2419,11 @@ def test_multiple_embeddings(local_path):
         embedding_2=(embedding_fn3, 25 * _texts),
     )
 
-    assert len(vector_store.dataset) == 50040
-    assert len(vector_store.dataset.embedding_1) == 50040
-    assert len(vector_store.dataset.embedding_2) == 50040
-    assert len(vector_store.dataset.id) == 50040
-    assert len(vector_store.dataset.text) == 50040
+    assert len(vector_store.dataset_handler.dataset) == 50040
+    assert len(vector_store.dataset_handler.dataset.embedding_1) == 50040
+    assert len(vector_store.dataset_handler.dataset.embedding_2) == 50040
+    assert len(vector_store.dataset_handler.dataset.id) == 50040
+    assert len(vector_store.dataset_handler.dataset.text) == 50040
 
 
 def test_extend_none(local_path):
@@ -2393,11 +2442,11 @@ def test_extend_none(local_path):
     )
 
     vector_store.add(text=texts, embedding=None, id=ids, metadata=None)
-    assert len(vector_store.dataset) == 10
-    assert len(vector_store.dataset.text) == 10
-    assert len(vector_store.dataset.embedding) == 10
-    assert len(vector_store.dataset.id) == 10
-    assert len(vector_store.dataset.metadata) == 10
+    assert len(vector_store.dataset_handler.dataset) == 10
+    assert len(vector_store.dataset_handler.dataset.text) == 10
+    assert len(vector_store.dataset_handler.dataset.embedding) == 10
+    assert len(vector_store.dataset_handler.dataset.id) == 10
+    assert len(vector_store.dataset_handler.dataset.metadata) == 10
 
 
 def test_query_dim(local_path):
@@ -2431,9 +2480,9 @@ def test_embeddings_only(local_path):
         embedding_1=(embedding_fn, texts), embedding_2=(embedding_fn3, texts)
     )
 
-    assert len(vector_store.dataset) == 10
-    assert len(vector_store.dataset.embedding_1) == 10
-    assert len(vector_store.dataset.embedding_2) == 10
+    assert len(vector_store.dataset_handler.dataset) == 10
+    assert len(vector_store.dataset_handler.dataset.embedding_1) == 10
+    assert len(vector_store.dataset_handler.dataset.embedding_2) == 10
 
 
 def test_uuid_fix(local_path):
@@ -2443,12 +2492,14 @@ def test_uuid_fix(local_path):
 
     vector_store.add(text=texts, id=ids, embedding=embeddings, metadata=metadatas)
 
-    assert vector_store.dataset.id.data()["value"] == list(map(str, ids))
+    assert vector_store.dataset_handler.dataset.id.data()["value"] == list(
+        map(str, ids)
+    )
 
 
 def test_read_only():
     db = VectorStore("hub://davitbun/twitter-algorithm")
-    assert db.dataset.read_only == True
+    assert db.dataset_handler.dataset.read_only == True
 
 
 def test_delete_by_path_wrong_path():
@@ -2459,26 +2510,26 @@ def test_delete_by_path_wrong_path():
 @requires_libdeeplake
 def test_exec_option_with_auth(local_path, hub_cloud_path, hub_cloud_dev_token):
     db = VectorStore(path=local_path)
-    assert db.exec_option == "python"
+    assert db.dataset_handler.exec_option == "python"
 
     db = VectorStore(
         path=local_path,
         token=hub_cloud_dev_token,
     )
-    assert db.exec_option == "compute_engine"
+    assert db.dataset_handler.exec_option == "compute_engine"
 
     db = VectorStore(
         path=hub_cloud_path,
         token=hub_cloud_dev_token,
     )
-    assert db.exec_option == "compute_engine"
+    assert db.dataset_handler.exec_option == "compute_engine"
 
     db = VectorStore(
         path=hub_cloud_path + "_tensor_db",
         token=hub_cloud_dev_token,
         runtime={"tensor_db": True},
     )
-    assert db.exec_option == "tensor_db"
+    assert db.dataset_handler.exec_option == "tensor_db"
 
 
 @requires_libdeeplake
@@ -2497,19 +2548,19 @@ def test_exec_option_cli(
     db = VectorStore(
         path=local_path,
     )
-    assert db.exec_option == "compute_engine"
+    assert db.dataset_handler.exec_option == "compute_engine"
 
     # hub cloud dataset and logged in with cli
     db = VectorStore(
         path=hub_cloud_path,
     )
-    assert db.exec_option == "compute_engine"
+    assert db.dataset_handler.exec_option == "compute_engine"
 
     # hub cloud dataset and logged in with cli
     db = VectorStore(
         path="mem://abc",
     )
-    assert db.exec_option == "python"
+    assert db.dataset_handler.exec_option == "python"
 
     # logging out with cli
     runner.invoke(logout)
@@ -2518,7 +2569,7 @@ def test_exec_option_cli(
     db = VectorStore(
         path=local_path,
     )
-    assert db.exec_option == "python"
+    assert db.dataset_handler.exec_option == "python"
 
     # Check whether after logging out exec_option changes to python
     # logging in with cli token
@@ -2526,10 +2577,10 @@ def test_exec_option_cli(
     db = VectorStore(
         path=local_path,
     )
-    assert db.exec_option == "compute_engine"
+    assert db.dataset_handler.exec_option == "compute_engine"
     # logging out with cli
     runner.invoke(logout)
-    assert db.exec_option == "python"
+    assert db.dataset_handler.exec_option == "python"
 
     # Check whether after logging out when token specified exec_option doesn't change
     # logging in with cli token
@@ -2538,10 +2589,10 @@ def test_exec_option_cli(
         path=local_path,
         token=hub_cloud_dev_token,
     )
-    assert db.exec_option == "compute_engine"
+    assert db.dataset_handler.exec_option == "compute_engine"
     # logging out with cli
     runner.invoke(logout)
-    assert db.exec_option == "compute_engine"
+    assert db.dataset_handler.exec_option == "compute_engine"
 
 
 @requires_libdeeplake
@@ -2568,10 +2619,26 @@ def test_exec_option_with_connected_datasets(
     runner.invoke(login, f"-t {hub_cloud_dev_token}")
     assert db.exec_option == "python"
 
-    db.dataset.connect(
+    db.dataset_handler.dataset.connect(
         creds_key=hub_cloud_dev_managed_creds_key,
         dest_path=hub_cloud_path,
         token=hub_cloud_dev_token,
     )
-    db.dataset.add_creds_key(hub_cloud_dev_managed_creds_key, managed=True)
+    db.dataset_handler.dataset.add_creds_key(
+        hub_cloud_dev_managed_creds_key, managed=True
+    )
     assert db.exec_option == "compute_engine"
+
+
+def test_dataset_init_param(local_ds):
+    local_ds.create_tensor("text", htype="text")
+    local_ds.create_tensor("embedding", htype="embedding")
+    local_ds.create_tensor("id", htype="text")
+    local_ds.create_tensor("metadata", htype="json")
+
+    db = VectorStore(
+        dataset=local_ds,
+    )
+
+    db.add(text=texts, embedding=embeddings, id=ids, metadata=metadatas)
+    assert len(db) == 10

@@ -4,6 +4,7 @@ from typing import Optional, Any, List, Dict, Union, Callable
 
 import numpy as np
 
+import deeplake
 from deeplake.core.dataset import Dataset
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
@@ -11,6 +12,7 @@ from deeplake.constants import (
     TARGET_BYTE_SIZE,
 )
 from deeplake.core.vectorstore.dataset_handlers import get_dataset_handler
+from deeplake.util.bugout_reporter import feature_report_path
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +22,8 @@ class VectorStore:
 
     def __init__(
         self,
-        path: Union[str, pathlib.Path],
+        path: Optional[Union[str, pathlib.Path]] = None,
+        dataset: Optional[Dataset] = None,
         tensor_params: List[Dict[str, object]] = DEFAULT_VECTORSTORE_TENSORS,
         embedding_function: Optional[Any] = None,
         read_only: Optional[bool] = None,
@@ -105,6 +108,7 @@ class VectorStore:
         """
         self.dataset_handler = get_dataset_handler(
             path=path,
+            dataset=dataset,
             tensor_params=tensor_params,
             embedding_function=embedding_function,
             read_only=read_only,
@@ -425,8 +429,8 @@ class VectorStore:
             embedding_tensor=embedding_tensor,
         )
 
+    @staticmethod
     def delete_by_path(
-        self,
         path: Union[str, pathlib.Path],
         token: Optional[str] = None,
         force: bool = False,
@@ -446,9 +450,18 @@ class VectorStore:
         Danger:
             This method permanently deletes all of your data if the Vector Store exists! Be very careful when using this method.
         """
-        self.dataset_handler.delete_by_path(
-            path=path, token=token, force=force, creds=creds
+        feature_report_path(
+            path,
+            "vs.delete_by_path",
+            parameters={
+                "path": path,
+                "token": token,
+                "force": force,
+                "creds": creds,
+            },
+            token=token,
         )
+        deeplake.delete(path, large_ok=True, token=token, force=force, creds=creds)
 
     def commit(self, allow_empty: bool = True) -> None:
         """Commits the Vector Store.

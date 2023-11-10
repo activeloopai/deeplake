@@ -22,57 +22,55 @@ class ManagedSideDH(DHBase):
     def __init__(
         self,
         path: Union[str, pathlib.Path],
+        dataset: Dataset,
         tensor_params: List[Dict[str, object]],
-        embedding_function: Callable,
+        embedding_function: Any,
         read_only: bool,
+        ingestion_batch_size: int,
         index_params: Dict[str, Union[int, str]],
+        num_workers: int,
+        exec_option: str,
         token: str,
         overwrite: bool,
         verbose: bool,
+        runtime: Dict,
+        creds: Union[Dict, str],
+        org_id: str,
         logger: logging.Logger,
+        branch: str,
         **kwargs: Any,
-    ) -> None:
+    ):
         if embedding_function is not None:
             raise NotImplementedError(
                 "ManagedVectorStore does not support embedding_function for now."
             )
-
-        self._token = token
-        self.path = convert_pathlib_to_string_if_needed(path)
 
         if get_path_type(self.path) != "hub":
             raise ValueError(
                 "ManagedVectorStore can only be initialized with a Deep Lake Cloud path."
             )
 
-        self.logger = logger
-        self.org_id = None
-        self.index_params = utils.parse_index_params(index_params)
-        self.verbose = verbose
-        self.tensor_params = tensor_params
-        self.deep_memory = None
-
-        self.client = ManagedServiceClient(token=self.token)
-
-        feature_report_path(
-            path,
-            "vs.initialize",
-            {
-                "tensor_params": "default"
-                if tensor_params is not None
-                else tensor_params,
-                "embedding_function": True if embedding_function is not None else False,
-                "overwrite": overwrite,
-                "read_only": read_only,
-                "index_params": index_params,
-                "token": self.token,
-                "verbose": verbose,
-                "managed": True,
-            },
-            token=self.token,
-            username=self.username,
+        super().__init__(
+            path=path,
+            dataset=dataset,
+            tensor_params=tensor_params,
+            embedding_function=embedding_function,
+            read_only=read_only,
+            ingestion_batch_size=ingestion_batch_size,
+            index_params=index_params,
+            num_workers=num_workers,
+            exec_option=exec_option,
+            token=token,
+            overwrite=overwrite,
+            verbose=True,
+            runtime=runtime,
+            credscreds=creds,
+            org_id=org_id,
+            logger=logger,
+            **kwargs,
         )
 
+        self.client = ManagedServiceClient(token=self.token)
         self.client.init_vectorstore(
             path=self.path,
             overwrite=overwrite,
