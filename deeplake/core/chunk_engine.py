@@ -2704,7 +2704,7 @@ class ChunkEngine:
 
         sample_ndim = self.ndim() - 1
 
-        bad_shapes = []
+        bad_shapes = []  # type: ignore
         offset = 0
         for i, idx in enumerate(sample_indices):
             if self.tensor_meta.htype in ("text", "json"):
