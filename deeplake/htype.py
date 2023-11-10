@@ -67,7 +67,6 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
         "_info": ["class_names"],  # class_names should be stored in info, not meta
         "_disable_temp_transform": False,
     },
-    htype.TAG: {"dtype": "str"},
     htype.BBOX: {"dtype": "float32", "coords": {}, "_info": ["coords"]},
     htype.BBOX_3D: {"dtype": "float32", "coords": {}, "_info": ["coords"]},
     htype.AUDIO: {"dtype": "float64"},
@@ -97,6 +96,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     },
     htype.LIST: {"dtype": "List"},
     htype.TEXT: {"dtype": "str"},
+    htype.TAG: {"dtype": "List"},
     htype.DICOM: {"sample_compression": "dcm"},
     htype.NIFTI: {},
     htype.POINT_CLOUD: {"dtype": "float32"},

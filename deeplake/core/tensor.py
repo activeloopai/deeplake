@@ -569,7 +569,7 @@ class Tensor:
     @property
     def dtype(self) -> Optional[np.dtype]:
         """Dtype of the tensor."""
-        if self.base_htype in ("json", "list"):
+        if self.base_htype in ("json", "list", "tag"):
             return np.dtype(str)
         if self.meta.dtype:
             return np.dtype(self.meta.typestr or self.meta.dtype)
@@ -972,11 +972,11 @@ class Tensor:
         - For all else, returns dict with key "value" with value same as :meth:`numpy`.
         """
         htype = self.base_htype
-        if htype in ("text", "tag"):
+        if htype == "text":
             return {"value": self.text(fetch_chunks=fetch_chunks)}
         if htype == "json":
             return {"value": self.dict(fetch_chunks=fetch_chunks)}
-        if htype == "list":
+        if htype in ("list", "tag"):
             return {"value": self.list(fetch_chunks=fetch_chunks)}
         if self.htype == "video":
             data = {}
@@ -1423,20 +1423,17 @@ class Tensor:
             return [sample[0] for sample in self.numpy(aslist=True)]
 
     def text(self, fetch_chunks: bool = False):
-        """Return text data. Only applicable for tensors with 'text' or 'tag' base htype."""
-        if self.base_htype not in ("text", "tag"):
-            raise Exception("Only supported for text and tag tensors.")
-
-        return self._extract_value(self.base_htype, fetch_chunks=fetch_chunks)
+        """Return text data. Only applicable for tensors with 'text' base htype."""
+        return self._extract_value("text", fetch_chunks=fetch_chunks)
 
     def dict(self, fetch_chunks: bool = False):
         """Return json data. Only applicable for tensors with 'json' base htype."""
         return self._extract_value("json", fetch_chunks=fetch_chunks)
 
     def list(self, fetch_chunks: bool = False):
-        """Return list data. Only applicable for tensors with 'list' base htype."""
-        if self.base_htype != "list":
-            raise Exception("Only supported for list tensors.")
+        """Return list data. Only applicable for tensors with 'list' or 'tag' base htype."""
+        if self.base_htype not in ("list", "tag"):
+            raise Exception("Only supported for list and tag tensors.")
 
         if self.ndim == 1:
             return list(self.numpy(fetch_chunks=fetch_chunks))

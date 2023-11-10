@@ -328,7 +328,7 @@ class BaseChunk(DeepLakeMemoryObject):
                 incoming_sample = incoming_sample.path
             if incoming_sample is None:
                 htype = "text" if self.tensor_meta.is_link else self.htype
-                empty_mapping = {"text": "", "list": [], "json": {}}
+                empty_mapping = {"text": "", "list": [], "json": {}, "tag": []}
                 incoming_sample = empty_mapping[htype]
 
             if isinstance(incoming_sample, Sample):

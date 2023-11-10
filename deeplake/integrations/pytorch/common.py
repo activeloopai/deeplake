@@ -224,7 +224,7 @@ def convert_sample_to_data(sample: dict, htype_dict, ndim_dict, tensor_info_dict
 
 
 def convert_value_to_data(value, tensor_info, sample_info, htype, ndim):
-    if htype in {"text", "json", "tag"}:
+    if htype in {"text", "json"}:
         if not isinstance(value, str):
             value = value[0]
         return {"value": value}

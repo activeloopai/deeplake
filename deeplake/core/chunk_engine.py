@@ -746,6 +746,10 @@ class ChunkEngine:
                 p if isinstance(p, Polygons) else Polygons(p, dtype=tensor_meta.dtype)
                 for p in samples
             ]
+        elif tensor_meta.htype == "tag":
+            samples = [
+                sample if isinstance(sample, list) else [sample] for sample in samples
+            ]
         return samples, verified_samples
 
     def _convert_class_labels(self, samples):
@@ -2707,7 +2711,7 @@ class ChunkEngine:
         bad_shapes = []
         offset = 0
         for i, idx in enumerate(sample_indices):
-            if self.tensor_meta.htype in ("text", "json", "tag"):
+            if self.tensor_meta.htype in ("text", "json"):
                 shape = (1,)
             elif sample_shape_provider:
                 shape = self._get_sample_shape_from_provider(
