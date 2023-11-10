@@ -446,6 +446,7 @@ def corpus_query_relevances_copy(request, hub_cloud_dev_token):
     )
     queries = query_vs.dataset.text.data()["value"]
     relevance = query_vs.dataset.metadata.data()["value"]
+    relevance = [rel["relevance"] for rel in relevance]
 
     deeplake.deepcopy(
         f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus",

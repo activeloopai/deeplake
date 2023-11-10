@@ -1111,3 +1111,21 @@ class DeepMemoryWaitingListError(Exception):
             "Please, follow the link and join the waiting list: https://www.deeplake.ai/deepmemory"
         )
         super().__init__(msg)
+
+
+class IncorrectRelevanceTypeError(Exception):
+    def __init__(self):
+        msg = (
+            "Specified data type for relevance isn't correct. "
+            "Please make sure, that relevence is of type List[List[Tuple[str, int]]]"
+        )
+        super().__init__(msg)
+
+
+class IncorrectQueriesTypeError(Exception):
+    def __init__(self):
+        msg = (
+            "Specified data type for queries isn't correct. "
+            "Please make sure, that queries is of type List[str]"
+        )
+        super().__init__(msg)

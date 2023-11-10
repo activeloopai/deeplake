@@ -1,6 +1,7 @@
 import logging
 import uuid
 from collections import defaultdict
+from pydantic import BaseModel, ValidationError
 from typing import Any, Dict, Optional, List, Union, Callable, Tuple
 from time import time
 
@@ -8,6 +9,7 @@ import numpy as np
 
 import deeplake
 from deeplake.enterprise.dataloader import indra_available
+from deeplake.util.exceptions import IncorrectRelevanceTypeError, IncorrectQueriesTypeError
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.constants import (
     DEFAULT_QUERIES_VECTORSTORE_TENSORS,
@@ -26,6 +28,26 @@ from deeplake.util.bugout_reporter import (
 from deeplake.util.dataset import try_flushing
 from deeplake.util.path import get_path_type
 from deeplake.util.version_control import load_meta
+
+
+class Relevance(BaseModel):
+    data: List[List[Tuple[str, int]]]
+
+
+class Queries(BaseModel):
+    data: List[str]
+
+
+def validate_relevance_and_queries(relevance, queries):
+    try:
+        Relevance(data=relevance)
+    except ValidationError:
+        raise IncorrectRelevanceTypeError()
+
+    try:
+        Queries(data=queries)
+    except ValidationError:
+        raise IncorrectQueriesTypeError()
 
 
 class DeepMemory:
@@ -109,6 +131,8 @@ class DeepMemory:
             },
             token=token or self.token,
         )
+
+        validate_relevance_and_queries(relevance=relevance, queries=queries)
 
         # TODO: Support for passing query_embeddings directly without embedding function
         corpus_path = self.dataset.path
@@ -413,6 +437,7 @@ class DeepMemory:
         api.tql.prepare_deepmemory_metrics(indra_dataset)
 
         parsed_qvs_params = parse_queries_params(qvs_params)
+        validate_relevance_and_queries(relevance=relevance, queries=queries)
 
         start = time()
         query_embs: Union[List[np.ndarray], List[List[float]]]

@@ -10,7 +10,11 @@ from deeplake.tests.common import requires_libdeeplake
 from deeplake.core.vectorstore.unsupported_deep_memory import (
     DeepMemory as UnsupportedDeepMemory,
 )
-from deeplake.util.exceptions import DeepMemoryWaitingListError
+from deeplake.util.exceptions import (
+    DeepMemoryWaitingListError,
+    IncorrectQueriesTypeError,
+    IncorrectRelevanceTypeError,
+)
 
 
 class DummyEmbedder:
@@ -598,6 +602,9 @@ def test_unsupported_deepmemory_users():
         )
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+@pytest.mark.slow
+@requires_libdeeplake
 def test_deepmemory_list_jobs_with_no_jobs(
     corpus_query_relevances_copy, hub_cloud_dev_token
 ):
@@ -611,3 +618,42 @@ def test_deepmemory_list_jobs_with_no_jobs(
 
     output_str = db.deep_memory.list_jobs(debug=True)
     assert output_str == "No Deep Memory training jobs were found for this dataset"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+@pytest.mark.slow
+@requires_libdeeplake
+def test_not_supported_training_args(corpus_query_relevances_copy, hub_cloud_dev_token):
+    corpus, queries, relevances, _ = corpus_query_relevances_copy
+
+    db = VectorStore(
+        path=corpus,
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+    )
+
+    with pytest.raises(IncorrectQueriesTypeError):
+        db.deep_memory.train(
+            queries="queries",
+            relevance=relevances,
+            embedding_function=embedding_fn,
+        )
+
+    with pytest.raises(IncorrectRelevanceTypeError):
+        db.deep_memory.train(
+            queries=queries,
+            relevance="relevances",
+            embedding_function=embedding_fn,
+        )
+
+    with pytest.raises(IncorrectQueriesTypeError):
+        db.deep_memory.evaluate(
+            queries="queries",
+            relevance=relevances,
+        )
+
+    with pytest.raises(IncorrectRelevanceTypeError):
+        db.deep_memory.evaluate(
+            queries=queries,
+            relevance="relevances",
+        )
