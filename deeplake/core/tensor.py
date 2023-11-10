@@ -1157,6 +1157,7 @@ class Tensor:
         if (
             index is not None
             and index != self.num_samples - 1
+            and self.meta.htype == "embedding"
             and len(self.get_vdb_indexes()) > 0
         ):
             raise EmbeddingTensorPopError(self.meta.name, index)
@@ -1604,6 +1605,7 @@ class Tensor:
         if self.meta.htype != "embedding":
             raise Exception(f"Only supported for embedding tensors.")
         commit_id = self.version_state["commit_id"]
+        self.unload_vdb_index_cache()
         self.storage.pop(get_tensor_vdb_index_key(self.key, commit_id, id))
         self.meta.remove_vdb_index(id=id)
         self.invalidate_libdeeplake_dataset()

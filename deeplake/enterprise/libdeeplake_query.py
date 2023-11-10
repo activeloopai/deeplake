@@ -116,5 +116,5 @@ def sample_by(
         dsv = ds.sample(weights, replace=replace)
     else:
         dsv = ds.sample(weights, replace=replace, size=size)
-    indexes = dsv.indexes
+    indexes = list(dsv.indexes)
     return dataset.no_view_dataset[indexes]

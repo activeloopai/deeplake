@@ -569,14 +569,17 @@ class VectorStore:
         )
 
         if not row_ids:
-            row_ids = dataset_utils.search_row_ids(
-                dataset=self.dataset,
-                search_fn=self.search,
-                ids=ids,
-                filter=filter,
-                query=query,
-                select_all=delete_all,
-                exec_option=exec_option or self.exec_option,
+            row_ids = (
+                dataset_utils.search_row_ids(
+                    dataset=self.dataset,
+                    search_fn=self.search,
+                    ids=ids,
+                    filter=filter,
+                    query=query,
+                    select_all=delete_all,
+                    exec_option=exec_option or self.exec_option,
+                )
+                or []
             )
 
         (

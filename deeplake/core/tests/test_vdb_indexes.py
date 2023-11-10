@@ -145,6 +145,7 @@ def test_index_maintenance_append(local_auth_ds_generator):
                 count += 1
         recall2 = count / (len(ds) - 5000)
         assert recall2 / recall > 0.98
+        ds.embeddings.unload_vdb_index_cache()
 
 
 @requires_libdeeplake
@@ -180,6 +181,7 @@ def test_index_maintenance_update(local_auth_ds_generator):
         assert recall2 / recall > 0.98
         ret = index.search_knn(sample, 1)
         assert ret.indices[0] == 2000
+        ds.embeddings.unload_vdb_index_cache()
 
 
 @requires_libdeeplake
@@ -231,3 +233,4 @@ def test_index_maintenance_delete(local_auth_ds_generator):
             ds.embeddings.pop(2000)
         with pytest.raises(EmbeddingTensorPopError):
             ds.pop(2000)
+        ds.embeddings.unload_vdb_index_cache()
