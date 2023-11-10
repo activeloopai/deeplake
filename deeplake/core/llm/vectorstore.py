@@ -1,22 +1,31 @@
-import jwt
 import logging
 import pathlib
-import numpy as np
 from typing import Optional, Any, List, Dict, Union, Callable
+import jwt
 
+import numpy as np
 
+import deeplake
+from deeplake.core import index_maintenance
+from deeplake.core.distance_type import DistanceType
+from deeplake.util.dataset import try_flushing
 from deeplake.util.path import convert_pathlib_to_string_if_needed
 
+from deeplake.api import dataset
 from deeplake.core.dataset import Dataset
 from deeplake.constants import (
+    DEFAULT_VECTORSTORE_TENSORS,
     MAX_BYTES_PER_MINUTE,
     TARGET_BYTE_SIZE,
+    DEFAULT_VECTORSTORE_DISTANCE_METRIC,
+    DEFAULT_DEEPMEMORY_DISTANCE_METRIC,
+    _INDEX_OPERATION_MAPPING,
 )
 from deeplake.client.utils import read_token
-from deeplake.client.managed.managed_client import ManagedServiceClient
-
-from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
-from deeplake.core.vectorstore import utils
+from deeplake.core.llm import utils
+from deeplake.core.llm.vector_search import vector_search
+from deeplake.core.llm.vector_search import dataset as dataset_utils
+from deeplake.core.llm.vector_search import filter as filter_utils
 from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
@@ -26,30 +35,44 @@ from deeplake.util.path import get_path_type
 logger = logging.getLogger(__name__)
 
 
-class ManagedVectorStore(DeepLakeVectorStore):
+class VectorStore:
+    """Base class for VectorStore"""
+
     def __init__(
         self,
         path: Union[str, pathlib.Path],
-        tensor_params: List[Dict[str, object]] = None,
-        embedding_function: Optional[Callable] = None,
+        tensor_params: List[Dict[str, object]] = DEFAULT_VECTORSTORE_TENSORS,
+        embedding_function: Optional[Any] = None,
         read_only: Optional[bool] = None,
+        ingestion_batch_size: int = 1000,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
+        num_workers: int = 0,
+        exec_option: str = "auto",
         token: Optional[str] = None,
         overwrite: bool = False,
         verbose: bool = True,
+        runtime: Optional[Dict] = None,
+        creds: Optional[Union[Dict, str]] = None,
+        org_id: Optional[str] = None,
         logger: logging.Logger = logger,
+        branch: str = "main",
         **kwargs: Any,
     ) -> None:
-        """Creates an empty ManagedVectorStore or loads an existing one if it exists at the specified ``path``.
+        """Creates an empty VectorStore or loads an existing one if it exists at the specified ``path``.
 
         Examples:
             >>> # Create a vector store with default tensors
             >>> data = VectorStore(
+            ...        path = "./my_vector_store",
+            ... )
+            >>> # Create a vector store in the Deep Lake Managed Tensor Database
+            >>> data = VectorStore(
             ...        path = "hub://org_id/dataset_name",
+            ...        runtime = {"tensor_db": True},
             ... )
             >>> # Create a vector store with custom tensors
             >>> data = VectorStore(
-            ...        path = "hub://org_id/dataset_name",
+            ...        path = "./my_vector_store",
             ...        tensor_params = [{"name": "text", "htype": "text"},
             ...                         {"name": "embedding_1", "htype": "embedding"},
             ...                         {"name": "embedding_2", "htype": "embedding"},
@@ -61,9 +84,14 @@ class ManagedVectorStore(DeepLakeVectorStore):
         Args:
             path (str, pathlib.Path): - The full path for storing to the Deep Lake Vector Store. It can be:
                 - a Deep Lake cloud path of the form ``hub://org_id/dataset_name``. Requires registration with Deep Lake.
+                - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
+                - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             tensor_params (List[Dict[str, dict]], optional): List of dictionaries that contains information about tensors that user wants to create. See ``create_tensor`` in Deep Lake API docs for more information. Defaults to ``DEFAULT_VECTORSTORE_TENSORS``.
-            embedding_function (Optional[callable], optional): Function that converts the embeddable data into embeddings. Input to `embedding_function` is a list of data and output is a list of embeddings. Defaults to None.
+            embedding_function (Optional[Any], optional): Function or class that converts the embeddable data into embeddings. Input to `embedding_function` is a list of data and output is a list of embeddings. Defaults to None.
             read_only (bool, optional):  Opens dataset in read-only mode if True. Defaults to False.
+            num_workers (int): Number of workers to use for parallel ingestion.
+            ingestion_batch_size (int): Batch size to use for parallel ingestion.
             index_params (Dict[str, Union[int, str]]): Dictionary containing information about vector index that will be created. Defaults to None, which will utilize ``DEFAULT_VECTORSTORE_INDEX_PARAMS`` from ``deeplake.constants``. The specified key-values override the default ones.
                 - threshold: The threshold for the dataset size above which an index will be created for the embedding tensor. When the threshold value is set to -1, index creation is turned off.
                              Defaults to -1, which turns off the index.
@@ -72,9 +100,21 @@ class ManagedVectorStore(DeepLakeVectorStore):
                     - "L2" corresponds to DistanceType.L2_NORM.
                     - "COS" corresponds to DistanceType.COSINE_SIMILARITY.
                 - additional_params: Additional parameters for fine-tuning the index.
+            exec_option (str): Default method for search execution. It could be either ``"auto"``, ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``"auto"``. If None, it's set to "auto".
+                - ``auto``- Selects the best execution method based on the storage location of the Vector Store. It is the default option.
+                - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
+                - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
+                - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"tensor_db": True} during dataset creation.
             token (str, optional): Activeloop token, used for fetching user credentials. This is Optional, tokens are normally autogenerated. Defaults to None.
             overwrite (bool): If set to True this overwrites the Vector Store if it already exists. Defaults to False.
             verbose (bool): Whether to print summary of the dataset created. Defaults to True.
+            creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
+                - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
+            runtime (Dict, optional): Parameters for creating the Vector Store in Deep Lake's Managed Tensor Database. Not applicable when loading an existing Vector Store. To create a Vector Store in the Managed Tensor Database, set `runtime = {"tensor_db": True}`.
+            branch (str): Branch name to use for the Vector Store. Defaults to "main".
+
             **kwargs (Any): Additional keyword arguments.
 
         ..
@@ -83,27 +123,17 @@ class ManagedVectorStore(DeepLakeVectorStore):
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
         """
-        if embedding_function is not None:
-            raise NotImplementedError(
-                "ManagedVectorStore does not support embedding_function for now."
-            )
+        try:
+            from indra import api  # type: ignore
+
+            self.indra_installed = True
+        except Exception:  # pragma: no cover
+            self.indra_installed = False  # pragma: no cover
 
         self._token = token
         self.path = convert_pathlib_to_string_if_needed(path)
-
-        if get_path_type(self.path) != "hub":
-            raise ValueError(
-                "ManagedVectorStore can only be initialized with a Deep Lake Cloud path."
-            )
-
         self.logger = logger
-        self.org_id = None
-        self.index_params = utils.parse_index_params(index_params)
-        self.verbose = verbose
-        self.tensor_params = tensor_params
-        self.deep_memory = None
-
-        self.client = ManagedServiceClient(token=self.token)
+        self.org_id = org_id if get_path_type(self.path) == "local" else None
 
         feature_report_path(
             path,
@@ -113,22 +143,51 @@ class ManagedVectorStore(DeepLakeVectorStore):
                 if tensor_params is not None
                 else tensor_params,
                 "embedding_function": True if embedding_function is not None else False,
+                "num_workers": num_workers,
                 "overwrite": overwrite,
                 "read_only": read_only,
+                "ingestion_batch_size": ingestion_batch_size,
                 "index_params": index_params,
+                "exec_option": exec_option,
                 "token": self.token,
                 "verbose": verbose,
-                "managed": True,
+                "runtime": runtime,
             },
             token=self.token,
             username=self.username,
         )
 
-        self.client.init_vectorstore(
-            path=self.path,
-            overwrite=overwrite,
-            tensor_params=self.tensor_params,
+        self.ingestion_batch_size = ingestion_batch_size
+        self.index_params = utils.parse_index_params(index_params)
+        kwargs["index_params"] = self.index_params
+        self.num_workers = num_workers
+        self.creds = creds or {}
+        self.embedding_function = utils.create_embedding_function(embedding_function)
+
+        self.dataset = dataset_utils.create_or_load_dataset(
+            tensor_params,
+            path,
+            self.token,
+            self.creds,
+            self.logger,
+            read_only,
+            exec_option,
+            embedding_function,
+            overwrite,
+            runtime,
+            self.org_id,
+            branch,
+            **kwargs,
         )
+        self._exec_option = exec_option
+        self.verbose = verbose
+        self.tensor_params = tensor_params
+        self.distance_metric_index = index_maintenance.index_operation_vectorstore(
+            self,
+            dml_type=_INDEX_OPERATION_MAPPING["ADD"],
+            rowids=list(range(0, len(self.dataset))),
+        )
+        self.deep_memory = None
 
     @property
     def token(self):
@@ -136,14 +195,15 @@ class ManagedVectorStore(DeepLakeVectorStore):
 
     @property
     def exec_option(self) -> str:
-        return "tensor_db"
+        return utils.parse_exec_option(
+            self.dataset, self._exec_option, self.indra_installed, self.username
+        )
 
     @property
     def username(self) -> str:
         username = "public"
         if self.token is not None:
             username = jwt.decode(self.token, options={"verify_signature": False})["id"]
-
         return username
 
     def add(
@@ -155,8 +215,8 @@ class ManagedVectorStore(DeepLakeVectorStore):
         rate_limiter: Dict = {
             "enabled": False,
             "bytes_per_minute": MAX_BYTES_PER_MINUTE,
+            "batch_byte_size": TARGET_BYTE_SIZE,
         },
-        batch_byte_size: int = TARGET_BYTE_SIZE,
         **tensors,
     ) -> Optional[List[str]]:
         """Adding elements to deeplake vector store.
@@ -219,8 +279,7 @@ class ManagedVectorStore(DeepLakeVectorStore):
             embedding_data (Optional[List]): Data to be converted into embeddings using the provided ``embedding_function``. Defaults to None.
             embedding_tensor (Optional[str]): Tensor where results from the embedding function will be stored. If None, the embedding tensor is automatically inferred (when possible). Defaults to None.
             return_ids (bool): Whether to return added ids as an ouput of the method. Defaults to False.
-            rate_limiter (Dict): Rate limiter configuration. Defaults to ``{"enabled": False, "bytes_per_minute": MAX_BYTES_PER_MINUTE}``.
-            batch_byte_size (int): Batch size to use for parallel ingestion. Defaults to ``TARGET_BYTE_SIZE``.
+            rate_limiter (Dict): Rate limiter configuration. Defaults to ``{"enabled": False, "bytes_per_minute": MAX_BYTES_PER_MINUTE, "batch_byte_size": TARGET_BYTE_SIZE}``.
             **tensors: Keyword arguments where the key is the tensor name, and the value is a list of samples that should be uploaded to that tensor.
 
         Returns:
@@ -236,42 +295,59 @@ class ManagedVectorStore(DeepLakeVectorStore):
                 "return_ids": return_ids,
                 "embedding_function": True if embedding_function is not None else False,
                 "embedding_data": True if embedding_data is not None else False,
-                "managed": True,
             },
             token=self.token,
             username=self.username,
         )
-
-        if embedding_function is not None or embedding_data is not None:
-            raise NotImplementedError(
-                "Embedding function is not supported for ManagedVectorStore. Please send precaculated embeddings."
-            )
-
         (
             embedding_function,
             embedding_data,
             embedding_tensor,
             tensors,
         ) = utils.parse_tensors_kwargs(
-            tensors, embedding_function, embedding_data, embedding_tensor
+            tensors,
+            embedding_function,
+            embedding_data,
+            embedding_tensor,
         )
 
-        processed_tensors = {
-            t: tensors[t].tolist() if isinstance(tensors[t], np.ndarray) else tensors[t]
-            for t in tensors
-        }
-        utils.check_length_of_each_tensor(processed_tensors)
+        (
+            embedding_function,
+            embedding_data,
+            embedding_tensor,
+            tensors,
+        ) = utils.parse_add_arguments(
+            dataset=self.dataset,
+            initial_embedding_function=self.embedding_function,
+            embedding_function=embedding_function,
+            embedding_data=embedding_data,
+            embedding_tensor=embedding_tensor,
+            **tensors,
+        )
 
-        response = self.client.vectorstore_add(
-            path=self.path,
+        processed_tensors, id_ = dataset_utils.preprocess_tensors(
+            embedding_data, embedding_tensor, self.dataset, **tensors
+        )
+
+        assert id_ is not None
+
+        dataset_utils.extend_or_ingest_dataset(
             processed_tensors=processed_tensors,
+            dataset=self.dataset,
+            embedding_function=embedding_function,
+            embedding_data=embedding_data,
+            embedding_tensor=embedding_tensor,
             rate_limiter=rate_limiter,
-            batch_byte_size=batch_byte_size,
-            return_ids=return_ids,
         )
+
+        try_flushing(self.dataset)
+
+        if self.verbose:
+            self.dataset.summary()
 
         if return_ids:
-            return response.ids
+            return id_
+        return None
 
     def search(
         self,
@@ -282,6 +358,7 @@ class ManagedVectorStore(DeepLakeVectorStore):
         distance_metric: Optional[str] = None,
         query: Optional[str] = None,
         filter: Optional[Union[Dict, Callable]] = None,
+        exec_option: Optional[str] = None,
         embedding_tensor: str = "embedding",
         return_tensors: Optional[List[str]] = None,
         return_view: bool = False,
@@ -325,6 +402,12 @@ class ManagedVectorStore(DeepLakeVectorStore):
                 - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
                 - ``Function`` - Any function that is compatible with :meth:`Dataset.filter <deeplake.core.dataset.Dataset.filter>`.
 
+            exec_option (Optional[str]): Method for search execution. It could be either ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``None``, which inherits the option from the Vector Store initialization.
+
+                - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
+                - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
+                - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"tensor_db": True} during dataset creation.
+
             embedding_tensor (str): Name of tensor with embeddings. Defaults to "embedding".
             return_tensors (Optional[List[str]]): List of tensors to return data for. Defaults to None, which returns data for all tensors except the embedding tensor (in order to minimize payload). To return data for all tensors, specify return_tensors = "*".
             return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictionary with data. Defaults to False. If ``True`` return_tensors is set to "*" beucase data is lazy-loaded and there is no cost to including all tensors in the view.
@@ -341,7 +424,6 @@ class ManagedVectorStore(DeepLakeVectorStore):
         Returns:
             Dict: Dictionary where keys are tensor names and values are the results of the search
         """
-
         feature_report_path(
             path=self.path,
             feature_name="vs.search",
@@ -352,43 +434,82 @@ class ManagedVectorStore(DeepLakeVectorStore):
                 "distance_metric": distance_metric,
                 "query": query[0:100] if query is not None else False,
                 "filter": True if filter is not None else False,
+                "exec_option": exec_option,
                 "embedding_tensor": embedding_tensor,
                 "embedding": True if embedding is not None else False,
                 "return_tensors": return_tensors,
                 "return_view": return_view,
-                "managed": True,
             },
             token=self.token,
             username=self.username,
         )
 
-        if embedding_data is not None or embedding_function is not None:
-            raise NotImplementedError(
-                "ManagedVectorStore does not support embedding_function search. Please pass a precalculated embedding."
+        try_flushing(self.dataset)
+
+        if exec_option is None and self.exec_option != "python" and callable(filter):
+            self.logger.warning(
+                'Switching exec_option to "python" (runs on client) because filter is specified as a function. '
+                f'To continue using the original exec_option "{self.exec_option}", please specify the filter as a dictionary or use the "query" parameter to specify a TQL query.'
+            )
+            exec_option = "python"
+
+        exec_option = exec_option or self.exec_option
+
+        if deep_memory and not self.deep_memory:
+            raise ValueError(
+                "Deep Memory is not available for this organization."
+                "Deep Memory is only available for waitlisted accounts."
             )
 
-        if filter is not None and not isinstance(filter, dict):
-            raise NotImplementedError(
-                "Only Filter Dictionary is supported for the ManagedVectorStore."
-            )
-
-        if return_view:
-            raise NotImplementedError(
-                "return_view is not supported for the ManagedVectorStore."
-            )
-
-        response = self.client.vectorstore_search(
-            path=self.path,
+        utils.parse_search_args(
+            embedding_data=embedding_data,
+            embedding_function=embedding_function,
+            initial_embedding_function=self.embedding_function,
             embedding=embedding,
             k=k,
             distance_metric=distance_metric,
             query=query,
             filter=filter,
+            exec_option=exec_option,
             embedding_tensor=embedding_tensor,
             return_tensors=return_tensors,
-            deep_memory=deep_memory,
         )
-        return response.data
+
+        return_tensors = utils.parse_return_tensors(
+            self.dataset, return_tensors, embedding_tensor, return_view
+        )
+        embedding_function = utils.create_embedding_function(embedding_function)
+        query_emb: Optional[Union[List[float], np.ndarray[Any, Any]]] = None
+        if query is None:
+            query_emb = dataset_utils.get_embedding(
+                embedding,
+                embedding_data,
+                embedding_function=embedding_function or self.embedding_function,
+            )
+
+        if self.distance_metric_index:
+            distance_metric = index_maintenance.parse_index_distance_metric_from_params(
+                logger, self.distance_metric_index, distance_metric
+            )
+
+        distance_metric = distance_metric or DEFAULT_VECTORSTORE_DISTANCE_METRIC
+
+        return vector_search.search(
+            query=query,
+            logger=self.logger,
+            filter=filter,
+            query_embedding=query_emb,
+            k=k,
+            distance_metric=distance_metric,
+            exec_option=exec_option,
+            deeplake_dataset=self.dataset,
+            embedding_tensor=embedding_tensor,
+            return_tensors=return_tensors,
+            return_view=return_view,
+            deep_memory=deep_memory,
+            token=self.token,
+            org_id=self.org_id,
+        )
 
     def delete(
         self,
@@ -396,6 +517,7 @@ class ManagedVectorStore(DeepLakeVectorStore):
         ids: Optional[List[str]] = None,
         filter: Optional[Union[Dict, Callable]] = None,
         query: Optional[str] = None,
+        exec_option: Optional[str] = None,
         delete_all: Optional[bool] = None,
     ) -> bool:
         """Delete the data in the Vector Store. Does not delete the tensor definitions. To delete the vector store completely, first run :meth:`VectorStore.delete_by_path()`.
@@ -444,55 +566,82 @@ class ManagedVectorStore(DeepLakeVectorStore):
                 "row_ids": True if row_ids is not None else False,
                 "query": query[0:100] if query is not None else False,
                 "filter": True if filter is not None else False,
+                "exec_option": exec_option,
                 "delete_all": delete_all,
-                "managed": True,
             },
             token=self.token,
             username=self.username,
         )
 
-        if filter is not None and not isinstance(filter, dict):
-            raise NotImplementedError(
-                "Only Filter Dictionary is supported for the ManagedVectorStore."
+        if not row_ids:
+            row_ids = dataset_utils.search_row_ids(
+                dataset=self.dataset,
+                search_fn=self.search,
+                ids=ids,
+                filter=filter,
+                query=query,
+                select_all=delete_all,
+                exec_option=exec_option or self.exec_option,
             )
 
-        self.client.vectorstore_remove_rows(
-            path=self.path,
-            row_ids=row_ids,
-            ids=ids,
-            filter=filter,
-            query=query,
-            delete_all=delete_all,
+        (
+            self.dataset,
+            dataset_deleted,
+        ) = dataset_utils.delete_all_samples_if_specified(
+            self.dataset,
+            delete_all,
         )
+        if dataset_deleted:
+            index_maintenance.index_operation_vectorstore(
+                self,
+                dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
+                rowids=row_ids,
+                index_delete=True,
+            )
+            return True
+
+        self.dataset.pop_multiple(row_ids)
+
+        try_flushing(self.dataset)
 
         return True
 
     def update_embedding(
         self,
-        embedding: Union[List[float], np.ndarray],
         row_ids: Optional[List[str]] = None,
         ids: Optional[List[str]] = None,
         filter: Optional[Union[Dict, Callable]] = None,
         query: Optional[str] = None,
+        exec_option: Optional[str] = None,
+        embedding_function: Optional[Union[Callable, List[Callable]]] = None,
+        embedding_source_tensor: Union[str, List[str]] = "text",
+        embedding_tensor: Optional[Union[str, List[str]]] = None,
     ):
-        """Update existing embeddings of the VectorStore, that match either query, filter, ids or row_ids.
+        """Recompute existing embeddings of the VectorStore, that match either query, filter, ids or row_ids.
 
         Examples:
             >>> # Update using ids:
             >>> data = vector_store.update(
             ...    ids,
-            ...    embedding = [...]
+            ...    embedding_source_tensor = "text",
+            ...    embedding_tensor = "embedding",
+            ...    embedding_function = embedding_function,
             ... )
-            >>> # Update data using filter
+            >>> # Update data using filter and several embedding_tensors, several embedding_source_tensors
+            >>> # and several embedding_functions:
             >>> data = vector_store.update(
-                    embedding = [...],
+            ...     embedding_source_tensor = ["text", "metadata"],
+            ...     embedding_function = ["text_embedding_function", "metadata_embedding_function"],
             ...     filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"}},
+            ...     embedding_tensor = ["text_embedding", "metadata_embedding"]
             ... )
             >>> # Update data using TQL, if new embedding function is not specified the embedding_function used
             >>> # during initialization will be used
             >>> data = vector_store.update(
-            ...     embedding = [...],
+            ...     embedding_source_tensor = "text",
             ...     query = "select * where ..... <add TQL syntax>",
+            ...     exec_option = "compute_engine",
+            ...     embedding_tensor = "embedding_tensor",
             ... )
 
         Args:
@@ -505,6 +654,13 @@ class ManagedVectorStore(DeepLakeVectorStore):
                 - ``Function`` - Any function that is compatible with `deeplake.filter`
             query (Optional[str], optional): TQL Query string for direct evaluation for finding samples for deletion, without application of additional filters.
                 Defaults to None.
+            exec_option (Optional[str]): Method for search execution. It could be either ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``None``, which inherits the option from the Vector Store initialization.
+                - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
+                - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
+                - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"tensor_db": True} during dataset creation.
+            embedding_function (Optional[Union[Callable, List[Callable]]], optional): function for converting `embedding_source_tensor` into embedding. Only valid if `embedding_source_tensor` is specified. Defaults to None.
+            embedding_source_tensor (Union[str, List[str]], optional): Name of tensor with data that needs to be converted to embeddings. Defaults to `text`.
+            embedding_tensor (Optional[Union[str, List[str]]], optional): Name of the tensor with embeddings. Defaults to None.
         """
         feature_report_path(
             path=self.path,
@@ -514,37 +670,64 @@ class ManagedVectorStore(DeepLakeVectorStore):
                 "row_ids": True if row_ids is not None else False,
                 "query": query[0:100] if query is not None else False,
                 "filter": True if filter is not None else False,
-                "managed": True,
+                "exec_option": exec_option,
             },
             token=self.token,
             username=self.username,
         )
 
-        if filter is not None and not isinstance(filter, dict):
-            raise NotImplementedError(
-                "Only Filter Dictionary is supported for the ManagedVectorStore."
+        try_flushing(self.dataset)
+
+        (
+            embedding_function,
+            embedding_source_tensor,
+            embedding_tensor,
+        ) = utils.parse_update_arguments(
+            dataset=self.dataset,
+            embedding_function=embedding_function,
+            initial_embedding_function=self.embedding_function,
+            embedding_source_tensor=embedding_source_tensor,
+            embedding_tensor=embedding_tensor,
+        )
+
+        if not row_ids:
+            row_ids = dataset_utils.search_row_ids(
+                dataset=self.dataset,
+                search_fn=self.search,
+                ids=ids,
+                filter=filter,
+                query=query,
+                exec_option=exec_option or self.exec_option,
             )
 
-        self.client.vectorstore_update_embeddings(
-            path=self.path,
-            embedding=embedding,
-            indices=row_ids,
-            ids=ids,
-            filter=filter,
-            query=query,
+        embedding_tensor_data = utils.convert_embedding_source_tensor_to_embeddings(
+            dataset=self.dataset,
+            embedding_source_tensor=embedding_source_tensor,
+            embedding_tensor=embedding_tensor,
+            embedding_function=embedding_function,
+            row_ids=row_ids,
         )
+
+        self.dataset[row_ids].update(embedding_tensor_data)
+
+        try_flushing(self.dataset)
 
     @staticmethod
     def delete_by_path(
         path: Union[str, pathlib.Path],
         token: Optional[str] = None,
         force: bool = False,
+        creds: Optional[Union[Dict, str]] = None,
     ) -> None:
         """Deleted the Vector Store at the specified path.
 
         Args:
             path (str, pathlib.Path): The full path to the Deep Lake Vector Store.
             token (str, optional): Activeloop token, used for fetching user credentials. This is optional, as tokens are normally autogenerated. Defaults to ``None``.
+            creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
+                - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             force (bool): delete the path in a forced manner without rising an exception. Defaults to ``True``.
 
         Danger:
@@ -559,10 +742,11 @@ class ManagedVectorStore(DeepLakeVectorStore):
                 "path": path,
                 "token": token,
                 "force": force,
-                "managed": True,
+                "creds": creds,
             },
             token=token,
         )
+        deeplake.delete(path, large_ok=True, token=token, force=force, creds=creds)
 
     def commit(self, allow_empty: bool = True) -> None:
         """Commits the Vector Store.
@@ -570,7 +754,7 @@ class ManagedVectorStore(DeepLakeVectorStore):
         Args:
             allow_empty (bool): Whether to allow empty commits. Defaults to True.
         """
-        raise NotImplementedError
+        self.dataset.commit(allow_empty=allow_empty)
 
     def checkout(self, branch: str = "main") -> None:
         """Checkout the Vector Store to a specific branch.
@@ -578,20 +762,19 @@ class ManagedVectorStore(DeepLakeVectorStore):
         Args:
             branch (str): Branch name to checkout. Defaults to "main".
         """
-        raise NotImplementedError
-
-    def _get_summary(self):
-        """Returns a summary of the Managed Vector Store."""
-        return self.client.get_vectorstore_summary(self.path)
+        self.dataset.checkout(branch)
 
     def tensors(self):
         """Returns the list of tensors present in the dataset"""
-        return [t["name"] for t in self._get_summary().tensors]
+        return self.dataset.tensors
 
     def summary(self):
         """Prints a summary of the dataset"""
-        print(self._get_summary().summary)
+        return self.dataset.summary()
 
     def __len__(self):
         """Length of the dataset"""
-        return self._get_summary().length
+        return len(self.dataset)
+
+
+DeepLakeVectorStore = VectorStore

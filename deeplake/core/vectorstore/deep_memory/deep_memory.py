@@ -1,3 +1,4 @@
+import logging
 import uuid
 from collections import defaultdict
 from typing import Any, Dict, Optional, List, Union, Callable, Tuple
@@ -7,31 +8,53 @@ import numpy as np
 
 import deeplake
 from deeplake.enterprise.dataloader import indra_available
+from deeplake.util.exceptions import DeepMemoryWaitingListError
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.constants import (
     DEFAULT_QUERIES_VECTORSTORE_TENSORS,
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
+    DEFAULT_DEEPMEMORY_DISTANCE_METRIC,
 )
 from deeplake.util.storage import get_storage_and_cache_chain
 from deeplake.core.dataset import Dataset
 from deeplake.core.dataset.deeplake_cloud_dataset import DeepLakeCloudDataset
-from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from deeplake.client.client import DeepMemoryBackendClient
 from deeplake.client.utils import JobResponseStatusSchema
 from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
-from deeplake.util.dataset import try_flushing
 from deeplake.util.path import get_path_type
 from deeplake.util.version_control import load_meta
+
+
+def use_deep_memory(func):
+    def wrapper(self, *args, **kwargs):
+        use_deep_memory = kwargs.get("deep_memory")
+        distance_metric = kwargs.get("distance_metric")
+
+        if use_deep_memory and distance_metric is None:
+            kwargs["distance_metric"] = DEFAULT_DEEPMEMORY_DISTANCE_METRIC
+
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
+def access_control(func):
+    def wrapper(self, *args, **kwargs):
+        if self.client is None:
+            raise DeepMemoryWaitingListError()
+        return func(self, *args, **kwargs)
+
+    return wrapper
 
 
 class DeepMemory:
     def __init__(
         self,
-        dataset: Dataset,
-        client: DeepMemoryBackendClient,
+        dataset_or_path: Union[Dataset, str],
+        logger: logging.Logger,
         embedding_function: Optional[Any] = None,
         token: Optional[str] = None,
         creds: Optional[Dict[str, Any]] = None,
@@ -40,7 +63,7 @@ class DeepMemory:
 
         Args:
             dataset (Dataset): deeplake dataset object.
-            client (DeepMemoryBackendClient): Client to interact with the DeepMemory managed service. Defaults to None.
+            logger (logging.Logger): Logger object.
             embedding_function (Optional[Any], optional): Embedding funtion class used to convert queries/documents to embeddings. Defaults to None.
             token (Optional[str], optional): API token for the DeepMemory managed service. Defaults to None.
             creds (Optional[Dict[str, Any]], optional): Credentials to access the dataset. Defaults to None.
@@ -53,17 +76,27 @@ class DeepMemory:
             feature_name="dm.initialize",
             parameters={
                 "embedding_function": True if embedding_function is not None else False,
-                "client": client,
                 "token": token,
             },
             token=token,
         )
-        self.dataset = dataset
+
+        if not isinstance(dataset_or_path, Dataset):
+            self.path = dataset_or_path.path
+        elif isinstance(dataset_or_path, str):
+            self.path = dataset_or_path
+        else:
+            raise ValueError(
+                "dataset_or_path should be a Dataset object or a string path"
+            )
+
         self.token = token
         self.embedding_function = embedding_function
-        self.client = client
+        self.client = self._get_dm_client()
         self.creds = creds or {}
+        self.logger = logger
 
+    @access_control
     def train(
         self,
         queries: List[str],
@@ -94,8 +127,11 @@ class DeepMemory:
         Raises:
             ValueError: if embedding_function is not specified either during initialization or during training.
         """
+        from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
+
+        self.logger.info("Starting DeepMemory training job")
         feature_report_path(
-            path=self.dataset.path,
+            path=self.path,
             feature_name="dm.train",
             parameters={
                 "queries": queries,
@@ -106,7 +142,7 @@ class DeepMemory:
         )
 
         # TODO: Support for passing query_embeddings directly without embedding function
-        corpus_path = self.dataset.path
+        corpus_path = self.path
         queries_path = corpus_path + "_queries"
 
         if embedding_function is None and self.embedding_function is None:
@@ -127,8 +163,10 @@ class DeepMemory:
             runtime=runtime,
             token=token or self.token,
             creds=self.creds,
+            verbose=False,
         )
 
+        self.logger.info("Preparing training data for deepmemory:")
         queries_vs.add(
             text=[query for query in queries],
             metadata=[
@@ -144,9 +182,12 @@ class DeepMemory:
             queries_path=queries_path,
         )
 
-        print(f"DeepMemory training job started. Job ID: {response['job_id']}")
+        self.logger.info(
+            f"DeepMemory training job started. Job ID: {response['job_id']}"
+        )
         return response["job_id"]
 
+    @access_control
     def cancel(self, job_id: str):
         """Cancel a training job on DeepMemory managed service.
 
@@ -160,7 +201,7 @@ class DeepMemory:
             bool: True if job was cancelled successfully, False otherwise.
         """
         feature_report_path(
-            path=self.dataset.path,
+            path=self.path,
             feature_name="dm.cancel",
             parameters={
                 "job_id": job_id,
@@ -169,6 +210,7 @@ class DeepMemory:
         )
         return self.client.cancel_job(job_id=job_id)
 
+    @access_control
     def delete(self, job_id: str):
         """Delete a training job on DeepMemory managed service.
 
@@ -182,7 +224,7 @@ class DeepMemory:
             bool: True if job was deleted successfully, False otherwise.
         """
         feature_report_path(
-            path=self.dataset.path,
+            path=self.path,
             feature_name="dm.delete",
             parameters={
                 "job_id": job_id,
@@ -191,6 +233,7 @@ class DeepMemory:
         )
         return self.client.delete_job(job_id=job_id)
 
+    @access_control
     def status(self, job_id: str):
         """Get the status of a training job on DeepMemory managed service.
 
@@ -210,7 +253,7 @@ class DeepMemory:
             job_id (str): job_id of the training job.
         """
         feature_report_path(
-            path=self.dataset.path,
+            path=self.path,
             feature_name="dm.status",
             parameters={
                 "job_id": job_id,
@@ -219,11 +262,11 @@ class DeepMemory:
         )
 
         _, storage = get_storage_and_cache_chain(
-            path=self.dataset.path,
+            path=self.path,
             db_engine={"tensor_db": True},
             read_only=False,
             creds=self.creds,
-            token=self.dataset.token,
+            token=self.token,
             memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
             local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
         )
@@ -242,10 +285,11 @@ class DeepMemory:
             improvement = None
         self.client.check_status(job_id=job_id, recall=recall, improvement=improvement)
 
+    @access_control
     def list_jobs(self, debug=False):
         """List all training jobs on DeepMemory managed service."""
         feature_report_path(
-            path=self.dataset.path,
+            path=self.path,
             feature_name="dm.list_jobs",
             parameters={
                 "debug": debug,
@@ -253,18 +297,18 @@ class DeepMemory:
             token=self.token,
         )
         _, storage = get_storage_and_cache_chain(
-            path=self.dataset.path,
+            path=self.path,
             db_engine={"tensor_db": True},
             read_only=False,
             creds=self.creds,
-            token=self.dataset.token,
+            token=self.token,
             memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
             local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
         )
         loaded_dataset = DeepLakeCloudDataset(storage=storage)
 
         response = self.client.list_jobs(
-            dataset_path=self.dataset.path,
+            dataset_path=self.path,
         )
 
         response_status_schema = JobResponseStatusSchema(response=response)
@@ -296,6 +340,7 @@ class DeepMemory:
         )
         return reposnse_str
 
+    @access_control
     def evaluate(
         self,
         relevance: List[List[Tuple[str, int]]],
@@ -305,77 +350,68 @@ class DeepMemory:
         top_k: List[int] = [1, 3, 5, 10, 50, 100],
         qvs_params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Dict[str, float]]:
-        """Evaluate a model on DeepMemory managed service.
+        """
+        Evaluate a model using the DeepMemory managed service.
 
         Examples:
-            >>> #1. Evaluate a model with embedding function
-            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
-            >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries. It is stored in the `id` tensor of the corpus dataset.
-            >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
-            >>> embedding_function: Callable[..., List[np.ndarray] = openai_embedding.embed_documents
-            >>> vectorstore.deep_memory.evaluate(
-            ...     relevance=relevance,
-            ...     queries=queries,
-            ...     embedding_function=embedding_function,
-            ... )
-            >>> #2. Evaluate a model with precomputed embeddings
-            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
-            >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries. It is stored in the `id` tensor of the corpus dataset.
-            >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
-            >>> embedding: Union[List[np.ndarray[Any, Any]], List[List[float]] = [[-1.2, 12, ...], ...]
-            >>> vectorstore.deep_memory.evaluate(
-            ...     relevance=relevance,
-            ...     queries=queries,
-            ...     embedding=embedding,
-            ... )
-            >>> #3. Evaluate a model with precomputed embeddings and log queries
-            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
-            >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries. It is stored in the `id` tensor of the corpus dataset.
-            >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
-            >>> embedding: Union[List[np.ndarray[Any, Any]], List[List[float]] = [[-1.2, 12, ...], ...]
-            >>> vectorstore.deep_memory.evaluate(
-            ...     relevance=relevance,
-            ...     queries=queries,
-            ...     embedding=embedding,
-            ...     qvs_params={
-            ...         "log_queries": True,
-            ...     }
-            ... )
-            >>> #4. Evaluate a model with precomputed embeddings and log queries, and custom branch
-            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
-            >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries. It is stored in the `id` tensor of the corpus dataset.
-            >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
-            >>> embedding: Union[List[np.ndarray[Any, Any]], List[List[float]] = [[-1.2, 12, ...], ...]
-            >>> vectorstore.deep_memory.evaluate(
-            ...     relevance=relevance,
-            ...     queries=queries,
-            ...     embedding=embedding,
-            ...     qvs_params={
-            ...         "log_queries": True,
-            ...         "branch": "queries",
-            ...     }
-            ... )
+            # 1. Evaluate a model using an embedding function:
+            relevance = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
+            queries = ["What is the capital of India?", "What is the capital of France?"]
+            embedding_function = openai_embedding.embed_documents
+            vectorstore.deep_memory.evaluate(
+                relevance=relevance,
+                queries=queries,
+                embedding_function=embedding_function,
+            )
+
+            # 2. Evaluate a model with precomputed embeddings:
+            embeddings = [[-1.2, 12, ...], ...]
+            vectorstore.deep_memory.evaluate(
+                relevance=relevance,
+                queries=queries,
+                embedding=embeddings,
+            )
+
+            # 3. Evaluate a model with precomputed embeddings and log queries:
+            vectorstore.deep_memory.evaluate(
+                relevance=relevance,
+                queries=queries,
+                embedding=embeddings,
+                qvs_params={"log_queries": True},
+            )
+
+            # 4. Evaluate with precomputed embeddings, log queries, and a custom branch:
+            vectorstore.deep_memory.evaluate(
+                relevance=relevance,
+                queries=queries,
+                embedding=embeddings,
+                qvs_params={
+                    "log_queries": True,
+                    "branch": "queries",
+                }
+            )
 
         Args:
-            queries (List[str]): List of queries to evaluate the model on.
-            relevance (List[List[Tuple[str, int]]]): List of relevant documents for each query with their respective relevance score.
-                The outer list corresponds to the queries and the inner list corresponds to the doc_id, relevence_score pair for each query.
-                doc_id is the document id in the corpus dataset. It is stored in the `id` tensor of the corpus dataset.
-                relevence_score is the relevance score of the document for the query. The range is between 0 and 1, where 0 stands for not relevant and 1 stands for relevant.
-            embedding (Optional[np.ndarray], optional): Embedding of the queries. Defaults to None.
-            embedding_function (Optional[Callable[..., List[np.ndarray]]], optional): Embedding funtion used to convert queries to embeddings. Defaults to None.
-            top_k (List[int], optional): List of top_k values to evaluate the model on. Defaults to [1, 3, 5, 10, 50, 100].
-            qvs_params (Optional[Dict], optional): Parameters to initialize the queries vectorstore. Defaults to None.
+            queries (List[str]): Queries for model evaluation.
+            relevance (List[List[Tuple[str, int]]]): Relevant documents and scores for each query.
+                - Outer list: matches the queries.
+                - Inner list: pairs of doc_id and relevance score.
+                - doc_id: Document ID from the corpus dataset, found in the `id` tensor.
+                - relevance_score: Between 0 (not relevant) and 1 (relevant).
+            embedding (Optional[np.ndarray], optional): Query embeddings. Defaults to None.
+            embedding_function (Optional[Callable[..., List[np.ndarray]]], optional): Function to convert queries into embeddings. Defaults to None.
+            top_k (List[int], optional): Ranks for model evaluation. Defaults to [1, 3, 5, 10, 50, 100].
+            qvs_params (Optional[Dict], optional): Parameters to initialize the queries vectorstore. When specified, creates a new vectorstore to track evaluation queries, the Deep Memory response, and the naive vector search results. Defaults to None.
 
         Returns:
-            Dict[str, Dict[str, float]]: Dictionary of recalls for each top_k value.
+            Dict[str, Dict[str, float]]: Recalls for each rank.
 
         Raises:
-            ImportError: if indra is not installed
-            ValueError: if embedding_function is not specified either during initialization or during evaluation.
+            ImportError: If `indra` is not installed.
+            ValueError: If no embedding_function is provided either during initialization or evaluation.
         """
         feature_report_path(
-            path=self.dataset.path,
+            path=self.path,
             feature_name="dm.evaluate",
             parameters={
                 "relevance": relevance,
@@ -387,7 +423,7 @@ class DeepMemory:
             },
             token=self.token,
         )
-        try_flushing(self.dataset)
+
         try:
             from indra import api  # type: ignore
 
@@ -402,7 +438,7 @@ class DeepMemory:
 
         from indra import api  # type: ignore
 
-        indra_dataset = api.dataset(self.dataset.path, token=self.token)
+        indra_dataset = api.dataset(self.path, token=self.token)
         api.tql.prepare_deepmemory_metrics(indra_dataset)
 
         parsed_qvs_params = parse_queries_params(qvs_params)
@@ -440,7 +476,7 @@ class DeepMemory:
             (True, "deepmemory_distance"),
         ]:
             eval_type = "with" if use_model else "without"
-            print(f"---- Evaluating {eval_type} model ---- ")
+            print(f"---- Evaluating {eval_type} Deep Memory ---- ")
             avg_recalls, queries_dict = recall_at_k(
                 indra_dataset,
                 relevance,
@@ -463,7 +499,7 @@ class DeepMemory:
             return recalls
 
         self.queries_dataset = deeplake.empty(
-            self.dataset.path + "_eval_queries",
+            self.path + "_eval_queries",
             token=self.token,
             creds=self.creds,
             overwrite=True,
@@ -482,6 +518,25 @@ class DeepMemory:
         self.queries_dataset.extend(queries_data, progressbar=True)
         self.queries_dataset.commit()
         return recalls
+
+    def _get_dm_client(self):
+        path = self.path
+        path_type = get_path_type(path)
+
+        dm_client = DeepMemoryBackendClient(token=self.token)
+        user_profile = dm_client.get_user_profile()
+
+        if path_type == "hub":
+            # TODO: add support for windows
+            dataset_id = path[6:].split("/")[0]
+        else:
+            # TODO: change user_profile to user_id
+            dataset_id = user_profile["name"]
+
+        deepmemory_is_available = dm_client.deepmemory_is_available(dataset_id)
+        if deepmemory_is_available:
+            return dm_client
+        return None
 
 
 def recall_at_k(

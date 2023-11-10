@@ -9,7 +9,7 @@ from deeplake.util.exceptions import TensorDoesNotExistError
 from deeplake.util.warnings import always_warn
 from deeplake.client.utils import read_token
 from deeplake.core.dataset import DeepLakeCloudDataset, Dataset
-from deeplake.core.vectorstore.embedder import DeepLakeEmbedder
+from deeplake.core.vectorstore.embeddings.embedder import DeepLakeEmbedder
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.util.path import get_path_type
 

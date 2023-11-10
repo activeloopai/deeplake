@@ -11,4 +11,5 @@ from deeplake.core.vectorstore.vector_search.dataset.dataset import (
     convert_id_to_row_id,
     search_row_ids,
     extend,
+    populate_rate_limiter,
 )

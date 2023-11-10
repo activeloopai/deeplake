@@ -82,7 +82,7 @@ You can append multiple samples at the same time using :meth:`~deeplake.core.ten
 ---------------------------------------
 
 ``image.rgb`` and ``image.gray`` htypes can be used to force your samples to be of RGB or grayscale type.
-i.e., if RGB images are appened to an  ``image.gray`` tensor, Deep Lake will convert them to grayscale and if grayscale images
+i.e., if RGB images are appended to an  ``image.gray`` tensor, Deep Lake will convert them to grayscale and if grayscale images
 are appended to an ``image.rgb`` tensor, Deep Lake will convert them to RGB format.
 
 image.rgb and image.gray tensors can be created using
@@ -796,7 +796,7 @@ A mesh tensor can be created using
 
 :bluebold:`Examples`
 
-Appending a ply file contatining a mesh data to tensor
+Appending a ply file containing a mesh data to tensor
 
 >>> import deeplake as dp
 >>> sample = dp.read("example.ply")  # mesh with 100 points and 200 faces

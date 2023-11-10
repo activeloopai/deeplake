@@ -9,7 +9,7 @@ import deeplake
 from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore import DeepLakeVectorStore
-from deeplake.core.vectorstore.embedder import DeepLakeEmbedder
+from deeplake.core.vectorstore.embeddings.embedder import DeepLakeEmbedder
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
     DEFAULT_VECTORSTORE_TENSORS,
@@ -428,3 +428,23 @@ def test_rate_limited_send(local_path):
     assert (
         abs(elapsed_minutes - expected_time) <= tolerance
     ), "Rate limiting did not work as expected!"
+
+
+def test_populate_rate_limiter():
+    rate_limiter = {
+        "enabled": True,
+    }
+
+    rate_limiter_parsed = dataset_utils.populate_rate_limiter(rate_limiter)
+    assert rate_limiter_parsed == {
+        "enabled": True,
+        "bytes_per_minute": MAX_BYTES_PER_MINUTE,
+        "batch_byte_size": TARGET_BYTE_SIZE,
+    }
+
+    rate_limiter = {
+        "enabled": True,
+        "bytes_per_second": 1000,
+    }
+    with pytest.raises(ValueError):
+        rate_limiter_parsed = dataset_utils.populate_rate_limiter(rate_limiter)
