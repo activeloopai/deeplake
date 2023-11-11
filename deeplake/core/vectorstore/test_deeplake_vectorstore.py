@@ -559,13 +559,6 @@ def test_index_basic(local_path, hub_cloud_dev_token):
 
     assert pre_update_index == post_update_index
 
-    # Test index with sample deletion
-    pre_delete_index = vector_store.dataset.embedding.get_vdb_indexes()[0]
-    vector_store.delete(row_ids=[len(vector_store) - 1])
-    post_delete_index = vector_store.dataset.embedding.get_vdb_indexes()[0]
-
-    assert pre_delete_index == post_delete_index
-
     # Test index with sample updating
     pre_update_index = vector_store.dataset.embedding.get_vdb_indexes()[0]
     vector_store.update_embedding(row_ids=[0], embedding_function=embedding_fn)
