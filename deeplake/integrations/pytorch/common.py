@@ -99,7 +99,7 @@ def check_tensors(dataset, tensors, verbose=True):
             jpeg_png_compressed_tensors.append(tensor_name)
         elif meta.htype == "json":
             json_tensors.append(tensor_name)
-        elif meta.htype == "list":
+        elif meta.htype in ["list", "tag"]:
             list_tensors.append(tensor_name)
 
     if verbose and (json_tensors or list_tensors):
