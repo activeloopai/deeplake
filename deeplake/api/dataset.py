@@ -98,7 +98,7 @@ class dataset:
         access_method: str = "stream",
         unlink: bool = False,
         reset: bool = False,
-        check_integrity: bool = True,
+        check_integrity: bool = False,
         lock_enabled: Optional[bool] = True,
         lock_timeout: Optional[int] = 0,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
@@ -487,7 +487,7 @@ class dataset:
         access_method: str = "stream",
         unlink: bool = False,
         reset: bool = False,
-        check_integrity: bool = True,
+        check_integrity: bool = False,
         lock_timeout: Optional[int] = 0,
         lock_enabled: Optional[bool] = True,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
@@ -725,7 +725,7 @@ class dataset:
         return ds
 
     @staticmethod
-    def _load(dataset_kwargs, access_method=None, create=False, check_integrity=True):
+    def _load(dataset_kwargs, access_method=None, create=False, check_integrity=False):
         if access_method in ("stream", None):
             ret = dataset_factory(**dataset_kwargs)
             if create:

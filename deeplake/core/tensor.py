@@ -253,32 +253,42 @@ class Tensor:
         self.version_state = dataset.version_state
         self.link_creds = dataset.link_creds
         self.is_iteration = is_iteration
-        commit_id = self.version_state["commit_id"]
 
-        if not self.is_iteration and not tensor_exists(
-            self.key, self.storage, commit_id
+        self._chunk_engine = chunk_engine
+
+        if (
+            not self.pad_tensor
+            and not self.is_iteration
+            and not self.index.is_trivial()
         ):
-            raise TensorDoesNotExistError(self.key)
-
-        meta_key = get_tensor_meta_key(self.key, commit_id)
-        meta = self.storage.get_deeplake_object(meta_key, TensorMeta)
-        if chunk_engine is not None:
-            self.chunk_engine = chunk_engine
-        elif meta.is_link:
-            self.chunk_engine = LinkedChunkEngine(
-                self.key,
-                self.storage,
-                self.version_state,
-                link_creds=dataset.link_creds,
-            )
-        else:
-            self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
-        if not self.pad_tensor and not self.is_iteration:
             self.index.validate(self.num_samples)
 
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
         self._skip_next_setitem = False
         self._indexing_history: List[int] = []
+
+    @property
+    def chunk_engine(self):
+        raise
+        if self._chunk_engine:
+            return self._chunk_engine
+        meta_key = get_tensor_meta_key(self.key, self.version_state["commit_id"])
+        meta = self.storage.get_deeplake_object(meta_key, TensorMeta)
+        if meta.is_link:
+            self._chunk_engine = LinkedChunkEngine(
+                self.key,
+                self.storage,
+                self.version_state,
+                link_creds=self.dataset.link_creds,
+            )
+        else:
+            self._chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
+        return self._chunk_engine
+
+    @chunk_engine.setter
+    def chunk_engine(self, value):
+        assert isinstance(value, ChunkEngine)
+        self._chunk_engine = value
 
     @property
     def pad_tensor(self):

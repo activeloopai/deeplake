@@ -2425,7 +2425,7 @@ class Dataset:
         if not self.is_first_load and not self.group_index:
             self._reload_version_state()
 
-        if not self.is_iteration:
+        if not self.is_iteration and not self.index.is_trivial():
             group_index = self.group_index
             group_filter = (
                 lambda t: (not group_index or t.key.startswith(group_index + "/"))
