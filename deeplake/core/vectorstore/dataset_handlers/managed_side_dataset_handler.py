@@ -46,6 +46,8 @@ class ManagedSideDH(DHBase):
             )
 
         self.logger = logger
+        self.embedding_function = None
+        self.creds = None
         self.org_id = None
         self.index_params = utils.parse_index_params(index_params)
         self.verbose = verbose
@@ -94,7 +96,6 @@ class ManagedSideDH(DHBase):
         embedding_tensor: Union[str, List[str]],
         return_ids: bool,
         rate_limiter: Dict,
-        batch_byte_size: int,
         **tensors,
     ) -> Optional[List[str]]:
         feature_report_path(
@@ -136,7 +137,6 @@ class ManagedSideDH(DHBase):
             path=self.path,
             processed_tensors=processed_tensors,
             rate_limiter=rate_limiter,
-            batch_byte_size=batch_byte_size,
             return_ids=return_ids,
         )
 

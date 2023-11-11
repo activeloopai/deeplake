@@ -196,7 +196,6 @@ class DHBase(ABC):
         """
         raise NotImplementedError()
 
-    @abstractmethod
     def delete_by_path(
         path: Union[str, pathlib.Path],
         token: Optional[str] = None,

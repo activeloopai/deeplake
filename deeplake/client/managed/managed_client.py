@@ -119,7 +119,6 @@ class ManagedServiceClient(DeepLakeBackendClient):
         path: str,
         processed_tensors: List[Dict[str, List[Any]]],
         rate_limiter: Optional[Dict[str, Any]] = None,
-        batch_byte_size: Optional[int] = None,
         return_ids: bool = False,
     ):
         for key, value in processed_tensors.items():
@@ -132,7 +131,6 @@ class ManagedServiceClient(DeepLakeBackendClient):
                 "dataset": path,
                 "data": processed_tensors,
                 "rate_limiter": rate_limiter,
-                "batch_byte_size": batch_byte_size,
                 "return_ids": return_ids,
             },
         )
