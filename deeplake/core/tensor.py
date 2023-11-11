@@ -269,7 +269,6 @@ class Tensor:
 
     @property
     def chunk_engine(self):
-        raise
         if self._chunk_engine:
             return self._chunk_engine
         meta_key = get_tensor_meta_key(self.key, self.version_state["commit_id"])
