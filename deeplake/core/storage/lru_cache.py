@@ -215,6 +215,13 @@ class LRUCache(StorageProvider):
                 return result
             raise KeyError(path)
 
+    def load_items_from_next_storage(self, paths):
+        """Pre-load items from next storage into cache"""
+        if self.next_storage is not None:
+            for key, result in self.next_storage.get_items(paths):
+                if _get_nbytes(result) <= self.cache_size:
+                    self._insert_in_cache(key, result)
+
     def get_bytes(
         self,
         path: str,

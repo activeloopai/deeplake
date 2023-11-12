@@ -211,3 +211,7 @@ class StorageProvider(ABC, MutableMapping):
 
     def async_supported(self) -> bool:
         return False
+
+    def get_items(self, keys):
+        for key in keys:
+            yield key, self[key]

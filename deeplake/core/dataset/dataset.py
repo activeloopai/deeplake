@@ -125,6 +125,7 @@ from deeplake.util.keys import (
     get_downsampled_tensor_key,
     filter_name,
     get_dataset_linked_creds_key,
+    get_tensor_meta_key,
 )
 
 from deeplake.util.path import get_path_from_storage, relpath
@@ -149,10 +150,22 @@ from deeplake.core.dataset.invalid_view import InvalidView
 from deeplake.hooks import dataset_read
 from collections import defaultdict
 from itertools import chain
+import threading
 import warnings
 import jwt
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider, AzureProvider, LocalProvider}
+
+
+def _load_tensor_metas(dataset):
+    print("Loading tensor metas...")
+    meta_keys = [
+        get_tensor_meta_key(key, dataset.version_state["commit_id"])
+        for key in dataset.meta.tensors
+    ]
+    dataset.storage.load_items_from_next_storage(meta_keys)
+    dataset._tensors()  # access all tensors to set chunk engines
+    print("Tensor metas loaded.")
 
 
 class Dataset:
@@ -284,6 +297,12 @@ class Dataset:
             for temp_tensor in self._temp_tensors:
                 self._delete_tensor(temp_tensor, large_ok=True)
             self._temp_tensors = []
+
+        if self.is_first_load:
+            _load_tensors_thread = threading.Thread(
+                target=_load_tensor_metas, args=(self,), daemon=True
+            )
+            _load_tensors_thread.start()
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
