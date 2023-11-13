@@ -28,24 +28,33 @@ class DHBase(ABC):
     def __init__(
         self,
         path: Union[str, pathlib.Path],
-        dataset: Optional[Dataset] = None,
-        tensor_params: List[Dict[str, object]] = DEFAULT_VECTORSTORE_TENSORS,
-        embedding_function: Optional[Any] = None,
-        read_only: Optional[bool] = None,
-        ingestion_batch_size: int = 1000,
-        index_params: Optional[Dict[str, Union[int, str]]] = None,
-        num_workers: int = 0,
-        exec_option: str = "auto",
-        token: Optional[str] = None,
-        overwrite: bool = False,
-        verbose: bool = True,
-        runtime: Optional[Dict] = None,
-        creds: Optional[Union[Dict, str]] = None,
-        org_id: Optional[str] = None,
-        logger: logging.Logger = None,
+        dataset: Dataset,
+        tensor_params: List[Dict[str, object]],
+        embedding_function: Any,
+        read_only: bool,
+        ingestion_batch_size: int,
+        index_params: Dict[str, Union[int, str]],
+        num_workers: int,
+        exec_option: str,
+        token: str,
+        overwrite: bool,
+        verbose: bool,
+        runtime: Dict,
+        creds: Union[Dict, str],
+        org_id: str,
+        logger: logging.Logger,
         **kwargs: Any,
     ):
-        self.path = path
+        try:
+            from indra import api  # type: ignore
+
+            self.indra_installed = True
+        except Exception:  # pragma: no cover
+            self.indra_installed = False  # pragma: no cover
+
+        self._exec_option = exec_option
+
+        self.path: Optional[str] = None
         self.dataset = dataset
         if dataset and path:
             raise ValueError(
@@ -53,7 +62,7 @@ class DHBase(ABC):
             )
         elif not dataset and not path:
             raise ValueError("Either `dataset` or path should be provided.")
-        elif self.path:
+        elif path:
             self.path = convert_pathlib_to_string_if_needed(path)
         else:
             self.dataset = dataset
@@ -62,9 +71,10 @@ class DHBase(ABC):
         self._token = token
         self.logger = logger
         self.org_id = org_id if get_path_type(self.path) == "local" else None
+        self.bugout_reporting_path = self.path or dataset.path
 
         feature_report_path(
-            path,
+            self.bugout_reporting_path,
             "vs.initialize",
             {
                 "tensor_params": "default"
@@ -118,15 +128,11 @@ class DHBase(ABC):
     @abstractmethod
     def add(
         self,
-        embedding_function: Optional[Union[Callable, List[Callable]]] = None,
-        embedding_data: Optional[Union[List, List[List]]] = None,
-        embedding_tensor: Optional[Union[str, List[str]]] = None,
-        return_ids: bool = False,
-        rate_limiter: Dict = {
-            "enabled": False,
-            "bytes_per_minute": MAX_BYTES_PER_MINUTE,
-            "batch_byte_size": TARGET_BYTE_SIZE,
-        },
+        embedding_function: Union[Callable, List[Callable]],
+        embedding_data: Union[List, List[List]],
+        embedding_tensor: Union[str, List[str]],
+        return_ids: bool,
+        rate_limiter: Dict,
         **tensors,
     ):
         pass
@@ -152,26 +158,26 @@ class DHBase(ABC):
     @abstractmethod
     def delete(
         self,
-        row_ids: Optional[List[str]] = None,
-        ids: Optional[List[str]] = None,
-        filter: Optional[Union[Dict, Callable]] = None,
-        query: Optional[str] = None,
-        exec_option: Optional[str] = None,
-        delete_all: Optional[bool] = None,
+        row_ids: List[int],
+        ids: List[str],
+        filter: Union[Dict, Callable],
+        query: str,
+        exec_option: str,
+        delete_all: bool,
     ) -> bool:
         pass
 
     @abstractmethod
     def update_embedding(
         self,
-        row_ids: Optional[List[str]] = None,
-        ids: Optional[List[str]] = None,
-        filter: Optional[Union[Dict, Callable]] = None,
-        query: Optional[str] = None,
-        exec_option: Optional[str] = None,
-        embedding_function: Optional[Union[Callable, List[Callable]]] = None,
-        embedding_source_tensor: Union[str, List[str]] = "text",
-        embedding_tensor: Optional[Union[str, List[str]]] = None,
+        row_ids: List[str],
+        ids: List[str],
+        filter: Union[Dict, Callable],
+        query: str,
+        exec_option: str,
+        embedding_function: Union[Callable, List[Callable]],
+        embedding_source_tensor: Union[str, List[str]],
+        embedding_tensor: Union[str, List[str]],
     ):
         pass
 
@@ -192,6 +198,9 @@ class DHBase(ABC):
 
         Args:
             allow_empty (bool): Whether to allow empty commits. Defaults to True.
+
+        Raises:
+            NotImplementedError: This method is not implemented by the base class.
         """
         raise NotImplementedError()
 
@@ -200,5 +209,8 @@ class DHBase(ABC):
 
         Args:
             branch (str): Branch name to checkout. Defaults to "main".
+
+        Raises:
+            NotImplementedError: This method is not implemented by the base class.
         """
         raise NotImplementedError()

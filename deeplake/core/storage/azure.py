@@ -10,8 +10,8 @@ from deeplake.util.exceptions import PathNotEmptyException
 from deeplake.util.path import relpath
 
 try:
-    from azure.identity import DefaultAzureCredential
-    from azure.storage.blob import (
+    from azure.identity import DefaultAzureCredential  # type: ignore
+    from azure.storage.blob import (  # type: ignore
         BlobServiceClient,
         BlobSasPermissions,
         ContainerSasPermissions,

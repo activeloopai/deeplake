@@ -317,7 +317,7 @@ class VectorStore:
 
     def delete(
         self,
-        row_ids: Optional[List[str]] = None,
+        row_ids: Optional[List[int]] = None,
         ids: Optional[List[str]] = None,
         filter: Optional[Union[Dict, Callable]] = None,
         query: Optional[str] = None,
@@ -341,7 +341,7 @@ class VectorStore:
 
         Args:
             ids (Optional[List[str]]): List of unique ids. Defaults to None.
-            row_ids (Optional[List[str]]): List of absolute row indices from the dataset. Defaults to None.
+            row_ids (Optional[List[int]]): List of absolute row indices from the dataset. Defaults to None.
             filter (Union[Dict, Callable], optional): Filter for finding samples for deletion.
                 - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
                 - ``Function`` - Any function that is compatible with `deeplake.filter`.
@@ -495,11 +495,11 @@ class VectorStore:
     def summary(self):
         """Prints a summary of the dataset"""
         return self.dataset_handler.summary()
-    
+
     @property
     def dataset(self):
         """Returns the dataset"""
-        try: 
+        try:
             return self.dataset_handler.dataset
         except AttributeError:
             raise AttributeError(

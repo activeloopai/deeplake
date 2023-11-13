@@ -46,13 +46,6 @@ class ClientSideDH(DHBase):
         branch: str,
         **kwargs: Any,
     ):
-        try:
-            from indra import api  # type: ignore
-
-            self.indra_installed = True
-        except Exception:  # pragma: no cover
-            self.indra_installed = False  # pragma: no cover
-
         super().__init__(
             path=path,
             dataset=dataset,
@@ -90,7 +83,6 @@ class ClientSideDH(DHBase):
             branch=branch,
             **kwargs,
         )
-        self._exec_option = exec_option
         self.verbose = verbose
         self.tensor_params = tensor_params
         self.distance_metric_index = index_maintenance.index_operation_vectorstore(
@@ -116,7 +108,7 @@ class ClientSideDH(DHBase):
         **tensors,
     ):
         feature_report_path(
-            path=self.path,
+            path=self.bugout_reporting_path,
             feature_name="vs.add",
             parameters={
                 "tensors": list(tensors.keys()) if tensors else None,
@@ -194,7 +186,7 @@ class ClientSideDH(DHBase):
         deep_memory: bool,
     ) -> Union[Dict, Dataset]:
         feature_report_path(
-            path=self.path,
+            path=self.bugout_reporting_path,
             feature_name="vs.search",
             parameters={
                 "embedding_data": True if embedding_data is not None else False,
@@ -277,7 +269,7 @@ class ClientSideDH(DHBase):
 
     def delete(
         self,
-        row_ids: List[str],
+        row_ids: List[int],
         ids: List[str],
         filter: Union[Dict, Callable],
         query: str,
@@ -285,7 +277,7 @@ class ClientSideDH(DHBase):
         delete_all: bool,
     ) -> bool:
         feature_report_path(
-            path=self.path,
+            path=self.bugout_reporting_path,
             feature_name="vs.delete",
             parameters={
                 "ids": True if ids is not None else False,
@@ -342,7 +334,7 @@ class ClientSideDH(DHBase):
         embedding_tensor: Union[str, List[str]],
     ):
         feature_report_path(
-            path=self.path,
+            path=self.bugout_reporting_path,
             feature_name="vs.delete",
             parameters={
                 "ids": True if ids is not None else False,
@@ -387,7 +379,7 @@ class ClientSideDH(DHBase):
 
         self.dataset[row_ids].update(embedding_tensor_data)
 
-    def commit(self, allow_empty: bool) -> None:
+    def commit(self, allow_empty: bool = True) -> None:
         """Commits the Vector Store.
 
         Args:
@@ -395,7 +387,7 @@ class ClientSideDH(DHBase):
         """
         self.dataset.commit(allow_empty=allow_empty)
 
-    def checkout(self, branch: str) -> None:
+    def checkout(self, branch: str = "main") -> None:
         """Checkout the Vector Store to a specific branch.
 
         Args:
