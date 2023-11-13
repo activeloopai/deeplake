@@ -14,7 +14,10 @@ from deeplake.core import index_maintenance
 from deeplake.core.dataset import Dataset
 from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.dataset_handlers.dataset_handler_base import DHBase
-from deeplake.core.vectorstore.deep_memory.deep_memory import use_deep_memory
+from deeplake.core.vectorstore.deep_memory.deep_memory import (
+    use_deep_memory,
+    DeepMemory,
+)
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.util.bugout_reporter import feature_report_path
@@ -94,6 +97,13 @@ class ClientSideDH(DHBase):
             self,
             dml_type=_INDEX_OPERATION_MAPPING["ADD"],
             rowids=list(range(0, len(self.dataset))),
+        )
+        self.deep_memory = DeepMemory(
+            dataset_or_path=self.path,
+            token=self.token,
+            logger=self.logger,
+            embedding_function=self.embedding_function,
+            creds=self.creds,
         )
 
     def add(

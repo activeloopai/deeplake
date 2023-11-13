@@ -135,7 +135,7 @@ class VectorStore:
             embedding_function=embedding_function,
             creds=self.dataset_handler.creds,
         )
-        
+
     def add(
         self,
         embedding_function: Optional[Union[Callable, List[Callable]]] = None,
@@ -495,6 +495,16 @@ class VectorStore:
     def summary(self):
         """Prints a summary of the dataset"""
         return self.dataset_handler.summary()
+    
+    @property
+    def dataset(self):
+        """Returns the dataset"""
+        try: 
+            return self.dataset_handler.dataset
+        except AttributeError:
+            raise AttributeError(
+                "Acessing the dataset is not available for managed Vector Store."
+            )
 
     def __len__(self):
         """Length of the dataset"""

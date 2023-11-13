@@ -71,17 +71,7 @@ class DeepMemory:
         Raises:
             ImportError: if indra is not installed
         """
-        feature_report_path(
-            path=dataset.path,
-            feature_name="dm.initialize",
-            parameters={
-                "embedding_function": True if embedding_function is not None else False,
-                "token": token,
-            },
-            token=token,
-        )
-
-        if not isinstance(dataset_or_path, Dataset):
+        if isinstance(dataset_or_path, Dataset):
             self.path = dataset_or_path.path
         elif isinstance(dataset_or_path, str):
             self.path = dataset_or_path
@@ -89,6 +79,16 @@ class DeepMemory:
             raise ValueError(
                 "dataset_or_path should be a Dataset object or a string path"
             )
+
+        feature_report_path(
+            path=self.path,
+            feature_name="dm.initialize",
+            parameters={
+                "embedding_function": True if embedding_function is not None else False,
+                "token": token,
+            },
+            token=token,
+        )
 
         self.token = token
         self.embedding_function = embedding_function
