@@ -60,7 +60,7 @@ class ClientSideDH(DHBase):
             overwrite=overwrite,
             verbose=True,
             runtime=runtime,
-            credscreds=creds,
+            creds=creds,
             org_id=org_id,
             logger=logger,
             **kwargs,
