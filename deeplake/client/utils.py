@@ -283,8 +283,22 @@ def get_results(
             if "(" not in improvement:
                 improvement = f"(+{improvement}%)"
 
+            # verify that the recall and improvement coincide with the best recall
+            recall, improvement = get_best_recall_improvement(
+                recall, improvement, progress_value
+            )
             output = f"recall@10: {str(recall)}% {improvement}"
             return output
+
+
+def get_best_recall_improvement(recall, improvement, best_recall):
+    best_recall, best_improvement = best_recall.split(" ")
+    if recall != best_recall:
+        recall = best_recall
+
+    if improvement != best_improvement:
+        improvement = best_improvement
+    return recall, improvement
 
 
 def preprocess_progress(
@@ -355,6 +369,11 @@ def preprocess_progress(
                 key = "recall@10"
                 recall = recall or value.split("%")[0]
                 improvement = improvement or value.split("%")[1]
+
+                recall, improvement = get_best_recall_improvement(
+                    recall, improvement, value
+                )
+
                 if "(" not in improvement:
                     improvement = f"(+{improvement}%)"
                 key_value_pair = f"{key}: {recall}% {improvement}"
