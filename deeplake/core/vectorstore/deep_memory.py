@@ -9,7 +9,10 @@ import numpy as np
 
 import deeplake
 from deeplake.enterprise.dataloader import indra_available
-from deeplake.util.exceptions import IncorrectRelevanceTypeError, IncorrectQueriesTypeError
+from deeplake.util.exceptions import (
+    IncorrectRelevanceTypeError,
+    IncorrectQueriesTypeError,
+)
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.constants import (
     DEFAULT_QUERIES_VECTORSTORE_TENSORS,

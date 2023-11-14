@@ -526,12 +526,15 @@ def test_deepmemory_status(capsys, job_id, corpus_query_pair_path, hub_cloud_dev
     assert status.out[511:] == output_str[511:]
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_search(
-    corpus_query_pair_path,
+    corpus_query_relevances_copy,
+    testing_relevance_query_deepmemory,
     hub_cloud_dev_token,
 ):
-    corpus, _ = corpus_query_pair_path
+    corpus, _, _, _ = corpus_query_relevances_copy
+    relevance, query_embedding = testing_relevance_query_deepmemory
 
     db = VectorStore(
         path=corpus,
@@ -539,17 +542,16 @@ def test_deepmemory_search(
         token=hub_cloud_dev_token,
     )
 
-    query_embedding = np.random.uniform(low=-10, high=10, size=(1536)).astype(
-        np.float32
+    output = db.search(
+        embedding=query_embedding, deep_memory=True, return_tensors=["id"]
     )
 
+    assert len(output["id"]) == 4
+    assert relevance in output["id"]
+
     output = db.search(embedding=query_embedding)
-
-    assert db.deep_memory is not None
-    assert len(output) == 4
-
-    output = db.search(embedding=query_embedding, exec_option="compute_engine")
-    assert len(output) == 4
+    assert len(output["id"]) == 4
+    assert relevance not in output["id"]
     # TODO: add some logging checks
 
 
@@ -557,24 +559,21 @@ def test_deepmemory_search(
 @pytest.mark.slow
 @requires_libdeeplake
 def test_deepmemory_search_on_local_datasets(
-    deep_memory_local_dataset, hub_cloud_dev_token
+    deep_memory_local_dataset,
+    testing_relevance_query_deepmemory,
+    hub_cloud_dev_token,
 ):
-    corpus_path, queries_path = deep_memory_local_dataset
+    corpus_path = deep_memory_local_dataset
+    relevance, query_embedding = testing_relevance_query_deepmemory
 
     corpus = VectorStore(path=corpus_path, token=hub_cloud_dev_token)
-    queries = VectorStore(path=queries_path, token=hub_cloud_dev_token)
-
-    deep_memory_query_view = queries.search(
-        query="SELECT * WHERE deep_memory_recall > vector_search_recall",
-        return_view=True,
-    )
-
-    query_embedding = deep_memory_query_view[0].embedding.data()["value"]
-    correct_id = deep_memory_query_view[0].metadata.data()["value"]["relvence"][0][0]
 
     output = corpus.search(embedding=query_embedding, deep_memory=True, k=10)
+    assert relevance in output["id"]
+    assert "score" in output
 
-    assert correct_id in output["id"]
+    output = corpus.search(embedding=query_embedding, deep_memory=False, k=10)
+    assert relevance not in output["id"]
     assert "score" in output
 
 

@@ -94,8 +94,7 @@ def search(
         return_data = {}
         for tensor in view.tensors:
             return_data[tensor] = utils.parse_tensor_return(view[tensor])
-
-    elif runtime:
+    elif runtime and runtime.get("db_engine", False):
         view, data = deeplake_dataset.query(
             tql_query, runtime=runtime, return_data=True
         )
@@ -103,7 +102,6 @@ def search(
             return view
 
         return_data = data
-
     else:
         if not INDRA_INSTALLED:
             raise raise_indra_installation_error(
