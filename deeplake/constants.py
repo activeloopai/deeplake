@@ -230,7 +230,7 @@ DEFAULT_VECTORSTORE_TENSORS = [
     {
         "name": "embedding",
         "htype": "embedding",
-        "dtype": np.float32,
+        "dtype": "float32",
         "create_id_tensor": False,
         "create_sample_info_tensor": False,
         "create_shape_tensor": True,
