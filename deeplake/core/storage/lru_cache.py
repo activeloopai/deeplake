@@ -219,7 +219,7 @@ class LRUCache(StorageProvider):
     def load_items_from_next_storage(self, paths):
         """Pre-load items from next storage into cache"""
         if self.next_storage is not None:
-            for nworkers in (4, 8, 16, 32, 64):
+            for nworkers in (1, 2, 4, 8, 16, 32, 64):
                 t1 = time.time()
                 for key, result in self.next_storage.get_items(paths, n=nworkers):
                     if _get_nbytes(result) <= self.cache_size:
