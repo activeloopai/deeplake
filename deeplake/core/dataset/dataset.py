@@ -150,7 +150,6 @@ from deeplake.core.dataset.invalid_view import InvalidView
 from deeplake.hooks import dataset_read
 from collections import defaultdict
 from itertools import chain
-import threading
 import warnings
 import jwt
 
@@ -299,10 +298,7 @@ class Dataset:
             self._temp_tensors = []
 
         if self.is_first_load:
-            _load_tensors_thread = threading.Thread(
-                target=_load_tensor_metas, args=(self,), daemon=True
-            )
-            _load_tensors_thread.start()
+            _load_tensor_metas(self)
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
