@@ -1826,7 +1826,6 @@ def test_vdb_index_like(local_path, capsys, hub_cloud_dev_token):
 
     ds2 = deeplake.like('mem://dummy', ds, overwrite=True)
 
-
     for tensor in ds2.tensors:
         ds2[tensor].extend(ds[tensor].data()['value'])
 
