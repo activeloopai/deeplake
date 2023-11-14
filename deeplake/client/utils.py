@@ -280,24 +280,35 @@ def get_results(
     progress = response["progress"]
     for progress_key, progress_value in progress.items():
         if progress_key == BEST_RECALL:
-            if "(" not in improvement:
-                improvement = f"(+{improvement}%)"
-
             # verify that the recall and improvement coincide with the best recall
             recall, improvement = get_best_recall_improvement(
                 recall, improvement, progress_value
             )
+            if "(" not in improvement:
+                improvement = f"(+{improvement}%)"
+
             output = f"recall@10: {str(recall)}% {improvement}"
             return output
 
 
 def get_best_recall_improvement(recall, improvement, best_recall):
-    best_recall, best_improvement = best_recall.split(" ")
-    if recall != best_recall:
-        recall = best_recall
+    brecall, bimprovement = get_recall_improvement(best_recall)
+    if float(improvement) > float(bimprovement):
+        return recall, improvement
+    elif float(improvement) < float(bimprovement):
+        return brecall, bimprovement
+    else:
+        return recall, improvement
 
-    if improvement != best_improvement:
-        improvement = best_improvement
+
+def remove_paranthesis(string: str):
+    return string.replace("(", "").replace(")", "")
+
+
+def get_recall_improvement(best_recall):
+    recall, improvement = best_recall.split(" ")
+    recall = recall[:-1]
+    improvement = remove_paranthesis(improvement).replace("+", "")[:-1]
     return recall, improvement
 
 
