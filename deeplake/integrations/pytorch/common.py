@@ -22,7 +22,10 @@ def collate_fn(batch):
         )
 
     if isinstance(elem, np.ndarray) and elem.size > 0 and isinstance(elem[0], str):
-        batch = [it[0] for it in batch]
+        if elem.dtype == object:
+            return [it.tolist() for it in batch]
+        else:
+            batch = [it[0] for it in batch]
     elif isinstance(elem, (tuple, list)) and len(elem) > 0 and isinstance(elem[0], str):
         batch = [it[0] for it in batch]
     elif isinstance(elem, Polygons):
