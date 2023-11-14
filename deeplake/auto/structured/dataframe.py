@@ -45,10 +45,12 @@ class DataFrame(StructuredDataset):
     def _initialize_params(self, column_params):
         column_params = column_params or {}
         for key in self.source.columns:
-            params = column_params.get(key)
+            current_params = column_params.get(key, None)
+            params = current_params.copy() if current_params else None
             if params:
                 if "name" not in params:
                     params["name"] = sanitize_tensor_name(key)
+                    column_params[key] = params
             else:
                 column_params[key] = {"name": sanitize_tensor_name(key)}
         self.column_params = column_params

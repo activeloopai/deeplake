@@ -2662,7 +2662,7 @@ class Dataset:
     @property
     def token(self):
         """Get attached token of the dataset"""
-        return self._token
+        return self._token or read_token(from_env=True)
 
     @token.setter
     def token(self, new_token: str):

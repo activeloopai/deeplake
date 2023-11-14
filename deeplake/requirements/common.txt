@@ -23,3 +23,4 @@ nest_asyncio; python_version >= '3.7' and sys_platform != 'win32'
 azure-cli
 azure-identity
 azure-storage-blob
+pydantic
