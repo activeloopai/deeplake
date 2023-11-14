@@ -157,14 +157,12 @@ _LOCKABLE_STORAGES = {S3Provider, GCSProvider, AzureProvider, LocalProvider}
 
 
 def _load_tensor_metas(dataset):
-    print("Loading tensor metas...")
     meta_keys = [
         get_tensor_meta_key(key, dataset.version_state["commit_id"])
         for key in dataset.meta.tensors
     ]
     dataset.storage.load_items_from_next_storage(meta_keys)
     dataset._tensors()  # access all tensors to set chunk engines
-    print("Tensor metas loaded.")
 
 
 class Dataset:
