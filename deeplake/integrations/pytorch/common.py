@@ -55,7 +55,10 @@ def convert_fn(data):
     if isinstance(data, IterableOrderedDict):
         return IterableOrderedDict((k, convert_fn(v)) for k, v in data.items())
     if isinstance(data, np.ndarray) and data.size > 0 and isinstance(data[0], str):
-        data = data[0]
+        if data.dtype == object:
+            return data.tolist()
+        else:
+            data = data[0]
     elif isinstance(data, Polygons):
         data = data.numpy()
 
@@ -102,7 +105,7 @@ def check_tensors(dataset, tensors, verbose=True):
             jpeg_png_compressed_tensors.append(tensor_name)
         elif meta.htype == "json":
             json_tensors.append(tensor_name)
-        elif meta.htype in ["list", "tag"]:
+        elif meta.htype == "list":
             list_tensors.append(tensor_name)
 
     if verbose and (json_tensors or list_tensors):
