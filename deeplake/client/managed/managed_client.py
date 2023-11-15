@@ -137,9 +137,7 @@ class ManagedServiceClient(DeepLakeBackendClient):
         check_response_status(response)
         data = response.json().get("result", {})
 
-        return VectorStoreAddResponse(
-            status_code=response.status_code, ids=data.get("ids")
-        )
+        return VectorStoreAddResponse(status_code=response.status_code, ids=data)
 
     def vectorstore_remove_rows(
         self,
