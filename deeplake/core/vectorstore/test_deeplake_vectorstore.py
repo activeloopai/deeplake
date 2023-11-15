@@ -2651,5 +2651,3 @@ def test_vectorstore_factory(hub_cloud_dev_token, hub_cloud_path, runtime):
         assert isinstance(db, DeepMemoryVectorStore)
     else:
         assert isinstance(db, DeepLakeVectorStore)
-
-
