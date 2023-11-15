@@ -446,9 +446,10 @@ def corpus_query_relevances_copy(request, hub_cloud_dev_token):
     )
     queries = query_vs.dataset.text.data()["value"]
     relevance = query_vs.dataset.metadata.data()["value"]
+    relevance = [rel["relevance"] for rel in relevance]
 
     deeplake.deepcopy(
-        f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus",
+        f"hub://{HUB_CLOUD_DEV_USERNAME}/test-deepmemory10",
         corpus,
         token=hub_cloud_dev_token,
         overwrite=True,
@@ -470,26 +471,17 @@ def deep_memory_local_dataset(request, hub_cloud_dev_token):
         return
 
     corpus_path = _get_storage_path(request, LOCAL)
-    queries_path = corpus_path + "_eval_queries"
 
     deeplake.deepcopy(
-        f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus",
+        f"hub://{HUB_CLOUD_DEV_USERNAME}/test-deepmemory10",
         corpus_path,
         token=hub_cloud_dev_token,
         overwrite=True,
     )
 
-    deeplake.deepcopy(
-        f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus_eval_queries",
-        queries_path,
-        token=hub_cloud_dev_token,
-        overwrite=True,
-    )
-
-    yield corpus_path, queries_path
+    yield corpus_path
 
     delete_if_exists(corpus_path, hub_cloud_dev_token)
-    delete_if_exists(queries_path, hub_cloud_dev_token)
 
 
 def delete_if_exists(path, token):
@@ -767,6 +759,17 @@ def questions_embeddings_and_relevances():
     with open(os.path.join(parent, "questions_relevances.pkl"), "rb") as f:
         question_relevances = pickle.load(f)
     return questions_embeddings, question_relevances, questions
+
+
+@pytest.fixture
+def testing_relevance_query_deepmemory():
+    parent = get_dummy_data_path("deep_memory")
+    with open(os.path.join(parent, "dm_rq.pkl"), "rb") as f:
+        dm_rq = pickle.load(f)
+
+    relevance = dm_rq["relevance"]
+    query = dm_rq["query_embedding"]
+    return relevance, query
 
 
 @pytest.fixture
