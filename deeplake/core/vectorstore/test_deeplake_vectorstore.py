@@ -3,6 +3,7 @@ import os
 import sys
 from math import isclose
 from functools import partial
+from typing import List
 
 import numpy as np
 import pytest
@@ -45,6 +46,16 @@ texts, embeddings, ids, metadatas, images = utils.create_data(
 query_embedding = np.random.uniform(low=-10, high=10, size=(EMBEDDING_DIM)).astype(
     np.float32
 )
+
+
+class OpenAILikeEmbedder:
+    def embed_documents(self, docs: List[str]):
+        return [np.ones(EMBEDDING_DIM) for _ in range(len(docs))]
+
+    def embed_query(self, query: str):
+        if not isinstance(query, str):
+            raise ValueError("Query must be a string")
+        return np.ones(EMBEDDING_DIM)
 
 
 def embedding_fn(text, embedding_dim=EMBEDDING_DIM):
@@ -240,6 +251,7 @@ def test_creds(gcs_path, gcs_creds):
 @pytest.mark.slow
 @requires_libdeeplake
 def test_search_basic(local_path, hub_cloud_dev_token):
+    openai_embeddings = OpenAILikeEmbedder()
     """Test basic search features"""
     # Initialize vector store object and add data
     vector_store = DeepLakeVectorStore(
@@ -461,7 +473,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
     data = vector_store.search(
-        embedding_function=embedding_fn3,
+        embedding_function=openai_embeddings.embed_query,
         embedding_data=["dummy"],
         return_view=True,
         k=2,
@@ -471,7 +483,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert data.embedding[0].numpy().size > 0
 
     data = vector_store.search(
-        embedding_function=embedding_fn3,
+        embedding_function=openai_embeddings.embed_query,
         embedding_data="dummy",
         return_view=True,
         k=2,
@@ -509,7 +521,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
 
     # Test that the embedding function during initalization works
     vector_store = DeepLakeVectorStore(
-        path="mem://xyz", embedding_function=embedding_fn3
+        path="mem://xyz", embedding_function=openai_embeddings
     )
     assert vector_store.exec_option == "python"
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
