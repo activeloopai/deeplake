@@ -2139,7 +2139,7 @@ class Dataset:
         return dataloader
 
     def dataloader(self, ignore_errors: bool = False, verbose: bool = False):
-        """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object. To use this, install deeplake with ``pip install deeplake[enterprise]``.
+        """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object.
 
         Args:
             ignore_errors (bool): If ``True``, the data loader will ignore errors appeared during data iteration otherwise it will collect the statistics and report appeared errors. Default value is ``False``
@@ -2273,7 +2273,7 @@ class Dataset:
         runtime: Optional[Dict] = None,
         return_data: bool = False,
     ):
-        """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given query results. To use this, install deeplake with ``pip install deeplake[enterprise]``.
+        """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given query results.
 
         It allows to run SQL like queries on dataset and extract results. See supported keywords and the Tensor Query Language documentation
         :ref:`here <tql>`.
@@ -2351,7 +2351,6 @@ class Dataset:
         size: Optional[int] = None,
     ):
         """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given weighted sampler applied.
-        To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
         Args:
             weights: (Union[str, list, tuple]): If it's string then tql will be run to calculate the weights based on the expression. list and tuple will be treated as the list of the weights per sample.
@@ -4766,7 +4765,6 @@ class Dataset:
     def random_split(self, lengths: Sequence[Union[int, float]]):
         """Splits the dataset into non-overlapping :class:`~deeplake.core.dataset.Dataset` objects of given lengths.
         If a list of fractions that sum up to 1 is given, the lengths will be computed automatically as floor(frac * len(dataset)) for each fraction provided.
-        The split generated is only performant with enterprise dataloader which can be installed with ``pip install deeplake[enterprise]``.
 
         After computing the lengths, if there are any remainders, 1 count will be distributed in round-robin fashion to the lengths until there are no remainders left.
 
