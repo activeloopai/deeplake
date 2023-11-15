@@ -315,9 +315,9 @@ def get_recall_improvement(best_recall):
 def preprocess_progress(
     response: Dict[str, Any],
     progress_indent: str,
+    recall: str,
+    improvement: str,
     add_vertical_bars: bool = False,
-    recall: Optional[str] = None,
-    improvement: Optional[str] = None,
 ):
     allowed_progress_items = ["eta", BEST_RECALL, "error"]
     progress_indent = (
