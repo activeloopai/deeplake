@@ -157,6 +157,7 @@ class ManagedSideDH(DHBase):
         return_tensors: List[str],
         return_view: bool,
         deep_memory: bool,
+        **kwargs: Any,
     ) -> Union[Dict, Dataset]:
         feature_report_path(
             path=self.path,
