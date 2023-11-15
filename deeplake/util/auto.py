@@ -4,11 +4,11 @@ from collections import Counter
 from typing import Tuple
 import shutil
 from deeplake.util.exceptions import AutoCompressionError
-from deeplake.compression import IMAGE_COMPRESSION_EXTENSIONS
+from deeplake.compression import COMPRESSION_EXTENSIONS
 
 
 def get_most_common_extension(
-    local_path: str, allowed_extensions: Tuple = tuple(IMAGE_COMPRESSION_EXTENSIONS)
+    local_path: str, allowed_extensions: Tuple = tuple(COMPRESSION_EXTENSIONS)
 ):
     """Determines the most frequently used extension in a directory of files.
 

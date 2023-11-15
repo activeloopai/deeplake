@@ -7,6 +7,11 @@ import posixpath
 from typing import Dict, Optional, Union, List
 
 from deeplake.auto.unstructured.kaggle import download_kaggle_dataset
+from deeplake.auto.unstructured.image_classification import (
+    ImageClassification,
+    AudioClassification,
+    VideoClassification,
+)
 from deeplake.auto.unstructured.image_classification import ImageClassification
 from deeplake.auto.unstructured.coco.coco import CocoDataset
 from deeplake.auto.unstructured.yolo.yolo import YoloDataset
@@ -70,6 +75,13 @@ from deeplake.util.exceptions import (
     LockedException,
     BadRequestException,
 )
+from hub.compression import (
+    IMAGE_COMPRESSIONS,
+    VIDEO_COMPRESSIONS,
+    AUDIO_COMPRESSIONS,
+    BYTE_COMPRESSIONS,
+    COMPRESSION_ALIASES,
+)
 from deeplake.util.storage import (
     get_storage_and_cache_chain,
     storage_provider_from_path,
@@ -78,6 +90,13 @@ from deeplake.util.compute import get_compute_provider
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.cache_chain import generate_chain
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
+
+_image_compressions = (
+    IMAGE_COMPRESSIONS[:] + BYTE_COMPRESSIONS + list(COMPRESSION_ALIASES)
+)
+_image_compressions.remove("dcm")
+_video_compressions = VIDEO_COMPRESSIONS
+_audio_compressions = AUDIO_COMPRESSIONS
 
 
 class dataset:
@@ -1661,7 +1680,8 @@ class dataset:
     def ingest_classification(
         src: Union[str, pathlib.Path],
         dest: Union[str, pathlib.Path],
-        image_params: Optional[Dict] = None,
+        sample_compression: str = "auto",
+        primary_params: Optional[Dict] = None,
         label_params: Optional[Dict] = None,
         dest_creds: Optional[Union[str, Dict]] = None,
         progressbar: bool = True,
@@ -1681,6 +1701,7 @@ class dataset:
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            sample_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If ``sample_compression`` is "auto", compression will be automatically determined by the most common extension in the directory.
             image_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
             label_params (Optional[Dict]): A dictionary containing parameters for the labels tensor.
             dest_creds (Optional[Union[str, Dict]]): The string ``ENV`` or a dictionary containing credentials used to access the destination path of the dataset.
@@ -1747,6 +1768,7 @@ class dataset:
             dest,
             "ingest_classification",
             {
+                "sample_Compression": sample_compression,
                 "Progressbar": progressbar,
                 "Summary": summary,
             },
@@ -1778,19 +1800,26 @@ class dataset:
             if not os.path.isdir(src):
                 raise InvalidPathException(src)
 
-            if image_params is None:
-                image_params = {}
+            if sample_compression == "auto":
+                sample_compression = get_most_common_extension(src)
+            if primary_params is None:
+                primary_params = {}
             if label_params is None:
                 label_params = {}
 
-            if not image_params.get("sample_compression", None):
-                images_compression = get_most_common_extension(src)
-                if images_compression is None:
+            if not primary_params.get("sample_compression", None):
+                sample_compression = get_most_common_extension(src)
+                if sample_compression is None:
                     raise InvalidFileExtension(src)
-                image_params["sample_compression"] = images_compression
+                primary_params["sample_compression"] = sample_compression
 
             # TODO: support more than just image classification (and update docstring)
-            unstructured = ImageClassification(source=src)
+            if sample_compression in _image_compressions:
+                unstructured = ImageClassification(source=src, htype="image")  # type: ignore
+            elif sample_compression in _audio_compressions:
+                unstructured = AudioClassification(source=src, htype="audio")  # type: ignore
+            elif sample_compression in _video_compressions:
+                unstructured = VideoClassification(source=src, htype="video")  # type: ignore
 
             ds = deeplake.empty(
                 dest, creds=dest_creds, token=token, verbose=False, **dataset_kwargs
@@ -1804,6 +1833,7 @@ class dataset:
                 ds,  # type: ignore
                 progressbar=progressbar,
                 generate_summary=summary,
+                tensor_args={"sample_compression": sample_compression},
                 image_tensor_args=image_params,
                 label_tensor_args=label_params,
                 num_workers=num_workers,
@@ -1818,8 +1848,8 @@ class dataset:
         src: Union[str, pathlib.Path],
         dest: Union[str, pathlib.Path],
         exist_ok: bool = False,
-        images_compression: str = "auto",
-        dest_creds: Optional[Union[str, Dict]] = None,
+        sample_compression: str = "auto",
+        dest_creds: Optional[Dict] = None,
         kaggle_credentials: Optional[dict] = None,
         progressbar: bool = True,
         summary: bool = True,
@@ -1837,8 +1867,8 @@ class dataset:
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             exist_ok (bool): If the kaggle dataset was already downloaded and ``exist_ok`` is ``True``, ingestion will proceed without error.
-            images_compression (str): For image classification datasets, this compression will be used for the ``images`` tensor. If ``images_compression`` is "auto", compression will be automatically determined by the most common extension in the directory.
-            dest_creds (Optional[Union[str, Dict]]): The string ``ENV`` or a dictionary containing credentials used to access the destination path of the dataset.
+            sample_compression (str): For image classification datasets, this compression will be used for the ``images`` tensor. If ``sample_compression`` is "auto", compression will be automatically determined by the most common extension in the directory.
+            dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             kaggle_credentials (dict): A dictionary containing kaggle credentials {"username":"YOUR_USERNAME", "key": "YOUR_KEY"}. If ``None``, environment variables/the kaggle.json file will be used if available.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             summary (bool): Generates ingestion summary. Set to ``True`` by default.
@@ -1861,7 +1891,7 @@ class dataset:
             dest,
             "ingest_kaggle",
             {
-                "Images_Compression": images_compression,
+                "sample_Compression": sample_compression,
                 "Exist_Ok": exist_ok,
                 "Progressbar": progressbar,
                 "Summary": summary,
@@ -1883,6 +1913,7 @@ class dataset:
         ds = deeplake.ingest_classification(
             src=src,
             dest=dest,
+            sample_compression=sample_compression,
             image_params={"sample_compression": images_compression},
             dest_creds=dest_creds,
             progressbar=progressbar,

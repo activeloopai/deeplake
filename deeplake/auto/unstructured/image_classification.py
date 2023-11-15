@@ -17,7 +17,6 @@ from .base import UnstructuredDataset
 
 import deeplake
 
-IMAGES_TENSOR_NAME = "images"
 LABELS_TENSOR_NAME = "labels"
 
 
@@ -43,8 +42,8 @@ def _set_name_from_path(path: Path) -> str:
     return path.parts[-3]
 
 
-class ImageClassification(UnstructuredDataset):
-    def __init__(self, source: str):
+class Classification(UnstructuredDataset):
+    def __init__(self, source: str, htype: str):
         """Convert an unstructured dataset to a structured dataset.
 
         Note:
@@ -70,6 +69,7 @@ class ImageClassification(UnstructuredDataset):
                 f"No files found in {self.source}. Please ensure that the source path is correct."
             )
 
+        self.htype = htype
         self.set_names = self.get_set_names()
         self.class_names = self.get_class_names()
 
@@ -94,6 +94,7 @@ class ImageClassification(UnstructuredDataset):
         ds: Dataset,
         progressbar: bool = True,
         generate_summary: bool = True,
+        tensor_args: dict = {},
         shuffle: bool = True,
         image_tensor_args: dict = {},
         label_tensor_args: dict = {},
@@ -105,6 +106,7 @@ class ImageClassification(UnstructuredDataset):
             ds (Dataset): A Deep Lake dataset object.
             progressbar (bool): Defines if the method uses a progress bar. Defaults to True.
             generate_summary (bool): Defines if the method generates ingestion summary. Defaults to True.
+            tensor_args (dict): Defines the sample compression of the dataset (jpeg or png).
             shuffle (bool): Defines if the file paths should be shuffled prior to ingestion. Defaults to True.
             image_tensor_args (dict): Defines the parameters for the images tensor.
             label_tensor_args (dict): Defines the parameters for the class_labels tensor.
@@ -115,7 +117,7 @@ class ImageClassification(UnstructuredDataset):
 
         """
 
-        images_tensor_map = {}
+        tensor_map = {}
         labels_tensor_map = {}
 
         use_set_prefix = len(self.set_names) > 1
@@ -124,6 +126,9 @@ class ImageClassification(UnstructuredDataset):
             if not use_set_prefix:
                 set_name = ""
 
+            tensor_name = os.path.join(set_name, self.htype + "s")
+            labels_tensor_name = os.path.join(set_name, LABELS_TENSOR_NAME)
+            tensor_map[set_name] = tensor_name.replace("\\", "/")
             images_tensor_name = os.path.join(
                 set_name, image_tensor_args.pop("name", IMAGES_TENSOR_NAME)
             )
@@ -135,9 +140,9 @@ class ImageClassification(UnstructuredDataset):
 
             # TODO: infer sample_compression
             ds.create_tensor(
-                images_tensor_name.replace("\\", "/"),
-                htype="image",
-                **image_tensor_args,
+                tensor_name.replace("\\", "/"),
+                htype=self.htype,
+                **tensor_args,
             )
             ds.create_tensor(
                 labels_tensor_name.replace("\\", "/"),
@@ -146,6 +151,65 @@ class ImageClassification(UnstructuredDataset):
                 **label_tensor_args,
             )
 
+            paths = self._abs_file_paths
+            skipped_files: list = []
+
+            iterator = tqdm(
+                paths,
+                desc='Ingesting "%s" (%i files skipped)'
+                % (self.source.name, len(skipped_files)),
+                total=len(paths),
+                disable=not progressbar,
+            )
+
+        with ds, iterator:
+            for file_path in iterator:
+                image = deeplake.read(file_path)
+
+                class_name = _class_name_from_path(file_path)
+
+                label = np.uint32(self.class_names.index(class_name))
+
+                set_name = _set_name_from_path(file_path) if use_set_prefix else ""
+
+                # TODO: try to get all len(shape)s to match.
+                # if appending fails because of a shape mismatch, expand dims (might also fail)
+                try:
+                    ds[tensor_map[set_name]].append(image)
+
+                except TensorInvalidSampleShapeError:
+                    im = image.array
+                    reshaped_image = np.expand_dims(im, -1)
+                    ds[tensor_map[set_name]].append(reshaped_image)
+
+                except Exception:
+                    skipped_files.append(file_path.name)
+                    iterator.set_description(
+                        'Ingesting "%s" (%i files skipped)'
+                        % (self.source.name, len(skipped_files))
+                    )
+                    continue
+
+                ds[labels_tensor_map[set_name]].append(label)
+
+            if generate_summary:
+                ingestion_summary(str(self.source), skipped_files)
+            return ds
+
+
+class ImageClassification(Classification):
+    def __init__(self, source: str, htype: str):
+        super().__init__(source, htype)
+
+
+class AudioClassification(Classification):
+    def __init__(self, source: str, htype: str):
+        super().__init__(source, htype)
+
+
+class VideoClassification(Classification):
+    def __init__(self, source: str, htype: str):
+        super().__init__(source, htype)
         paths = self._abs_file_paths
         if shuffle:
             rshuffle(paths)
