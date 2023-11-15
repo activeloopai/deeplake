@@ -1137,4 +1137,3 @@ class IncorrectQueriesTypeError(Exception):
             "Please make sure, that queries is of type List[str]"
         )
         super().__init__(msg)
->>>>>>> laion-query-optimization
