@@ -199,7 +199,7 @@ class DeepLakeQueryDataset(Dataset):
 
     @deeplake_reporter.record_call
     def dataloader(self, ignore_errors: bool = False, verbose: bool = False):
-        """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object. To use this, install deeplake with ``pip install deeplake[enterprise]``.
+        """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object.
 
         Args:
             ignore_errors (bool): If ``True``, the data loader will ignore errors appeared during data iteration otherwise it will collect the statistics and report appeared errors. Default value is ``False``

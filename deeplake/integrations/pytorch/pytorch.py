@@ -99,7 +99,7 @@ def dataset_to_pytorch(
     for t in tensors:
         if dataset[t].is_sequence:
             raise NotImplementedError(
-                f"Deep Lake’s OSS pure-python dataloader is not compatible with tensor `{t}` with htype = sequence[…]. Please use the C++ dataloader via ds.dataloader(…), which can be installed using ‘pip install deeplake[enterprise]’."
+                f"Deep Lake’s OSS pure-python dataloader is not compatible with tensor `{t}` with htype = sequence[…]. Please use the high-performance dataloader via ds.dataloader(…)"
             )
 
     tensors = map_tensor_keys(dataset, tensors)
