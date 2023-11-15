@@ -3344,8 +3344,6 @@ class Dataset:
                     self,
                     dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
                     rowids=list(self.index.values[0].indices(len(self))),
-                    index_regeneration=True,
-                    index_delete=False,
                 )
                 raise e
             finally:
@@ -4632,6 +4630,9 @@ class Dataset:
         with self:
             for tensor in self.tensors.values():
                 if tensor.num_samples > index:
+                    tensor._check_for_pop(index)
+            for tensor in self.tensors.values():
+                if tensor.num_samples > index:
                     tensor._pop(index)
 
     @invalid_view_op
@@ -4652,7 +4653,6 @@ class Dataset:
             self,
             dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
             rowids=row_ids,
-            index_regeneration=True,
         )
 
     @invalid_view_op
@@ -4668,7 +4668,6 @@ class Dataset:
             self,
             dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
             rowids=index,
-            index_regeneration=True,
         )
 
     @property
