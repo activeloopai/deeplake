@@ -1121,6 +1121,7 @@ class EmbeddingTensorPopError(Exception):
             f"Hint: Swap the sample {index} with the last one and pop the last."
         )
 
+
 class IncorrectRelevanceTypeError(Exception):
     def __init__(self):
         msg = (
