@@ -126,6 +126,7 @@ from deeplake.util.keys import (
     filter_name,
     get_dataset_linked_creds_key,
     get_tensor_meta_key,
+    get_chunk_id_encoder_key,
 )
 
 from deeplake.util.path import get_path_from_storage, relpath
@@ -161,7 +162,11 @@ def _load_tensor_metas(dataset):
         get_tensor_meta_key(key, dataset.version_state["commit_id"])
         for key in dataset.meta.tensors
     ]
-    dataset.storage.load_items_from_next_storage(meta_keys)
+    cid_encoder_keys = [
+        get_chunk_id_encoder_key(key, dataset.version_state["commit_id"])
+        for key in dataset.meta.tensors
+    ]
+    dataset.storage.load_items_from_next_storage(meta_keys + cid_encoder_keys)
     dataset._tensors()  # access all tensors to set chunk engines
 
 

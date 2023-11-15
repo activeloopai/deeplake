@@ -100,7 +100,7 @@ def test_persist_keys(local_ds_generator):
 
     ds.create_tensor("image")
 
-    ds_new = local_ds_generator(check_integrity=True)
+    ds_new = local_ds_generator()
     assert set(ds_new.storage.keys()) == {
         "dataset_meta.json",
         "image/commit_diff",
