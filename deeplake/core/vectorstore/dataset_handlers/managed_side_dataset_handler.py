@@ -22,63 +22,57 @@ class ManagedSideDH(DHBase):
     def __init__(
         self,
         path: Union[str, pathlib.Path],
+        dataset: Dataset,
         tensor_params: List[Dict[str, object]],
-        embedding_function: Callable,
+        embedding_function: Any,
         read_only: bool,
+        ingestion_batch_size: int,
         index_params: Dict[str, Union[int, str]],
+        num_workers: int,
+        exec_option: str,
         token: str,
         overwrite: bool,
         verbose: bool,
+        runtime: Dict,
+        creds: Union[Dict, str],
+        org_id: str,
         logger: logging.Logger,
+        branch: str,
         **kwargs: Any,
-    ) -> None:
+    ):
         if embedding_function is not None:
             raise NotImplementedError(
                 "ManagedVectorStore does not support embedding_function for now."
             )
 
-        self._token = token
-        self.path = convert_pathlib_to_string_if_needed(path)
-
+        super().__init__(
+            path=path,
+            dataset=dataset,
+            tensor_params=tensor_params,
+            embedding_function=embedding_function,
+            read_only=read_only,
+            ingestion_batch_size=ingestion_batch_size,
+            index_params=index_params,
+            num_workers=num_workers,
+            exec_option=exec_option,
+            token=token,
+            overwrite=overwrite,
+            verbose=True,
+            runtime=runtime,
+            creds=creds,
+            org_id=org_id,
+            logger=logger,
+            **kwargs,
+        )
         if get_path_type(self.path) != "hub":
             raise ValueError(
                 "ManagedVectorStore can only be initialized with a Deep Lake Cloud path."
             )
-
-        self.logger = logger
-        self.embedding_function = None
-        self.creds = None
-        self.org_id = None
-        self.index_params = utils.parse_index_params(index_params)
-        self.verbose = verbose
-        self.tensor_params = tensor_params
-        self.deep_memory = None
-
         self.client = ManagedServiceClient(token=self.token)
-
-        feature_report_path(
-            path,
-            "vs.initialize",
-            {
-                "tensor_params": "default"
-                if tensor_params is not None
-                else tensor_params,
-                "embedding_function": True if embedding_function is not None else False,
-                "overwrite": overwrite,
-                "read_only": read_only,
-                "index_params": index_params,
-                "token": self.token,
-                "verbose": verbose,
-                "managed": True,
-            },
-            token=self.token,
-            username=self.username,
-        )
-
         self.client.init_vectorstore(
-            path=self.path,
+            path=self.bugout_reporting_path,
             overwrite=overwrite,
-            tensor_params=self.tensor_params,
+            tensor_params=tensor_params,
         )
 
         self.deep_memory = DeepMemory(
@@ -99,7 +93,7 @@ class ManagedSideDH(DHBase):
         **tensors,
     ) -> Optional[List[str]]:
         feature_report_path(
-            path=self.path,
+            path=self.bugout_reporting_path,
             feature_name="vs.add",
             parameters={
                 "tensors": list(tensors.keys()) if tensors else None,
@@ -157,10 +151,10 @@ class ManagedSideDH(DHBase):
         return_tensors: List[str],
         return_view: bool,
         deep_memory: bool,
-        **kwargs: Any,
+        exec_option: Optional[str] = "tensor_db",
     ) -> Union[Dict, Dataset]:
         feature_report_path(
-            path=self.path,
+            path=self.bugout_reporting_path,
             feature_name="vs.search",
             parameters={
                 "embedding_data": True if embedding_data is not None else False,
@@ -178,6 +172,9 @@ class ManagedSideDH(DHBase):
             token=self.token,
             username=self.username,
         )
+
+        if exec_option != "tensor_db":
+            raise ValueError("Manged db vectorstore only supports tensor_db execution.")
 
         if embedding_data is not None or embedding_function is not None:
             raise NotImplementedError(
@@ -209,52 +206,15 @@ class ManagedSideDH(DHBase):
 
     def delete(
         self,
-        row_ids: List[str],
+        row_ids: List[int],
         ids: List[str],
         filter: Union[Dict, Callable],
         query: str,
+        exec_option: str,
         delete_all: bool,
     ) -> bool:
-        """Delete the data in the Vector Store. Does not delete the tensor definitions. To delete the vector store completely, first run :meth:`VectorStore.delete_by_path()`.
-
-        Examples:
-            >>> # Delete using ids:
-            >>> data = vector_store.delete(ids)
-            >>> # Delete data using filter
-            >>> data = vector_store.delete(
-            ...        filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"}},
-            ... )
-            >>> # Delete data using TQL
-            >>> data = vector_store.delete(
-            ...        query = "select * where ..... <add TQL syntax>",
-            ...        exec_option = "compute_engine",
-            ... )
-
-        Args:
-            ids (Optional[List[str]]): List of unique ids. Defaults to None.
-            row_ids (Optional[List[str]]): List of absolute row indices from the dataset. Defaults to None.
-            filter (Union[Dict, Callable], optional): Filter for finding samples for deletion.
-                - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
-                - ``Function`` - Any function that is compatible with `deeplake.filter`.
-            query (Optional[str]):  TQL Query string for direct evaluation for finding samples for deletion, without application of additional filters.
-            exec_option (Optional[str]): Method for search execution. It could be either ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``None``, which inherits the option from the Vector Store initialization.
-                - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
-                - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
-                - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"tensor_db": True} during dataset creation.
-            delete_all (Optional[bool]): Whether to delete all the samples and version history of the dataset. Defaults to None.
-
-        ..
-            # noqa: DAR101
-
-        Returns:
-            bool: Returns True if deletion was successful, otherwise it raises a ValueError.
-
-        Raises:
-            ValueError: If neither ``ids``, ``filter``, ``query``, nor ``delete_all`` are specified, or if an invalid ``exec_option`` is provided.
-        """
-
         feature_report_path(
-            path=self.path,
+            path=self.bugout_reporting_path,
             feature_name="vs.delete",
             parameters={
                 "ids": True if ids is not None else False,
@@ -273,58 +233,32 @@ class ManagedSideDH(DHBase):
                 "Only Filter Dictionary is supported for the ManagedVectorStore."
             )
 
+        if exec_option is not None and exec_option != "tensor_db":
+            raise ValueError("Manged db vectorstore only supports tensor_db execution.")
+
         self.client.vectorstore_remove_rows(
-            path=self.path,
-            row_ids=row_ids,
+            path=self.bugout_reporting_path,
+            indices=row_ids,
             ids=ids,
             filter=filter,
             query=query,
             delete_all=delete_all,
         )
-
         return True
 
     def update_embedding(
         self,
-        embedding: Union[List[float], np.ndarray],
         row_ids: List[str],
         ids: List[str],
         filter: Union[Dict, Callable],
         query: str,
+        exec_option: str,
+        embedding_function: Union[Callable, List[Callable]],
+        embedding_source_tensor: Union[str, List[str]],
+        embedding_tensor: Union[str, List[str]],
     ):
-        """Update existing embeddings of the VectorStore, that match either query, filter, ids or row_ids.
-
-        Examples:
-            >>> # Update using ids:
-            >>> data = vector_store.update(
-            ...    ids,
-            ...    embedding = [...]
-            ... )
-            >>> # Update data using filter
-            >>> data = vector_store.update(
-                    embedding = [...],
-            ...     filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"}},
-            ... )
-            >>> # Update data using TQL, if new embedding function is not specified the embedding_function used
-            >>> # during initialization will be used
-            >>> data = vector_store.update(
-            ...     embedding = [...],
-            ...     query = "select * where ..... <add TQL syntax>",
-            ... )
-
-        Args:
-            row_ids (Optional[List[str]], optional): Row ids of the elements for replacement.
-                Defaults to None.
-            ids (Optional[List[str]], optional): hash ids of the elements for replacement.
-                Defaults to None.
-            filter (Optional[Union[Dict, Callable]], optional): Filter for finding samples for replacement.
-                - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
-                - ``Function`` - Any function that is compatible with `deeplake.filter`
-            query (Optional[str], optional): TQL Query string for direct evaluation for finding samples for deletion, without application of additional filters.
-                Defaults to None.
-        """
         feature_report_path(
-            path=self.path,
+            path=self.bugout_reporting_path,
             feature_name="vs.delete",
             parameters={
                 "ids": True if ids is not None else False,
@@ -343,9 +277,11 @@ class ManagedSideDH(DHBase):
             )
 
         self.client.vectorstore_update_embeddings(
-            path=self.path,
-            embedding=embedding,
-            indices=row_ids,
+            path=self.bugout_reporting_path,
+            embedding_function=embedding_function,
+            embedding_source_tensor=embedding_source_tensor,
+            embedding_tensor=embedding_tensor,
+            row_ids=row_ids,
             ids=ids,
             filter=filter,
             query=query,

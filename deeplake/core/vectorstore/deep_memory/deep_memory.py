@@ -57,12 +57,12 @@ class DeepMemory:
         logger: logging.Logger,
         embedding_function: Optional[Any] = None,
         token: Optional[str] = None,
-        creds: Optional[Dict[str, Any]] = None,
+        creds: Optional[Union[Dict, str]] = None,
     ):
         """Based Deep Memory class to train and evaluate models on DeepMemory managed service.
 
         Args:
-            dataset (Dataset): deeplake dataset object.
+            dataset_or_path (Union[Dataset, str]): deeplake dataset object or path.
             logger (logging.Logger): Logger object.
             embedding_function (Optional[Any], optional): Embedding funtion class used to convert queries/documents to embeddings. Defaults to None.
             token (Optional[str], optional): API token for the DeepMemory managed service. Defaults to None.
@@ -70,8 +70,8 @@ class DeepMemory:
 
         Raises:
             ImportError: if indra is not installed
+            ValueError: if incorrect type is specified for `dataset_or_path`
         """
-
         if isinstance(dataset_or_path, Dataset):
             self.path = dataset_or_path.path
         elif isinstance(dataset_or_path, str):

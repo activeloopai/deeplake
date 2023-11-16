@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Dict, List, Any, Optional, Union
+from typing import Callable, Dict, List, Any, Optional, Union
 
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.utils import (
@@ -23,8 +23,8 @@ from deeplake.client.managed.models import (
 
 
 class ManagedServiceClient(DeepLakeBackendClient):
-    def _preprocess_embedding(self, embedding: Union[List[float], np.ndarray]):
-        if isinstance(embedding, np.ndarray):
+    def _preprocess_embedding(self, embedding: Union[List[float], np.ndarray, None]):
+        if embedding is not None and isinstance(embedding, np.ndarray):
             return embedding.tolist()
         return embedding
 
@@ -121,15 +121,18 @@ class ManagedServiceClient(DeepLakeBackendClient):
         rate_limiter: Optional[Dict[str, Any]] = None,
         return_ids: bool = False,
     ):
-        for key, value in processed_tensors.items():
-            processed_tensors[key] = self._preprocess_embedding(value)
+        rest_api_tensors = []
+        for tensor in processed_tensors:
+            for key, value in tensor.items():
+                tensor[key] = self._preprocess_embedding(value)
+            rest_api_tensors.append(tensor)
 
         response = self.request(
             method="POST",
             relative_url=VECTORSTORE_ADD_SUFFIX,
             json={
                 "dataset": path,
-                "data": processed_tensors,
+                "data": rest_api_tensors,
                 "rate_limiter": rate_limiter,
                 "return_ids": return_ids,
             },
@@ -163,7 +166,15 @@ class ManagedServiceClient(DeepLakeBackendClient):
         check_response_status(response)
 
     def vectorstore_update_embeddings(
-        self, path: str, row_ids: List[Dict[str, Any]], embedding_tensor_data
+        self,
+        path: str,
+        row_ids: List[str],
+        ids: List[str],
+        filter: Union[Dict, Callable],
+        query: str,
+        embedding_function: Union[Callable, List[Callable]],
+        embedding_source_tensor: Union[str, List[str]],
+        embedding_tensor: Union[str, List[str]],
     ):
         """
         TODO: implement

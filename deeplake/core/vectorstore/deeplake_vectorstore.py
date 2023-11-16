@@ -4,13 +4,16 @@ from typing import Optional, Any, List, Dict, Union, Callable
 
 import numpy as np
 
+import deeplake
 from deeplake.core.dataset import Dataset
+from deeplake.core.vectorstore.dataset_handlers import get_dataset_handler
+from deeplake.core.vectorstore.deep_memory import DeepMemory
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     MAX_BYTES_PER_MINUTE,
     TARGET_BYTE_SIZE,
 )
-from deeplake.core.vectorstore.dataset_handlers import get_dataset_handler
+from deeplake.util.bugout_reporter import feature_report_path
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +23,8 @@ class VectorStore:
 
     def __init__(
         self,
-        path: Union[str, pathlib.Path],
+        path: Optional[Union[str, pathlib.Path]] = None,
+        dataset: Optional[Dataset] = None,
         tensor_params: List[Dict[str, object]] = DEFAULT_VECTORSTORE_TENSORS,
         embedding_function: Optional[Any] = None,
         read_only: Optional[bool] = None,
@@ -105,6 +109,7 @@ class VectorStore:
         """
         self.dataset_handler = get_dataset_handler(
             path=path,
+            dataset=dataset,
             tensor_params=tensor_params,
             embedding_function=embedding_function,
             read_only=read_only,
@@ -121,6 +126,14 @@ class VectorStore:
             logger=logger,
             branch=branch,
             **kwargs,
+        )
+
+        self.deep_memory = DeepMemory(
+            dataset_or_path=self.dataset_handler.path,
+            token=self.dataset_handler.token,
+            logger=logger,
+            embedding_function=embedding_function,
+            creds=self.dataset_handler.creds,
         )
 
     def add(
@@ -304,7 +317,7 @@ class VectorStore:
 
     def delete(
         self,
-        row_ids: Optional[List[str]] = None,
+        row_ids: Optional[List[int]] = None,
         ids: Optional[List[str]] = None,
         filter: Optional[Union[Dict, Callable]] = None,
         query: Optional[str] = None,
@@ -328,7 +341,7 @@ class VectorStore:
 
         Args:
             ids (Optional[List[str]]): List of unique ids. Defaults to None.
-            row_ids (Optional[List[str]]): List of absolute row indices from the dataset. Defaults to None.
+            row_ids (Optional[List[int]]): List of absolute row indices from the dataset. Defaults to None.
             filter (Union[Dict, Callable], optional): Filter for finding samples for deletion.
                 - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
                 - ``Function`` - Any function that is compatible with `deeplake.filter`.
@@ -425,8 +438,8 @@ class VectorStore:
             embedding_tensor=embedding_tensor,
         )
 
+    @staticmethod
     def delete_by_path(
-        self,
         path: Union[str, pathlib.Path],
         token: Optional[str] = None,
         force: bool = False,
@@ -446,9 +459,18 @@ class VectorStore:
         Danger:
             This method permanently deletes all of your data if the Vector Store exists! Be very careful when using this method.
         """
-        self.dataset_handler.delete_by_path(
-            path=path, token=token, force=force, creds=creds
+        feature_report_path(
+            path,
+            "vs.delete_by_path",
+            parameters={
+                "path": path,
+                "token": token,
+                "force": force,
+                "creds": creds,
+            },
+            token=token,
         )
+        deeplake.delete(path, large_ok=True, token=token, force=force, creds=creds)
 
     def commit(self, allow_empty: bool = True) -> None:
         """Commits the Vector Store.
@@ -473,6 +495,16 @@ class VectorStore:
     def summary(self):
         """Prints a summary of the dataset"""
         return self.dataset_handler.summary()
+
+    @property
+    def dataset(self):
+        """Returns the dataset"""
+        try:
+            return self.dataset_handler.dataset
+        except AttributeError:
+            raise AttributeError(
+                "Acessing the dataset is not available for managed Vector Store."
+            )
 
     def __len__(self):
         """Length of the dataset"""
