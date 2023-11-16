@@ -1761,6 +1761,7 @@ def test_vdb_index_incr_maint_tensor_append(local_path, capsys, hub_cloud_dev_to
 
     vector_store.delete_by_path(local_path, token=ds.token)
 
+
 @requires_libdeeplake
 def test_vdb_index_like(local_path, capsys, hub_cloud_dev_token):
     number_of_data = 1000
@@ -1808,10 +1809,10 @@ def test_vdb_index_like(local_path, capsys, hub_cloud_dev_token):
 
     ds = deeplake.load(path=local_path, read_only=True)
 
-    ds2 = deeplake.like('mem://dummy', ds, overwrite=True)
+    ds2 = deeplake.like("mem://dummy", ds, overwrite=True)
 
     for tensor in ds2.tensors:
-        ds2[tensor].extend(ds[tensor].data()['value'])
+        ds2[tensor].extend(ds[tensor].data()["value"])
 
     vector_store.delete_by_path(local_path, token=ds.token)
 
