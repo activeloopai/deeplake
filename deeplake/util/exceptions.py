@@ -1113,6 +1113,15 @@ class DeepMemoryWaitingListError(Exception):
         super().__init__(msg)
 
 
+class EmbeddingTensorPopError(Exception):
+    def __init__(self, name, index):
+        super().__init__(
+            f"Can't pop sample from the middle of embedding tensor '{name}'. "
+            f"This operation is not allowed because that will enforce regenerating vector search index. "
+            f"Hint: Swap the sample {index} with the last one and pop the last."
+        )
+
+
 class IncorrectRelevanceTypeError(Exception):
     def __init__(self):
         msg = (
