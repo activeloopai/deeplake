@@ -1814,7 +1814,7 @@ def test_vdb_index_like(local_path, capsys, hub_cloud_dev_token):
     for tensor in ds2.tensors:
         ds2[tensor].extend(ds[tensor].data()["value"])
 
-    vector_store.delete_by_path(local_path, token=ds.token)
+    vector_store.delete_by_path(local_path, token=hub_cloud_dev_token)
 
 
 def assert_vectorstore_structure(vector_store, number_of_data):
