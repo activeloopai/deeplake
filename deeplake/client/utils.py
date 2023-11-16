@@ -298,6 +298,8 @@ def get_best_recall_improvement(recall, improvement, best_recall):
     elif float(improvement) < float(bimprovement):
         return brecall, bimprovement
     else:
+        if brecall > recall:
+            return brecall, bimprovement
         return recall, improvement
 
 
