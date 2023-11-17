@@ -131,6 +131,7 @@ class ClientSideDH(DHBase):
             creds=creds,
             org_id=org_id,
             logger=logger,
+            lightweight_init=lightweight_init,
             **kwargs,
         )
         # using strategy pattern to initialize the class
