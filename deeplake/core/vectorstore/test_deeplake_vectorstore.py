@@ -3,6 +3,7 @@ import os
 import sys
 from math import isclose
 from functools import partial
+from typing import List
 
 import numpy as np
 import pytest
@@ -26,6 +27,7 @@ from deeplake.util.exceptions import (
     IncorrectEmbeddingShapeError,
     TensorDoesNotExistError,
     DatasetHandlerError,
+    EmbeddingTensorPopError,
 )
 from deeplake.core.index_maintenance import (
     METRIC_TO_INDEX_METRIC,
@@ -45,6 +47,16 @@ texts, embeddings, ids, metadatas, images = utils.create_data(
 query_embedding = np.random.uniform(low=-10, high=10, size=(EMBEDDING_DIM)).astype(
     np.float32
 )
+
+
+class OpenAILikeEmbedder:
+    def embed_documents(self, docs: List[str]):
+        return [np.ones(EMBEDDING_DIM) for _ in range(len(docs))]
+
+    def embed_query(self, query: str):
+        if not isinstance(query, str):
+            raise ValueError("Query must be a string")
+        return np.ones(EMBEDDING_DIM)
 
 
 def embedding_fn(text, embedding_dim=EMBEDDING_DIM):
@@ -240,6 +252,7 @@ def test_creds(gcs_path, gcs_creds):
 @pytest.mark.slow
 @requires_libdeeplake
 def test_search_basic(local_path, hub_cloud_dev_token):
+    openai_embeddings = OpenAILikeEmbedder()
     """Test basic search features"""
     # Initialize vector store object and add data
     vector_store = DeepLakeVectorStore(
@@ -461,7 +474,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
     data = vector_store.search(
-        embedding_function=embedding_fn3,
+        embedding_function=openai_embeddings.embed_query,
         embedding_data=["dummy"],
         return_view=True,
         k=2,
@@ -471,7 +484,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert data.embedding[0].numpy().size > 0
 
     data = vector_store.search(
-        embedding_function=embedding_fn3,
+        embedding_function=openai_embeddings.embed_query,
         embedding_data="dummy",
         return_view=True,
         k=2,
@@ -509,7 +522,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
 
     # Test that the embedding function during initalization works
     vector_store = DeepLakeVectorStore(
-        path="mem://xyz", embedding_function=embedding_fn3
+        path="mem://xyz", embedding_function=openai_embeddings
     )
     assert vector_store.exec_option == "python"
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
@@ -557,13 +570,6 @@ def test_index_basic(local_path, hub_cloud_dev_token):
     post_update_index = vector_store.dataset.embedding.get_vdb_indexes()[0]
 
     assert pre_update_index == post_update_index
-
-    # Test index with sample deletion
-    pre_delete_index = vector_store.dataset.embedding.get_vdb_indexes()[0]
-    vector_store.delete(row_ids=[len(vector_store) - 1])
-    post_delete_index = vector_store.dataset.embedding.get_vdb_indexes()[0]
-
-    assert pre_delete_index == post_delete_index
 
     # Test index with sample updating
     pre_update_index = vector_store.dataset.embedding.get_vdb_indexes()[0]
@@ -1526,35 +1532,13 @@ def test_vdb_index_incr_maint_append_pop(local_path, capsys, hub_cloud_dev_token
     res3 = list(view3.sample_indices)
     assert res3[0] == 3
 
-    vector_store.dataset.embedding.pop(2)
-    vector_store.dataset.id.pop(2)
-    vector_store.dataset.metadata.pop(2)
-    vector_store.dataset.text.pop(2)
-    s2 = ",".join(str(c) for c in query3)
-    view1 = ds.query(
-        f"select *  order by cosine_similarity(embedding, array[{s2}]) DESC limit 1"
-    )
-    res1 = list(view1.sample_indices)
-    assert res1[0] == 2
-
-    ds.append({"embedding": emb2, "text": txt2, "id": ids2, "metadata": md2})
-
-    vector_store.delete(row_ids=[3])
-    s3 = ",".join(str(c) for c in query3)
-    view3 = ds.query(
-        f"select *  order by cosine_similarity(embedding ,array[{s3}]) DESC limit 1"
-    )
-    res3 = list(view3.sample_indices)
-    assert res3[0] != 3
-
-    vector_store.dataset.pop(2)
-    s2 = ",".join(str(c) for c in query2)
-    view2 = ds.query(
-        f"select *  order by cosine_similarity(embedding ,array[{s2}]) DESC limit 1"
-    )
-    res2 = list(view2.sample_indices)
-    assert res2[0] != 2
-
+    with pytest.raises(EmbeddingTensorPopError):
+        vector_store.dataset.embedding.pop(2)
+        vector_store.dataset.id.pop(2)
+        vector_store.dataset.metadata.pop(2)
+        vector_store.dataset.text.pop(2)
+    with pytest.raises(EmbeddingTensorPopError):
+        vector_store.dataset.pop(2)
     vector_store.delete_by_path(local_path, token=ds.token)
 
 

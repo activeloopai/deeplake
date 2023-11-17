@@ -185,8 +185,6 @@ class VectorStore:
         self.tensor_params = tensor_params
         self.distance_metric_index = index_maintenance.index_operation_vectorstore(
             self,
-            dml_type=_INDEX_OPERATION_MAPPING["ADD"],
-            rowids=list(range(0, len(self.dataset))),
         )
         self.deep_memory = DeepMemory()
 
@@ -571,14 +569,17 @@ class VectorStore:
         )
 
         if not row_ids:
-            row_ids = dataset_utils.search_row_ids(
-                dataset=self.dataset,
-                search_fn=self.search,
-                ids=ids,
-                filter=filter,
-                query=query,
-                select_all=delete_all,
-                exec_option=exec_option or self.exec_option,
+            row_ids = (
+                dataset_utils.search_row_ids(
+                    dataset=self.dataset,
+                    search_fn=self.search,
+                    ids=ids,
+                    filter=filter,
+                    query=query,
+                    select_all=delete_all,
+                    exec_option=exec_option or self.exec_option,
+                )
+                or []
             )
 
         (
@@ -588,14 +589,6 @@ class VectorStore:
             self.dataset,
             delete_all,
         )
-        if dataset_deleted:
-            index_maintenance.index_operation_vectorstore(
-                self,
-                dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
-                rowids=row_ids,
-                index_delete=True,
-            )
-            return True
 
         self.dataset.pop_multiple(row_ids)
 
