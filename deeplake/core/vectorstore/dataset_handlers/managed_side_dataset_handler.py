@@ -38,11 +38,17 @@ class ManagedSideDH(DHBase):
         org_id: str,
         logger: logging.Logger,
         branch: str,
+        lightweight_init: bool,
         **kwargs: Any,
     ):
         if embedding_function is not None:
             raise NotImplementedError(
                 "ManagedVectorStore does not support embedding_function for now."
+            )
+
+        if lightweight_init:
+            raise NotImplementedError(
+                "ManagedVectorStore does not support lightweight_init for now."
             )
 
         super().__init__(

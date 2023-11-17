@@ -24,6 +24,75 @@ from deeplake.util.bugout_reporter import feature_report_path
 from deeplake.util.exceptions import DeepMemoryWaitingListError
 
 
+class
+
+class ComplexInitilization:
+    def initialize(
+        self,
+        client_instance: Any,
+    ):
+        client_instance.index_params = utils.parse_index_params(
+            client_instance.index_params
+        )
+        kwargs = {"index_params": client_instance.index_params}
+        client_instance.dataset = (
+            client_instance.dataset
+            or dataset_utils.create_or_load_dataset(
+                tensor_params=client_instance.tensor_params,
+                dataset_path=client_instance.path,
+                token=client_instance.token,
+                creds=client_instance.creds,
+                logger=client_instance.logger,
+                read_only=client_instance.read_only,
+                exec_option=client_instance.exec_option,
+                embedding_function=client_instance.embedding_function,
+                overwrite=client_instance.overwrite,
+                runtime=client_instance.runtime,
+                org_id=client_instance.org_id,
+                branch=client_instance.branch,
+                **kwargs,
+            )
+        )
+        client_instance.distance_metric_index = (
+            index_maintenance.index_operation_vectorstore(
+                client_instance,
+                dml_type=_INDEX_OPERATION_MAPPING["ADD"],
+                rowids=list(range(0, len(client_instance.dataset))),
+            )
+        )
+        self.deep_memory = DeepMemory(
+            dataset_or_path=client_instance.path,
+            token=client_instance.token,
+            logger=client_instance.logger,
+            embedding_function=client_instance.embedding_function,
+            creds=client_instance.creds,
+        )
+
+
+class LightweightInitilization:
+    def initialize(
+        self,
+        client_instance: Any,
+    ):
+        client_instance.distance_metric_index = (
+            index_maintenance.index_operation_vectorstore(
+                client_instance,
+                dml_type=_INDEX_OPERATION_MAPPING["ADD"],
+                rowids=list(range(0, len(client_instance.dataset))),
+            )
+        )
+        self.deep_memory = None
+
+
+def initialise_dh(
+    client_instance: Any,
+    lightweight_init: bool,
+):
+    if lightweight_init:
+        return LightweightInitilization().initialize(client_instance)
+    return ComplexInitilization().initialize(client_instance)
+
+
 class ClientSideDH(DHBase):
     def __init__(
         self,
@@ -44,6 +113,7 @@ class ClientSideDH(DHBase):
         org_id: str,
         logger: logging.Logger,
         branch: str,
+        lightweight_init: bool,
         **kwargs: Any,
     ):
         super().__init__(
@@ -58,45 +128,15 @@ class ClientSideDH(DHBase):
             exec_option=exec_option,
             token=token,
             overwrite=overwrite,
-            verbose=True,
+            verbose=verbose,
             runtime=runtime,
             creds=creds,
             org_id=org_id,
             logger=logger,
             **kwargs,
         )
-
-        self.index_params = utils.parse_index_params(index_params)
-        kwargs["index_params"] = self.index_params
-        self.dataset = dataset or dataset_utils.create_or_load_dataset(
-            tensor_params=tensor_params,
-            dataset_path=self.path,
-            token=self.token,
-            creds=self.creds,
-            logger=self.logger,
-            read_only=read_only,
-            exec_option=exec_option,
-            embedding_function=embedding_function,
-            overwrite=overwrite,
-            runtime=runtime,
-            org_id=self.org_id,
-            branch=branch,
-            **kwargs,
-        )
-        self.verbose = verbose
-        self.tensor_params = tensor_params
-        self.distance_metric_index = index_maintenance.index_operation_vectorstore(
-            self,
-            dml_type=_INDEX_OPERATION_MAPPING["ADD"],
-            rowids=list(range(0, len(self.dataset))),
-        )
-        self.deep_memory = DeepMemory(
-            dataset_or_path=self.path,
-            token=self.token,
-            logger=self.logger,
-            embedding_function=self.embedding_function,
-            creds=self.creds,
-        )
+        # using strategy pattern to initialize the class
+        initialise_dh(self, lightweight_init)
 
     def add(
         self,

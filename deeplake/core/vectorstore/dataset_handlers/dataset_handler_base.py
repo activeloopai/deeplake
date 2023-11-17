@@ -7,13 +7,7 @@ import jwt
 import numpy as np
 
 from deeplake.util.path import convert_pathlib_to_string_if_needed
-from deeplake.api import dataset
 from deeplake.core.dataset import Dataset
-from deeplake.constants import (
-    DEFAULT_VECTORSTORE_TENSORS,
-    MAX_BYTES_PER_MINUTE,
-    TARGET_BYTE_SIZE,
-)
 from deeplake.client.utils import read_token
 from deeplake.core.vectorstore import utils
 from deeplake.util.bugout_reporter import (
@@ -43,6 +37,7 @@ class DHBase(ABC):
         creds: Union[Dict, str],
         org_id: str,
         logger: logging.Logger,
+        lightweight_init: bool,
         **kwargs: Any,
     ):
         try:
@@ -102,6 +97,11 @@ class DHBase(ABC):
         self.num_workers = num_workers
         self.creds = creds or {}
         self.embedding_function = utils.create_embedding_function(embedding_function)
+        self.tensor_params = tensor_params
+        self.read_only = read_only
+        self.overwrite = overwrite
+        self.verbose = verbose
+        self.runtime = runtime
 
     @property
     def token(self):

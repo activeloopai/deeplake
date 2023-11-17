@@ -12,4 +12,4 @@ def get_dataset_handler(*args, **kwargs):
         # TODO: change to ManagedSideDH when it's ready
         return ClientSideDH(*args, **kwargs)
     else:
-        return ClientSideDH(*args, **kwargs)
+        return ManagedSideDH(*args, **kwargs)
