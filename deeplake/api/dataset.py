@@ -170,7 +170,8 @@ class dataset:
             unlink (bool): Downloads linked samples if set to ``True``. Only applicable if ``access_method`` is ``download`` or ``local``. Defaults to ``False``.
             reset (bool): If the specified dataset cannot be loaded due to a corrupted HEAD state of the branch being loaded,
                           setting ``reset=True`` will reset HEAD changes and load the previous version.
-            check_integrity (bool): If the param is True it will do integrity check during dataset loading otherwise the check is not performed
+            check_integrity (bool, Optional): Performs an integrity check by default (None) if the dataset has 20 or fewer tensors.
+                                              Set to ``True`` to force integrity check, ``False`` to skip integrity check.
             lock_timeout (int): Number of seconds to wait before throwing a LockException. If None, wait indefinitely
             lock_enabled (bool): If true, the dataset manages a write lock. NOTE: Only set to False if you are managing concurrent access externally
             index_params: Optional[Dict[str, Union[int, str]]] = None : The index parameters used while creating vector store is passed down to dataset.
@@ -556,7 +557,8 @@ class dataset:
             unlink (bool): Downloads linked samples if set to ``True``. Only applicable if ``access_method`` is ``download`` or ``local``. Defaults to ``False``.
             reset (bool): If the specified dataset cannot be loaded due to a corrupted HEAD state of the branch being loaded,
                           setting ``reset=True`` will reset HEAD changes and load the previous version.
-            check_integrity (bool): If the param is True it will do integrity check during dataset loading otherwise the check is not performed
+            check_integrity (bool, Optional): Performs an integrity check by default (None) if the dataset has 20 or fewer tensors.
+                                              Set to ``True`` to force integrity check, ``False`` to skip integrity check.
 
         ..
             # noqa: DAR101
