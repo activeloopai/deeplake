@@ -127,6 +127,8 @@ from deeplake.util.keys import (
     get_dataset_linked_creds_key,
     get_tensor_meta_key,
     get_chunk_id_encoder_key,
+    get_tensor_tile_encoder_key,
+    get_creds_encoder_key,
 )
 
 from deeplake.util.path import get_path_from_storage, relpath

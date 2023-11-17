@@ -4,6 +4,7 @@ import deeplake
 import jwt
 import pathlib
 import posixpath
+import warnings
 from typing import Dict, Optional, Union, List
 
 from deeplake.auto.unstructured.kaggle import download_kaggle_dataset
@@ -98,7 +99,7 @@ class dataset:
         access_method: str = "stream",
         unlink: bool = False,
         reset: bool = False,
-        check_integrity: bool = True,
+        check_integrity: Optional[bool] = False,
         lock_enabled: Optional[bool] = True,
         lock_timeout: Optional[int] = 0,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
@@ -487,7 +488,7 @@ class dataset:
         access_method: str = "stream",
         unlink: bool = False,
         reset: bool = False,
-        check_integrity: bool = True,
+        check_integrity: Optional[bool] = None,
         lock_timeout: Optional[int] = 0,
         lock_enabled: Optional[bool] = True,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
@@ -725,13 +726,22 @@ class dataset:
         return ds
 
     @staticmethod
-    def _load(dataset_kwargs, access_method=None, create=False, check_integrity=True):
+    def _load(dataset_kwargs, access_method=None, create=False, check_integrity=None):
         if access_method in ("stream", None):
             ret = dataset_factory(**dataset_kwargs)
             if create:
                 dataset_created(ret)
             else:
                 dataset_loaded(ret)
+
+            if check_integrity is None:
+                if len(ret.meta.tensors) < 20:
+                    check_integrity = True
+                else:
+                    warnings.warn(
+                        "Dataset has more than 20 tensors. Skipping integrity check. Specify `check_integrity=True` to perform integrity check."
+                    )
+                    check_integrity = False
 
             if check_integrity:
                 integrity_check(ret)

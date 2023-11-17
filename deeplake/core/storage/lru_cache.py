@@ -220,6 +220,8 @@ class LRUCache(StorageProvider):
         """Pre-load items from next storage into cache"""
         if self.next_storage is not None:
             for key, result in self.next_storage.get_items(paths):
+                if isinstance(result, KeyError):
+                    continue
                 if _get_nbytes(result) <= self.cache_size:
                     self._insert_in_cache(key, result)
 
