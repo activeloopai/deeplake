@@ -128,6 +128,19 @@ class Status:
         "--------------------------------------------------------------\n\n\n"
     )
 
+    completed_no_improvement = (
+        "--------------------------------------------------------------\n"
+        "|                  2138464cd80cab681bfcfff3                  |\n"
+        "--------------------------------------------------------------\n"
+        "| status                     | completed                     |\n"
+        "--------------------------------------------------------------\n"
+        "| progress                   | eta: 100.3 seconds            |\n"
+        "|                            | recall@10: 100.0% (+0.0%)     |\n"
+        "--------------------------------------------------------------\n"
+        "| results                    | recall@10: 100.0% (+0.0%)     |\n"
+        "--------------------------------------------------------------\n\n\n"
+    )
+
     failed = (
         "--------------------------------------------------------------\n"
         "|                  1338464cd80cab681bfcfff3                  |\n"
@@ -168,7 +181,7 @@ def test_deepmemory_print_status_and_list_jobs(capsys, precomputed_jobs_list):
         progress=None,
     )
     response_schema = JobResponseStatusSchema(response=pending_response)
-    response_schema.print_status(job_id, recall=None, importvement=None)
+    response_schema.print_status(job_id, recall=None, improvement=None)
     captured = capsys.readouterr()
     assert captured.out == Status.pending
 
@@ -176,7 +189,7 @@ def test_deepmemory_print_status_and_list_jobs(capsys, precomputed_jobs_list):
     job_id = "3218464cd80cab681bfcfff3"
     training_response = create_response(job_id=job_id)
     response_schema = JobResponseStatusSchema(response=training_response)
-    response_schema.print_status(job_id, recall="85.5", importvement="2.6")
+    response_schema.print_status(job_id, recall="85.5", improvement="2.6")
     captured = capsys.readouterr()
     assert captured.out == Status.training
 
@@ -187,9 +200,33 @@ def test_deepmemory_print_status_and_list_jobs(capsys, precomputed_jobs_list):
         status="completed",
     )
     response_schema = JobResponseStatusSchema(response=completed_response)
-    response_schema.print_status(job_id, recall="85.5", importvement="2.6")
+    response_schema.print_status(job_id, recall="85.5", improvement="2.6")
     captured = capsys.readouterr()
     assert captured.out == Status.completed
+
+    job_id = "2138464cd80cab681bfcfff3"
+    completed_response = create_response(
+        job_id=job_id,
+        status="completed",
+        progress={
+            "eta": 100.34,
+            "last_update_at": "2021-08-31T15:00:00.000000",
+            "error": None,
+            "train_recall@10": "87.8%",
+            "best_recall@10": "100.0% (+0.0)%",
+            "epoch": 0,
+            "base_val_recall@10": 0.8292181491851807,
+            "val_recall@10": "85.5%",
+            "dataset": "query",
+            "split": 0,
+            "loss": -0.05437087118625641,
+            "delta": 2.572011947631836,
+        },
+    )
+    response_schema = JobResponseStatusSchema(response=completed_response)
+    response_schema.print_status(job_id, recall="0.0", improvement="0.0")
+    captured = capsys.readouterr()
+    assert captured.out == Status.completed_no_improvement
 
     # for jobs that failed
     job_id = "1338464cd80cab681bfcfff3"
@@ -204,7 +241,7 @@ def test_deepmemory_print_status_and_list_jobs(capsys, precomputed_jobs_list):
         },
     )
     response_schema = JobResponseStatusSchema(response=failed_response)
-    response_schema.print_status(job_id, recall=None, importvement=None)
+    response_schema.print_status(job_id, recall=None, improvement=None)
     captured = capsys.readouterr()
     assert captured.out == Status.failed
 
