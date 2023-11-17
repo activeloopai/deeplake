@@ -6,3 +6,5 @@ ID                        STATUS     RESULTS                        PROGRESS
                                                                     recall@10: 85.5% (+2.6%)
 1338464cd80cab681bfcfff3  failed     not available yet              eta: None seconds
                                                                     error: list indices must beintegers or slices,not str
+1338464cd80cab681bfcfw23  completed  recall@10: 100.0% (+0.0%)      eta: 100.3 seconds
+                                                                    recall@10: 100.0% (+0.0%)

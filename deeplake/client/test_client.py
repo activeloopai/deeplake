@@ -130,7 +130,7 @@ class Status:
 
     completed_no_improvement = (
         "--------------------------------------------------------------\n"
-        "|                  2138464cd80cab681bfcfff3                  |\n"
+        "|                  1338464cd80cab681bfcfw23                  |\n"
         "--------------------------------------------------------------\n"
         "| status                     | completed                     |\n"
         "--------------------------------------------------------------\n"
@@ -204,8 +204,8 @@ def test_deepmemory_print_status_and_list_jobs(capsys, precomputed_jobs_list):
     captured = capsys.readouterr()
     assert captured.out == Status.completed
 
-    job_id = "2138464cd80cab681bfcfff3"
-    completed_response = create_response(
+    job_id = "1338464cd80cab681bfcfw23"
+    completed_no_improvement_response = create_response(
         job_id=job_id,
         status="completed",
         progress={
@@ -223,7 +223,9 @@ def test_deepmemory_print_status_and_list_jobs(capsys, precomputed_jobs_list):
             "delta": 2.572011947631836,
         },
     )
-    response_schema = JobResponseStatusSchema(response=completed_response)
+    response_schema = JobResponseStatusSchema(
+        response=completed_no_improvement_response
+    )
     response_schema.print_status(job_id, recall="0.0", improvement="0.0")
     captured = capsys.readouterr()
     assert captured.out == Status.completed_no_improvement
@@ -250,18 +252,21 @@ def test_deepmemory_print_status_and_list_jobs(capsys, precomputed_jobs_list):
         training_response,
         completed_response,
         failed_response,
+        completed_no_improvement_response,
     ]
     recalls = {
         "1238464cd80cab681bfcfff3": None,
         "3218464cd80cab681bfcfff3": "85.5",
         "2138464cd80cab681bfcfff3": "85.5",
         "1338464cd80cab681bfcfff3": None,
+        "1338464cd80cab681bfcfw23": "0.0",
     }
     improvements = {
         "1238464cd80cab681bfcfff3": None,
         "3218464cd80cab681bfcfff3": "2.6",
         "2138464cd80cab681bfcfff3": "2.6",
         "1338464cd80cab681bfcfff3": None,
+        "1338464cd80cab681bfcfw23": "0.0",
     }
     response_schema = JobResponseStatusSchema(response=responses)
     output_str = response_schema.print_jobs(
