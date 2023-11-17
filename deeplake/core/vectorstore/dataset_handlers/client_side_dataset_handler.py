@@ -24,8 +24,6 @@ from deeplake.util.bugout_reporter import feature_report_path
 from deeplake.util.exceptions import DeepMemoryWaitingListError
 
 
-class
-
 class ComplexInitilization:
     def initialize(
         self,
