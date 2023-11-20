@@ -137,7 +137,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
     def chunk_engine(self):
         raise NotImplementedError("Virtual tensor does not have chunk engine.")
 
-    @chunk_engine.setter(self)
+    @chunk_engine.setter
     def chunk_engine(self, value):
         raise NotImplementedError("Virtual tensor does not have chunk engine.")
 
