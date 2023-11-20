@@ -1102,3 +1102,39 @@ class IncorrectEmbeddingShapeError(Exception):
 class IncompatibleHtypeError(Exception):
     def __init__(self, msg):
         super().__init__(msg)
+
+
+class DeepMemoryWaitingListError(Exception):
+    def __init__(self):
+        msg = (
+            "Deep Memory is available only for waiting list users. "
+            "Please, follow the link and join the waiting list: https://www.deeplake.ai/deepmemory"
+        )
+        super().__init__(msg)
+
+
+class EmbeddingTensorPopError(Exception):
+    def __init__(self, name, index):
+        super().__init__(
+            f"Can't pop sample from the middle of embedding tensor '{name}'. "
+            f"This operation is not allowed because that will enforce regenerating vector search index. "
+            f"Hint: Swap the sample {index} with the last one and pop the last."
+        )
+
+
+class IncorrectRelevanceTypeError(Exception):
+    def __init__(self):
+        msg = (
+            "Specified data type for relevance isn't correct. "
+            "Please make sure, that relevence is of type List[List[Tuple[str, int]]]"
+        )
+        super().__init__(msg)
+
+
+class IncorrectQueriesTypeError(Exception):
+    def __init__(self):
+        msg = (
+            "Specified data type for queries isn't correct. "
+            "Please make sure, that queries is of type List[str]"
+        )
+        super().__init__(msg)

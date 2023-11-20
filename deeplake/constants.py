@@ -321,7 +321,7 @@ DEFAULT_VECTORSTORE_DISTANCE_METRIC = "COS"
 DEFAULT_DEEPMEMORY_DISTANCE_METRIC = "deepmemory_distance"
 
 DEFAULT_VECTORSTORE_INDEX_PARAMS = {
-    "threshold": 100000,
+    "threshold": -1,
     "distance_metric": DEFAULT_VECTORSTORE_DISTANCE_METRIC,
     "additional_params": {
         "efConstruction": 600,
@@ -335,3 +335,13 @@ _INDEX_OPERATION_MAPPING = {
     "REMOVE": 2,
     "UPDATE": 3,
 }
+
+
+DEFAULT_RATE_LIMITER_KEY_TO_VALUE = {
+    "enabled": False,
+    "bytes_per_minute": MAX_BYTES_PER_MINUTE,
+    "batch_byte_size": TARGET_BYTE_SIZE,
+}
+
+# Size of dataset view to expose as indra dataset wrapper.
+INDRA_DATASET_SAMPLES_THRESHOLD = 10000000
