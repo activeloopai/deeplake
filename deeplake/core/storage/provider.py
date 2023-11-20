@@ -214,4 +214,7 @@ class StorageProvider(ABC, MutableMapping):
 
     def get_items(self, keys):
         for key in keys:
-            yield key, self[key]
+            try:
+                yield key, self[key]
+            except KeyError:
+                yield key, KeyError(key)
