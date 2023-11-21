@@ -27,6 +27,8 @@ from botocore.exceptions import (
     EndpointConnectionError,
     IncompleteReadError,
 )
+from concurrent import futures
+from concurrent.futures import ThreadPoolExecutor
 
 CONNECTION_ERRORS = (
     ReadTimeoutError,
@@ -683,3 +685,18 @@ class S3Provider(StorageProvider):
             raise S3SetError(err) from err
         except Exception as err:
             raise S3SetError(err) from err
+
+    def get_items(self, keys):
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            future_to_key = {
+                executor.submit(self.__getitem__, key): key for key in keys
+            }
+
+            for future in futures.as_completed(future_to_key):
+                key = future_to_key[future]
+                exception = future.exception()
+
+                if not exception:
+                    yield key, future.result()
+                else:
+                    yield key, exception

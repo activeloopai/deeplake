@@ -4,6 +4,7 @@ import deeplake
 import jwt
 import pathlib
 import posixpath
+import warnings
 from typing import Dict, Optional, Union, List
 
 from deeplake.auto.unstructured.kaggle import download_kaggle_dataset
@@ -98,7 +99,7 @@ class dataset:
         access_method: str = "stream",
         unlink: bool = False,
         reset: bool = False,
-        check_integrity: bool = True,
+        check_integrity: Optional[bool] = False,
         lock_enabled: Optional[bool] = True,
         lock_timeout: Optional[int] = 0,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
@@ -169,7 +170,8 @@ class dataset:
             unlink (bool): Downloads linked samples if set to ``True``. Only applicable if ``access_method`` is ``download`` or ``local``. Defaults to ``False``.
             reset (bool): If the specified dataset cannot be loaded due to a corrupted HEAD state of the branch being loaded,
                           setting ``reset=True`` will reset HEAD changes and load the previous version.
-            check_integrity (bool): If the param is True it will do integrity check during dataset loading otherwise the check is not performed
+            check_integrity (bool, Optional): Performs an integrity check by default (None) if the dataset has 20 or fewer tensors.
+                                              Set to ``True`` to force integrity check, ``False`` to skip integrity check.
             lock_timeout (int): Number of seconds to wait before throwing a LockException. If None, wait indefinitely
             lock_enabled (bool): If true, the dataset manages a write lock. NOTE: Only set to False if you are managing concurrent access externally
             index_params: Optional[Dict[str, Union[int, str]]] = None : The index parameters used while creating vector store is passed down to dataset.
@@ -487,7 +489,7 @@ class dataset:
         access_method: str = "stream",
         unlink: bool = False,
         reset: bool = False,
-        check_integrity: bool = True,
+        check_integrity: Optional[bool] = None,
         lock_timeout: Optional[int] = 0,
         lock_enabled: Optional[bool] = True,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
@@ -555,7 +557,8 @@ class dataset:
             unlink (bool): Downloads linked samples if set to ``True``. Only applicable if ``access_method`` is ``download`` or ``local``. Defaults to ``False``.
             reset (bool): If the specified dataset cannot be loaded due to a corrupted HEAD state of the branch being loaded,
                           setting ``reset=True`` will reset HEAD changes and load the previous version.
-            check_integrity (bool): If the param is True it will do integrity check during dataset loading otherwise the check is not performed
+            check_integrity (bool, Optional): Performs an integrity check by default (None) if the dataset has 20 or fewer tensors.
+                                              Set to ``True`` to force integrity check, ``False`` to skip integrity check.
 
         ..
             # noqa: DAR101
@@ -725,13 +728,22 @@ class dataset:
         return ds
 
     @staticmethod
-    def _load(dataset_kwargs, access_method=None, create=False, check_integrity=True):
+    def _load(dataset_kwargs, access_method=None, create=False, check_integrity=None):
         if access_method in ("stream", None):
             ret = dataset_factory(**dataset_kwargs)
             if create:
                 dataset_created(ret)
             else:
                 dataset_loaded(ret)
+
+            if check_integrity is None:
+                if len(ret.meta.tensors) < 20:
+                    check_integrity = True
+                else:
+                    warnings.warn(
+                        "Dataset has more than 20 tensors. Skipping integrity check. Specify `check_integrity=True` to perform integrity check."
+                    )
+                    check_integrity = False
 
             if check_integrity:
                 integrity_check(ret)
