@@ -118,7 +118,7 @@ def index_operation_type_dataset(self, num_rows, changed_data_len):
         if not below_threshold:
             return INDEX_OP_TYPE.CREATE_INDEX
 
-    if not check_vdb_indexes(self):
+    if not check_vdb_indexes(self) or changed_data_len == 0:
         return INDEX_OP_TYPE.NOOP
 
     return INDEX_OP_TYPE.INCREMENTAL_INDEX
