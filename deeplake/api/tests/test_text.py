@@ -95,3 +95,10 @@ def test_text_tensor_append(memory_ds):
         for i in range(3):
             assert ds.x[i].data() == ds2.x[i].data()
             assert ds.y[i].data() == ds2.y[i].data()
+
+
+def test_empty_text(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("text", htype="text")
+
+    assert ds.text.data()["value"] == []
