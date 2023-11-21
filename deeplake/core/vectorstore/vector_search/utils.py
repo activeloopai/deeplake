@@ -1,4 +1,5 @@
 import functools
+import pickle
 import time
 import types
 from abc import ABC, abstractmethod
@@ -636,4 +637,16 @@ def create_embedding_function(embedding_function):
         return DeepLakeEmbedder(
             embedding_function=embedding_function,
         )
+    return None
+
+
+def is_path_to_serialized_object(path: str):
+    if path.endswith(".pkl"):
+        return True
+    return False
+
+
+def get_deserialized_vectorstore(path: str):
+    if is_path_to_serialized_object(path):
+        return pickle.load(open(path, "rb"))
     return None

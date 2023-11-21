@@ -38,7 +38,6 @@ class ManagedSideDH(DHBase):
         org_id: str,
         logger: logging.Logger,
         branch: str,
-        lightweight_init: bool,
         **kwargs: Any,
     ):
         if embedding_function is not None:
@@ -46,9 +45,9 @@ class ManagedSideDH(DHBase):
                 "ManagedVectorStore does not support embedding_function for now."
             )
 
-        if lightweight_init:
+        if self.deserialized_vectorstore:
             raise NotImplementedError(
-                "ManagedVectorStore does not support lightweight_init for now."
+                "ManagedVectorStore does not support passing path to serialized vectorstore object for now."
             )
 
         super().__init__(
@@ -68,6 +67,7 @@ class ManagedSideDH(DHBase):
             creds=creds,
             org_id=org_id,
             logger=logger,
+            branch=branch,
             **kwargs,
         )
         if get_path_type(self.path) != "hub":

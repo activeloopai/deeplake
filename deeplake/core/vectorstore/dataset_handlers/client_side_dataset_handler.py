@@ -1,5 +1,6 @@
 import logging
 import pathlib
+import pickle
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
@@ -42,7 +43,7 @@ class ComplexInitilization:
                 creds=client_instance.creds,
                 logger=client_instance.logger,
                 read_only=client_instance.read_only,
-                exec_option=client_instance.exec_option,
+                exec_option=client_instance._exec_option,
                 embedding_function=client_instance.embedding_function,
                 overwrite=client_instance.overwrite,
                 runtime=client_instance.runtime,
@@ -71,23 +72,22 @@ class LightweightInitilization:
     def initialize(
         self,
         client_instance: Any,
+        serialized_vectorstore: Any,
     ):
-        client_instance.distance_metric_index = (
-            index_maintenance.index_operation_vectorstore(
-                client_instance,
-                dml_type=_INDEX_OPERATION_MAPPING["ADD"],
-                rowids=list(range(0, len(client_instance.dataset))),
-            )
+        client_instance.distance_metric_index = getattr(
+            serialized_vectorstore, "distance_metric_index", None
         )
-        self.deep_memory = None
+        client_instance.deep_memory = getattr(
+            serialized_vectorstore, "deep_memory", None
+        )
+        client_instance.dataset = getattr(serialized_vectorstore, "dataset", None)
 
 
-def initialise_dh(
-    client_instance: Any,
-    lightweight_init: bool,
-):
-    if lightweight_init:
-        return LightweightInitilization().initialize(client_instance)
+def initialise_dh(client_instance: Any, deserialized_vectorstore: Any):
+    if deserialized_vectorstore:
+        return LightweightInitilization().initialize(
+            client_instance, deserialized_vectorstore
+        )
     return ComplexInitilization().initialize(client_instance)
 
 
@@ -111,7 +111,6 @@ class ClientSideDH(DHBase):
         org_id: str,
         logger: logging.Logger,
         branch: str,
-        lightweight_init: bool,
         **kwargs: Any,
     ):
         super().__init__(
@@ -131,11 +130,11 @@ class ClientSideDH(DHBase):
             creds=creds,
             org_id=org_id,
             logger=logger,
-            lightweight_init=lightweight_init,
+            branch=branch,
             **kwargs,
         )
         # using strategy pattern to initialize the class
-        initialise_dh(self, lightweight_init)
+        initialise_dh(self, self.deserialized_vectorstore)
 
     def add(
         self,

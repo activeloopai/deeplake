@@ -40,7 +40,6 @@ class VectorStore:
         org_id: Optional[str] = None,
         logger: logging.Logger = logger,
         branch: str = "main",
-        lightweight_init: bool = False,
         **kwargs: Any,
     ) -> None:
         """Creates an empty VectorStore or loads an existing one if it exists at the specified ``path``.
@@ -126,11 +125,10 @@ class VectorStore:
             org_id=org_id,
             logger=logger,
             branch=branch,
-            lightweight_init=lightweight_init,
             **kwargs,
         )
 
-        self.deep_memory = self.dataset_handler.deep_memory
+        self.deep_memory = getattr(self.dataset_handler, "deep_memory", None)
 
     def add(
         self,

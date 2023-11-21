@@ -16,6 +16,15 @@ from deeplake.util.bugout_reporter import (
 from deeplake.util.path import get_path_type
 
 
+def get_bugout_reporting_path(path: str, dataset: Dataset) -> str:
+    if path:
+        return path
+    elif dataset:
+        return dataset.path
+    else:
+        return None
+
+
 class DHBase(ABC):
     """Base class for dataset handlers."""
 
@@ -37,7 +46,7 @@ class DHBase(ABC):
         creds: Union[Dict, str],
         org_id: str,
         logger: logging.Logger,
-        lightweight_init: bool,
+        branch: str,
         **kwargs: Any,
     ):
         try:
@@ -55,18 +64,23 @@ class DHBase(ABC):
             raise ValueError(
                 "Only one of `dataset` or path should be provided to the dataset handler."
             )
-        elif not dataset and not path:
-            raise ValueError("Either `dataset` or path should be provided.")
+        elif not dataset and not path and not kwargs.get("serialized_vectorstore"):
+            raise ValueError(
+                "Either `dataset` or `path` or `serialized_vectorstore` should be provided."
+            )
         elif path:
             self.path = convert_pathlib_to_string_if_needed(path)
-        else:
+
+        elif dataset:
             self.dataset = dataset
             self.path = dataset.path
+
+        self.deserialized_vectorstore = utils.get_deserialized_vectorstore(self.path)
 
         self._token = token
         self.logger = logger
         self.org_id = org_id if get_path_type(self.path) == "local" else None
-        self.bugout_reporting_path = self.path or dataset.path
+        self.bugout_reporting_path = get_bugout_reporting_path(path, dataset)
 
         feature_report_path(
             self.bugout_reporting_path,
@@ -102,6 +116,7 @@ class DHBase(ABC):
         self.overwrite = overwrite
         self.verbose = verbose
         self.runtime = runtime
+        self.branch = branch
 
     @property
     def token(self):

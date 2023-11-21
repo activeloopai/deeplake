@@ -48,6 +48,7 @@ from deeplake.constants import (
     ENV_HUB_DEV_USERNAME,
     QUERY_MESSAGE_MAX_SIZE,
     _INDEX_OPERATION_MAPPING,
+    DEFAULT_VECTORSTORE_INDEX_PARAMS,
 )
 from deeplake.core.fast_forwarding import ffw_dataset_meta
 from deeplake.core.index import Index
@@ -380,6 +381,7 @@ class Dataset:
             "path",
             "_read_only",
             "index",
+            "index_params",
             "group_index",
             "public",
             "storage",
@@ -420,6 +422,8 @@ class Dataset:
         state["_client"] = state["org_id"] = state["ds_name"] = None
         state["_temp_tensors"] = []
         state["libdeeplake_dataset"] = None
+        if "index_params" not in state:
+            state["index_params"] = DEFAULT_VECTORSTORE_INDEX_PARAMS
         state["_vc_info_updated"] = False
         state["_locked_out"] = False
         self.__dict__.update(state)

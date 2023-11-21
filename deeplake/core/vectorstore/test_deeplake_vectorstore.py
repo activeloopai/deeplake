@@ -2642,3 +2642,45 @@ def test_dataset_init_param(local_ds):
 
     db.add(text=texts, embedding=embeddings, id=ids, metadata=metadatas)
     assert len(db) == 10
+
+
+def test_vectorstore_versioning(local_path):
+    db = VectorStore(path=local_path, overwrite=True)
+    db.add(text=texts, embedding=embeddings, id=ids, metadata=metadatas)
+    assert db.version == 1
+
+    db.add(text=texts, embedding=embeddings, id=ids, metadata=metadatas)
+    assert db.version == 2
+
+    db.add(text=texts, embedding=embeddings, id=ids, metadata=metadatas)
+    assert db.version == 3
+
+    db.delete(row_ids=[1])
+    assert db.version == 4
+
+    db.delete(row_ids=[2])
+    assert db.version == 5
+
+    db.delete(row_ids=[3])
+    assert db.version == 6
+
+    db.delete(row_ids=[4])
+    assert db.version == 7
+
+    db.delete(row_ids=[5])
+    assert db.version == 8
+
+    db.delete(row_ids=[6])
+    assert db.version == 9
+
+    db.delete(row_ids=[7])
+    assert db.version == 10
+
+    db.delete(row_ids=[8])
+    assert db.version == 11
+
+    db.delete(row_ids=[9])
+    assert db.version == 12
+
+    db.delete(row_ids=[10])
+    assert db.version == 13
