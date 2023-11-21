@@ -145,7 +145,7 @@ class JobResponseStatusSchema:
         self,
         job_id: Union[str, List[str]],
         recall: str,
-        importvement: str,
+        improvement: str,
     ):
         if not isinstance(job_id, List):
             job_id = [job_id]
@@ -161,7 +161,7 @@ class JobResponseStatusSchema:
                     indent=" " * 30,
                     add_vertical_bars=True,
                     recall=recall,
-                    improvement=importvement,
+                    improvement=improvement,
                 )
 
             print(line)
@@ -174,7 +174,7 @@ class JobResponseStatusSchema:
                 " " * 30,
                 add_vertical_bars=True,
                 recall=recall,
-                improvement=importvement,
+                improvement=improvement,
             )
             progress_string = "| {:<27}| {:<30}"
             if progress == "None":
@@ -298,6 +298,8 @@ def get_best_recall_improvement(recall, improvement, best_recall):
     elif float(improvement) < float(bimprovement):
         return brecall, bimprovement
     else:
+        if brecall > recall:
+            return brecall, bimprovement
         return recall, improvement
 
 
