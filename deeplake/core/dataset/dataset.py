@@ -1355,7 +1355,7 @@ class Dataset:
 
     def __iter__(self):
         dataset_read(self)
-        for i in range(self.min_len):
+        for i in range(self.__len__(warn=False)):
             yield self.__getitem__(
                 i, is_iteration=not isinstance(self.index.values[0], list)
             )
@@ -2151,7 +2151,7 @@ class Dataset:
 
         if progressbar:
             dataloader = tqdm(
-                dataloader, desc=self.path, total=self.min_len // batch_size
+                dataloader, desc=self.path, total=self.__len__(warn=False) // batch_size
             )
         dataset_read(self)
         return dataloader
@@ -3178,7 +3178,8 @@ class Dataset:
                 raise ValueError(
                     f"Incoming samples are not of equal lengths. Incoming sample sizes: {sizes}"
                 )
-        new_row_ids = list(range(self.min_len, self.min_len + n))
+        len_ds = self.__len__(warn=False)
+        new_row_ids = list(range(len_ds, len_ds + n))
         [f() for f in list(self._update_hooks.values())]
         if extend:
             if ignore_errors:
@@ -3248,7 +3249,7 @@ class Dataset:
             >>> ds.append({"data": [1, 2, 3, 4], "labels":[0, 1, 2, 3]})
 
         """
-        new_row_ids = [self.min_len]
+        new_row_ids = [self.__len__(warn=False)]
         self._append_or_extend(
             sample,
             extend=False,
@@ -3345,7 +3346,7 @@ class Dataset:
                 index_maintenance.index_operation_dataset(
                     self,
                     dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
-                    rowids=list(self.index.values[0].indices(self.min_len)),
+                    rowids=list(self.index.values[0].indices(self.__len__(warn=False))),
                 )
             except Exception as e:
                 for k, v in saved.items():
@@ -3362,7 +3363,7 @@ class Dataset:
                 index_maintenance.index_operation_dataset(
                     self,
                     dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
-                    rowids=list(self.index.values[0].indices(self.min_len)),
+                    rowids=list(self.index.values[0].indices(self.__len__(warn=False))),
                 )
                 raise e
             finally:
