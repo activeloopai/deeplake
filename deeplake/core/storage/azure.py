@@ -12,8 +12,8 @@ from deeplake.util.path import relpath
 from concurrent import futures
 
 try:
-    from azure.identity import DefaultAzureCredential
-    from azure.storage.blob import (
+    from azure.identity import DefaultAzureCredential  # type: ignore
+    from azure.storage.blob import (  # type: ignore
         BlobServiceClient,
         BlobSasPermissions,
         ContainerSasPermissions,

@@ -6,7 +6,10 @@ from time import time
 import numpy as np
 
 from deeplake.constants import MAX_BYTES_PER_MINUTE, TARGET_BYTE_SIZE
-from deeplake.core.vectorstore.embedder import DeepLakeEmbedder, chunk_by_bytes
+from deeplake.core.vectorstore.embeddings.embedder import (
+    DeepLakeEmbedder,
+    chunk_by_bytes,
+)
 
 
 EMBEDDING_DIM = 15

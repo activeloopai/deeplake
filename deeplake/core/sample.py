@@ -1,4 +1,4 @@
-import requests
+import requests  # type: ignore
 from deeplake.core.compression import (
     compress_array,
     decompress_array,
