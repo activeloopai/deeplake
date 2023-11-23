@@ -1,8 +1,11 @@
 import functools
-import time
 import types
+import random
+import string
 from abc import ABC, abstractmethod
+from typing import Optional, List, Dict, Tuple
 
+import deeplake
 from deeplake.constants import MB, DEFAULT_VECTORSTORE_INDEX_PARAMS, TARGET_BYTE_SIZE
 from deeplake.enterprise.util import raise_indra_installation_error
 from deeplake.util.exceptions import TensorDoesNotExistError
@@ -15,10 +18,6 @@ from deeplake.util.path import get_path_type
 
 import numpy as np
 
-import jwt
-import random
-import string
-from typing import Optional, List, Dict
 
 EXEC_OPTION_TO_RUNTIME: Dict[str, Optional[Dict]] = {
     "compute_engine": None,
@@ -655,5 +654,76 @@ def create_and_load_vectorstore():
         embedding=embeddings,
         id=ids,
         metadata=metadata,
+    )
+    return db
+
+
+def train_deepmemory_model(
+    dataset_name: str = f"hub://activeloop-test/scifact",
+    corpus: Optional[Dict] = None,
+    relevenace: Optional[List[List[Tuple[str, int]]]] = None,
+    queries: Optional[List[str]] = None,
+    token: Optional[str] = None,
+    overwrite: bool = False,
+    enviroment: str = "staging",
+):
+    from deeplake import VectorStore
+    from langchain.embeddings.openai import OpenAIEmbeddings  # type: ignore
+
+    if enviroment == "staging":
+        deeplake.client.config.USE_STAGING_ENVIRONMENT = True
+    elif enviroment == "dev":
+        deeplake.client.config.USE_DEV_ENVIRONMENT = True
+
+    embedding_function = OpenAIEmbeddings()
+    if corpus is None:
+        if (
+            not deeplake.exists(dataset_name, token=token, creds={})
+            or overwrite == True
+        ):
+            deeplake.deepcopy(
+                f"hub://activeloop-test/deepmemory_test_corpus",
+                dataset_name,
+                token=token,
+                overwrite=True,
+                runtime={"tensor_db": True},
+            )
+
+        db = VectorStore(
+            dataset_name,
+            token=token,
+            embedding_function=embedding_function,
+        )
+    else:
+        db = VectorStore(
+            dataset_name,
+            token=token,
+            overwrite=True,
+            embedding_function=embedding_function,
+        )
+        db.add(**corpus)
+
+    query_vs = None
+
+    if relevenace is None:
+        query_vs = VectorStore(
+            path=f"hub://activeloop-test/deepmemory_test_queries",
+            runtime={"tensor_db": True},
+            token=token,
+        )
+        relevance = query_vs.dataset.metadata.data()["value"]
+
+    if queries is None:
+        if not query_vs:
+            query_vs = VectorStore(
+                path=f"hub://activeloop-test/deepmemory_test_queries",
+                runtime={"tensor_db": True},
+                token=token,
+            )
+        queries = query_vs.dataset.text.data()["value"]
+
+    db.deep_memory.train(
+        relevance=relevance,
+        queries=queries,
     )
     return db
