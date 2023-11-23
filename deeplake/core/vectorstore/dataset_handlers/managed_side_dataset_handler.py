@@ -65,12 +65,10 @@ class ManagedSideDH(DHBase):
             branch=branch,
             **kwargs,
         )
-
         if self.deserialized_vectorstore:
             raise NotImplementedError(
                 "ManagedVectorStore does not support passing path to serialized vectorstore object for now."
             )
-
         if get_path_type(self.path) != "hub":
             raise ValueError(
                 "ManagedVectorStore can only be initialized with a Deep Lake Cloud path."
