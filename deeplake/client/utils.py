@@ -1,6 +1,6 @@
 import os
 import json
-import requests
+import requests  # type: ignore
 import textwrap
 from pathlib import Path
 from typing import Dict, List, Any, Union, Optional

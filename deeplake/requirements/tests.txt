@@ -8,9 +8,11 @@ pytest-profiling
 pytest-threadleak
 coverage
 
-mypy
+mypy==1.7.0
 black
 darglint
+pre-commit
+
 
 typing_extensions>=3.10.0.0
 types-requests

@@ -9,7 +9,7 @@ from deeplake.util.exceptions import TensorDoesNotExistError
 from deeplake.util.warnings import always_warn
 from deeplake.client.utils import read_token
 from deeplake.core.dataset import DeepLakeCloudDataset, Dataset
-from deeplake.core.vectorstore.embedder import DeepLakeEmbedder
+from deeplake.core.vectorstore.embeddings.embedder import DeepLakeEmbedder
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.util.path import get_path_type
 
@@ -637,3 +637,23 @@ def create_embedding_function(embedding_function):
             embedding_function=embedding_function,
         )
     return None
+
+
+def create_and_load_vectorstore():
+    from deeplake import VectorStore
+
+    db = VectorStore(
+        path="local_path",
+        overwrite=True,
+    )
+
+    texts, embeddings, ids, metadata, _ = create_data(
+        number_of_data=100, embedding_dim=1536, metadata_key="abc"
+    )
+    db.add(
+        text=texts,
+        embedding=embeddings,
+        id=ids,
+        metadata=metadata,
+    )
+    return db
