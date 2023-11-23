@@ -689,6 +689,16 @@ class DeepLakeDataLoader(DataLoader):
             return num_suboptimal_threads
         return self._num_threads
 
+    def __is_upcast_needed(self, dataset, tensors) -> bool:
+        for tensor_name in tensors:
+            tensor = dataset._get_tensor_from_root(tensor_name)
+            dtype = tensor.dtype
+            if dtype is None:
+                return True
+            if isinstance(dtype, (np.uint16, np.uint32, np.uint64)):
+                return True
+        return False
+
     def __create_dummy_dataloader(
         self,
         dataset,
@@ -707,7 +717,10 @@ class DeepLakeDataLoader(DataLoader):
             prefetch_factor=self._prefetch_factor,
             tensors=tensors,
             drop_last=self._drop_last,
-            upcast=self._mode == "pytorch",  # upcast to handle unsupported dtypes,
+            upcast=self._mode == "pytorch"
+            and self.__is_upcast_needed(
+                dataset, tensors
+            ),  # upcast to handle unsupported dtypes,
             return_index=self._return_index,
             raw_tensors=raw_tensors,
             pil_compressed_tensors=pil_compressed_tensors,
@@ -716,6 +729,7 @@ class DeepLakeDataLoader(DataLoader):
 
     def __get_indra_dataloader(
         self,
+        dataset,
         indra_dataset,
         tensors: Optional[List[str]] = None,
         raw_tensors: Optional[List[str]] = None,
@@ -753,7 +767,10 @@ class DeepLakeDataLoader(DataLoader):
         loader_meta = LoaderMetaInfo(
             context=self.multiprocessing_context,
             distributed=self._distributed,
-            upcast=self._mode == "pytorch",  # upcast to handle unsupported dtypes,
+            upcast=self._mode == "pytorch"
+            and self.__is_upcast_needed(
+                dataset, tensors
+            ),  # upcast to handle unsupported dtypes,
             return_index=self._return_index,
             verbose=self._verbose,
             ignore_errors=self._ignore_errors,
@@ -821,6 +838,7 @@ class DeepLakeDataLoader(DataLoader):
                     indra_dataset = self._indra_dataset
 
                 self._dataloader = self.__get_indra_dataloader(
+                    dataset,
                     indra_dataset,
                     tensors=tensors,
                     raw_tensors=raw_tensors,
