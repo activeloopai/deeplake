@@ -45,11 +45,6 @@ class ManagedSideDH(DHBase):
                 "ManagedVectorStore does not support embedding_function for now."
             )
 
-        if self.deserialized_vectorstore:
-            raise NotImplementedError(
-                "ManagedVectorStore does not support passing path to serialized vectorstore object for now."
-            )
-
         super().__init__(
             path=path,
             dataset=dataset,
@@ -70,6 +65,11 @@ class ManagedSideDH(DHBase):
             branch=branch,
             **kwargs,
         )
+        if self.deserialized_vectorstore:
+            raise NotImplementedError(
+                "ManagedVectorStore does not support passing path to serialized vectorstore object for now."
+            )
+        
         if get_path_type(self.path) != "hub":
             raise ValueError(
                 "ManagedVectorStore can only be initialized with a Deep Lake Cloud path."
