@@ -178,6 +178,7 @@ class Dataset:
         view_base: Optional["Dataset"] = None,
         libdeeplake_dataset=None,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
+        overwrite: bool = False,
         **kwargs,
     ):
         """Initializes a new or existing dataset.
@@ -205,7 +206,8 @@ class Dataset:
             view_base (Optional["Dataset"]): Base dataset of this view.
             libdeeplake_dataset : The libdeeplake dataset object corresponding to this dataset.
             index_params: (Dict[str, Union[int, str]] Optional) VDB index parameter. Defaults to ``None.``
-
+            overwrite (bool): If ``True``, overwrites the dataset if it already exists. Defaults to ``False``.
+            
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
             ImproperDatasetInitialization: Exactly one argument out of 'path' and 'storage' needs to be specified.
@@ -256,11 +258,12 @@ class Dataset:
         d["_temp_tensors"] = []
         d["_vc_info_updated"] = True
         d["_query_string"] = None
+        d["overwrite"] = overwrite
         dct = self.__dict__
         dct.update(d)
 
         try:
-            self._set_derived_attributes(address=address)
+            self._set_derived_attributes(address=address, overwrite=overwrite)
         except LockedException:
             raise LockedException(
                 "This dataset cannot be open for writing as it is locked by another machine. Try loading the dataset with `read_only=True`."
@@ -2405,10 +2408,10 @@ class Dataset:
         }
 
     def _set_derived_attributes(
-        self, verbose: bool = True, address: Optional[str] = None
+        self, verbose: bool = True, address: Optional[str] = None, overwrite: bool = False,
     ):
         """Sets derived attributes during init and unpickling."""
-        if self.is_first_load:
+        if self.is_first_load or overwrite:
             self.storage.autoflush = True
             self._load_version_info(address)
             self._load_link_creds()

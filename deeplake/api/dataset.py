@@ -256,6 +256,7 @@ class dataset:
             "lock_timeout": lock_timeout,
             "lock_enabled": lock_enabled,
             "index_params": index_params,
+            "overwrite": overwrite,
         }
 
         if access_method == "stream":
@@ -469,6 +470,7 @@ class dataset:
             "lock_timeout": lock_timeout,
             "lock_enabled": lock_enabled,
             "index_params": index_params,
+            "overwrite": overwrite,
         }
         ret = dataset._load(dataset_kwargs, create=True)
         return ret
