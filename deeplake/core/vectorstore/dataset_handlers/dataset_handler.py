@@ -7,9 +7,10 @@ from deeplake.core.vectorstore.dataset_handlers.managed_side_dataset_handler imp
 
 
 def get_dataset_handler(*args, **kwargs):
-    runtime = kwargs.get("runtime", None)
-    if runtime and runtime.get("tensor_db", True):
-        # TODO: change to ManagedSideDH when it's ready
-        return ClientSideDH(*args, **kwargs)
-    else:
-        return ClientSideDH(*args, **kwargs)
+    # TODO: Use this logic when managed db will be ready
+    # runtime = kwargs.get("runtime", None)
+    # if runtime and runtime.get("tensor_db", True):
+    #     return ClientSideDH(*args, **kwargs)
+    # else:
+    #     return ClientSideDH(*args, **kwargs)
+    return ClientSideDH(*args, **kwargs)
