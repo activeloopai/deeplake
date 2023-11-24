@@ -2815,7 +2815,7 @@ def test_dataset_init_param(local_ds):
 
 def test_vs_commit(local_path):
     db = create_and_populate_vs(local_path, number_of_data=NUMBER_OF_DATA)
-    db.checkout("branch_1")
+    db.checkout("branch_1", create=True)
     db.commit("commit_1")
     assert len(db) == NUMBER_OF_DATA
     db.checkout("main")
