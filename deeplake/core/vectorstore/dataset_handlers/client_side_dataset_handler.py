@@ -338,6 +338,14 @@ class ClientSideDH(DHBase):
             username=self.username,
         )
 
+        if row_ids and ids:
+            raise ValueError("Only one of row_ids and ids can be specified.")
+        elif row_ids and filter:
+            raise ValueError("Only one of row_ids and filter can be specified.")
+
+        if filter and query:
+            raise ValueError("Only one of filter and query can be specified.")
+
         (
             embedding_function,
             embedding_source_tensor,
