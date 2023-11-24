@@ -2825,3 +2825,16 @@ def test_vs_commit(local_path):
 
     db.checkout("main")
     assert len(db) == NUMBER_OF_DATA
+
+
+def test_vs_init_when_both_dataset_and_path_is_specified(local_path):
+    with pytest.raises(ValueError):
+        VectorStore(
+            path=local_path,
+            dataset=deeplake.empty(local_path, overwrite=True),
+        )
+
+
+def test_vs_init_when_both_dataset_and_path_are_not_specified():
+    with pytest.raises(ValueError):
+        VectorStore()
