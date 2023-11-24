@@ -485,6 +485,7 @@ class VectorStore:
 
         Args:
             branch (str): Branch name to checkout. Defaults to "main".
+            create (bool): Whether to create the branch if it doesn't exist. Defaults to False.
         """
         self.dataset_handler.checkout(branch, create=create)
 
