@@ -1282,6 +1282,7 @@ def create_and_populate_vs(
     verbose=False,
     exec_option="compute_engine",
     index_params={"threshold": 10},
+    number_of_data=NUMBER_OF_DATA,
 ):
     vector_store = DeepLakeVectorStore(
         path=path,
@@ -1291,6 +1292,8 @@ def create_and_populate_vs(
         index_params=index_params,
         token=token,
     )
+
+    utils.create_data(number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM)
 
     # add data to the dataset:
     metadatas[1:6] = [{"a": 1} for _ in range(5)]
@@ -2808,3 +2811,12 @@ def test_dataset_init_param(local_ds):
 
     db.add(text=texts, embedding=embeddings, id=ids, metadata=metadatas)
     assert len(db) == 10
+
+
+def test_vs_commit(local_path):
+    db = create_and_populate_vs(local_path, number_of_data=NUMBER_OF_DATA)
+    db.checkout("branch_1")
+    db.commit("commit_1")
+    assert len(db) == NUMBER_OF_DATA
+    db.checkout("main")
+    assert len(db) == 0
