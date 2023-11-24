@@ -888,11 +888,12 @@ def assert_updated_vector_store(
 # 3. create one fixture for these nested fixtures
 @requires_libdeeplake
 @pytest.mark.parametrize(
-    "ds, vector_store_hash_ids, vector_store_row_ids, vector_store_filters, vector_store_query, hub_cloud_dev_token",
+    "ds, vector_store_hash_ids, vector_store_row_ids, vector_store_filters, vector_store_filter_udf, vector_store_query, hub_cloud_dev_token",
     [
         (
             "local_auth_ds",
             "vector_store_hash_ids",
+            None,
             None,
             None,
             None,
@@ -904,10 +905,12 @@ def assert_updated_vector_store(
             "vector_store_row_ids",
             None,
             None,
+            None,
             "hub_cloud_dev_token",
         ),
         (
             "local_auth_ds",
+            None,
             None,
             None,
             "vector_store_filter_udf",
@@ -920,9 +923,18 @@ def assert_updated_vector_store(
             None,
             "vector_store_filters",
             None,
+            None,
             "hub_cloud_dev_token",
         ),
-        ("hub_cloud_ds", None, None, None, "vector_store_query", "hub_cloud_dev_token"),
+        (
+            "hub_cloud_ds",
+            None,
+            None,
+            None,
+            None,
+            "vector_store_query",
+            "hub_cloud_dev_token",
+        ),
     ],
     indirect=True,
 )
@@ -934,12 +946,16 @@ def test_update_embedding(
     vector_store_hash_ids,
     vector_store_row_ids,
     vector_store_filters,
+    vector_store_filter_udf,
     vector_store_query,
     init_embedding_function,
     hub_cloud_dev_token,
 ):
-    if vector_store_filters == "filter_udf":
-        vector_store_filters = filter_udf
+    vector_store_filters = vector_store_filters or vector_store_filter_udf
+
+    exec_option = "compute_engine"
+    if vector_store_filter_udf:
+        exec_option = "python"
 
     embedding_tensor = "embedding"
     embedding_source_tensor = "text"
@@ -950,7 +966,7 @@ def test_update_embedding(
         path=path,
         overwrite=True,
         verbose=False,
-        exec_option="compute_engine",
+        exec_option=exec_option,
         embedding_function=init_embedding_function,
         index_params={"threshold": 10},
         token=hub_cloud_dev_token,
@@ -982,7 +998,7 @@ def test_update_embedding(
         embedding_fn,
         embedding_source_tensor,
         embedding_tensor,
-        "compute_engine",
+        exec_option,
         num_changed_samples=5,
     )
 
@@ -1007,7 +1023,7 @@ def test_update_embedding(
         embedding_fn,
         embedding_source_tensor,
         embedding_tensor,
-        "compute_engine",
+        exec_option,
         num_changed_samples=5,
     )
 
@@ -1041,7 +1057,7 @@ def test_update_embedding(
             init_embedding_function,
             embedding_source_tensor,
             embedding_tensor,
-            "compute_engine",
+            exec_option,
             num_changed_samples=5,
         )
 
@@ -1098,6 +1114,7 @@ def test_update_embedding(
         embedding_function=init_embedding_function,
         tensor_params=tensors,
         token=ds.token,
+        exec_option=exec_option,
     )
 
     vector_store.add(
@@ -1169,7 +1186,7 @@ def test_update_embedding(
         embedding_fn,
         multiple_embedding_source_tensor,
         multiple_embedding_tensor,
-        "compute_engine",
+        exec_option,
         num_changed_samples=5,
     )
 
@@ -1207,7 +1224,7 @@ def test_update_embedding(
             embedding_fn3,
             multiple_embedding_source_tensor,
             multiple_embedding_tensor,
-            "compute_engine",
+            exec_option,
             num_changed_samples=5,
         )
 
@@ -1270,7 +1287,7 @@ def test_update_embedding(
         embedding_function,
         embedding_source_tensor,
         embedding_tensor,
-        "compute_engine",
+        exec_option,
         num_changed_samples=5,
     )
     vector_store.delete_by_path(path + "_multi", token=ds.token)

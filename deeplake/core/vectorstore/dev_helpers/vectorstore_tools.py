@@ -97,5 +97,8 @@ def train_deepmemory_model(
 def set_backend(backend):
     if backend == "staging":
         deeplake.client.config.USE_STAGING_ENVIRONMENT = True
-    if backend == "dev":
+    elif backend == "dev":
         deeplake.client.config.USE_DEV_ENVIRONMENT = True
+    elif backend == "prod":
+        deeplake.client.config.USE_STAGING_ENVIRONMENT = False
+        deeplake.client.config.USE_DEV_ENVIRONMENT = False
