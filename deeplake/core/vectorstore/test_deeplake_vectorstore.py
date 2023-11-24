@@ -2814,9 +2814,14 @@ def test_dataset_init_param(local_ds):
 
 
 def test_vs_commit(local_path):
-    db = create_and_populate_vs(local_path, number_of_data=NUMBER_OF_DATA)
+    # TODO: add index params, when index will support commit
+    db = create_and_populate_vs(
+        local_path, number_of_data=NUMBER_OF_DATA, index_params=None
+    )
     db.checkout("branch_1", create=True)
     db.commit("commit_1")
-    assert len(db) == NUMBER_OF_DATA
+    db.add(text=texts, embedding=embeddings, id=ids, metadata=metadatas)
+    assert len(db) == 2 * NUMBER_OF_DATA
+
     db.checkout("main")
-    assert len(db) == 0
+    assert len(db) == NUMBER_OF_DATA

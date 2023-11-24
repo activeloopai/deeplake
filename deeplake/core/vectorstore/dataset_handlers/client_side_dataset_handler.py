@@ -386,13 +386,14 @@ class ClientSideDH(DHBase):
         """
         self.dataset.commit(allow_empty=allow_empty)
 
-    def checkout(self, branch: str = "main") -> None:
+    def checkout(self, branch: str, create: bool) -> None:
         """Checkout the Vector Store to a specific branch.
 
         Args:
             branch (str): Branch name to checkout. Defaults to "main".
+            create (bool): Whether to create the branch if it does not exist. Defaults to False.
         """
-        self.dataset.checkout(branch)
+        self.dataset.checkout(branch, create=create)
 
     def tensors(self):
         """Returns the list of tensors present in the dataset"""
