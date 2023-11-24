@@ -4,6 +4,7 @@ import sys
 from math import isclose
 from functools import partial
 from typing import List
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -2838,3 +2839,12 @@ def test_vs_init_when_both_dataset_and_path_is_specified(local_path):
 def test_vs_init_when_both_dataset_and_path_are_not_specified():
     with pytest.raises(ValueError):
         VectorStore()
+
+
+def test_vs_init_with_emptyt_token(local_path):
+    with patch("deeplake.client.config.DEEPLAKE_AUTH_TOKEN", ""):
+        db = VectorStore(
+            path=local_path,
+        )
+
+    assert db.dataset_handler.username == "public"
