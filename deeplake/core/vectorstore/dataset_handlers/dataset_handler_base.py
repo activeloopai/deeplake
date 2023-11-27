@@ -7,13 +7,7 @@ import jwt
 import numpy as np
 
 from deeplake.util.path import convert_pathlib_to_string_if_needed
-from deeplake.api import dataset
 from deeplake.core.dataset import Dataset
-from deeplake.constants import (
-    DEFAULT_VECTORSTORE_TENSORS,
-    MAX_BYTES_PER_MINUTE,
-    TARGET_BYTE_SIZE,
-)
 from deeplake.client.utils import read_token
 from deeplake.core.vectorstore import utils
 from deeplake.util.bugout_reporter import (
