@@ -19,6 +19,7 @@ from deeplake.client.managed.models import (
     VectorStoreInitResponse,
     VectorStoreSearchResponse,
     VectorStoreAddResponse,
+    VectorStoreDeleteResponse,
 )
 
 
@@ -135,8 +136,12 @@ class ManagedServiceClient(DeepLakeBackendClient):
         )
         check_response_status(response)
         data = response.json().get("result", {})
+        ids = data.get("ids", None)
+        error = data.get("error", None)
 
-        return VectorStoreAddResponse(status_code=response.status_code, ids=data)
+        return VectorStoreAddResponse(
+            status_code=response.status_code, ids=ids, error=error
+        )
 
     def vectorstore_remove_rows(
         self,
@@ -160,6 +165,13 @@ class ManagedServiceClient(DeepLakeBackendClient):
             },
         )
         check_response_status(response)
+        data = response.json().get("result", {})
+        error = data.get("error", None)
+
+        if error is not None:
+            raise ValueError(error)
+
+        return VectorStoreDeleteResponse(status_code=response.status_code, error=error)
 
     def vectorstore_update_embeddings(
         self,

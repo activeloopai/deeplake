@@ -244,7 +244,7 @@ class ManagedSideDH(DHBase):
 
         self.client.vectorstore_remove_rows(
             path=self.bugout_reporting_path,
-            indices=row_ids,
+            row_ids=row_ids,
             ids=ids,
             filter=filter,
             query=query,

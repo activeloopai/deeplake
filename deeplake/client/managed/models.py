@@ -23,8 +23,15 @@ class VectorStoreSearchResponse(NamedTuple):
     status_code: int
     length: int
     data: Dict[str, List[Any]]
+    error: Optional[str] = None
 
 
 class VectorStoreAddResponse(NamedTuple):
     status_code: int
     ids: Optional[List[str]] = None
+    error: Optional[str] = None
+
+
+class VectorStoreDeleteResponse(NamedTuple):
+    status_code: int
+    error: Optional[str] = None
