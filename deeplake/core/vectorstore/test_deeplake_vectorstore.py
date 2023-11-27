@@ -85,7 +85,7 @@ def embedding_function(embedding_value, text):
     return [np.ones(EMBEDDING_DIM) * embedding_value for _ in range(len(text))]
 
 
-def get_embedding_function(embedding_value):
+def get_embedding_function(embedding_value=100):
     """Function for creation embedding function with given embedding value"""
     return partial(embedding_function, embedding_value)
 
@@ -883,8 +883,8 @@ def assert_updated_vector_store(
 
 
 # TODO: refactor this method:
-# 1. Split this method into multiple methods
-# 2. use create_and_populate_vs, update_vs_with_new_emb_fn to make these tests more readable
+# 1. Split this method into multiple methods (1 test per 1 behavior)
+# 2. use create_and_populate_vs to make these tests more readable
 # 3. create one fixture for these nested fixtures
 @requires_libdeeplake
 @pytest.mark.parametrize(
@@ -1302,6 +1302,7 @@ def create_and_populate_vs(
     index_params={"threshold": 10},
     number_of_data=NUMBER_OF_DATA,
 ):
+    # TODO: cache the vectostore object and reuse it in other tests (maybe with deepcopy)
     vector_store = DeepLakeVectorStore(
         path=path,
         overwrite=overwrite,
@@ -1319,67 +1320,72 @@ def create_and_populate_vs(
     return vector_store
 
 
-def update_vs_with_new_emb_fn(
-    vs,
-    new_embedding_value,
-    ids=None,
-    row_ids=None,
-    filter=None,
-    query=None,
-    embedding_source_tensor="text",
-    embedding_tensor="embedding",
-):
-    embedding_fn = get_embedding_function(embedding_value=new_embedding_value)
-
-    vs.update_embedding(
-        ids=ids,
-        row_ids=row_ids,
-        filter=filter,
-        query=query,
-        embedding_function=embedding_fn,
-        embedding_source_tensor=embedding_source_tensor,
-        embedding_tensor=embedding_tensor,
-    )
-
-
-def test_update_embedding_ids_and_row_ids_specified(
+def test_update_embedding_row_ids_and_ids_specified_should_throw_exception(
     local_path,
     vector_store_hash_ids,
     vector_store_row_ids,
     hub_cloud_dev_token,
 ):
+    # specifying both row_ids and ids during update embedding should throw an exception
+    # initializing vectorstore and populating it:
     vector_store = create_and_populate_vs(
         local_path,
         token=hub_cloud_dev_token,
     )
+    embedding_fn = get_embedding_function()
 
+    # calling update_embedding with both ids and row_ids being specified
     with pytest.raises(ValueError):
-        update_vs_with_new_emb_fn(
-            vector_store,
-            new_embedding_value=100,
+        vector_store.update_embedding(
             ids=vector_store_hash_ids,
             row_ids=vector_store_row_ids,
+            embedding_function=embedding_fn,
+        )
+
+
+def test_update_embedding_row_ids_and_filter_specified_should_throw_exception(
+    local_path,
+    vector_store_filters,
+    vector_store_row_ids,
+    hub_cloud_dev_token,
+):
+    # specifying both row_ids and filter during update embedding should throw an exception
+    # initializing vectorstore and populating it:
+    vector_store = create_and_populate_vs(
+        local_path,
+        token=hub_cloud_dev_token,
+    )
+    embedding_fn = get_embedding_function()
+
+    # calling update_embedding with both ids and filter being specified
+    with pytest.raises(ValueError):
+        vector_store.update_embedding(
+            row_ids=vector_store_row_ids,
+            filter=vector_store_filters,
+            embedding_function=embedding_fn,
         )
 
 
 @requires_libdeeplake
-def test_update_embedding_query_and_filter_specified(
+def test_update_embedding_query_and_filter_specified_should_throw_exception(
     local_path,
     vector_store_filters,
     vector_store_query,
     hub_cloud_dev_token,
 ):
+    # initializing vectorstore and populating it:
     vector_store = create_and_populate_vs(
         local_path,
         token=hub_cloud_dev_token,
     )
+    embedding_fn = get_embedding_function()
 
+    # calling update_embedding with both query and filter being specified
     with pytest.raises(ValueError):
-        update_vs_with_new_emb_fn(
-            vector_store,
-            new_embedding_value=100,
+        vector_store.update_embedding(
             filter=vector_store_filters,
             query=vector_store_query,
+            embedding_function=embedding_fn,
         )
 
 
@@ -2845,7 +2851,9 @@ def test_vs_commit(local_path):
     assert len(db) == NUMBER_OF_DATA
 
 
-def test_vs_init_when_both_dataset_and_path_is_specified(local_path):
+def test_vs_init_when_both_dataset_and_path_is_specified_should_throw_exception(
+    local_path,
+):
     with pytest.raises(ValueError):
         VectorStore(
             path=local_path,
@@ -2853,12 +2861,19 @@ def test_vs_init_when_both_dataset_and_path_is_specified(local_path):
         )
 
 
-def test_vs_init_when_both_dataset_and_path_are_not_specified():
+def test_specifying_row_ids_and_filter_should_throw_excrption(local_path):
+    db = VectorStore(
+        path=local_path,
+    )
+    db.add(text=texts, embedding=embeddings, id=ids, metadata=metadatas)
+
+
+def test_vs_init_when_both_dataset_and_path_are_not_specified_should_throw_exception():
     with pytest.raises(ValueError):
         VectorStore()
 
 
-def test_vs_init_with_emptyt_token(local_path):
+def test_vs_init_with_emptyt_token_should_not_throw_exception(local_path):
     with patch("deeplake.client.config.DEEPLAKE_AUTH_TOKEN", ""):
         db = VectorStore(
             path=local_path,
