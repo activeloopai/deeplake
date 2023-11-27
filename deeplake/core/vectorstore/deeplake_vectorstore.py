@@ -14,6 +14,8 @@ from deeplake.constants import (
     TARGET_BYTE_SIZE,
 )
 from deeplake.util.bugout_reporter import feature_report_path
+from deeplake.util.exceptions import DeepMemoryWaitingListError
+
 
 logger = logging.getLogger(__name__)
 
@@ -300,6 +302,9 @@ class VectorStore:
         Returns:
             Dict: Dictionary where keys are tensor names and values are the results of the search
         """
+        if deep_memory and not self.deep_memory:
+            raise DeepMemoryWaitingListError()
+
         return self.dataset_handler.search(
             embedding_data=embedding_data,
             embedding_function=embedding_function,
