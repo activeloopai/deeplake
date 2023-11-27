@@ -78,6 +78,7 @@ class ManagedSideDH(DHBase):
             path=self.bugout_reporting_path,
             overwrite=overwrite,
             tensor_params=tensor_params,
+            index_params=index_params,
         )
 
         self.deep_memory = DeepMemory(

@@ -33,6 +33,7 @@ class ManagedServiceClient(DeepLakeBackendClient):
         path: str,
         overwrite: Optional[bool] = None,
         tensor_params: Optional[List[Dict[str, Any]]] = None,
+        index_params: Dict = None,
     ):
         response = self.request(
             method="POST",
@@ -41,6 +42,7 @@ class ManagedServiceClient(DeepLakeBackendClient):
                 "dataset": path,
                 "overwrite": overwrite,
                 "tensor_params": tensor_params,
+                "index_params": index_params,
             },
         )
         data = response.json()
@@ -117,22 +119,16 @@ class ManagedServiceClient(DeepLakeBackendClient):
     def vectorstore_add(
         self,
         path: str,
-        processed_tensors: List[Dict[str, List[Any]]],
+        processed_tensors: Dict[str, List[Any]],
         rate_limiter: Optional[Dict[str, Any]] = None,
         return_ids: bool = False,
     ):
-        rest_api_tensors = []
-        for tensor in processed_tensors:
-            for key, value in tensor.items():
-                tensor[key] = self._preprocess_embedding(value)
-            rest_api_tensors.append(tensor)
-
         response = self.request(
             method="POST",
             relative_url=VECTORSTORE_ADD_SUFFIX,
             json={
                 "dataset": path,
-                "data": rest_api_tensors,
+                "data": processed_tensors,
                 "rate_limiter": rate_limiter,
                 "return_ids": return_ids,
             },
