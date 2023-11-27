@@ -55,8 +55,6 @@ class ComplexInitilization:
         client_instance.distance_metric_index = (
             index_maintenance.index_operation_vectorstore(
                 client_instance,
-                dml_type=_INDEX_OPERATION_MAPPING["ADD"],
-                rowids=list(range(0, len(client_instance.dataset))),
             )
         )
         self.deep_memory = DeepMemory(
