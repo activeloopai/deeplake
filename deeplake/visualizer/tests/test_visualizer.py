@@ -1,5 +1,5 @@
 import numpy as np
-import requests
+import requests  # type: ignore
 from deeplake.visualizer.visualizer import visualizer
 from deeplake.tests.dataset_fixtures import *
 import deeplake as dp

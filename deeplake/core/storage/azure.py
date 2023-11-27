@@ -5,9 +5,11 @@ from typing import Dict, Optional, Tuple
 from datetime import datetime, timedelta, timezone
 
 from deeplake.core.storage.provider import StorageProvider
-from deeplake.client.client import DeepLakeBackendClient
 from deeplake.util.exceptions import PathNotEmptyException
+from deeplake.client.client import DeepLakeBackendClient
+from concurrent.futures import ThreadPoolExecutor
 from deeplake.util.path import relpath
+from concurrent import futures
 
 try:
     from azure.identity import DefaultAzureCredential  # type: ignore
@@ -374,3 +376,18 @@ class AzureProvider(StorageProvider):
             self.sas_token = creds.get("sas_token")
             if self.sas_token:
                 self.credential = AzureSasCredential(self.sas_token)
+
+    def get_items(self, keys):
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            future_to_key = {
+                executor.submit(self.__getitem__, key): key for key in keys
+            }
+
+            for future in futures.as_completed(future_to_key):
+                key = future_to_key[future]
+                exception = future.exception()
+
+                if not exception:
+                    yield key, future.result()
+                else:
+                    yield key, exception

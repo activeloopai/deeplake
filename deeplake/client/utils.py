@@ -1,6 +1,6 @@
 import os
 import json
-import requests
+import requests  # type: ignore
 import textwrap
 from pathlib import Path
 from typing import Dict, List, Any, Union, Optional
@@ -145,7 +145,7 @@ class JobResponseStatusSchema:
         self,
         job_id: Union[str, List[str]],
         recall: str,
-        importvement: str,
+        improvement: str,
     ):
         if not isinstance(job_id, List):
             job_id = [job_id]
@@ -161,7 +161,7 @@ class JobResponseStatusSchema:
                     indent=" " * 30,
                     add_vertical_bars=True,
                     recall=recall,
-                    improvement=importvement,
+                    improvement=improvement,
                 )
 
             print(line)
@@ -174,7 +174,7 @@ class JobResponseStatusSchema:
                 " " * 30,
                 add_vertical_bars=True,
                 recall=recall,
-                improvement=importvement,
+                improvement=improvement,
             )
             progress_string = "| {:<27}| {:<30}"
             if progress == "None":
@@ -280,6 +280,10 @@ def get_results(
     progress = response["progress"]
     for progress_key, progress_value in progress.items():
         if progress_key == BEST_RECALL:
+            # verify that the recall and improvement coincide with the best recall
+            recall, improvement = get_best_recall_improvement(
+                recall, improvement, progress_value
+            )
             if "(" not in improvement:
                 improvement = f"(+{improvement}%)"
 
@@ -287,12 +291,35 @@ def get_results(
             return output
 
 
+def get_best_recall_improvement(recall, improvement, best_recall):
+    brecall, bimprovement = get_recall_improvement(best_recall)
+    if float(improvement) > float(bimprovement):
+        return recall, improvement
+    elif float(improvement) < float(bimprovement):
+        return brecall, bimprovement
+    else:
+        if brecall > recall:
+            return brecall, bimprovement
+        return recall, improvement
+
+
+def remove_paranthesis(string: str):
+    return string.replace("(", "").replace(")", "")
+
+
+def get_recall_improvement(best_recall):
+    recall, improvement = best_recall.split(" ")
+    recall = recall[:-1]
+    improvement = remove_paranthesis(improvement).replace("+", "")[:-1]
+    return recall, improvement
+
+
 def preprocess_progress(
     response: Dict[str, Any],
     progress_indent: str,
+    recall: str,
+    improvement: str,
     add_vertical_bars: bool = False,
-    recall: Optional[str] = None,
-    improvement: Optional[str] = None,
 ):
     allowed_progress_items = ["eta", BEST_RECALL, "error"]
     progress_indent = (
@@ -355,6 +382,11 @@ def preprocess_progress(
                 key = "recall@10"
                 recall = recall or value.split("%")[0]
                 improvement = improvement or value.split("%")[1]
+
+                recall, improvement = get_best_recall_improvement(
+                    recall, improvement, value
+                )
+
                 if "(" not in improvement:
                     improvement = f"(+{improvement}%)"
                 key_value_pair = f"{key}: {recall}% {improvement}"

@@ -245,3 +245,10 @@ def test_list_transform(ds, scheduler="threaded"):
     assert ds.list.data()["value"] == items
     assert ds.list[0].list() == items[0]
     assert ds.list.list() == items
+
+
+def test_empty_json(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("json", htype="json")
+
+    assert ds.json.data()["value"] == []

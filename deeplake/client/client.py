@@ -1,5 +1,5 @@
 import deeplake
-import requests
+import requests  # type: ignore
 import textwrap
 from typing import Any, Optional, Dict, List, Union
 from deeplake.util.exceptions import (

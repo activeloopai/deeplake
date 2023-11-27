@@ -3,6 +3,8 @@ import os
 import sys
 from math import isclose
 from functools import partial
+from typing import List
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -24,6 +26,7 @@ from deeplake.util.exceptions import (
     IncorrectEmbeddingShapeError,
     TensorDoesNotExistError,
     DatasetHandlerError,
+    EmbeddingTensorPopError,
 )
 from deeplake.core.index_maintenance import (
     METRIC_TO_INDEX_METRIC,
@@ -43,6 +46,16 @@ texts, embeddings, ids, metadatas, images = utils.create_data(
 query_embedding = np.random.uniform(low=-10, high=10, size=(EMBEDDING_DIM)).astype(
     np.float32
 )
+
+
+class OpenAILikeEmbedder:
+    def embed_documents(self, docs: List[str]):
+        return [np.ones(EMBEDDING_DIM) for _ in range(len(docs))]
+
+    def embed_query(self, query: str):
+        if not isinstance(query, str):
+            raise ValueError("Query must be a string")
+        return np.ones(EMBEDDING_DIM)
 
 
 def embedding_fn(text, embedding_dim=EMBEDDING_DIM):
@@ -72,7 +85,7 @@ def embedding_function(embedding_value, text):
     return [np.ones(EMBEDDING_DIM) * embedding_value for _ in range(len(text))]
 
 
-def get_embedding_function(embedding_value):
+def get_embedding_function(embedding_value=100):
     """Function for creation embedding function with given embedding value"""
     return partial(embedding_function, embedding_value)
 
@@ -238,6 +251,7 @@ def test_creds(gcs_path, gcs_creds):
 @pytest.mark.slow
 @requires_libdeeplake
 def test_search_basic(local_path, hub_cloud_dev_token):
+    openai_embeddings = OpenAILikeEmbedder()
     """Test basic search features"""
     # Initialize vector store object and add data
     vector_store = DeepLakeVectorStore(
@@ -487,7 +501,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
     data = vector_store.search(
-        embedding_function=embedding_fn3,
+        embedding_function=openai_embeddings.embed_query,
         embedding_data=["dummy"],
         return_view=True,
         k=2,
@@ -497,7 +511,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert data.embedding[0].numpy().size > 0
 
     data = vector_store.search(
-        embedding_function=embedding_fn3,
+        embedding_function=openai_embeddings.embed_query,
         embedding_data="dummy",
         return_view=True,
         k=2,
@@ -535,7 +549,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
 
     # Test that the embedding function during initalization works
     vector_store = DeepLakeVectorStore(
-        path="mem://xyz", embedding_function=embedding_fn3
+        path="mem://xyz", embedding_function=openai_embeddings
     )
     assert vector_store.dataset_handler.exec_option == "python"
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
@@ -868,15 +882,59 @@ def assert_updated_vector_store(
             )
 
 
+# TODO: refactor this method:
+# 1. Split this method into multiple methods (1 test per 1 behavior)
+# 2. use create_and_populate_vs to make these tests more readable
+# 3. create one fixture for these nested fixtures
 @requires_libdeeplake
 @pytest.mark.parametrize(
-    "ds, vector_store_hash_ids, vector_store_row_ids, vector_store_filters, vector_store_query",
+    "ds, vector_store_hash_ids, vector_store_row_ids, vector_store_filters, vector_store_filter_udf, vector_store_query, hub_cloud_dev_token",
     [
-        ("local_auth_ds", "vector_store_hash_ids", None, None, None),
-        ("local_auth_ds", None, "vector_store_row_ids", None, None),
-        ("local_auth_ds", None, None, "vector_store_filter_udf", None),
-        ("local_auth_ds", None, None, "vector_store_filters", None),
-        ("hub_cloud_ds", None, None, None, "vector_store_query"),
+        (
+            "local_auth_ds",
+            "vector_store_hash_ids",
+            None,
+            None,
+            None,
+            None,
+            "hub_cloud_dev_token",
+        ),
+        (
+            "local_auth_ds",
+            None,
+            "vector_store_row_ids",
+            None,
+            None,
+            None,
+            "hub_cloud_dev_token",
+        ),
+        (
+            "local_auth_ds",
+            None,
+            None,
+            None,
+            "vector_store_filter_udf",
+            None,
+            "hub_cloud_dev_token",
+        ),
+        (
+            "local_auth_ds",
+            None,
+            None,
+            "vector_store_filters",
+            None,
+            None,
+            "hub_cloud_dev_token",
+        ),
+        (
+            "hub_cloud_ds",
+            None,
+            None,
+            None,
+            None,
+            "vector_store_query",
+            "hub_cloud_dev_token",
+        ),
     ],
     indirect=True,
 )
@@ -888,11 +946,16 @@ def test_update_embedding(
     vector_store_hash_ids,
     vector_store_row_ids,
     vector_store_filters,
+    vector_store_filter_udf,
     vector_store_query,
     init_embedding_function,
+    hub_cloud_dev_token,
 ):
-    if vector_store_filters == "filter_udf":
-        vector_store_filters = filter_udf
+    vector_store_filters = vector_store_filters or vector_store_filter_udf
+
+    exec_option = "compute_engine"
+    if vector_store_filter_udf:
+        exec_option = "python"
 
     embedding_tensor = "embedding"
     embedding_source_tensor = "text"
@@ -903,10 +966,10 @@ def test_update_embedding(
         path=path,
         overwrite=True,
         verbose=False,
-        exec_option="compute_engine",
+        exec_option=exec_option,
         embedding_function=init_embedding_function,
         index_params={"threshold": 10},
-        token=ds.token,
+        token=hub_cloud_dev_token,
     )
 
     # add data to the dataset:
@@ -935,7 +998,7 @@ def test_update_embedding(
         embedding_fn,
         embedding_source_tensor,
         embedding_tensor,
-        "compute_engine",
+        exec_option,
         num_changed_samples=5,
     )
 
@@ -960,7 +1023,7 @@ def test_update_embedding(
         embedding_fn,
         embedding_source_tensor,
         embedding_tensor,
-        "compute_engine",
+        exec_option,
         num_changed_samples=5,
     )
 
@@ -994,7 +1057,7 @@ def test_update_embedding(
             init_embedding_function,
             embedding_source_tensor,
             embedding_tensor,
-            "compute_engine",
+            exec_option,
             num_changed_samples=5,
         )
 
@@ -1051,6 +1114,7 @@ def test_update_embedding(
         embedding_function=init_embedding_function,
         tensor_params=tensors,
         token=ds.token,
+        exec_option=exec_option,
     )
 
     vector_store.add(
@@ -1122,7 +1186,7 @@ def test_update_embedding(
         embedding_fn,
         multiple_embedding_source_tensor,
         multiple_embedding_tensor,
-        "compute_engine",
+        exec_option,
         num_changed_samples=5,
     )
 
@@ -1160,7 +1224,7 @@ def test_update_embedding(
             embedding_fn3,
             multiple_embedding_source_tensor,
             multiple_embedding_tensor,
-            "compute_engine",
+            exec_option,
             num_changed_samples=5,
         )
 
@@ -1223,10 +1287,106 @@ def test_update_embedding(
         embedding_function,
         embedding_source_tensor,
         embedding_tensor,
-        "compute_engine",
+        exec_option,
         num_changed_samples=5,
     )
     vector_store.delete_by_path(path + "_multi", token=ds.token)
+
+
+def create_and_populate_vs(
+    path,
+    token=None,
+    overwrite=True,
+    verbose=False,
+    exec_option="compute_engine",
+    index_params={"threshold": 10},
+    number_of_data=NUMBER_OF_DATA,
+):
+    # TODO: cache the vectostore object and reuse it in other tests (maybe with deepcopy)
+    vector_store = DeepLakeVectorStore(
+        path=path,
+        overwrite=overwrite,
+        verbose=verbose,
+        exec_option=exec_option,
+        index_params=index_params,
+        token=token,
+    )
+
+    utils.create_data(number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM)
+
+    # add data to the dataset:
+    metadatas[1:6] = [{"a": 1} for _ in range(5)]
+    vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
+    return vector_store
+
+
+def test_update_embedding_row_ids_and_ids_specified_should_throw_exception(
+    local_path,
+    vector_store_hash_ids,
+    vector_store_row_ids,
+    hub_cloud_dev_token,
+):
+    # specifying both row_ids and ids during update embedding should throw an exception
+    # initializing vectorstore and populating it:
+    vector_store = create_and_populate_vs(
+        local_path,
+        token=hub_cloud_dev_token,
+    )
+    embedding_fn = get_embedding_function()
+
+    # calling update_embedding with both ids and row_ids being specified
+    with pytest.raises(ValueError):
+        vector_store.update_embedding(
+            ids=vector_store_hash_ids,
+            row_ids=vector_store_row_ids,
+            embedding_function=embedding_fn,
+        )
+
+
+def test_update_embedding_row_ids_and_filter_specified_should_throw_exception(
+    local_path,
+    vector_store_filters,
+    vector_store_row_ids,
+    hub_cloud_dev_token,
+):
+    # specifying both row_ids and filter during update embedding should throw an exception
+    # initializing vectorstore and populating it:
+    vector_store = create_and_populate_vs(
+        local_path,
+        token=hub_cloud_dev_token,
+    )
+    embedding_fn = get_embedding_function()
+
+    # calling update_embedding with both ids and filter being specified
+    with pytest.raises(ValueError):
+        vector_store.update_embedding(
+            row_ids=vector_store_row_ids,
+            filter=vector_store_filters,
+            embedding_function=embedding_fn,
+        )
+
+
+@requires_libdeeplake
+def test_update_embedding_query_and_filter_specified_should_throw_exception(
+    local_path,
+    vector_store_filters,
+    vector_store_query,
+    hub_cloud_dev_token,
+):
+    # initializing vectorstore and populating it:
+    vector_store = create_and_populate_vs(
+        local_path,
+        token=hub_cloud_dev_token,
+    )
+    embedding_fn = get_embedding_function()
+
+    # calling update_embedding with both query and filter being specified
+    with pytest.raises(ValueError):
+        vector_store.update_embedding(
+            filter=vector_store_filters,
+            query=vector_store_query,
+            embedding_function=embedding_fn,
+        )
 
 
 @requires_libdeeplake
@@ -1571,35 +1731,13 @@ def test_vdb_index_incr_maint_append_pop(local_path, capsys, hub_cloud_dev_token
     res3 = list(view3.sample_indices)
     assert res3[0] == 3
 
-    vector_store.dataset_handler.dataset.embedding.pop(2)
-    vector_store.dataset_handler.dataset.id.pop(2)
-    vector_store.dataset_handler.dataset.metadata.pop(2)
-    vector_store.dataset_handler.dataset.text.pop(2)
-    s2 = ",".join(str(c) for c in query3)
-    view1 = ds.query(
-        f"select *  order by cosine_similarity(embedding, array[{s2}]) DESC limit 1"
-    )
-    res1 = list(view1.sample_indices)
-    assert res1[0] == 2
-
-    ds.append({"embedding": emb2, "text": txt2, "id": ids2, "metadata": md2})
-
-    vector_store.delete(row_ids=[3])
-    s3 = ",".join(str(c) for c in query3)
-    view3 = ds.query(
-        f"select *  order by cosine_similarity(embedding ,array[{s3}]) DESC limit 1"
-    )
-    res3 = list(view3.sample_indices)
-    assert res3[0] != 3
-
-    vector_store.dataset_handler.dataset.pop(2)
-    s2 = ",".join(str(c) for c in query2)
-    view2 = ds.query(
-        f"select *  order by cosine_similarity(embedding ,array[{s2}]) DESC limit 1"
-    )
-    res2 = list(view2.sample_indices)
-    assert res2[0] != 2
-
+    with pytest.raises(EmbeddingTensorPopError):
+        vector_store.dataset.embedding.pop(2)
+        vector_store.dataset.id.pop(2)
+        vector_store.dataset.metadata.pop(2)
+        vector_store.dataset.text.pop(2)
+    with pytest.raises(EmbeddingTensorPopError):
+        vector_store.dataset.pop(2)
     vector_store.delete_by_path(local_path, token=ds.token)
 
 
@@ -1821,6 +1959,61 @@ def test_vdb_index_incr_maint_tensor_append(local_path, capsys, hub_cloud_dev_to
     # assert res3[0] == 102
 
     vector_store.delete_by_path(local_path, token=ds.token)
+
+
+@requires_libdeeplake
+def test_vdb_index_like(local_path, capsys, hub_cloud_dev_token):
+    number_of_data = 1000
+    texts, embeddings, ids, metadatas, _ = utils.create_data(
+        number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
+    )
+
+    # initialize vector store object with vdb index threshold as 200.
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        verbose=True,
+        exec_option="compute_engine",
+        index_params={"threshold": 200, "distance_metric": "L2"},
+        token=hub_cloud_dev_token,
+    )
+
+    vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
+
+    assert len(vector_store) == number_of_data
+    assert set(vector_store.dataset.tensors) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
+    assert set(vector_store.tensors()) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
+
+    # Check if the index is recreated properly.
+    ds = vector_store.dataset
+    es = ds.embedding.get_vdb_indexes()
+    assert len(es) == 1
+    assert es[0]["id"] == "hnsw_1"
+    assert es[0]["distance"] == "l2_norm"
+    assert es[0]["type"] == "hnsw"
+
+    ds = deeplake.load(path=local_path, read_only=True)
+
+    ds2 = deeplake.like("mem://dummy", ds, overwrite=True)
+
+    for tensor in ds2.tensors:
+        ds2[tensor].extend(ds[tensor].data()["value"])
+
+    vector_store.delete_by_path(local_path, token=hub_cloud_dev_token)
 
 
 def assert_vectorstore_structure(vector_store, number_of_data):
@@ -2644,43 +2837,46 @@ def test_dataset_init_param(local_ds):
     assert len(db) == 10
 
 
-def test_vectorstore_versioning(local_path):
-    db = VectorStore(path=local_path, overwrite=True)
+def test_vs_commit(local_path):
+    # TODO: add index params, when index will support commit
+    db = create_and_populate_vs(
+        local_path, number_of_data=NUMBER_OF_DATA, index_params=None
+    )
+    db.checkout("branch_1", create=True)
+    db.commit("commit_1")
     db.add(text=texts, embedding=embeddings, id=ids, metadata=metadatas)
-    assert db.version == 1
+    assert len(db) == 2 * NUMBER_OF_DATA
 
+    db.checkout("main")
+    assert len(db) == NUMBER_OF_DATA
+
+
+def test_vs_init_when_both_dataset_and_path_is_specified_should_throw_exception(
+    local_path,
+):
+    with pytest.raises(ValueError):
+        VectorStore(
+            path=local_path,
+            dataset=deeplake.empty(local_path, overwrite=True),
+        )
+
+
+def test_specifying_row_ids_and_filter_should_throw_excrption(local_path):
+    db = VectorStore(
+        path=local_path,
+    )
     db.add(text=texts, embedding=embeddings, id=ids, metadata=metadatas)
-    assert db.version == 2
 
-    db.add(text=texts, embedding=embeddings, id=ids, metadata=metadatas)
-    assert db.version == 3
 
-    db.delete(row_ids=[1])
-    assert db.version == 4
+def test_vs_init_when_both_dataset_and_path_are_not_specified_should_throw_exception():
+    with pytest.raises(ValueError):
+        VectorStore()
 
-    db.delete(row_ids=[2])
-    assert db.version == 5
 
-    db.delete(row_ids=[3])
-    assert db.version == 6
+def test_vs_init_with_emptyt_token_should_not_throw_exception(local_path):
+    with patch("deeplake.client.config.DEEPLAKE_AUTH_TOKEN", ""):
+        db = VectorStore(
+            path=local_path,
+        )
 
-    db.delete(row_ids=[4])
-    assert db.version == 7
-
-    db.delete(row_ids=[5])
-    assert db.version == 8
-
-    db.delete(row_ids=[6])
-    assert db.version == 9
-
-    db.delete(row_ids=[7])
-    assert db.version == 10
-
-    db.delete(row_ids=[8])
-    assert db.version == 11
-
-    db.delete(row_ids=[9])
-    assert db.version == 12
-
-    db.delete(row_ids=[10])
-    assert db.version == 13
+    assert db.dataset_handler.username == "public"

@@ -1,7 +1,12 @@
 import pytest
 from math import floor
+
+import deeplake
+from click.testing import CliRunner
+from deeplake.cli.auth import login, logout
 from deeplake.constants import QUERY_MESSAGE_MAX_SIZE
 from deeplake.tests.common import requires_libdeeplake
+from deeplake.util.exceptions import EmptyTokenException
 import numpy as np
 
 
@@ -22,6 +27,30 @@ def test_query(hub_cloud_ds):
     assert len(dsv2) == 60
     dsv3 = dsv2.query("SELECT * WHERE label > 1")
     assert len(dsv3) == 20
+
+
+@requires_libdeeplake
+def test_query_on_local_datasets(local_ds, hub_cloud_dev_credentials):
+    username, password = hub_cloud_dev_credentials
+    runner = CliRunner()
+    runner.invoke(logout)
+
+    path = local_ds.path
+    ds = deeplake.empty(path, overwrite=True)
+    ds.create_tensor("label")
+    for i in range(100):
+        ds.label.append(floor(i / 20))
+
+    with pytest.raises(EmptyTokenException):
+        dsv = ds.query("SELECT * WHERE CONTAINS(label, 2)")
+
+    runner.invoke(login, f"-u {username} -p {password}")
+    ds = deeplake.empty(path, overwrite=True)
+    ds.create_tensor("label")
+    for i in range(100):
+        ds.label.append(floor(i / 20))
+    dsv = ds.query("SELECT * WHERE CONTAINS(label, 2)")
+    assert len(dsv) == 20
 
 
 @requires_libdeeplake

@@ -1,6 +1,7 @@
 import logging
 import uuid
 from collections import defaultdict
+from pydantic import BaseModel, ValidationError
 from typing import Any, Dict, Optional, List, Union, Callable, Tuple
 from time import time
 
@@ -8,7 +9,11 @@ import numpy as np
 
 import deeplake
 from deeplake.enterprise.dataloader import indra_available
-from deeplake.util.exceptions import DeepMemoryWaitingListError
+from deeplake.util.exceptions import (
+    DeepMemoryWaitingListError,
+    IncorrectRelevanceTypeError,
+    IncorrectQueriesTypeError,
+)
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.constants import (
     DEFAULT_QUERIES_VECTORSTORE_TENSORS,
@@ -48,6 +53,26 @@ def access_control(func):
         return func(self, *args, **kwargs)
 
     return wrapper
+
+
+class Relevance(BaseModel):
+    data: List[List[Tuple[str, int]]]
+
+
+class Queries(BaseModel):
+    data: List[str]
+
+
+def validate_relevance_and_queries(relevance, queries):
+    try:
+        Relevance(data=relevance)
+    except ValidationError:
+        raise IncorrectRelevanceTypeError()
+
+    try:
+        Queries(data=queries)
+    except ValidationError:
+        raise IncorrectQueriesTypeError()
 
 
 class DeepMemory:
@@ -141,6 +166,7 @@ class DeepMemory:
             },
             token=token or self.token,
         )
+        validate_relevance_and_queries(relevance=relevance, queries=queries)
 
         # TODO: Support for passing query_embeddings directly without embedding function
         corpus_path = self.path
@@ -314,7 +340,13 @@ class DeepMemory:
 
         response_status_schema = JobResponseStatusSchema(response=response)
 
-        jobs = [job["id"] for job in response]
+        jobs = self._get_jobs(response)
+        if jobs is None:
+            reposnse_str = "No Deep Memory training jobs were found for this dataset"
+            print(reposnse_str)
+            if debug:
+                return reposnse_str
+            return None
 
         recalls = {}
         deltas = {}
@@ -437,6 +469,8 @@ class DeepMemory:
                 "indra is not installed. Please install indra to use this functionality with: pip install `deeplake[enterprise]`"
             )
 
+        validate_relevance_and_queries(relevance=relevance, queries=queries)
+
         from indra import api  # type: ignore
 
         indra_dataset = api.dataset(self.path, token=self.token)
@@ -538,6 +572,12 @@ class DeepMemory:
         if deepmemory_is_available:
             return dm_client
         return None
+
+    def _get_jobs(self, response):
+        jobs = None
+        if response is not None and len(response) > 0:
+            jobs = [job["id"] for job in response]
+        return jobs
 
 
 def recall_at_k(
