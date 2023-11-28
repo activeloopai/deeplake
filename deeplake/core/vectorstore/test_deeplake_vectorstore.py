@@ -1389,8 +1389,7 @@ def test_update_embedding_query_and_filter_specified_should_throw_exception(
         )
 
 
-@requires_libdeeplake
-def test_update_specifying_only_embedding_without_embedding_source_tensor_should_raise_exception(
+def test_update_specifying_embedding_function_and_embedding_dict_should_raise_exception(
     memory_path,
     hub_cloud_dev_token,
     vector_store_row_ids,
@@ -1402,69 +1401,38 @@ def test_update_specifying_only_embedding_without_embedding_source_tensor_should
     )
     embedding = np.zeros(EMBEDDING_DIM)
 
-    # calling update_embedding with only embedding being specified
-    with pytest.raises(ValueError):
-        vector_store.update_embedding(
-            embedding=embedding,
-            row_ids=vector_store_row_ids,
-        )
-
-
-def test_update_specifying_embedding_function_and_embedding_should_raise_exception(
-    memory_path,
-    hub_cloud_dev_token,
-    vector_store_row_ids,
-):
-    # initializing vectorstore and populating it:
-    vector_store = create_and_populate_vs(
-        memory_path,
-        token=hub_cloud_dev_token,
-    )
-    embedding = np.zeros(EMBEDDING_DIM)
+    embedding_dict = {"embedding": embedding}
 
     # calling update_embedding with both embedding and embedding_function being specified
     with pytest.raises(ValueError):
         vector_store.update_embedding(
-            embedding=embedding,
+            embedding_dict=embedding_dict,
             embedding_function=get_embedding_function(),
             row_ids=vector_store_row_ids,
         )
 
 
-def test_update_specifying_embedding_tensor_as_list_and_embedding_as_list_float_should_raise_exception(
+def test_update_specifying_embedding_as_list_float_and_embedding_tensor_as_str_should_populate_vs(
     memory_path,
     hub_cloud_dev_token,
-    vector_store_row_ids,
 ):
     # initializing vectorstore and populating it:
     vector_store = create_and_populate_vs(
         memory_path,
         token=hub_cloud_dev_token,
     )
-    embedding = np.zeros(EMBEDDING_DIM)
 
-    with pytest.raises(ValueError):
-        vector_store.update_embedding(
-            embedding=embedding,
-            embedding_tensor=["embedding"],
-            row_ids=vector_store_row_ids,
-        )
+    embedding_dict = {"embedding": [2.0 for i in range(EMBEDDING_DIM)]}
 
+    # updating vectorstore with embedding
+    vector_store.update_embedding(
+        embedding_dict=embedding_dict,
+        row_ids=[0],
+    )
 
-def test_update_specifying_embedding_tensor_as_str_and_embedding_as_list_list_float_should_raise_exception(
-    memory_path,
-    hub_cloud_dev_token,
-    vector_store_row_ids,
-):
-    pass
-
-
-def test_update_specifying_embedding_as_list_float_and_embedding_tensor_as_str_should_populate_vs():
-    pass
-
-
-def test_update_specifying_embedding_as_list_list_float_and_embedding_tensor_as_list_str_should_populate_vs():
-    pass
+    assert np.allclose(
+        vector_store.dataset.embedding[0].numpy(), embedding_dict["embedding"]
+    )
 
 
 @requires_libdeeplake

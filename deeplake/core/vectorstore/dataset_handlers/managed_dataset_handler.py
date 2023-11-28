@@ -262,7 +262,9 @@ class ManagedDH(DHBase):
         embedding_function: Union[Callable, List[Callable]],
         embedding_source_tensor: Union[str, List[str]],
         embedding_tensor: Union[str, List[str]],
-        embedding: Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]],
+        embedding_dict: Union[
+            List[float], np.ndarray, List[List[float]], List[np.ndarray]
+        ],
     ):
         feature_report_path(
             path=self.bugout_reporting_path,
@@ -295,7 +297,7 @@ class ManagedDH(DHBase):
             ids=ids,
             filter=filter,
             query=query,
-            embedding=embedding,
+            embedding_dict=embedding_dict,
         )
 
     def _get_summary(self):

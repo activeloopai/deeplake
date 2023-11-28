@@ -24,41 +24,6 @@ from deeplake.util.bugout_reporter import feature_report_path
 from deeplake.util.exceptions import DeepMemoryWaitingListError
 
 
-class EmbeddingValidation(BaseModel):
-    embedding: Union[List[Union[np.ndarray, List[float]]], np.ndarray, List[float]]
-    embedding_tensor: Union[str, List[str]]
-
-    class Config:
-        arbitrary_types_allowed = True  # Allows arbitrary types like numpy.ndarray
-
-    @validator("embedding")
-    def check_embedding_match(cls, v, values):
-        # v is the embedding
-        # values is the dict of all the values passed to the validator, in our case `embedding_tensor`
-        if "embedding_tensor" in values:
-            if isinstance(values["embedding_tensor"], str) and not isinstance(
-                v, (np.ndarray, List)
-            ):
-                raise ValueError(
-                    "When 'embedding_tensor' is a string, 'embedding' must be either a numpy array or a list of floats."
-                )
-
-            if isinstance(values["embedding_tensor"], list) and not all(
-                isinstance(item, (np.ndarray, List)) for item in v
-            ):
-                raise ValueError(
-                    "When 'embedding_tensor' is a list of strings, 'embedding' must be a list of numpy arrays or a list of lists of floats."
-                )
-        return v
-
-
-def validate_embedding(embedding: Union[List, np.ndarray], embedding_tensor: str):
-    try:
-        EmbeddingValidation(embedding=embedding, embedding_tensor=embedding_tensor)
-    except ValidationError as e:
-        raise ValueError(e)
-
-
 class ComplexInitilization:
     def initialize(
         self,
@@ -402,7 +367,7 @@ class EmbeddedDH(DHBase):
         embedding_function: Union[Callable, List[Callable]],
         embedding_source_tensor: Union[str, List[str]],
         embedding_tensor: Union[str, List[str]],
-        embedding: Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]],
+        embedding_dict: Dict[str, Union[List[float], np.ndarray]],
     ):
         feature_report_path(
             path=self.bugout_reporting_path,
@@ -418,6 +383,14 @@ class EmbeddedDH(DHBase):
             username=self.username,
         )
 
+        if row_ids and ids:
+            raise ValueError("Only one of row_ids and ids can be specified.")
+        elif row_ids and filter:
+            raise ValueError("Only one of row_ids and filter can be specified.")
+
+        if filter and query:
+            raise ValueError("Only one of filter and query can be specified.")
+
         if not row_ids:
             row_ids = dataset_utils.search_row_ids(
                 dataset=self.dataset,
@@ -428,23 +401,12 @@ class EmbeddedDH(DHBase):
                 exec_option=exec_option or self.exec_option,
             )
 
-        if embedding and embedding_function:
+        if embedding_dict is not None and embedding_function is not None:
             raise ValueError(
-                "Only one of 'embedding' or 'embedding_function' can be specified."
+                "Only one of 'embedding_dict' or 'embedding_function' can be specified."
             )
 
-        if embedding:
-            # if embedding is specified, then embedding_tensor must be specified as well
-            # aslo validating type consistency between embedding and embedding_tensor
-            validate_embedding(embedding, embedding_tensor)
-
-            # construct a dictionary out of embedding and embedding_tensor, so that it can be used to update the dataset
-            # embedding as a values and embedding_tensor as a keys
-            embedding_tensor_data = utils.construct_embedding_tensor_data(
-                embedding=embedding,
-                embedding_tensor=embedding_tensor,
-            )
-        else:
+        if embedding_dict is None:
             (
                 embedding_function,
                 embedding_source_tensor,
@@ -457,7 +419,7 @@ class EmbeddedDH(DHBase):
                 embedding_tensor=embedding_tensor,
             )
 
-            embedding_tensor_data = utils.convert_embedding_source_tensor_to_embeddings(
+            embedding_dict = utils.convert_embedding_source_tensor_to_embeddings(
                 dataset=self.dataset,
                 embedding_source_tensor=embedding_source_tensor,
                 embedding_tensor=embedding_tensor,
@@ -465,7 +427,7 @@ class EmbeddedDH(DHBase):
                 row_ids=row_ids,
             )
 
-        self.dataset[row_ids].update(embedding_tensor_data)
+        self.dataset[row_ids].update(embedding_dict)
 
     def commit(self, allow_empty: bool = True) -> None:
         """Commits the Vector Store.
