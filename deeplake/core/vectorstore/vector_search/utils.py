@@ -5,7 +5,7 @@ import types
 import random
 import string
 from abc import ABC, abstractmethod
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict, Tuple, Union
 
 import deeplake
 from deeplake.constants import MB, DEFAULT_VECTORSTORE_INDEX_PARAMS, TARGET_BYTE_SIZE
@@ -422,6 +422,27 @@ def parse_update_arguments(
         )
 
     return (final_embedding_function, embedding_source_tensor, embedding_tensor)
+
+
+def construct_embedding_tensor_data(
+    embedding: Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]],
+    embedding_tensor: Union[str, List[str]],
+) -> Dict[str, Union[List[float], np.ndarray]]:
+    """Function for conctructing dictionary out of embedding and embedding_tensor
+    Args:
+        embedding (Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]]): embedding data
+        embedding_tensor (str): embedding tensor name
+    Returns:
+        Dictionary with embedding_tensor as keys and embedding as values
+    """
+    embedding_tensor_data = {}
+
+    if isinstance(embedding_tensor, list):
+        for idx, tensor in enumerate(embedding_tensor):
+            embedding_tensor_data[tensor] = embedding[idx]
+    else:
+        embedding_tensor_data[embedding_tensor] = embedding
+    return embedding_tensor_data
 
 
 def convert_embedding_source_tensor_to_embeddings(

@@ -193,6 +193,7 @@ class DHBase(ABC):
         embedding_function: Union[Callable, List[Callable]],
         embedding_source_tensor: Union[str, List[str]],
         embedding_tensor: Union[str, List[str]],
+        embedding: Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]],
     ):
         pass
 

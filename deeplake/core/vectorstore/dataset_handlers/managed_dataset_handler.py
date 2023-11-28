@@ -18,7 +18,7 @@ from deeplake.util.bugout_reporter import feature_report_path
 from deeplake.util.path import convert_pathlib_to_string_if_needed, get_path_type
 
 
-class ManagedSideDH(DHBase):
+class ManagedDH(DHBase):
     def __init__(
         self,
         path: Union[str, pathlib.Path],
@@ -262,6 +262,7 @@ class ManagedSideDH(DHBase):
         embedding_function: Union[Callable, List[Callable]],
         embedding_source_tensor: Union[str, List[str]],
         embedding_tensor: Union[str, List[str]],
+        embedding: Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]],
     ):
         feature_report_path(
             path=self.bugout_reporting_path,
@@ -282,15 +283,19 @@ class ManagedSideDH(DHBase):
                 "Only Filter Dictionary is supported for the ManagedVectorStore."
             )
 
+        if embedding_function is not None or embedding_source_tensor is not None:
+            raise NotImplementedError(
+                "ManagedVectorStore does not support embedding_function for now."
+            )
+
         self.client.vectorstore_update_embeddings(
             path=self.bugout_reporting_path,
-            embedding_function=embedding_function,
-            embedding_source_tensor=embedding_source_tensor,
             embedding_tensor=embedding_tensor,
             row_ids=row_ids,
             ids=ids,
             filter=filter,
             query=query,
+            embedding=embedding,
         )
 
     def _get_summary(self):

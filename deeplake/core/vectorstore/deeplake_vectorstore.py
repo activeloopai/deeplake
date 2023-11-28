@@ -375,6 +375,9 @@ class VectorStore:
         embedding_function: Optional[Union[Callable, List[Callable]]] = None,
         embedding_source_tensor: Union[str, List[str]] = "text",
         embedding_tensor: Optional[Union[str, List[str]]] = None,
+        embedding: Optional[
+            Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]]
+        ] = None,
     ):
         """Recompute existing embeddings of the VectorStore, that match either query, filter, ids or row_ids.
 
@@ -420,6 +423,7 @@ class VectorStore:
             embedding_function (Optional[Union[Callable, List[Callable]]], optional): function for converting `embedding_source_tensor` into embedding. Only valid if `embedding_source_tensor` is specified. Defaults to None.
             embedding_source_tensor (Union[str, List[str]], optional): Name of tensor with data that needs to be converted to embeddings. Defaults to `text`.
             embedding_tensor (Optional[Union[str, List[str]]], optional): Name of the tensor with embeddings. Defaults to None.
+            embedding (Optional[Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]]], optional): Embedding representation of data for performing the update. Defaults to None. The ``embedding_function`` and ``embedding`` cannot both be specified.
         """
         self.dataset_handler.update_embedding(
             row_ids=row_ids,
@@ -430,6 +434,7 @@ class VectorStore:
             embedding_function=embedding_function,
             embedding_source_tensor=embedding_source_tensor,
             embedding_tensor=embedding_tensor,
+            embedding=embedding,
         )
 
     @staticmethod
