@@ -53,3 +53,15 @@ def test_dataset(ds):
         np.testing.assert_array_equal(
             ds.label[i].numpy(), unpickled_ds.label[i].numpy()
         )
+
+
+def test_no_chunks_present(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.append([1, 2, 3, 4, 5])
+
+    size = len(pickle.dumps(ds))
+
+    ds.abc.append([1, 2, 3, 4, 5])
+
+    assert len(pickle.dumps(ds)) == size
