@@ -128,13 +128,7 @@ class VectorStore:
             **kwargs,
         )
 
-        self.deep_memory = DeepMemory(
-            dataset_or_path=self.dataset_handler.path,
-            token=self.dataset_handler.token,
-            logger=logger,
-            embedding_function=embedding_function,
-            creds=self.dataset_handler.creds,
-        )
+        self.deep_memory = self.dataset_handler.deep_memory
 
     def add(
         self,
@@ -238,6 +232,7 @@ class VectorStore:
         return_tensors: Optional[List[str]] = None,
         return_view: bool = False,
         deep_memory: bool = False,
+        return_tql: bool = False,
     ) -> Union[Dict, Dataset]:
         """VectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
@@ -288,6 +283,7 @@ class VectorStore:
             return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictionary with data. Defaults to False. If ``True`` return_tensors is set to "*" beucase data is lazy-loaded and there is no cost to including all tensors in the view.
             deep_memory (bool): Whether to use the Deep Memory model for improving search results. Defaults to False if deep_memory is not specified in the Vector Store initialization.
                 If True, the distance metric is set to "deepmemory_distance", which represents the metric with which the model was trained. The search is performed using the Deep Memory model. If False, the distance metric is set to "COS" or whatever distance metric user specifies.
+            return_tql (bool): Whether to return the TQL query string used for the search. Defaults to False.
 
         ..
             # noqa: DAR101
@@ -313,6 +309,7 @@ class VectorStore:
             return_tensors=return_tensors,
             return_view=return_view,
             deep_memory=deep_memory,
+            return_tql=return_tql,
         )
 
     def delete(
@@ -480,13 +477,14 @@ class VectorStore:
         """
         self.dataset_handler.commit(allow_empty=allow_empty)
 
-    def checkout(self, branch: str = "main") -> None:
+    def checkout(self, branch: str = "main", create=False) -> None:
         """Checkout the Vector Store to a specific branch.
 
         Args:
             branch (str): Branch name to checkout. Defaults to "main".
+            create (bool): Whether to create the branch if it doesn't exist. Defaults to False.
         """
-        self.dataset_handler.checkout(branch)
+        self.dataset_handler.checkout(branch, create=create)
 
     def tensors(self):
         """Returns the list of tensors present in the dataset"""

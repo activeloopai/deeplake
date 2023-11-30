@@ -152,6 +152,7 @@ class DHBase(ABC):
         return_tensors: Optional[List[str]] = None,
         return_view: bool = False,
         deep_memory: bool = False,
+        return_tql_query: bool = False,
     ) -> Union[Dict, Dataset]:
         pass
 
@@ -204,11 +205,12 @@ class DHBase(ABC):
         """
         raise NotImplementedError()
 
-    def checkout(self, branch: str = "main") -> None:
+    def checkout(self, branch: str, create: bool) -> None:
         """Checkout the Vector Store to a specific branch.
 
         Args:
             branch (str): Branch name to checkout. Defaults to "main".
+            create (bool): Whether to create the branch if it does not exist. Defaults to False.
 
         Raises:
             NotImplementedError: This method is not implemented by the base class.

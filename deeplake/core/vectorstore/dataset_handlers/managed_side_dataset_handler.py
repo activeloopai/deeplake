@@ -76,7 +76,8 @@ class ManagedSideDH(DHBase):
         )
 
         self.deep_memory = DeepMemory(
-            dataset_or_path=self.path,
+            dataset=None,
+            path=path,
             token=self.token,
             logger=self.logger,
             embedding_function=self.embedding_function,

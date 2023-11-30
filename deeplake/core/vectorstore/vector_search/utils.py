@@ -1,8 +1,11 @@
 import functools
-import time
 import types
+import random
+import string
 from abc import ABC, abstractmethod
+from typing import Optional, List, Dict, Tuple
 
+import deeplake
 from deeplake.constants import MB, DEFAULT_VECTORSTORE_INDEX_PARAMS, TARGET_BYTE_SIZE
 from deeplake.enterprise.util import raise_indra_installation_error
 from deeplake.util.exceptions import TensorDoesNotExistError
@@ -15,10 +18,6 @@ from deeplake.util.path import get_path_type
 
 import numpy as np
 
-import jwt
-import random
-import string
-from typing import Optional, List, Dict
 
 EXEC_OPTION_TO_RUNTIME: Dict[str, Optional[Dict]] = {
     "compute_engine": None,
@@ -637,23 +636,3 @@ def create_embedding_function(embedding_function):
             embedding_function=embedding_function,
         )
     return None
-
-
-def create_and_load_vectorstore():
-    from deeplake import VectorStore
-
-    db = VectorStore(
-        path="local_path",
-        overwrite=True,
-    )
-
-    texts, embeddings, ids, metadata, _ = create_data(
-        number_of_data=100, embedding_dim=1536, metadata_key="abc"
-    )
-    db.add(
-        text=texts,
-        embedding=embeddings,
-        id=ids,
-        metadata=metadata,
-    )
-    return db

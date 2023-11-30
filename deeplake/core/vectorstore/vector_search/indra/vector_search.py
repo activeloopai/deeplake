@@ -21,6 +21,7 @@ def vector_search(
     deep_memory,
     token,
     org_id,
+    return_tql,
 ) -> Union[Dict, DeepLakeDataset]:
     try:
         from indra import api  # type: ignore
@@ -58,4 +59,5 @@ def vector_search(
         deep_memory=deep_memory,
         token=token,
         org_id=org_id,
+        return_tql=return_tql,
     )

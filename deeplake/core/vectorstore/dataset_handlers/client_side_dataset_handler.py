@@ -87,7 +87,8 @@ class ClientSideDH(DHBase):
         self.tensor_params = tensor_params
         self.distance_metric_index = index_maintenance.index_operation_vectorstore(self)
         self.deep_memory = DeepMemory(
-            dataset_or_path=self.path,
+            dataset=self.dataset,
+            path=path,
             token=self.token,
             logger=self.logger,
             embedding_function=self.embedding_function,
@@ -180,6 +181,7 @@ class ClientSideDH(DHBase):
         return_tensors: List[str],
         return_view: bool,
         deep_memory: bool,
+        return_tql: bool,
     ) -> Union[Dict, Dataset]:
         feature_report_path(
             path=self.bugout_reporting_path,
@@ -196,6 +198,7 @@ class ClientSideDH(DHBase):
                 "embedding": True if embedding is not None else False,
                 "return_tensors": return_tensors,
                 "return_view": return_view,
+                "return_tql": return_tql,
             },
             token=self.token,
             username=self.username,
@@ -261,6 +264,7 @@ class ClientSideDH(DHBase):
             deep_memory=deep_memory,
             token=self.token,
             org_id=self.org_id,
+            return_tql=return_tql,
         )
 
     def delete(
@@ -338,6 +342,14 @@ class ClientSideDH(DHBase):
             username=self.username,
         )
 
+        if row_ids and ids:
+            raise ValueError("Only one of row_ids and ids can be specified.")
+        elif row_ids and filter:
+            raise ValueError("Only one of row_ids and filter can be specified.")
+
+        if filter and query:
+            raise ValueError("Only one of filter and query can be specified.")
+
         (
             embedding_function,
             embedding_source_tensor,
@@ -378,13 +390,14 @@ class ClientSideDH(DHBase):
         """
         self.dataset.commit(allow_empty=allow_empty)
 
-    def checkout(self, branch: str = "main") -> None:
+    def checkout(self, branch: str, create: bool) -> None:
         """Checkout the Vector Store to a specific branch.
 
         Args:
             branch (str): Branch name to checkout. Defaults to "main".
+            create (bool): Whether to create the branch if it does not exist. Defaults to False.
         """
-        self.dataset.checkout(branch)
+        self.dataset.checkout(branch, create=create)
 
     def tensors(self):
         """Returns the list of tensors present in the dataset"""

@@ -716,27 +716,32 @@ def dataframe_ingestion_data():
 
 @pytest.fixture
 def vector_store_hash_ids(request):
-    return [f"{i}" for i in range(5)]
+    if getattr(request, "param", True):
+        return [f"{i}" for i in range(5)]
 
 
 @pytest.fixture
 def vector_store_row_ids(request):
-    return [i for i in range(5)]
+    if getattr(request, "param", True):
+        return [i for i in range(5)]
 
 
 @pytest.fixture
 def vector_store_filter_udf(request):
-    return "filter_udf"
+    if getattr(request, "param", True):
+        return "filter_udf"
 
 
 @pytest.fixture
 def vector_store_filters(request):
-    return {"a": 1}
+    if getattr(request, "param", True):
+        return {"a": 1}
 
 
 @pytest.fixture
 def vector_store_query(request):
-    return "select * where metadata=={'a': 1}"
+    if getattr(request, "param", True):
+        return "select * where metadata=={'a': 1}"
 
 
 @pytest.fixture
@@ -784,3 +789,33 @@ def precomputed_jobs_list():
     with open(os.path.join(parent, "precomputed_jobs_list.txt"), "r") as f:
         jobs = f.read()
     return jobs
+
+
+@pytest.fixture
+def local_dmv2_dataset(request, hub_cloud_dev_token):
+    dmv2_path = f"hub://{HUB_CLOUD_DEV_USERNAME}/dmv2"
+
+    local_cache_path = ".deeplake_tests_cache/"
+    if not os.path.exists(local_cache_path):
+        os.mkdir(local_cache_path)
+
+    dataset_cache_path = local_cache_path + "dmv2"
+    if not os.path.exists(dataset_cache_path):
+        deeplake.deepcopy(
+            dmv2_path,
+            dataset_cache_path,
+            token=hub_cloud_dev_token,
+            overwrite=True,
+        )
+
+    corpus = _get_storage_path(request, LOCAL)
+
+    deeplake.deepcopy(
+        dataset_cache_path,
+        corpus,
+        token=hub_cloud_dev_token,
+        overwrite=True,
+    )
+    yield corpus
+
+    delete_if_exists(corpus, hub_cloud_dev_token)

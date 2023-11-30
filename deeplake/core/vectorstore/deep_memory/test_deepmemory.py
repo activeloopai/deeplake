@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 import sys
 from time import sleep
+from unittest.mock import MagicMock
 
 import deeplake
 from deeplake import VectorStore
@@ -528,35 +529,6 @@ def test_deepmemory_status(capsys, job_id, corpus_query_pair_path, hub_cloud_dev
     assert status.out[511:] == output_str[511:]
 
 
-@pytest.mark.slow
-@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
-def test_deepmemory_search(
-    corpus_query_relevances_copy,
-    testing_relevance_query_deepmemory,
-    hub_cloud_dev_token,
-):
-    corpus, _, _, _ = corpus_query_relevances_copy
-    relevance, query_embedding = testing_relevance_query_deepmemory
-
-    db = VectorStore(
-        path=corpus,
-        runtime={"tensor_db": True},
-        token=hub_cloud_dev_token,
-    )
-
-    output = db.search(
-        embedding=query_embedding, deep_memory=True, return_tensors=["id"]
-    )
-
-    assert len(output["id"]) == 4
-    assert relevance in output["id"]
-
-    output = db.search(embedding=query_embedding)
-    assert len(output["id"]) == 4
-    assert relevance not in output["id"]
-    # TODO: add some logging checks
-
-
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 @pytest.mark.slow
 @requires_libdeeplake
@@ -660,3 +632,66 @@ def test_not_supported_training_args(corpus_query_relevances_copy, hub_cloud_dev
             queries=queries,
             relevance="relevances",
         )
+
+
+def test_deepmemory_v2_set_model_should_set_model_for_all_subsequent_loads(
+    local_dmv2_dataset,
+    hub_cloud_dev_token,
+):
+    # Setiing model should set model for all subsequent loads
+    db = VectorStore(path=local_dmv2_dataset, token=hub_cloud_dev_token)
+    assert db.deep_memory.get_model() == "655f86e8ab93e7fc5067a3ac_2"
+
+    # ensure after setting model, get model returns specified model
+    db.deep_memory.set_model("655f86e8ab93e7fc5067a3ac_1")
+
+    assert (
+        db.dataset.embedding.info["deepmemory"]["model.npy"]["job_id"]
+        == "655f86e8ab93e7fc5067a3ac_1"
+    )
+    assert db.deep_memory.get_model() == "655f86e8ab93e7fc5067a3ac_1"
+
+    # ensure after setting model, reloading the dataset returns the same model
+    db = VectorStore(path=local_dmv2_dataset, token=hub_cloud_dev_token)
+    assert db.deep_memory.get_model() == "655f86e8ab93e7fc5067a3ac_1"
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+def test_deepmemory_search_should_contain_correct_answer(
+    corpus_query_relevances_copy,
+    testing_relevance_query_deepmemory,
+    hub_cloud_dev_token,
+):
+    corpus, _, _, _ = corpus_query_relevances_copy
+    relevance, query_embedding = testing_relevance_query_deepmemory
+
+    db = VectorStore(
+        path=corpus,
+        token=hub_cloud_dev_token,
+    )
+
+    output = db.search(
+        embedding=query_embedding, deep_memory=True, return_tensors=["id"]
+    )
+    assert len(output["id"]) == 4
+    assert relevance in output["id"]
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+def test_deeplake_search_should_not_contain_correct_answer(
+    corpus_query_relevances_copy,
+    testing_relevance_query_deepmemory,
+    hub_cloud_dev_token,
+):
+    corpus, _, _, _ = corpus_query_relevances_copy
+    relevance, query_embedding = testing_relevance_query_deepmemory
+
+    db = VectorStore(
+        path=corpus,
+        token=hub_cloud_dev_token,
+    )
+    output = db.search(embedding=query_embedding)
+    assert len(output["id"]) == 4
+    assert relevance not in output["id"]
