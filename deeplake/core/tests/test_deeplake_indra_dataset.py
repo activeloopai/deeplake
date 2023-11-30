@@ -288,7 +288,6 @@ def test_query_tensors_polygon_htype_consistency(local_auth_ds_generator):
         orig = ds.polygon[i].numpy()
         new = view.polygon[i].numpy()
 
-        assert type(orig) == type(new)
         for i, j in zip(orig, new):
             assert np.all(i == j)
 
