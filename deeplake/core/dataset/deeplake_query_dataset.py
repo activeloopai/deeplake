@@ -197,6 +197,9 @@ class DeepLakeQueryDataset(Dataset):
     def __len__(self):
         return len(self.indra_ds)
 
+    def num_samples(self):
+        return len(self.indra_ds)
+
     @deeplake_reporter.record_call
     def dataloader(self, ignore_errors: bool = False, verbose: bool = False):
         """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object.
