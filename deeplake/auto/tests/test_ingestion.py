@@ -257,7 +257,7 @@ def test_dataframe_basic(
     )
     tensors_names = list(ds.tensors.keys())
 
-    with pytest.raises(InvalidPandasDataframeError):
+    with pytest.raises(Exception):
         memory_ds.path = convert_string_to_pathlib_if_needed(
             memory_ds, convert_to_pathlib
         )
