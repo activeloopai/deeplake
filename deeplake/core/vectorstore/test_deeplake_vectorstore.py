@@ -1320,6 +1320,7 @@ def create_and_populate_vs(
     return vector_store
 
 
+@requires_libdeeplake
 def test_update_embedding_row_ids_and_ids_specified_should_throw_exception(
     local_path,
     vector_store_hash_ids,
@@ -1343,6 +1344,7 @@ def test_update_embedding_row_ids_and_ids_specified_should_throw_exception(
         )
 
 
+@requires_libdeeplake
 def test_update_embedding_row_ids_and_filter_specified_should_throw_exception(
     local_path,
     vector_store_filters,
@@ -2837,6 +2839,7 @@ def test_dataset_init_param(local_ds):
     assert len(db) == 10
 
 
+@requires_libdeeplake
 def test_vs_commit(local_path):
     # TODO: add index params, when index will support commit
     db = create_and_populate_vs(
