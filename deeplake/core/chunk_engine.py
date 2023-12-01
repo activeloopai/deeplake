@@ -261,7 +261,7 @@ class ChunkEngine:
             tensor_meta = self.tensor_meta
             return (
                 self.chunk_class == UncompressedChunk
-                and tensor_meta.htype not in ["text", "json", "list", "polygon"]
+                and tensor_meta.htype not in ["text", "json", "list", "polygon", "tag"]
                 and tensor_meta.max_shape
                 and (tensor_meta.max_shape == tensor_meta.min_shape)
                 and (np.prod(tensor_meta.max_shape) < 20)
@@ -745,6 +745,10 @@ class ChunkEngine:
             samples = [
                 p if isinstance(p, Polygons) else Polygons(p, dtype=tensor_meta.dtype)
                 for p in samples
+            ]
+        elif tensor_meta.htype == "tag":
+            samples = [
+                sample if isinstance(sample, list) else [sample] for sample in samples
             ]
         return samples, verified_samples
 
@@ -3055,7 +3059,7 @@ class ChunkEngine:
             raise ValueError("This tensor has no samples, cannot get empty sample.")
         htype = self.tensor_meta.htype
         dtype = self.tensor_meta.dtype
-        if htype in ("text", "json", "list"):
+        if htype in ("text", "json", "list", "tag"):
             return get_empty_text_like_sample(htype)
         ndim = len(self.tensor_meta.max_shape)
         if self.is_sequence:
@@ -3066,7 +3070,7 @@ class ChunkEngine:
     @property
     def is_text_like(self):
         return (
-            self.tensor_meta.htype in {"text", "json", "list"}
+            self.tensor_meta.htype in {"text", "json", "list", "tag"}
             or self.tensor_meta.is_link
         )
 

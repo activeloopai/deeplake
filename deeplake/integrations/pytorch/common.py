@@ -22,7 +22,10 @@ def collate_fn(batch):
         )
 
     if isinstance(elem, np.ndarray) and elem.size > 0 and isinstance(elem[0], str):
-        batch = [it[0] for it in batch]
+        if elem.dtype == object:
+            return [it.tolist() for it in batch]
+        else:
+            batch = [it[0] for it in batch]
     elif isinstance(elem, (tuple, list)) and len(elem) > 0 and isinstance(elem[0], str):
         batch = [it[0] for it in batch]
     elif isinstance(elem, Polygons):
@@ -52,7 +55,10 @@ def convert_fn(data):
     if isinstance(data, IterableOrderedDict):
         return IterableOrderedDict((k, convert_fn(v)) for k, v in data.items())
     if isinstance(data, np.ndarray) and data.size > 0 and isinstance(data[0], str):
-        data = data[0]
+        if data.dtype == object:
+            return data.tolist()
+        else:
+            data = data[0]
     elif isinstance(data, Polygons):
         data = data.numpy()
 
@@ -85,6 +91,7 @@ def check_tensors(dataset, tensors, verbose=True):
     jpeg_png_compressed_tensors = []
     json_tensors = []
     list_tensors = []
+    tag_tensors = []
     supported_image_compressions = {"png", "jpeg"}
     for tensor_name in tensors:
         tensor = dataset._get_tensor_from_root(tensor_name)
@@ -101,12 +108,16 @@ def check_tensors(dataset, tensors, verbose=True):
             json_tensors.append(tensor_name)
         elif meta.htype == "list":
             list_tensors.append(tensor_name)
+        elif meta.htype == "tag":
+            tag_tensors.append(tensor_name)
 
     if verbose and (json_tensors or list_tensors):
         json_list_tensors = set(json_tensors + list_tensors)
         warnings.warn(
             f"The following tensors have json or list htype: {json_list_tensors}. Collation of these tensors will fail by default. Ensure that these tensors are either transformed by specifying a transform or a custom collate_fn is specified to handle them."
         )
+
+    list_tensors += tag_tensors
 
     return jpeg_png_compressed_tensors, json_tensors, list_tensors
 

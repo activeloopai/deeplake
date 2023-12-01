@@ -361,7 +361,7 @@ def _validate_required_htype_overwrites(htype: str, htype_overwrite: dict):
         )
 
     if htype_overwrite["dtype"] is not None:
-        if htype in ("json", "list"):
+        if htype in ("json", "list", "tag"):
             validate_json_schema(htype_overwrite["dtype"])
         else:
             _raise_if_condition(
@@ -385,7 +385,7 @@ def _format_values(htype: str, htype_overwrite: dict):
 
     dtype = htype_overwrite["dtype"]
     if dtype is not None:
-        if htype in ("json", "list", "intrinsics"):
+        if htype in ("json", "list", "tag", "intrinsics"):
             if getattr(dtype, "__module__", None) == "typing":
                 htype_overwrite["dtype"] = str(dtype)
         else:
