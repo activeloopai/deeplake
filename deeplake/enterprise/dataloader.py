@@ -695,7 +695,8 @@ class DeepLakeDataLoader(DataLoader):
             dtype = tensor.dtype
             if dtype is None:
                 return True
-            if isinstance(dtype, (np.uint16, np.uint32, np.uint64)):
+
+            if dtype.type in [np.uint16, np.uint32, np.uint64]:
                 return True
         return False
 
