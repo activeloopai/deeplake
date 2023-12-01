@@ -809,26 +809,27 @@ class ChunkEngine:
         incoming_num_samples = len(samples)
         enc_ids: List[Optional[str]] = []
         enc_count = [0]
-        if extending:
-            if self.tensor_meta.htype == "text" and (
-                self.chunk_class != SampleCompressedChunk
-            ):
-                lengths = np.zeros(len(samples), dtype=np.uint32)
-                for i, s in enumerate(samples):
+        if (
+            extending
+            and self.tensor_meta.htype == "text"
+            and (self.chunk_class != SampleCompressedChunk)
+        ):
+            lengths = np.zeros(len(samples), dtype=np.uint32)
+            for i, s in enumerate(samples):
+                try:
+                    s = s.numpy()
+                except AttributeError:
+                    pass
+                try:
+                    if s.dtype.name.startswith("str"):
+                        lengths[i] = len(str(s.reshape(())))
+                except AttributeError:
                     try:
-                        s = s.numpy()
-                    except AttributeError:
-                        pass
-                    try:
-                        if s.dtype.name[:3] == "str":
-                            lengths[i] = len(str(s.reshape(())))
-                    except AttributeError:
-                        try:
-                            lengths[i] = s.__len__()
-                        except AttributeError:  # None
-                            lengths[i] = 0
-                        except TypeError:  # Numpy scalar str
-                            lengths[i] = str(s).__len__()
+                        lengths[i] = s.__len__()
+                    except AttributeError:  # None
+                        lengths[i] = 0
+                    except TypeError:  # Numpy scalar str
+                        lengths[i] = str(s).__len__()
         extra_args = {"lengths": lengths}
         current_chunk = start_chunk
         updated_chunks: List[Optional[str]] = []
@@ -1010,12 +1011,11 @@ class ChunkEngine:
         lengths,
     ):
         sample = samples[0]
-        if sample.is_first_write:
-            if register:
-                if start_chunk_row is not None:
-                    enc.register_samples(1)
-                else:
-                    enc_count[-1] += 1
+        if sample.is_first_write and register:
+            if start_chunk_row is not None:
+                enc.register_samples(1)
+            else:
+                enc_count[-1] += 1
         if sample.is_last_write:
             tiles[
                 incoming_num_samples - len(samples) + bool(register) * orig_meta_length
