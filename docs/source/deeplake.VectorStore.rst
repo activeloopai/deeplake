@@ -1,7 +1,8 @@
 deeplake.VectorStore
---------------------
+====================
+.. currentmodule:: deeplake.core.vectorstore.deeplake_vectorstore
 
-.. autoclass:: deeplake.core.vectorstore.deeplake_vectorstore.VectorStore
-   :members:
-   :show-inheritance:
-   :special-members: __init__
+.. autoclass:: VectorStore()
+    :members:
+
+    .. automethod:: __init__

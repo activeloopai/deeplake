@@ -291,7 +291,7 @@ class DeepLakeQueryDataset(Dataset):
                 return t.indra_tensor.indexes
             except RuntimeError:
                 pass
-        return range(self.num_samples)
+        return range(len(self))
 
     def _tensors(
         self, include_hidden: bool = True, include_disabled=True

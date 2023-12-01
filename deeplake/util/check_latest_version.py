@@ -1,7 +1,7 @@
 import json
 import os
 import warnings
-import requests
+import requests  # type: ignore
 from deeplake.client.config import HUB_PYPI_VERSION_PATH
 from deeplake.core.fast_forwarding import version_compare
 import time

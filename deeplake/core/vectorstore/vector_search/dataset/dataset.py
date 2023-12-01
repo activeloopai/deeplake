@@ -555,11 +555,18 @@ def extend_or_ingest_dataset(
 def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):
     if ids is None:
         delete_view = search_fn(
+            embedding_data=None,
+            embedding_function=None,
+            embedding=None,
+            distance_metric=None,
+            embedding_tensor=None,
             filter=filter,
             query=query,
             exec_option=exec_option,
+            return_tensors=False,
             return_view=True,
             k=int(1e9),
+            deep_memory=False,
         )
 
     else:

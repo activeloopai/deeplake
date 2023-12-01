@@ -9,7 +9,7 @@ from deeplake.util.bugout_reporter import feature_report_path, deeplake_reporter
 
 
 def _is_seq_convertible(seq):
-    from datasets import Sequence
+    from datasets import Sequence  # type: ignore
 
     if isinstance(seq, Sequence):
         feature = seq.feature

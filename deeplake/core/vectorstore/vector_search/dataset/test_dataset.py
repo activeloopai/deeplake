@@ -9,7 +9,7 @@ import deeplake
 from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore import DeepLakeVectorStore
-from deeplake.core.vectorstore.embedder import DeepLakeEmbedder
+from deeplake.core.vectorstore.embeddings.embedder import DeepLakeEmbedder
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
     DEFAULT_VECTORSTORE_TENSORS,
