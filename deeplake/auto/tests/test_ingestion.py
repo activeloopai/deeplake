@@ -6,6 +6,7 @@ from deeplake.util.exceptions import (
     SamePathException,
     DatasetHandlerError,
     IngestionError,
+    InvalidPandasDataframeError,
 )
 import numpy as np
 import pytest
@@ -256,7 +257,7 @@ def test_dataframe_basic(
     )
     tensors_names = list(ds.tensors.keys())
 
-    with pytest.raises(Exception):
+    with pytest.raises(InvalidPandasDataframeError):
         memory_ds.path = convert_string_to_pathlib_if_needed(
             memory_ds, convert_to_pathlib
         )

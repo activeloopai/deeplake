@@ -19,7 +19,7 @@ def test_indexing(local_auth_ds_generator):
     deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
-        for i in range(1000):
+        for _ in range(1000):
             deeplake_ds.label.append(int(100 * random.uniform(0.0, 1.0)))
 
     indra_ds = dataset_to_libdeeplake(deeplake_ds)
@@ -64,7 +64,7 @@ def test_save_view(local_auth_ds_generator):
     deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
-        for i in range(1000):
+        for _ in range(1000):
             deeplake_ds.label.append(int(100 * random.uniform(0.0, 1.0)))
 
     deeplake_ds.commit("First")
@@ -88,7 +88,7 @@ def test_empty_token_exception(local_auth_ds):
     loaded = deeplake.load(local_auth_ds.path, token="")
 
     with pytest.raises(EmptyTokenException):
-        dss = dataset_to_libdeeplake(loaded)
+        dataset_to_libdeeplake(loaded)
 
 
 @requires_libdeeplake
@@ -111,7 +111,7 @@ def test_load_view(local_auth_ds_generator):
     deeplake_indra_ds = DeepLakeQueryDataset(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
 
     with pytest.raises(Exception):
-        dataloader = deeplake_indra_ds.pytorch()
+        deeplake_indra_ds.pytorch()
 
     query_str = "select * group by label"
     view = deeplake_ds.query(query_str)
@@ -215,7 +215,7 @@ def test_accessing_data(local_auth_ds_generator):
     deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
-        for i in range(1000):
+        for _ in range(1000):
             deeplake_ds.label.append(int(100 * random.uniform(0.0, 1.0)))
 
     indra_ds = dataset_to_libdeeplake(deeplake_ds)

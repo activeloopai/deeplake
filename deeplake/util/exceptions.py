@@ -1138,3 +1138,8 @@ class IncorrectQueriesTypeError(Exception):
             "Please make sure, that queries is of type List[str]"
         )
         super().__init__(msg)
+
+
+class InvalidPandasDataframe(Exception):
+    def __init__(self):
+        super().__init__("Source provided is not a valid pandas dataframe object")

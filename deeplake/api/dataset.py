@@ -75,6 +75,7 @@ from deeplake.util.storage import (
     get_storage_and_cache_chain,
     storage_provider_from_path,
 )
+from deeplake.util.exceptions import InvalidPandasDataframeError
 from deeplake.util.compute import get_compute_provider
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.cache_chain import generate_chain
@@ -1986,7 +1987,7 @@ class dataset:
             Dataset: New dataset created from the dataframe.
 
         Raises:
-            Exception: If ``src`` is not a valid pandas dataframe object.
+            InvalidPandasDataframeError: If ``src`` is not a valid pandas dataframe object.
         """
         import pandas as pd
         from deeplake.auto.structured.dataframe import DataFrame
@@ -1999,7 +2000,7 @@ class dataset:
         )
 
         if not isinstance(src, pd.DataFrame):
-            raise Exception("Source provided is not a valid pandas dataframe object")
+            raise InvalidPandasDataframeError()
 
         structured = DataFrame(src, column_params, src_creds, creds_key)
 

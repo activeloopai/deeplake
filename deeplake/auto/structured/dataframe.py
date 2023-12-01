@@ -3,7 +3,7 @@ from .base import StructuredDataset
 from deeplake import Dataset
 from deeplake import read, link
 from deeplake.htype import HTYPE_SUPPORTED_COMPRESSIONS
-from deeplake.util.exceptions import IngestionError
+from deeplake.util.exceptions import IngestionError, InvalidPandasDataframeError
 from deeplake.util.dataset import sanitize_tensor_name
 
 from collections import defaultdict
@@ -30,13 +30,13 @@ class DataFrame(StructuredDataset):
 
 
         Raises:
-            Exception: If source is not a pandas dataframe object.
+            InvalidPandasDataframeError: If source is not a pandas dataframe object.
         """
         import pandas as pd  # type: ignore
 
         super().__init__(source)
         if not isinstance(self.source, pd.DataFrame):
-            raise Exception("Source is not a pandas dataframe object.")
+            raise InvalidPandasDataframeError()
 
         self.creds = creds
         self.creds_key = creds_key
