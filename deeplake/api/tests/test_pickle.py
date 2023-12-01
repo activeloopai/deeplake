@@ -55,7 +55,7 @@ def test_dataset(ds):
         )
 
 
-def test_no_chunks_present(local_ds):
+def test_pickling_dataset_should_not_store_cached_chunks(local_ds):
     with local_ds as ds:
         ds.create_tensor("abc")
         ds.abc.append([1, 2, 3, 4, 5])
