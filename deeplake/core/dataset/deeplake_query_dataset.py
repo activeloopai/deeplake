@@ -197,10 +197,6 @@ class DeepLakeQueryDataset(Dataset):
     def __len__(self):
         return len(self.indra_ds)
 
-    @property
-    def num_samples(self):
-        return len(self.indra_ds)
-
     @deeplake_reporter.record_call
     def dataloader(self, ignore_errors: bool = False, verbose: bool = False):
         """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object.
@@ -295,7 +291,7 @@ class DeepLakeQueryDataset(Dataset):
                 return t.indra_tensor.indexes
             except RuntimeError:
                 pass
-        return range(self.num_samples)
+        return range(len(self))
 
     def _tensors(
         self, include_hidden: bool = True, include_disabled=True
