@@ -55,7 +55,7 @@ def test_dataset(ds):
         )
 
 
-def test_pickling_dataset_should_not_store_cached_chunks(local_ds):
+def test_pickled_dataset_does_not_store_cached_chunks(local_ds):
     with local_ds as ds:
         ds.create_tensor("abc")
         ds.abc.append([1, 2, 3, 4, 5])
@@ -64,4 +64,6 @@ def test_pickling_dataset_should_not_store_cached_chunks(local_ds):
 
     ds.abc.append([1, 2, 3, 4, 5])
 
-    assert len(pickle.dumps(ds)) == size, 'After adding element to the pickled dataset, its size has changed while it shouldn't, it could be storing the cached chunks'
+    assert (
+        len(pickle.dumps(ds)) == size
+    ), "Adding element should not change size of pickle"
