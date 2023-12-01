@@ -197,6 +197,7 @@ class DeepLakeQueryDataset(Dataset):
     def __len__(self):
         return len(self.indra_ds)
 
+    @property
     def num_samples(self):
         return len(self.indra_ds)
 
