@@ -1140,6 +1140,6 @@ class IncorrectQueriesTypeError(Exception):
         super().__init__(msg)
 
 
-class InvalidPandasDataframe(Exception):
+class InvalidPandasDataframeError(Exception):
     def __init__(self):
         super().__init__("Source provided is not a valid pandas dataframe object")
