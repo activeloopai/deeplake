@@ -167,7 +167,9 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def shape_interval(self):
-        return shape_interval.ShapeInterval(self.min_shape, self.max_shape)
+        return shape_interval.ShapeInterval(
+            (len(self),) + self.min_shape, (len(self),) + self.max_shape
+        )
 
     @property
     def ndim(self):

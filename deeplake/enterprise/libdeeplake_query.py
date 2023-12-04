@@ -119,3 +119,44 @@ def sample_by(
         dsv = ds.sample(weights, replace=replace, size=size)
     indexes = list(dsv.indexes)
     return dataset.no_view_dataset[indexes]
+
+
+def universal_query(query_string: str):
+    """Runs query without initially loading dataset and returns a sliced :class:`~deeplake.core.dataset.Dataset` with given sampler applied.
+
+
+    Args:
+        query_string (str): TQL string containing the FROM as a source dataset.
+
+
+    Returns:
+        Dataset: A deeplake.Dataset object.
+
+    Raises:
+        RuntimeError: When the query cannot be executed.
+
+    Examples:
+
+        Return all 5s from mnist-train.
+
+        >>> from deeplake import query
+        >>> view = query('SELECT * FROM "hub://activeloop/mnist-train" WHERE labels == 5')
+
+        Load mnist and fashion-mnist and merge them in single dataset.
+
+        >>> from deeplake import query
+        >>> view = query('SELECT * FROM "hub://activeloop/mnist-train" UNION (SELECT * FROM "hub://activeloop/fashion-mnist-train")')
+
+        Load mnist and fashion-mnist, merge them in single dataset and shuffle the result.
+
+        >>> from deeplake import query
+        >>> view = query('SELECT * FROM "hub://activeloop/mnist-train" UNION (SELECT * FROM "hub://activeloop/fashion-mnist-train") ORDER BY RANDOM()')
+    """
+
+    from deeplake.enterprise.convert_to_libdeeplake import import_indra_api
+
+    api = import_indra_api()
+    dsv = api.tql.query(query_string)
+    view = DeepLakeQueryDataset(deeplake_ds=None, indra_ds=dsv)
+    view._tql_query = query_string
+    return view
