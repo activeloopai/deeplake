@@ -402,6 +402,35 @@ def test_string_tensors(local_auth_ds):
         np.testing.assert_array_equal(batch["strings"], f"string{idx}")
 
 
+@pytest.mark.slow
+@requires_torch
+@requires_libdeeplake
+@pytest.mark.flaky
+def test_tag_tensors(local_auth_ds):
+    with local_auth_ds as ds:
+        ds.create_tensor("tags", htype="tag")
+        ds.tags.extend(
+            [
+                f"tag{idx}" if idx % 2 == 0 else [f"tag{idx}", f"tag{idx}"]
+                for idx in range(5)
+            ]
+        )
+
+    ptds = ds.pytorch(batch_size=1)
+    for idx, batch in enumerate(ptds):
+        if idx % 2 == 0:
+            np.testing.assert_array_equal(batch["tags"], [[f"tag{idx}"]])
+        else:
+            np.testing.assert_array_equal(batch["tags"], [[f"tag{idx}", f"tag{idx}"]])
+
+    ptds2 = ds.pytorch(batch_size=None)
+    for idx, batch in enumerate(ptds2):
+        if idx % 2 == 0:
+            np.testing.assert_array_equal(batch["tags"], [f"tag{idx}"])
+        else:
+            np.testing.assert_array_equal(batch["tags"], [f"tag{idx}", f"tag{idx}"])
+
+
 @pytest.mark.xfail(raises=NotImplementedError, strict=True)
 def test_pytorch_large():
     raise NotImplementedError

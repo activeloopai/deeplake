@@ -171,7 +171,14 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def ndim(self):
-        return len(self.shape)
+        ndim = len(self.indra_tensor.min_shape) + 1
+        if self.is_sequence:
+            ndim += 1
+        if self.index:
+            for idx in self.index.values:
+                if not idx.subscriptable():
+                    ndim -= 1
+        return ndim
 
     @property
     def meta(self):

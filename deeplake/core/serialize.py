@@ -452,7 +452,7 @@ def check_sample_shape(shape, num_dims):
 
 
 def text_to_bytes(sample, dtype, htype):
-    if htype in ("json", "list"):
+    if htype in ("json", "list", "tag"):
         if isinstance(sample, np.ndarray):
             if htype == "list":
                 sample = list(sample) if sample.dtype == object else sample.tolist()
@@ -463,7 +463,7 @@ def text_to_bytes(sample, dtype, htype):
                     sample = list(sample)
         validate_json_object(sample, dtype)
         byts = json.dumps(sample, cls=HubJsonEncoder).encode()
-        shape = (len(sample),) if htype == "list" else (1,)
+        shape = (len(sample),) if htype in ("list", "tag") else (1,)
     else:  # htype == "text":
         if isinstance(sample, np.ndarray) and sample.size == 1:
             sample = str(sample.reshape(()))
@@ -480,7 +480,7 @@ def bytes_to_text(buffer, htype):
         arr = np.empty(1, dtype=object)
         arr[0] = json.loads(bytes.decode(buffer), cls=HubJsonDecoder)
         return arr
-    elif htype == "list":
+    elif htype in ("list", "tag"):
         lst = json.loads(bytes.decode(buffer), cls=HubJsonDecoder)
         arr = np.empty(len(lst), dtype=object)
         arr[:] = lst

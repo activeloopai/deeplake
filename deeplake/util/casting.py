@@ -79,7 +79,7 @@ def get_empty_text_like_sample(htype: str):
         return ""
     elif htype == "json":
         return {}
-    elif htype == "list":
+    elif htype == "list" or htype == "tag":
         return []
     else:
         raise ValueError(
