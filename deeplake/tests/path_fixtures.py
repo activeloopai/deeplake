@@ -718,14 +718,10 @@ def dataframe_ingestion_data():
 def vector_store_hash_ids(request):
     if getattr(request, "param", True):
         return [f"{i}" for i in range(5)]
-    if getattr(request, "param", True):
-        return [f"{i}" for i in range(5)]
 
 
 @pytest.fixture
 def vector_store_row_ids(request):
-    if getattr(request, "param", True):
-        return [i for i in range(5)]
     if getattr(request, "param", True):
         return [i for i in range(5)]
 

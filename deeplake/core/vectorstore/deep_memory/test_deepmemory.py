@@ -529,6 +529,35 @@ def test_deepmemory_status(capsys, job_id, corpus_query_pair_path, hub_cloud_dev
     assert status.out[511:] == output_str[511:]
 
 
+@pytest.mark.slow
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+def test_deepmemory_search(
+    corpus_query_relevances_copy,
+    testing_relevance_query_deepmemory,
+    hub_cloud_dev_token,
+):
+    corpus, _, _, _ = corpus_query_relevances_copy
+    relevance, query_embedding = testing_relevance_query_deepmemory
+
+    db = VectorStore(
+        path=corpus,
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+    )
+
+    output = db.search(
+        embedding=query_embedding, deep_memory=True, return_tensors=["id"]
+    )
+
+    assert len(output["id"]) == 4
+    assert relevance in output["id"]
+
+    output = db.search(embedding=query_embedding)
+    assert len(output["id"]) == 4
+    assert relevance not in output["id"]
+    # TODO: add some logging checks
+
+
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 @pytest.mark.slow
 @requires_libdeeplake

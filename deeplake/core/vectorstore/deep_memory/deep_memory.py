@@ -21,7 +21,6 @@ from deeplake.constants import (
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
     DEFAULT_DEEPMEMORY_DISTANCE_METRIC,
-    DEFAULT_DEEPMEMORY_DISTANCE_METRIC,
 )
 from deeplake.util.storage import get_storage_and_cache_chain
 from deeplake.core.dataset import Dataset
@@ -153,8 +152,6 @@ class DeepMemory:
         """
         from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 
-        from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
-
         self.logger.info("Starting DeepMemory training job")
         feature_report_path(
             path=self.path,
@@ -169,7 +166,6 @@ class DeepMemory:
         validate_relevance_and_queries(relevance=relevance, queries=queries)
 
         # TODO: Support for passing query_embeddings directly without embedding function
-        corpus_path = self.path
         corpus_path = self.path
         queries_path = corpus_path + "_queries"
 
@@ -326,11 +322,9 @@ class DeepMemory:
         )
         _, storage = get_storage_and_cache_chain(
             path=self.path,
-            path=self.path,
             db_engine={"tensor_db": True},
             read_only=False,
             creds=self.creds,
-            token=self.token,
             token=self.token,
             memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
             local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
@@ -338,7 +332,6 @@ class DeepMemory:
         loaded_dataset = DeepLakeCloudDataset(storage=storage)
 
         response = self.client.list_jobs(
-            dataset_path=self.path,
             dataset_path=self.path,
         )
 
