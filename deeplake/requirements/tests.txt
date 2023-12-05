@@ -2,6 +2,7 @@ pytest
 pytest-cases
 pytest-benchmark
 pytest-cov
+pytest-mock
 pytest-timeout
 pytest-rerunfailures
 pytest-profiling

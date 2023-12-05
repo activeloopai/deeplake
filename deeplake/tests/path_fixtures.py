@@ -792,3 +792,33 @@ def precomputed_jobs_list():
     with open(os.path.join(parent, "precomputed_jobs_list.txt"), "r") as f:
         jobs = f.read()
     return jobs
+
+
+@pytest.fixture
+def local_dmv2_dataset(request, hub_cloud_dev_token):
+    dmv2_path = f"hub://{HUB_CLOUD_DEV_USERNAME}/dmv2"
+
+    local_cache_path = ".deeplake_tests_cache/"
+    if not os.path.exists(local_cache_path):
+        os.mkdir(local_cache_path)
+
+    dataset_cache_path = local_cache_path + "dmv2"
+    if not os.path.exists(dataset_cache_path):
+        deeplake.deepcopy(
+            dmv2_path,
+            dataset_cache_path,
+            token=hub_cloud_dev_token,
+            overwrite=True,
+        )
+
+    corpus = _get_storage_path(request, LOCAL)
+
+    deeplake.deepcopy(
+        dataset_cache_path,
+        corpus,
+        token=hub_cloud_dev_token,
+        overwrite=True,
+    )
+    yield corpus
+
+    delete_if_exists(corpus, hub_cloud_dev_token)

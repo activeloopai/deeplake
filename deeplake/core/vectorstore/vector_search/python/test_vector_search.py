@@ -29,6 +29,7 @@ def test_vector_search():
         deep_memory=False,
         token=None,
         org_id=None,
+        return_tql=False,
     )
 
     assert len(data["score"]) == 10
@@ -49,6 +50,7 @@ def test_vector_search():
             deep_memory=False,
             token=None,
             org_id=None,
+            return_tql=False,
         )
 
     data = vector_search.vector_search(
@@ -66,6 +68,7 @@ def test_vector_search():
         deep_memory=False,
         token=None,
         org_id=None,
+        return_tql=False,
     )
 
     assert len(data) == 10
@@ -87,4 +90,5 @@ def test_vector_search():
             deep_memory=False,
             token=None,
             org_id=None,
+            return_tql=False,
         )

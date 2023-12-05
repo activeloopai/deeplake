@@ -1,4 +1,5 @@
 import logging
+import pathlib
 import uuid
 from collections import defaultdict
 from pydantic import BaseModel, ValidationError
@@ -8,13 +9,13 @@ from time import time
 import numpy as np
 
 import deeplake
-from deeplake.enterprise.dataloader import indra_available
 from deeplake.util.exceptions import (
     DeepMemoryWaitingListError,
     IncorrectRelevanceTypeError,
     IncorrectQueriesTypeError,
+    DeepMemoryEvaluationError,
 )
-from deeplake.util.remove_cache import get_base_storage
+from deeplake.util.path import convert_pathlib_to_string_if_needed
 from deeplake.constants import (
     DEFAULT_QUERIES_VECTORSTORE_TENSORS,
     DEFAULT_MEMORY_CACHE_SIZE,
@@ -30,7 +31,15 @@ from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
 from deeplake.util.path import get_path_type
-from deeplake.util.version_control import load_meta
+
+
+def access_control(func):
+    def wrapper(self, *args, **kwargs):
+        if self.client is None:
+            raise DeepMemoryWaitingListError()
+        return func(self, *args, **kwargs)
+
+    return wrapper
 
 
 def use_deep_memory(func):
@@ -41,15 +50,6 @@ def use_deep_memory(func):
         if use_deep_memory and distance_metric is None:
             kwargs["distance_metric"] = DEFAULT_DEEPMEMORY_DISTANCE_METRIC
 
-        return func(self, *args, **kwargs)
-
-    return wrapper
-
-
-def access_control(func):
-    def wrapper(self, *args, **kwargs):
-        if self.client is None:
-            raise DeepMemoryWaitingListError()
         return func(self, *args, **kwargs)
 
     return wrapper
@@ -78,7 +78,8 @@ def validate_relevance_and_queries(relevance, queries):
 class DeepMemory:
     def __init__(
         self,
-        dataset_or_path: Union[Dataset, str],
+        dataset: Dataset,
+        path: Union[str, pathlib.Path],
         logger: logging.Logger,
         embedding_function: Optional[Any] = None,
         token: Optional[str] = None,
@@ -87,7 +88,8 @@ class DeepMemory:
         """Based Deep Memory class to train and evaluate models on DeepMemory managed service.
 
         Args:
-            dataset_or_path (Union[Dataset, str]): deeplake dataset object or path.
+            dataset (Dataset): deeplake dataset object or path.
+            path (Union[str, pathlib.Path]): Path to the dataset.
             logger (logging.Logger): Logger object.
             embedding_function (Optional[Any], optional): Embedding funtion class used to convert queries/documents to embeddings. Defaults to None.
             token (Optional[str], optional): API token for the DeepMemory managed service. Defaults to None.
@@ -97,14 +99,8 @@ class DeepMemory:
             ImportError: if indra is not installed
             ValueError: if incorrect type is specified for `dataset_or_path`
         """
-        if isinstance(dataset_or_path, Dataset):
-            self.path = dataset_or_path.path
-        elif isinstance(dataset_or_path, str):
-            self.path = dataset_or_path
-        else:
-            raise ValueError(
-                "dataset_or_path should be a Dataset object or a string path"
-            )
+        self.dataset = dataset
+        self.path = convert_pathlib_to_string_if_needed(path)
 
         feature_report_path(
             path=self.path,
@@ -143,7 +139,8 @@ class DeepMemory:
             relevance (List[List[Tuple[str, int]]]): List of relevant documents for each query with their respective relevance score.
                 The outer list corresponds to the queries and the inner list corresponds to the doc_id, relevence_score pair for each query.
                 doc_id is the document id in the corpus dataset. It is stored in the `id` tensor of the corpus dataset.
-                relevence_score is the relevance score of the document for the query. The range is between 0 and 1, where 0 stands for not relevant and 1 stands for relevant.
+                relevence_score is the relevance score of the document for the query. The value is either 0 and 1, where 0 stands for not relevant (unknown relevance)
+                and 1 stands for relevant. Currently, only values of 1 contribute to the training, and there is no reason to provide examples with relevance of 0.
             embedding_function (Optional[Callable[[str], np.ndarray]], optional): Embedding funtion used to convert queries to embeddings. Defaults to None.
             token (str, optional): API token for the DeepMemory managed service. Defaults to None.
 
@@ -155,7 +152,6 @@ class DeepMemory:
         """
         from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 
-        self.logger.info("Starting DeepMemory training job")
         feature_report_path(
             path=self.path,
             feature_name="dm.train",
@@ -166,52 +162,19 @@ class DeepMemory:
             },
             token=token or self.token,
         )
-        validate_relevance_and_queries(relevance=relevance, queries=queries)
 
-        # TODO: Support for passing query_embeddings directly without embedding function
-        corpus_path = self.path
-        queries_path = corpus_path + "_queries"
-
-        if embedding_function is None and self.embedding_function is None:
-            raise ValueError(
-                "Embedding function should be specifed either during initialization or during training."
-            )
-
-        if embedding_function is None and self.embedding_function is not None:
-            embedding_function = self.embedding_function.embed_documents
-
-        runtime = None
-        if get_path_type(corpus_path) == "hub":
-            runtime = {"tensor_db": True}
-
-        queries_vs = VectorStore(
-            path=queries_path,
-            overwrite=True,
-            runtime=runtime,
-            token=token or self.token,
+        trainer = DeepMemoryTrainer(
+            client=self.client,
+            logger=self.logger,
+            path=self.path,
+            token=self.token,
             creds=self.creds,
-            verbose=False,
+            embedding_function=embedding_function or self.embedding_function,
+            queries=queries,
+            relevance=relevance,
         )
 
-        self.logger.info("Preparing training data for deepmemory:")
-        queries_vs.add(
-            text=[query for query in queries],
-            metadata=[
-                {"relevance": relevance_per_doc} for relevance_per_doc in relevance
-            ],
-            embedding_data=[query for query in queries],
-            embedding_function=embedding_function,
-        )
-
-        # do some rest_api calls to train the model
-        response = self.client.start_taining(
-            corpus_path=corpus_path,
-            queries_path=queries_path,
-        )
-
-        self.logger.info(
-            f"DeepMemory training job started. Job ID: {response['job_id']}"
-        )
+        response = trainer.start_training()
         return response["job_id"]
 
     @access_control
@@ -261,7 +224,7 @@ class DeepMemory:
         return self.client.delete_job(job_id=job_id)
 
     @access_control
-    def status(self, job_id: str):
+    def status(self, job_id: str, return_status=False):
         """Get the status of a training job on DeepMemory managed service.
 
         Examples:
@@ -288,29 +251,10 @@ class DeepMemory:
             token=self.token,
         )
 
-        _, storage = get_storage_and_cache_chain(
-            path=self.path,
-            db_engine={"tensor_db": True},
-            read_only=False,
-            creds=self.creds,
-            token=self.token,
-            memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
-            local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
+        reporter = DeepMemoryStatusReporter(
+            self.client, self.path, self.token, self.creds
         )
-
-        loaded_dataset = DeepLakeCloudDataset(storage=storage)
-
-        try:
-            recall, improvement = _get_best_model(
-                loaded_dataset.embedding, job_id, latest_job=True
-            )
-
-            recall = "{:.2f}".format(100 * recall)
-            improvement = "{:.2f}".format(100 * improvement)
-        except:
-            recall = None
-            improvement = None
-        self.client.check_status(job_id=job_id, recall=recall, improvement=improvement)
+        return reporter.status(job_id, return_status)
 
     @access_control
     def list_jobs(self, debug=False):
@@ -323,55 +267,10 @@ class DeepMemory:
             },
             token=self.token,
         )
-        _, storage = get_storage_and_cache_chain(
-            path=self.path,
-            db_engine={"tensor_db": True},
-            read_only=False,
-            creds=self.creds,
-            token=self.token,
-            memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
-            local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
+        job_manager = DeepMemoryListJobsManager(
+            self.client, self.path, self.token, self.creds
         )
-        loaded_dataset = DeepLakeCloudDataset(storage=storage)
-
-        response = self.client.list_jobs(
-            dataset_path=self.path,
-        )
-
-        response_status_schema = JobResponseStatusSchema(response=response)
-
-        jobs = self._get_jobs(response)
-        if jobs is None:
-            reposnse_str = "No Deep Memory training jobs were found for this dataset"
-            print(reposnse_str)
-            if debug:
-                return reposnse_str
-            return None
-
-        recalls = {}
-        deltas = {}
-
-        latest_job = jobs[-1]
-        for job in jobs:
-            try:
-                recall, delta = _get_best_model(
-                    loaded_dataset.embedding,
-                    job,
-                    latest_job=job == latest_job,
-                )
-                recall = "{:.2f}".format(100 * recall)
-                delta = "{:.2f}".format(100 * delta)
-            except:
-                recall = None
-                delta = None
-
-            recalls[f"{job}"] = recall
-            deltas[f"{job}"] = delta
-
-        reposnse_str = response_status_schema.print_jobs(
-            debug=debug, recalls=recalls, improvements=deltas
-        )
-        return reposnse_str
+        return job_manager.list_jobs(debug=debug)
 
     @access_control
     def evaluate(
@@ -457,102 +356,64 @@ class DeepMemory:
             token=self.token,
         )
 
-        try:
-            from indra import api  # type: ignore
-
-            INDRA_INSTALLED = True
-        except Exception:
-            INDRA_INSTALLED = False
-
-        if not INDRA_INSTALLED:
-            raise ImportError(
-                "indra is not installed. Please install indra to use this functionality with: pip install `deeplake[enterprise]`"
-            )
-
-        validate_relevance_and_queries(relevance=relevance, queries=queries)
-
-        from indra import api  # type: ignore
-
-        indra_dataset = api.dataset(self.path, token=self.token)
-        api.tql.prepare_deepmemory_metrics(indra_dataset)
-
-        parsed_qvs_params = parse_queries_params(qvs_params)
-
-        start = time()
-        query_embs: Union[List[np.ndarray], List[List[float]]]
-
-        if embedding is not None:
-            query_embs = embedding
-        else:
-            if self.embedding_function is not None:
-                embedding_function = (
-                    embedding_function or self.embedding_function.embed_documents
-                )
-
-            if embedding_function is None:
-                raise ValueError(
-                    "Embedding function should be specifed either during initialization or during evaluation."
-                )
-            query_embs = embedding_function(queries)
-
-        print(f"Embedding queries took {time() - start:.2f} seconds")
-
-        recalls: Dict[str, Dict] = {"with model": {}, "without model": {}}
-        queries_data = {
-            "text": queries,
-            "metadata": [
-                {"relevance": relevance_per_doc} for relevance_per_doc in relevance
-            ],
-            "embedding": query_embs,
-            "id": [uuid.uuid4().hex for _ in range(len(queries))],
-        }
-        for use_model, metric in [
-            (False, "COSINE_SIMILARITY"),
-            (True, "deepmemory_distance"),
-        ]:
-            eval_type = "with" if use_model else "without"
-            print(f"---- Evaluating {eval_type} Deep Memory ---- ")
-            avg_recalls, queries_dict = recall_at_k(
-                indra_dataset,
-                relevance,
-                top_k=top_k,
-                query_embs=query_embs,
-                metric=metric,
-                use_model=use_model,
-            )
-
-            queries_data.update(queries_dict)
-
-            for recall, recall_value in avg_recalls.items():
-                print(f"Recall@{recall}:\t {100*recall_value: .1f}%")
-                recalls[f"{eval_type} model"][f"recall@{recall}"] = recall_value
-
-        log_queries = parsed_qvs_params.get("log_queries")
-        branch = parsed_qvs_params.get("branch")
-
-        if log_queries == False:
-            return recalls
-
-        self.queries_dataset = deeplake.empty(
-            self.path + "_eval_queries",
+        evaluator = DeepMemoryEvaluater(
+            client=self.client,
+            path=self.path,
             token=self.token,
             creds=self.creds,
-            overwrite=True,
+            embedding_function=embedding_function or self.embedding_function,
+        )
+        return evaluator.evaluate_model(
+            relevance=relevance,
+            queries=queries,
+            top_k=top_k,
+            query_embs=embedding,
+            qvs_params=qvs_params,
         )
 
-        if len(self.queries_dataset) == 0:
-            self.queries_dataset.commit(allow_empty=True)
+    @access_control
+    def get_model(self):
+        """Get the name of the model currently being used by DeepMemory managed service."""
+        try:
+            return self.dataset.embedding.info["deepmemory"]["model.npy"]["job_id"]
+        except:
+            # if no model exist in the dataset
+            return None
 
-        create = branch not in self.queries_dataset.branches
-        self.queries_dataset.checkout(parsed_qvs_params["branch"], create=create)
+    @access_control
+    def set_model(self, model_name: str):
+        """Set model.npy to use `model_name` instead of default model
+        Args:
+            model_name (str): name of the model to use
+        """
 
-        for tensor_params in DEFAULT_QUERIES_VECTORSTORE_TENSORS:
-            if tensor_params["name"] not in self.queries_dataset.tensors:
-                self.queries_dataset.create_tensor(**tensor_params)
+        if "npy" not in model_name:
+            model_name += ".npy"
 
-        self.queries_dataset.extend(queries_data, progressbar=True)
-        self.queries_dataset.commit()
-        return recalls
+        # verify model_name
+        self._verify_model_name(model_name)
+
+        # set model.npy to use `model_name` instead of default model
+        self._set_model_npy(model_name)
+
+    def _verify_model_name(self, model_name: str):
+        if model_name not in self.dataset.embedding.info["deepmemory"]:
+            raise ValueError(
+                "Invalid model name. Please choose from the following models: "
+                + ", ".join(self.dataset.embedding.info["deepmemory"].keys())
+            )
+
+    def _set_model_npy(self, model_name: str):
+        # get new model.npy
+        new_model_npy = self.dataset.embedding.info["deepmemory"][model_name]
+
+        # get old deepmemory dictionary and update it:
+        old_deepmemory = self.dataset.embedding.info["deepmemory"]
+        new_deepmemory = old_deepmemory.copy()
+        new_deepmemory.update({"model.npy": new_model_npy})
+
+        # assign new deepmemory dictionary to the dataset:
+        self.dataset.embedding.info["deepmemory"] = new_deepmemory
 
     def _get_dm_client(self):
         path = self.path
@@ -573,68 +434,170 @@ class DeepMemory:
             return dm_client
         return None
 
-    def _get_jobs(self, response):
-        jobs = None
-        if response is not None and len(response) > 0:
-            jobs = [job["id"] for job in response]
-        return jobs
+    def _check_if_model_exists(self):
+        model = self.get_model()
+
+        if model is None:
+            # check whether training exists at all:
+            jobs = self.list_jobs(debug=True)
+            if jobs == "No Deep Memory training jobs were found for this dataset":
+                raise DeepMemoryEvaluationError(
+                    "No Deep Memory training jobs were found for this dataset. Please train a model before evaluating."
+                )
+            else:
+                raise DeepMemoryEvaluationError(
+                    "DeepMemory training hasn't finished yet, please wait until training is finished before evaluating."
+                )
 
 
-def recall_at_k(
-    indra_dataset: Any,
-    relevance: List[List[Tuple[str, int]]],
-    query_embs: Union[List[np.ndarray], List[List[float]]],
-    metric: str,
-    top_k: List[int] = [1, 3, 5, 10, 50, 100],
-    use_model: bool = False,
-):
-    recalls = defaultdict(list)
-    top_k_list = []
+class DeepMemoryEvaluater:
+    def __init__(self, client, path, token, creds, embedding_function=None):
+        self.client = client
+        self.path = path
+        self.token = token
+        self.creds = creds
+        self.embedding_function = embedding_function
 
-    for query_idx, _ in enumerate(query_embs):
-        query_emb = query_embs[query_idx]
-        # Get the indices of the relevant data for this query
-        query_relevance = relevance[query_idx]
-        correct_labels = [rel[0] for rel in query_relevance]
+    def check_indra_installation(self):
+        try:
+            from indra import api  # type: ignore
 
-        # Compute the cosine similarity between the query and all data points
-        view = get_view(
-            metric=metric,
-            query_emb=query_emb,
-            indra_dataset=indra_dataset,
+            return True
+        except ImportError:
+            raise ImportError(
+                "indra is not installed. Please install indra to use this functionality with: pip install `deeplake[enterprise]`"
+            )
+
+    def prepare_embeddings(self, queries, embedding):
+        if embedding is not None:
+            return embedding
+        if self.embedding_function is None:
+            raise ValueError("Embedding function must be specified.")
+        return self.embedding_function(queries)
+
+    def evaluate_model(self, relevance, queries, query_embs, top_k, qvs_params):
+        from indra import api  # type: ignore
+
+        validate_relevance_and_queries(relevance=relevance, queries=queries)
+        query_embs = self.prepare_embeddings(queries, query_embs)
+
+        indra_dataset = api.dataset(self.path, token=self.token)
+        api.tql.prepare_deepmemory_metrics(indra_dataset)
+
+        recalls = {"with model": {}, "without model": {}}
+        for use_model in [False, True]:
+            recalls.update(
+                self._evaluate_with_metric(
+                    indra_dataset, relevance, queries, query_embs, top_k, use_model
+                )
+            )
+
+        self._log_queries_if_needed(queries, query_embs, relevance, qvs_params)
+        return recalls
+
+    def _evaluate_with_metric(
+        self, indra_dataset, relevance, queries, query_embs, top_k, use_model
+    ):
+        metric = "deepmemory_distance" if use_model else "COSINE_SIMILARITY"
+        eval_type = "with" if use_model else "without"
+        avg_recalls, _ = self._recall_at_k(
+            indra_dataset, relevance, query_embs, metric, top_k, use_model
         )
 
-        for k in top_k:
-            collect_data = k == 10
-            view_top_k = view[:k]
+        return {
+            f"{eval_type} model": {f"recall@{k}": v for k, v in avg_recalls.items()}
+        }
 
-            top_k_retrieved = [
-                sample.id.numpy() for sample in view_top_k
-            ]  # TODO: optimize this
+    def _log_queries_if_needed(self, queries, query_embs, relevance, qvs_params):
+        log_queries = qvs_params.get("log_queries", False)
+        branch = qvs_params.get("branch", "main")
 
-            # Compute the recall: the fraction of relevant items found in the top k
-            num_relevant_in_top_k = len(
-                set(correct_labels).intersection(set(top_k_retrieved))
+        if not log_queries:
+            return
+
+        eval_queries_dataset = deeplake.empty(
+            self.path + "_eval_queries",
+            token=self.token,
+            creds=self.creds,
+            overwrite=True,
+        )
+
+        if len(eval_queries_dataset) == 0:
+            eval_queries_dataset.commit(allow_empty=True)
+
+        create_branch = branch not in eval_queries_dataset.branches
+        eval_queries_dataset.checkout(branch, create=create_branch)
+
+        for tensor_params in DEFAULT_QUERIES_VECTORSTORE_TENSORS:
+            if tensor_params["name"] not in eval_queries_dataset.tensors:
+                eval_queries_dataset.create_tensor(**tensor_params)
+
+        queries_data = {
+            "text": queries,
+            "metadata": [{"relevance": r} for r in relevance],
+            "embedding": query_embs,
+            "id": [uuid.uuid4().hex for _ in range(len(queries))],
+        }
+
+        eval_queries_dataset.extend(queries_data, progressbar=True)
+        eval_queries_dataset.commit()
+
+    @staticmethod
+    def _recall_at_k(
+        indra_dataset: Any,
+        relevance: List[List[Tuple[str, int]]],
+        query_embs: Union[List[np.ndarray], List[List[float]]],
+        metric: str,
+        top_k: List[int] = [1, 3, 5, 10, 50, 100],
+        use_model: bool = False,
+    ):
+        recalls = defaultdict(list)
+        top_k_list = []
+
+        for query_idx, _ in enumerate(query_embs):
+            query_emb = query_embs[query_idx]
+            # Get the indices of the relevant data for this query
+            query_relevance = relevance[query_idx]
+            correct_labels = [rel[0] for rel in query_relevance]
+
+            # Compute the cosine similarity between the query and all data points
+            view = get_view(
+                metric=metric,
+                query_emb=query_emb,
+                indra_dataset=indra_dataset,
             )
-            if len(correct_labels) == 0:
-                continue
-            recall = num_relevant_in_top_k / len(correct_labels)
 
-            if collect_data:
-                top_k_list.append(top_k_retrieved)
-            recalls[k].append(recall)
+            for k in top_k:
+                collect_data = k == 10
+                view_top_k = view[:k]
 
-    # Average the recalls for each query
-    avg_recalls = {
-        f"{recall}": np.mean(np.array(recall_list))
-        for recall, recall_list in recalls.items()
-    }
-    model_type = "deep_memory" if use_model else "vector_search"
-    queries_data = {
-        f"{model_type}_top_10": top_k_list,
-        f"{model_type}_recall": recalls[10],
-    }
-    return avg_recalls, queries_data
+                top_k_retrieved = [
+                    sample.id.numpy() for sample in view_top_k
+                ]  # TODO: optimize this
+
+                # Compute the recall: the fraction of relevant items found in the top k
+                num_relevant_in_top_k = len(
+                    set(correct_labels).intersection(set(top_k_retrieved))
+                )
+                if len(correct_labels) == 0:
+                    continue
+                recall = num_relevant_in_top_k / len(correct_labels)
+
+                if collect_data:
+                    top_k_list.append(top_k_retrieved)
+                recalls[k].append(recall)
+
+        # Average the recalls for each query
+        avg_recalls = {
+            f"{recall}": np.mean(np.array(recall_list))
+            for recall, recall_list in recalls.items()
+        }
+        model_type = "deep_memory" if use_model else "vector_search"
+        queries_data = {
+            f"{model_type}_top_10": top_k_list,
+            f"{model_type}_recall": recalls[10],
+        }
+        return avg_recalls, queries_data
 
 
 def get_view(
@@ -694,3 +657,199 @@ def _get_best_model(embedding: Any, job_id: str, latest_job: bool = False):
                 best_recall = recall
                 best_delta = value["delta"]
     return best_recall, best_delta
+
+
+class DeepMemoryStatusReporter:
+    def __init__(self, client, path, token, creds):
+        self.client = client
+        self.path = path
+        self.token = token
+        self.creds = creds
+
+    def _get_storage(self):
+        _, storage = get_storage_and_cache_chain(
+            path=self.path,
+            db_engine={"tensor_db": True},
+            read_only=False,
+            creds=self.creds,
+            token=self.token,
+            memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
+            local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
+        )
+        return storage
+
+    def _get_model_performance(self, storage, job_id):
+        loaded_dataset = DeepLakeCloudDataset(storage=storage)
+        try:
+            recall, improvement = _get_best_model(
+                loaded_dataset.embedding, job_id, latest_job=True
+            )
+            return "{:.2f}".format(100 * recall), "{:.2f}".format(100 * improvement)
+        except Exception as e:
+            # Log or handle the specific exception here
+            return None, None
+
+    def _check_status(self, job_id, recall, improvement):
+        return self.client.check_status(
+            job_id=job_id, recall=recall, improvement=improvement
+        )
+
+    def status(self, job_id, return_status):
+        storage = self._get_storage()
+
+        recall, improvement = self._get_model_performance(storage, job_id)
+        response = self._check_status(job_id, recall, improvement)
+
+        return response["status"] if return_status else response
+
+
+class DeepMemoryTrainer:
+    def __init__(
+        self,
+        client,
+        logger,
+        path,
+        token,
+        creds,
+        queries,
+        relevance,
+        embedding_function=None,
+    ):
+        self.client = client
+        self.logger = logger
+        self.path = path
+        self.token = token
+        self.creds = creds
+        self.embedding_function = embedding_function
+        self.queries = queries
+        self.relevance = relevance
+
+    @staticmethod
+    def _validate_inputs(queries, relevance):
+        validate_relevance_and_queries(relevance=relevance, queries=queries)
+
+    def _prepare_paths(self):
+        corpus_path = self.path
+        queries_path = corpus_path + "_queries"
+        return corpus_path, queries_path
+
+    def _resolve_embedding_function(self, embedding_function):
+        if embedding_function is None and self.embedding_function is None:
+            raise ValueError("Embedding function must be specified.")
+        return embedding_function or self.embedding_function.embed_documents
+
+    @property
+    def runtime(self):
+        return {"tensor_db": True} if get_path_type(self.path) == "hub" else None
+
+    def _configure_vector_store(self, queries_path, token):
+        from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
+
+        return VectorStore(
+            path=queries_path,
+            overwrite=True,
+            runtime=self.runtime,
+            token=token or self.token,
+            creds=self.creds,
+            verbose=False,
+        )
+
+    def start_training(self):
+        self._validate_inputs(self.queries, self.relevance)
+
+        self.logger.info("Starting DeepMemory training job")
+        corpus_path, queries_path = self._prepare_paths()
+        embedding_function = self._resolve_embedding_function(embedding_function)
+
+        queries_vs = self._configure_vector_store(queries_path, self.token)
+
+        self.logger.info("Preparing training data for DeepMemory:")
+        queries_vs.add(
+            text=self.queries,
+            metadata=[{"relevance": r} for r in self.relevance],
+            embedding_data=self.queries,
+            embedding_function=embedding_function,
+        )
+
+        response = self.client.start_training(
+            corpus_path=corpus_path,
+            queries_path=queries_path,
+        )
+
+        self.logger.info(
+            f"DeepMemory training job started. Job ID: {response['job_id']}"
+        )
+        return response
+
+
+class DeepMemoryListJobsManager:
+    def __init__(self, client, path, token, creds):
+        self.client = client
+        self.path = path
+        self.token = token
+        self.creds = creds
+
+    def _load_dataset(self):
+        _, storage = get_storage_and_cache_chain(
+            path=self.path,
+            db_engine={"tensor_db": True},
+            read_only=False,
+            creds=self.creds,
+            token=self.token,
+            memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
+            local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
+        )
+
+        loaded_dataset = DeepLakeCloudDataset(storage=storage)
+        return loaded_dataset
+
+    def _get_status_schema(self):
+        response = self.client.list_jobs(dataset_path=self.path)
+        return response, JobResponseStatusSchema(response=response)
+
+    def _get_job_performance(self, loaded_dataset, job, latest_job):
+        try:
+            recall, delta = _get_best_model(
+                loaded_dataset.embedding,
+                job,
+                latest_job=latest_job,
+            )
+            return "{:.2f}".format(100 * recall), "{:.2f}".format(100 * delta)
+        except Exception as e:
+            return None, None
+
+    def _process_jobs(self, loaded_dataset, jobs):
+        recalls = {}
+        deltas = {}
+        latest_job = jobs[-1]
+        for job in jobs:
+            recall, delta = self._get_job_performance(
+                loaded_dataset, job, job == latest_job
+            )
+            recalls[f"{job}"] = recall
+            deltas[f"{job}"] = delta
+        return recalls, deltas
+
+    @staticmethod
+    def _get_jobs(response):
+        jobs = None
+        if response is not None and len(response) > 0:
+            jobs = [job["id"] for job in response]
+        return jobs
+
+    def list_jobs(self, debug):
+        loaded_dataset = self._load_dataset()
+
+        response, response_status_schema = self._get_status_schema()
+
+        jobs = self._get_jobs(response)
+
+        if not jobs:
+            response_str = "No Deep Memory training jobs were found for this dataset"
+            print(response_str)
+            return response_str if debug else None
+
+        recalls, deltas = self._process_jobs(loaded_dataset, jobs)
+        return response_status_schema.print_jobs(
+            debug=debug, recalls=recalls, improvements=deltas
+        )

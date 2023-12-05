@@ -31,6 +31,7 @@ def search(
     deep_memory: bool = False,
     token: Optional[str] = None,
     org_id: Optional[str] = None,
+    return_tql: bool = False,
 ) -> Union[Dict, DeepLakeDataset]:
     """Searching function
     Args:
@@ -53,6 +54,7 @@ def search(
         deep_memory (bool): Use DeepMemory for the search. Defaults to False.
         token (Optional[str], optional): Token used for authentication. Defaults to None.
         org_id (Optional[str], optional): Organization ID, is needed only for local datasets. Defaults to None.
+        return_tql (bool): Return TQL query used for the search. Defaults to False.
     """
     return EXEC_OPTION_TO_SEARCH_TYPE[exec_option](
         query=query,
@@ -69,4 +71,5 @@ def search(
         deep_memory=deep_memory,
         token=token,
         org_id=org_id,
+        return_tql=return_tql,
     )
