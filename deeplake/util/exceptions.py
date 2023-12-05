@@ -1138,3 +1138,8 @@ class IncorrectQueriesTypeError(Exception):
             "Please make sure, that queries is of type List[str]"
         )
         super().__init__(msg)
+
+
+class DeepMemoryEvaluationError(Exception):
+    def __init__(self, msg):
+        super().__init__(msg)
