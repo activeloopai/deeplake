@@ -4,11 +4,8 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 
-import deeplake
-from deeplake.client.utils import read_token
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DISTANCE_METRIC,
-    _INDEX_OPERATION_MAPPING,
 )
 from deeplake.core import index_maintenance
 from deeplake.core.dataset import Dataset
@@ -16,12 +13,10 @@ from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.dataset_handlers.dataset_handler_base import DHBase
 from deeplake.core.vectorstore.deep_memory.deep_memory import (
     use_deep_memory,
-    DeepMemory,
 )
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.util.bugout_reporter import feature_report_path
-from deeplake.util.exceptions import DeepMemoryWaitingListError
 
 
 class ClientSideDH(DHBase):
@@ -86,14 +81,6 @@ class ClientSideDH(DHBase):
         self.verbose = verbose
         self.tensor_params = tensor_params
         self.distance_metric_index = index_maintenance.index_operation_vectorstore(self)
-        self.deep_memory = DeepMemory(
-            dataset=self.dataset,
-            path=path,
-            token=self.token,
-            logger=self.logger,
-            embedding_function=self.embedding_function,
-            creds=self.creds,
-        )
 
     def add(
         self,
@@ -181,7 +168,6 @@ class ClientSideDH(DHBase):
         return_tensors: List[str],
         return_view: bool,
         deep_memory: bool,
-        return_tql: bool,
     ) -> Union[Dict, Dataset]:
         feature_report_path(
             path=self.bugout_reporting_path,
@@ -198,7 +184,6 @@ class ClientSideDH(DHBase):
                 "embedding": True if embedding is not None else False,
                 "return_tensors": return_tensors,
                 "return_view": return_view,
-                "return_tql": return_tql,
             },
             token=self.token,
             username=self.username,
@@ -212,9 +197,6 @@ class ClientSideDH(DHBase):
             exec_option = "python"
 
         exec_option = exec_option or self.exec_option
-
-        if deep_memory and not self.deep_memory:
-            raise DeepMemoryWaitingListError()
 
         utils.parse_search_args(
             embedding_data=embedding_data,
@@ -264,7 +246,6 @@ class ClientSideDH(DHBase):
             deep_memory=deep_memory,
             token=self.token,
             org_id=self.org_id,
-            return_tql=return_tql,
         )
 
     def delete(

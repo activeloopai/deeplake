@@ -718,30 +718,37 @@ def dataframe_ingestion_data():
 def vector_store_hash_ids(request):
     if getattr(request, "param", True):
         return [f"{i}" for i in range(5)]
+    if getattr(request, "param", True):
+        return [f"{i}" for i in range(5)]
 
 
 @pytest.fixture
 def vector_store_row_ids(request):
     if getattr(request, "param", True):
         return [i for i in range(5)]
+    if getattr(request, "param", True):
+        return [i for i in range(5)]
 
 
 @pytest.fixture
 def vector_store_filter_udf(request):
+    def filter_udf(x):
+        return x["metadata"].data()["value"] == {"a": 1}
+
     if getattr(request, "param", True):
-        return "filter_udf"
+        return filter_udf
 
 
 @pytest.fixture
 def vector_store_filters(request):
     if getattr(request, "param", True):
-        return {"a": 1}
+        return {"metadata": {"a": 1}}
 
 
 @pytest.fixture
 def vector_store_query(request):
     if getattr(request, "param", True):
-        return "select * where metadata=={'a': 1}"
+        return "select * where metadata['a']==1"
 
 
 @pytest.fixture

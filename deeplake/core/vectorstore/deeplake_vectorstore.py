@@ -8,12 +8,16 @@ import deeplake
 from deeplake.core.dataset import Dataset
 from deeplake.core.vectorstore.dataset_handlers import get_dataset_handler
 from deeplake.core.vectorstore.deep_memory import DeepMemory
+from deeplake.core.vectorstore.dataset_handlers import get_dataset_handler
+from deeplake.core.vectorstore.deep_memory import DeepMemory
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     MAX_BYTES_PER_MINUTE,
     TARGET_BYTE_SIZE,
 )
 from deeplake.util.bugout_reporter import feature_report_path
+from deeplake.util.exceptions import DeepMemoryWaitingListError
+
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +132,14 @@ class VectorStore:
             **kwargs,
         )
 
-        self.deep_memory = self.dataset_handler.deep_memory
+        self.deep_memory = DeepMemory(
+            dataset=self.dataset_handler.dataset,
+            path=self.dataset_handler.path,
+            token=self.dataset_handler.token,
+            logger=logger,
+            embedding_function=embedding_function,
+            creds=self.dataset_handler.creds,
+        )
 
     def add(
         self,
@@ -296,6 +307,9 @@ class VectorStore:
         Returns:
             Dict: Dictionary where keys are tensor names and values are the results of the search
         """
+        if deep_memory and not self.deep_memory:
+            raise DeepMemoryWaitingListError()
+
         return self.dataset_handler.search(
             embedding_data=embedding_data,
             embedding_function=embedding_function,

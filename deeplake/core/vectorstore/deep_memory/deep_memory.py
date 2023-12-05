@@ -11,6 +11,7 @@ import numpy as np
 import deeplake
 from deeplake.util.exceptions import (
     DeepMemoryWaitingListError,
+    DeepMemoryWaitingListError,
     IncorrectRelevanceTypeError,
     IncorrectQueriesTypeError,
 )
@@ -19,6 +20,7 @@ from deeplake.constants import (
     DEFAULT_QUERIES_VECTORSTORE_TENSORS,
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
+    DEFAULT_DEEPMEMORY_DISTANCE_METRIC,
     DEFAULT_DEEPMEMORY_DISTANCE_METRIC,
 )
 from deeplake.util.storage import get_storage_and_cache_chain
@@ -32,6 +34,15 @@ from deeplake.util.bugout_reporter import (
 from deeplake.util.path import get_path_type
 
 
+def access_control(func):
+    def wrapper(self, *args, **kwargs):
+        if self.client is None:
+            raise DeepMemoryWaitingListError()
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
 def use_deep_memory(func):
     def wrapper(self, *args, **kwargs):
         use_deep_memory = kwargs.get("deep_memory")
@@ -40,15 +51,6 @@ def use_deep_memory(func):
         if use_deep_memory and distance_metric is None:
             kwargs["distance_metric"] = DEFAULT_DEEPMEMORY_DISTANCE_METRIC
 
-        return func(self, *args, **kwargs)
-
-    return wrapper
-
-
-def access_control(func):
-    def wrapper(self, *args, **kwargs):
-        if self.client is None:
-            raise DeepMemoryWaitingListError()
         return func(self, *args, **kwargs)
 
     return wrapper
@@ -88,6 +90,7 @@ class DeepMemory:
 
         Args:
             dataset (Dataset): deeplake dataset object or path.
+            path (Union[str, pathlib.Path]): Path to the dataset.
             logger (logging.Logger): Logger object.
             embedding_function (Optional[Any], optional): Embedding funtion class used to convert queries/documents to embeddings. Defaults to None.
             token (Optional[str], optional): API token for the DeepMemory managed service. Defaults to None.
@@ -150,6 +153,8 @@ class DeepMemory:
         """
         from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 
+        from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
+
         self.logger.info("Starting DeepMemory training job")
         feature_report_path(
             path=self.path,
@@ -164,6 +169,7 @@ class DeepMemory:
         validate_relevance_and_queries(relevance=relevance, queries=queries)
 
         # TODO: Support for passing query_embeddings directly without embedding function
+        corpus_path = self.path
         corpus_path = self.path
         queries_path = corpus_path + "_queries"
 
@@ -320,9 +326,11 @@ class DeepMemory:
         )
         _, storage = get_storage_and_cache_chain(
             path=self.path,
+            path=self.path,
             db_engine={"tensor_db": True},
             read_only=False,
             creds=self.creds,
+            token=self.token,
             token=self.token,
             memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
             local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
@@ -330,6 +338,7 @@ class DeepMemory:
         loaded_dataset = DeepLakeCloudDataset(storage=storage)
 
         response = self.client.list_jobs(
+            dataset_path=self.path,
             dataset_path=self.path,
         )
 
