@@ -11,6 +11,7 @@ from deeplake.client.config import (
     DELETE_VECTORSTORE_SUFFIX,
     VECTORSTORE_ADD_SUFFIX,
     VECTORSTORE_REMOVE_ROWS_SUFFIX,
+    VECTORSTORE_UPDATE_ROWS_SUFFIX,
     VECTORSTORE_SEARCH_SUFFIX,
 )
 
@@ -19,7 +20,7 @@ from deeplake.client.managed.models import (
     VectorStoreInitResponse,
     VectorStoreSearchResponse,
     VectorStoreAddResponse,
-    VectorStoreDeleteResponse,
+    VectorStoreDeleteResponse, VectorStoreUpdateResponse,
 )
 
 
@@ -180,11 +181,28 @@ class ManagedServiceClient(DeepLakeBackendClient):
         ids: List[str],
         filter: Union[Dict, Callable],
         query: str,
-        embedding_function: Union[Callable, List[Callable]],
-        embedding_source_tensor: Union[str, List[str]],
-        embedding_tensor: Union[str, List[str]],
+        embedding_function: Union[Callable, List[Callable]] = None,
+        embedding_source_tensor: Union[str, List[str]] = None,
+        embedding_tensor: Union[str, List[str]] = None,
+        embedding_dict: Optional[Dict[str, Union[List[float], List[float]]]] = None,
     ):
-        """
-        TODO: implement
-        """
-        pass
+        response = self.request(
+            method="POST",
+            relative_url=VECTORSTORE_UPDATE_ROWS_SUFFIX,
+            json={
+                "dataset": path,
+                "row_ids": row_ids,
+                "ids": ids,
+                "filter": filter,
+                "query": query,
+                "embedding_dict": embedding_dict,
+            },
+        )
+        check_response_status(response)
+        data = response.json().get("result", {})
+        error = data.get("error", None)
+
+        if error is not None:
+            raise ValueError(error)
+
+        return VectorStoreUpdateResponse(status_code=response.status_code, error=error)

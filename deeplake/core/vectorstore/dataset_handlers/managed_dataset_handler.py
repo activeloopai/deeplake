@@ -285,7 +285,7 @@ class ManagedDH(DHBase):
                 "Only Filter Dictionary is supported for the ManagedVectorStore."
             )
 
-        if embedding_function is not None or embedding_source_tensor is not None:
+        if embedding_function is not None:
             raise NotImplementedError(
                 "ManagedVectorStore does not support embedding_function for now."
             )
