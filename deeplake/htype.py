@@ -19,6 +19,7 @@ class htype:
     IMAGE_RGB = "image.rgb"
     IMAGE_GRAY = "image.gray"
     CLASS_LABEL = "class_label"
+    TAG = "tag"
     BBOX = "bbox"
     BBOX_3D = "bbox.3d"
     VIDEO = "video"
@@ -95,6 +96,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     },
     htype.LIST: {"dtype": "List"},
     htype.TEXT: {"dtype": "str"},
+    htype.TAG: {"dtype": "List"},
     htype.DICOM: {"sample_compression": "dcm"},
     htype.NIFTI: {},
     htype.POINT_CLOUD: {"dtype": "float32"},
@@ -134,6 +136,11 @@ class constraints:
             raise IncompatibleHtypeError(
                 constraints.ndim_error("class_label", len(shape))
             )
+
+    @staticmethod
+    def TAG(shape, dtype):
+        if dtype.name != "str":
+            raise IncompatibleHtypeError(constraints.dtype_error("tag", dtype))
 
     @staticmethod
     def BBOX(shape, dtype):
@@ -185,6 +192,7 @@ class constraints:
 HTYPE_CONSTRAINTS: Dict[str, Callable] = {
     htype.IMAGE: constraints.IMAGE,
     htype.CLASS_LABEL: constraints.CLASS_LABEL,
+    htype.TAG: constraints.TAG,
     htype.BBOX: constraints.BBOX,
     htype.BBOX_3D: constraints.BBOX_3D,
     htype.EMBEDDING: constraints.EMBEDDING,
@@ -211,6 +219,7 @@ HTYPE_SUPPORTED_COMPRESSIONS = {
     htype.IMAGE_GRAY: _image_compressions,
     htype.VIDEO: VIDEO_COMPRESSIONS[:],
     htype.AUDIO: AUDIO_COMPRESSIONS[:],
+    htype.TAG: BYTE_COMPRESSIONS[:],
     htype.TEXT: BYTE_COMPRESSIONS[:],
     htype.LIST: BYTE_COMPRESSIONS[:],
     htype.JSON: BYTE_COMPRESSIONS[:],

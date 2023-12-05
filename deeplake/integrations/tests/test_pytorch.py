@@ -495,6 +495,33 @@ def test_string_tensors(local_ds):
         np.testing.assert_array_equal(batch["strings"], f"string{idx}")
 
 
+@requires_torch
+@pytest.mark.flaky
+def test_tag_tensors(local_ds):
+    with local_ds:
+        local_ds.create_tensor("tags", htype="tag")
+        local_ds.tags.extend(
+            [
+                f"tag{idx}" if idx % 2 == 0 else [f"tag{idx}", f"tag{idx}"]
+                for idx in range(5)
+            ]
+        )
+
+    ptds = local_ds.pytorch(batch_size=1)
+    for idx, batch in enumerate(ptds):
+        if idx % 2 == 0:
+            np.testing.assert_array_equal(batch["tags"], [[f"tag{idx}"]])
+        else:
+            np.testing.assert_array_equal(batch["tags"], [[f"tag{idx}", f"tag{idx}"]])
+
+    ptds2 = local_ds.pytorch(batch_size=None)
+    for idx, batch in enumerate(ptds2):
+        if idx % 2 == 0:
+            np.testing.assert_array_equal(batch["tags"], [f"tag{idx}"])
+        else:
+            np.testing.assert_array_equal(batch["tags"], [f"tag{idx}", f"tag{idx}"])
+
+
 @pytest.mark.slow
 @requires_torch
 @pytest.mark.flaky

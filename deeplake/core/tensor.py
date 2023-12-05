@@ -579,7 +579,7 @@ class Tensor:
     @property
     def dtype(self) -> Optional[np.dtype]:
         """Dtype of the tensor."""
-        if self.base_htype in ("json", "list"):
+        if self.base_htype in ("json", "list", "tag"):
             return np.dtype(str)
         if self.meta.dtype:
             return np.dtype(self.meta.typestr or self.meta.dtype)
@@ -986,7 +986,7 @@ class Tensor:
             return {"value": self.text(fetch_chunks=fetch_chunks)}
         if htype == "json":
             return {"value": self.dict(fetch_chunks=fetch_chunks)}
-        if htype == "list":
+        if htype in ("list", "tag"):
             return {"value": self.list(fetch_chunks=fetch_chunks)}
         if self.htype == "video":
             data = {}
@@ -1458,9 +1458,9 @@ class Tensor:
         return self._extract_value("json", fetch_chunks=fetch_chunks)
 
     def list(self, fetch_chunks: bool = False):
-        """Return list data. Only applicable for tensors with 'list' base htype."""
-        if self.base_htype != "list":
-            raise Exception("Only supported for list tensors.")
+        """Return list data. Only applicable for tensors with 'list' or 'tag' base htype."""
+        if self.base_htype not in ("list", "tag"):
+            raise Exception("Only supported for list and tag tensors.")
 
         if self.ndim == 1:
             return list(self.numpy(fetch_chunks=fetch_chunks))
