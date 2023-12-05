@@ -97,7 +97,6 @@ class DeepMemory:
 
         Raises:
             ImportError: if indra is not installed
-            ValueError: if incorrect type is specified for `dataset_or_path`
         """
         self.dataset = dataset
         self.path = convert_pathlib_to_string_if_needed(path)

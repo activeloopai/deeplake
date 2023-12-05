@@ -584,9 +584,7 @@ def test_deepmemory_search_on_local_datasets(
 @pytest.mark.slow
 @requires_libdeeplake
 def test_unsupported_deepmemory_users(local_ds):
-    dm = DeepMemory(
-        dataset_or_path=local_ds, logger=logger, embedding_function=DummyEmbedder
-    )
+    dm = DeepMemory(path=local_ds, logger=logger, embedding_function=DummyEmbedder)
     with pytest.raises(DeepMemoryWaitingListError):
         dm.train(
             queries=[],
