@@ -80,7 +80,7 @@ class SearchBasic(ABC):
         tql_string: str,
         distance_metric: str,
         k: int,
-        query_embedding: Union[np.ndarray, List[float]],
+        query_embedding: np.ndarray,
         embedding_tensor: str,
         tql_filter: str,
         return_tensors: List[str],
