@@ -189,7 +189,6 @@ def search(
         runtime (dict): Runtime parameters for the query.
         return_tensors (List[str]): List of tensors to return data for.
         return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictinary with data. Defaults to False.
-        deep_memory (bool): Use DeepMemory for the search. Defaults to False.
         token (Optional[str], optional): Token used for authentication. Defaults to None.
         org_id (Optional[str], optional): Organization ID, is needed only for local datasets. Defaults to None.
         return_tql (bool): Return TQL query used for the search. Defaults to False.
