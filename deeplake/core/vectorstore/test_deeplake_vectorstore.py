@@ -2961,3 +2961,13 @@ def test_db_search_should_instantiate_SearchIndra_class(
 
     # Assert that SearchIndra was instantiated
     mock_search_indra.assert_called()
+
+
+def returning_tql_for_exec_option_python_should_throw_exception(local_path):
+    db = VectorStore(
+        path=local_path,
+    )
+    db.add(text=texts, embedding=embeddings, id=ids, metadata=metadatas)
+
+    with pytest.raises(ValueError):
+        db.search(embedding=query_embedding, return_tql=True)

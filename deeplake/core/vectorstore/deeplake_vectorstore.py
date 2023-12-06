@@ -323,6 +323,7 @@ class VectorStore:
             return_tensors=return_tensors,
             return_view=return_view,
             return_tql=return_tql,
+            deep_memory=deep_memory,
         )
 
     def delete(
