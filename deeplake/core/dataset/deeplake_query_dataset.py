@@ -324,7 +324,7 @@ class DeepLakeQueryDataset(Dataset):
     ) -> List[str]:
         if self.deeplake_ds is not None:
             return self.deeplake_ds._all_tensors_filtered(
-                inlude_hidden, include_disabled
+                include_hidden, include_disabled
             )
 
         indra_tensors = self.indra_ds.tensors
