@@ -3099,3 +3099,15 @@ class ChunkEngine:
         nbytes = nbytes * np.dtype(dtype).itemsize
         avg_chunk_size = nbytes / num_chunks
         return avg_chunk_size
+
+    def __getstate__(self):
+        state = self.__dict__
+
+        # remove cached chunks
+        state["_active_appended_chunk"] = None
+        state["_active_updated_chunk"] = None
+
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
