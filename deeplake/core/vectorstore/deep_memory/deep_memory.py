@@ -480,10 +480,8 @@ class DeepMemory:
         if embedding is not None:
             query_embs = embedding
         else:
-            if self.embedding_function is not None:
-                embedding_function = (
-                    embedding_function or self.embedding_function.embed_documents
-                )
+            if self.embedding_function is not None and embedding_function is None:
+                embedding_function = self.embedding_function
 
             if embedding_function is None:
                 raise ValueError(
