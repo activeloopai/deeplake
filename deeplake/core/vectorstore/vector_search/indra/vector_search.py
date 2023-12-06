@@ -56,7 +56,6 @@ def vector_search(
         runtime=runtime,
         return_tensors=return_tensors,
         return_view=return_view,
-        deep_memory=deep_memory,
         token=token,
         org_id=org_id,
         return_tql=return_tql,

@@ -322,7 +322,6 @@ class VectorStore:
             embedding_tensor=embedding_tensor,
             return_tensors=return_tensors,
             return_view=return_view,
-            deep_memory=deep_memory,
             return_tql=return_tql,
         )
 

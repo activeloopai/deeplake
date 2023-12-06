@@ -172,7 +172,6 @@ def search(
     runtime: dict,
     return_tensors: List[str],
     return_view: bool = False,
-    deep_memory: bool = False,
     token: Optional[str] = None,
     org_id: Optional[str] = None,
     return_tql: bool = False,
