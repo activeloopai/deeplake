@@ -798,7 +798,7 @@ def precomputed_jobs_list():
 def local_dmv2_dataset(request, hub_cloud_dev_token):
     dmv2_path = f"hub://{HUB_CLOUD_DEV_USERNAME}/dmv2"
 
-    local_cache_path = ".deeplake_tests_cache/"
+    local_cache_path = ".deepmemory_tests_cache/"
     if not os.path.exists(local_cache_path):
         os.mkdir(local_cache_path)
 
@@ -822,3 +822,45 @@ def local_dmv2_dataset(request, hub_cloud_dev_token):
     yield corpus
 
     delete_if_exists(corpus, hub_cloud_dev_token)
+
+
+@pytest.fixture
+def deepmemory_small_dataset_copy(request, hub_cloud_dev_token):
+    dm_path = f"hub://{HUB_CLOUD_DEV_USERNAME}/tiny_dm_dataset"
+    queries_path = f"hub://{HUB_CLOUD_DEV_USERNAME}/queries_vs"
+
+    local_cache_path = ".deepmemory_tests_cache/"
+    if not os.path.exists(local_cache_path):
+        os.mkdir(local_cache_path)
+
+    dataset_cache_path = local_cache_path + "tiny_dm_queries"
+    if not os.path.exists(dataset_cache_path):
+        deeplake.deepcopy(
+            queries_path,
+            dataset_cache_path,
+            token=hub_cloud_dev_token,
+            overwrite=True,
+        )
+
+    corpus = _get_storage_path(request, HUB_CLOUD)
+    query_vs = VectorStore(
+        path=dataset_cache_path,
+    )
+    queries = query_vs.dataset.text.data()["value"]
+    relevance = query_vs.dataset.metadata.data()["value"]
+    relevance = [rel["relevance"] for rel in relevance]
+
+    deeplake.deepcopy(
+        dm_path,
+        corpus,
+        token=hub_cloud_dev_token,
+        overwrite=True,
+        runtime={"tensor_db": True},
+    )
+
+    queries_path = corpus + "_eval_queries"
+
+    yield corpus, queries, relevance, queries_path
+
+    delete_if_exists(corpus, hub_cloud_dev_token)
+    delete_if_exists(queries_path, hub_cloud_dev_token)

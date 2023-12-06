@@ -41,9 +41,9 @@ def test_deepmemory_init(hub_cloud_path, hub_cloud_dev_token):
     assert db.deep_memory is not None
 
 
-def embedding_fn(texts):
+def embedding_fn(texts, embedding_dim=1536):
     return [
-        np.random.uniform(low=-10, high=10, size=(1536)).astype(np.float32)
+        np.random.uniform(low=-10, high=10, size=(embedding_dim)).astype(np.float32)
         for _ in range(len(texts))
     ]
 
@@ -727,3 +727,25 @@ def test_deeplake_search_should_not_contain_correct_answer(
     output = db.search(embedding=query_embedding)
     assert len(output["id"]) == 4
     assert relevance not in output["id"]
+
+
+@pytest.mark.slow
+@pytest.mark.flaky(reruns=3)
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
+def test_deepmemory_train_with_embedding_function_specified_in_constructor_should_not_throw_any_exception(
+    deepmemory_small_dataset_copy,
+    hub_cloud_dev_token,
+):
+    corpus, queries, relevances, _ = deepmemory_small_dataset_copy
+
+    db = VectorStore(
+        path=corpus,
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+        embedding_function=embedding_fn,
+    )
+
+    job_id = db.deep_memory.train(
+        queries=queries,
+        relevance=relevances,
+    )

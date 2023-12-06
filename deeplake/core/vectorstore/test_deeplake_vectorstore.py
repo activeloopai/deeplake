@@ -2969,5 +2969,28 @@ def returning_tql_for_exec_option_python_should_throw_exception(local_path):
     )
     db.add(text=texts, embedding=embeddings, id=ids, metadata=metadatas)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(NotImplementedError):
         db.search(embedding=query_embedding, return_tql=True)
+
+
+def test_returning_tql_for_exec_option_compute_engine_should_return_correct_tql(
+    local_path,
+):
+    db = VectorStore(
+        path=local_path,
+    )
+
+    texts, embeddings, ids, metadatas, _ = utils.create_data(
+        number_of_data=10, embedding_dim=3
+    )
+
+    db.add(text=texts, embedding=embeddings, id=ids, metadata=metadatas)
+
+    query_embedding = np.zeros(3, dtype=np.float32)
+    output = db.search(embedding=query_embedding, return_tql=True)
+
+    assert output["tql"] == (
+        "select text, metadata, id, score from "
+        "(select *, COSINE_SIMILARITY(embedding, ARRAY[0.0, 0.0, 0.0]) as score "
+        "order by COSINE_SIMILARITY(embedding, ARRAY[0.0, 0.0, 0.0]) DESC limit 4)"
+    )

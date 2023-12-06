@@ -211,7 +211,6 @@ class ClientSideDH(DHBase):
             exec_option=exec_option,
             embedding_tensor=embedding_tensor,
             return_tensors=return_tensors,
-            return_tql=return_tql,
         )
 
         return_tensors = utils.parse_return_tensors(
@@ -245,6 +244,7 @@ class ClientSideDH(DHBase):
             embedding_tensor=embedding_tensor,
             return_tensors=return_tensors,
             return_view=return_view,
+            return_tql=return_tql,
             token=self.token,
             org_id=self.org_id,
         )

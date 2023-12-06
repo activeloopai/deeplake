@@ -174,7 +174,7 @@ class DeepMemory:
             )
 
         if embedding_function is None and self.embedding_function is not None:
-            embedding_function = self.embedding_function.embed_documents
+            embedding_function = self.embedding_function
 
         runtime = None
         if get_path_type(corpus_path) == "hub":
