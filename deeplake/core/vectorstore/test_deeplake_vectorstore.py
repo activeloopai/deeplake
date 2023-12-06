@@ -2975,9 +2975,11 @@ def returning_tql_for_exec_option_python_should_throw_exception(local_path):
 
 def test_returning_tql_for_exec_option_compute_engine_should_return_correct_tql(
     local_path,
+    hub_cloud_dev_token,
 ):
     db = VectorStore(
         path=local_path,
+        token=hub_cloud_dev_token,
     )
 
     texts, embeddings, ids, metadatas, _ = utils.create_data(

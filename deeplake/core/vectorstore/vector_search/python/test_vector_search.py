@@ -26,7 +26,6 @@ def test_vector_search():
         k=10,
         return_tensors=[],
         return_view=False,
-        deep_memory=False,
         token=None,
         org_id=None,
         return_tql=False,

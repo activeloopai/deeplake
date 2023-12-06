@@ -433,7 +433,7 @@ def test_deepmemory_evaluate_with_embedding_func_in_init(
         path=corpus,
         runtime={"tensor_db": True},
         token=hub_cloud_dev_token,
-        embedding_function=DummyEmbedder,
+        embedding_function=embedding_fn,
     )
     recall = db.deep_memory.evaluate(
         queries=queries,
