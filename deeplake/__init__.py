@@ -27,7 +27,6 @@ from .core.dataset import Dataset
 from .core.transform import compute, compose
 from .core.tensor import Tensor
 from .core.seed import DeeplakeRandom
-from .enterprise.libdeeplake_query import universal_query
 from .util.bugout_reporter import deeplake_reporter
 from .compression import SUPPORTED_COMPRESSIONS
 from .htype import HTYPE_CONFIGURATIONS
@@ -45,7 +44,7 @@ delete = api_dataset.delete
 rename = api_dataset.rename
 copy = api_dataset.copy
 deepcopy = api_dataset.deepcopy
-query = universal_query
+query = api_dataset.query
 connect = api_dataset.connect
 ingest_classification = api_dataset.ingest_classification
 ingest_coco = api_dataset.ingest_coco

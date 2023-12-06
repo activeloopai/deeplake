@@ -2020,6 +2020,6 @@ class dataset:
     def query(
         query_string: str,
     ) -> Dataset:
-        from deeplake.enterprise.libdeeplake_query import query
+        from deeplake.enterprise.libdeeplake_query import universal_query
 
-        return query(query_string=query_string)
+        return universal_query(query_string=query_string)
