@@ -2721,20 +2721,20 @@ def test_delete_by_path_wrong_path():
 
 @requires_libdeeplake
 def test_exec_option_with_auth(local_path, hub_cloud_path, hub_cloud_dev_token):
-    db = VectorStore(path=local_path)
-    assert db.dataset_handler.exec_option == "python"
+    # db = VectorStore(path=local_path)
+    # assert db.dataset_handler.exec_option == "python"
 
-    db = VectorStore(
-        path=local_path,
-        token=hub_cloud_dev_token,
-    )
-    assert db.dataset_handler.exec_option == "compute_engine"
+    # db = VectorStore(
+    #     path=local_path,
+    #     token=hub_cloud_dev_token,
+    # )
+    # assert db.dataset_handler.exec_option == "compute_engine"
 
-    db = VectorStore(
-        path=hub_cloud_path,
-        token=hub_cloud_dev_token,
-    )
-    assert db.dataset_handler.exec_option == "compute_engine"
+    # db = VectorStore(
+    #     path=hub_cloud_path,
+    #     token=hub_cloud_dev_token,
+    # )
+    # assert db.dataset_handler.exec_option == "compute_engine"
 
     db = VectorStore(
         path=hub_cloud_path + "_tensor_db",

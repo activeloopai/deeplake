@@ -59,6 +59,7 @@ class EmbeddedDH(DHBase):
             creds=creds,
             org_id=org_id,
             logger=logger,
+            branch=branch,
             **kwargs,
         )
 

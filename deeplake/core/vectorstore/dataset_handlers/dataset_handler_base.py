@@ -125,7 +125,7 @@ class DHBase(ABC):
     @property
     def exec_option(self) -> str:
         return utils.parse_exec_option(
-            self.path, self._exec_option, self.indra_installed, self.username
+            self.dataset, self._exec_option, self.indra_installed, self.username
         )
 
     @property
