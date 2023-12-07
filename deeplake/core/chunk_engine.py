@@ -2304,6 +2304,21 @@ class ChunkEngine:
         self.pad_encoder.pop(global_sample_index)
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
+    
+    def pop_multiple(self, indices: List[int], link_callback: Callable, sample_ids: Optional[List[int]]):
+        self._write_initialization()
+
+        self.cached_data = None
+        initial_autoflush = self.cache.autoflush
+        self.cache.autoflush = False
+
+        if link_callback:
+            for idx in indices:
+                link_callback(idx)
+        
+        for i in range(len(indices)):
+            self.commit_diff.pop(idx, sample_ids[i])
+        
 
     def pop_item(self, global_sample_index):
         enc = self.chunk_id_encoder
