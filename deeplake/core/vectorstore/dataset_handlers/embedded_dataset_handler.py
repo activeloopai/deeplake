@@ -1,14 +1,12 @@
 import logging
 import pathlib
-import pickle
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
-from pydantic import BaseModel, validator, ValidationError
 
+import deeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DISTANCE_METRIC,
-    _INDEX_OPERATION_MAPPING,
 )
 from deeplake.core import index_maintenance
 from deeplake.core.dataset import Dataset
@@ -16,76 +14,10 @@ from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.dataset_handlers.dataset_handler_base import DHBase
 from deeplake.core.vectorstore.deep_memory.deep_memory import (
     use_deep_memory,
-    DeepMemory,
 )
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.util.bugout_reporter import feature_report_path
-from deeplake.util.exceptions import DeepMemoryWaitingListError
-
-
-class ComplexInitilization:
-    def initialize(
-        self,
-        client_instance: Any,
-    ):
-        client_instance.index_params = utils.parse_index_params(
-            client_instance.index_params
-        )
-        kwargs = {"index_params": client_instance.index_params}
-        client_instance.dataset = (
-            client_instance.dataset
-            or dataset_utils.create_or_load_dataset(
-                tensor_params=client_instance.tensor_params,
-                dataset_path=client_instance.path,
-                token=client_instance.token,
-                creds=client_instance.creds,
-                logger=client_instance.logger,
-                read_only=client_instance.read_only,
-                exec_option=client_instance._exec_option,
-                embedding_function=client_instance.embedding_function,
-                overwrite=client_instance.overwrite,
-                runtime=client_instance.runtime,
-                org_id=client_instance.org_id,
-                branch=client_instance.branch,
-                **kwargs,
-            )
-        )
-        client_instance.distance_metric_index = (
-            index_maintenance.index_operation_vectorstore(
-                client_instance,
-            )
-        )
-        self.deep_memory = DeepMemory(
-            dataset_or_path=client_instance.path,
-            token=client_instance.token,
-            logger=client_instance.logger,
-            embedding_function=client_instance.embedding_function,
-            creds=client_instance.creds,
-        )
-
-
-class LightweightInitilization:
-    def initialize(
-        self,
-        client_instance: Any,
-        serialized_vectorstore: Any,
-    ):
-        client_instance.distance_metric_index = getattr(
-            serialized_vectorstore, "distance_metric_index", None
-        )
-        client_instance.deep_memory = getattr(
-            serialized_vectorstore, "deep_memory", None
-        )
-        client_instance.dataset = getattr(serialized_vectorstore, "dataset", None)
-
-
-def initialise_dh(client_instance: Any, deserialized_vectorstore: Any):
-    if deserialized_vectorstore:
-        return LightweightInitilization().initialize(
-            client_instance, deserialized_vectorstore
-        )
-    return ComplexInitilization().initialize(client_instance)
 
 
 class EmbeddedDH(DHBase):
@@ -122,16 +54,34 @@ class EmbeddedDH(DHBase):
             exec_option=exec_option,
             token=token,
             overwrite=overwrite,
-            verbose=verbose,
+            verbose=True,
             runtime=runtime,
             creds=creds,
             org_id=org_id,
             logger=logger,
+            **kwargs,
+        )
+
+        self.index_params = utils.parse_index_params(index_params)
+        kwargs["index_params"] = self.index_params
+        self.dataset = dataset or dataset_utils.create_or_load_dataset(
+            tensor_params=tensor_params,
+            dataset_path=self.path,
+            token=self.token,
+            creds=self.creds,
+            logger=self.logger,
+            read_only=read_only,
+            exec_option=exec_option,
+            embedding_function=embedding_function,
+            overwrite=overwrite,
+            runtime=runtime,
+            org_id=self.org_id,
             branch=branch,
             **kwargs,
         )
-        # using strategy pattern to initialize the class
-        initialise_dh(self, self.deserialized_vectorstore)
+        self.verbose = verbose
+        self.tensor_params = tensor_params
+        self.distance_metric_index = index_maintenance.index_operation_vectorstore(self)
 
     def add(
         self,
@@ -249,9 +199,6 @@ class EmbeddedDH(DHBase):
 
         exec_option = exec_option or self.exec_option
 
-        if deep_memory and not self.deep_memory:
-            raise DeepMemoryWaitingListError()
-
         utils.parse_search_args(
             embedding_data=embedding_data,
             embedding_function=embedding_function,
@@ -327,14 +274,17 @@ class EmbeddedDH(DHBase):
         )
 
         if not row_ids:
-            row_ids = dataset_utils.search_row_ids(
-                dataset=self.dataset,
-                search_fn=self.search,
-                ids=ids,
-                filter=filter,
-                query=query,
-                select_all=delete_all,
-                exec_option=exec_option or self.exec_option,
+            row_ids = (
+                dataset_utils.search_row_ids(
+                    dataset=self.dataset,
+                    search_fn=self.search,
+                    ids=ids,
+                    filter=filter,
+                    query=query,
+                    select_all=delete_all,
+                    exec_option=exec_option or self.exec_option,
+                )
+                or []
             )
 
         (
@@ -344,14 +294,6 @@ class EmbeddedDH(DHBase):
             self.dataset,
             delete_all,
         )
-        if dataset_deleted:
-            index_maintenance.index_operation_vectorstore(
-                self,
-                dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
-                rowids=row_ids,
-                index_delete=True,
-            )
-            return True
 
         self.dataset.pop_multiple(row_ids)
 
@@ -367,7 +309,6 @@ class EmbeddedDH(DHBase):
         embedding_function: Union[Callable, List[Callable]],
         embedding_source_tensor: Union[str, List[str]],
         embedding_tensor: Union[str, List[str]],
-        embedding_dict: Dict[str, Union[List[float], np.ndarray]],
     ):
         feature_report_path(
             path=self.bugout_reporting_path,
@@ -391,6 +332,18 @@ class EmbeddedDH(DHBase):
         if filter and query:
             raise ValueError("Only one of filter and query can be specified.")
 
+        (
+            embedding_function,
+            embedding_source_tensor,
+            embedding_tensor,
+        ) = utils.parse_update_arguments(
+            dataset=self.dataset,
+            embedding_function=embedding_function,
+            initial_embedding_function=self.embedding_function,
+            embedding_source_tensor=embedding_source_tensor,
+            embedding_tensor=embedding_tensor,
+        )
+
         if not row_ids:
             row_ids = dataset_utils.search_row_ids(
                 dataset=self.dataset,
@@ -401,33 +354,15 @@ class EmbeddedDH(DHBase):
                 exec_option=exec_option or self.exec_option,
             )
 
-        if embedding_dict is not None and embedding_function is not None:
-            raise ValueError(
-                "Only one of 'embedding_dict' or 'embedding_function' can be specified."
-            )
+        embedding_tensor_data = utils.convert_embedding_source_tensor_to_embeddings(
+            dataset=self.dataset,
+            embedding_source_tensor=embedding_source_tensor,
+            embedding_tensor=embedding_tensor,
+            embedding_function=embedding_function,
+            row_ids=row_ids,
+        )
 
-        if embedding_dict is None:
-            (
-                embedding_function,
-                embedding_source_tensor,
-                embedding_tensor,
-            ) = utils.parse_update_arguments(
-                dataset=self.dataset,
-                embedding_function=embedding_function,
-                initial_embedding_function=self.embedding_function,
-                embedding_source_tensor=embedding_source_tensor,
-                embedding_tensor=embedding_tensor,
-            )
-
-            embedding_dict = utils.convert_embedding_source_tensor_to_embeddings(
-                dataset=self.dataset,
-                embedding_source_tensor=embedding_source_tensor,
-                embedding_tensor=embedding_tensor,
-                embedding_function=embedding_function,
-                row_ids=row_ids,
-            )
-
-        self.dataset[row_ids].update(embedding_dict)
+        self.dataset[row_ids].update(embedding_tensor_data)
 
     def commit(self, allow_empty: bool = True) -> None:
         """Commits the Vector Store.
@@ -437,13 +372,14 @@ class EmbeddedDH(DHBase):
         """
         self.dataset.commit(allow_empty=allow_empty)
 
-    def checkout(self, branch: str = "main") -> None:
+    def checkout(self, branch: str, create: bool) -> None:
         """Checkout the Vector Store to a specific branch.
 
         Args:
             branch (str): Branch name to checkout. Defaults to "main".
+            create (bool): Whether to create the branch if it does not exist. Defaults to False.
         """
-        self.dataset.checkout(branch)
+        self.dataset.checkout(branch, create=create)
 
     def tensors(self):
         """Returns the list of tensors present in the dataset"""
@@ -452,6 +388,23 @@ class EmbeddedDH(DHBase):
     def summary(self):
         """Prints a summary of the dataset"""
         return self.dataset.summary()
+
+    @staticmethod
+    def delete_by_path(
+        path: str, force: bool, creds: Union[Dict, str], token: str
+    ) -> bool:
+        feature_report_path(
+            path,
+            "vs.delete_by_path",
+            parameters={
+                "path": path,
+                "token": token,
+                "force": force,
+                "creds": creds,
+            },
+            token=token,
+        )
+        deeplake.delete(path, large_ok=True, token=token, force=force, creds=creds)
 
     def __len__(self):
         """Length of the dataset"""

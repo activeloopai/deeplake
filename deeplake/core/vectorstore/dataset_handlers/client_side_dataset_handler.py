@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 
+import deeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DISTANCE_METRIC,
 )
@@ -387,6 +388,23 @@ class ClientSideDH(DHBase):
     def summary(self):
         """Prints a summary of the dataset"""
         return self.dataset.summary()
+
+    @staticmethod
+    def delete_by_path(
+        path: str, force: bool, creds: Union[Dict, str], token: str
+    ) -> bool:
+        feature_report_path(
+            path,
+            "vs.delete_by_path",
+            parameters={
+                "path": path,
+                "token": token,
+                "force": force,
+                "creds": creds,
+            },
+            token=token,
+        )
+        deeplake.delete(path, large_ok=True, token=token, force=force, creds=creds)
 
     def __len__(self):
         """Length of the dataset"""

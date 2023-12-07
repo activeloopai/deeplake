@@ -22,83 +22,35 @@ class ManagedVectorStoreArgsVerifier:
     def __init__(self) -> None:
         pass
 
-    def verify_init_args(self, cls, **kwargs):
+    @staticmethod
+    def verify_init_args(cls, **kwargs):
         args_verifier = InitArgsVerfier(**kwargs)
-        args_verifier.verify()
+        args_verifier.verify(cls)
 
-        self._exec_option_verifier(cls)
-
-        if cls.deserialized_vectorstore:
-            raise NotImplementedError(
-                "ManagedVectorStore does not support passing path to serialized vectorstore object for now."
-            )
-
-        if get_path_type(cls.path) != "hub":
-            raise ValueError(
-                "ManagedVectorStore can only be initialized with a Deep Lake Cloud path."
-            )
-
-        if kwargs.get("other_kwargs", {}) != {}:
-            other_kwargs = kwargs["other_kwargs"]
-            other_kwargs_names = list(other_kwargs.keys())
-            other_kwargs_names = "`" + "` ,`".join(other_kwargs_names) + "`"
-
-            raise NotImplementedError(
-                f"ManagedVectorStore does not support passing: {other_kwargs_names} for now."
-            )
-
-    def verify_add_args(self, cls, **kwargs):
+    @staticmethod
+    def verify_add_args(**kwargs):
         args_verifier = AddArgsVerfier(**kwargs)
         args_verifier.verify()
 
-        self._exec_option_verifier(cls)
-
-    def verify_search_args(self, cls, **kwargs):
+    @staticmethod
+    def verify_search_args(**kwargs):
         args_verifier = SearchArgsVerfier(**kwargs)
         args_verifier.verify()
 
-        self._exec_option_verifier(cls)
-
-        if filter is not None and not isinstance(filter, dict):
-            raise NotImplementedError(
-                "Only Filter Dictionary is supported for the ManagedVectorStore."
-            )
-
-        if kwargs.get("return_view", None) is not None:
-            raise NotImplementedError(
-                "return_view is not supported for the ManagedVectorStore."
-            )
-
-    def verify_delete_args(self, cls, **kwargs):
+    @staticmethod
+    def verify_delete_args(**kwargs):
         args_verifier = DeleteArgsVerfier(**kwargs)
         args_verifier.verify()
 
-        if filter is not None and not isinstance(filter, dict):
-            raise NotImplementedError(
-                "Only Filter Dictionary is supported for the ManagedVectorStore."
-            )
-
-    def verify_delete_by_path_args(self, cls, **kwargs):
+    @staticmethod
+    def verify_delete_by_path_args(**kwargs):
         args_verifier = DeleteByPathArgsVerfier(**kwargs)
         args_verifier.verify()
 
-    def verify_update_args(self, cls, **kwargs):
+    @staticmethod
+    def verify_update_args(**kwargs):
         args_verifier = UpdateArgsVerfier(**kwargs)
         args_verifier.verify()
-
-        self._exec_option_verifier(cls)
-
-        if filter is not None and not isinstance(filter, dict):
-            raise NotImplementedError(
-                "Only Filter Dictionary is supported for the ManagedVectorStore."
-            )
-
-    @staticmethod
-    def _exec_option_verifier(cls):
-        if cls._exec_option not in ("tensor_db", "auto"):
-            raise NotImplementedError(
-                "ManagedVectorStore does not support passing exec_option other than `tensor_db` for now."
-            )
 
 
 class ManagedDH(DHBase):
@@ -145,6 +97,8 @@ class ManagedDH(DHBase):
             branch=branch,
             **kwargs,
         )
+        # because we don't support read/write access to the managed vectorstore using deeplake
+        del self.dataset
 
         # verifying not implemented args
         self.args_verifier.verify_init_args(
@@ -199,7 +153,6 @@ class ManagedDH(DHBase):
 
         # verifying not implemented args
         self.args_verifier.verify_add_args(
-            cls=self,
             embedding_function=embedding_function,
             embedding_data=embedding_data,
             embedding_tensor=embedding_tensor,
@@ -268,7 +221,7 @@ class ManagedDH(DHBase):
         )
 
         # verifying not implemented args
-        self.args_verifier.verify_update_args(
+        self.args_verifier.verify_search_args(
             embedding_function=embedding_function,
             embedding_data=embedding_data,
             embedding_tensor=embedding_tensor,
@@ -373,6 +326,37 @@ class ManagedDH(DHBase):
             embedding_dict=embedding_dict,
         )
 
+    @staticmethod
+    def delete_by_path(
+        path: str,
+        force: bool,
+        creds: Union[Dict, str],
+        token: str,
+    ):
+        feature_report_path(
+            path=path,
+            feature_name="vs.delete_by_path",
+            parameters={
+                "path": path,
+                "force": force,
+                "creds": creds,
+                "managed": True,
+            },
+            token=token,
+        )
+
+        ManagedVectorStoreArgsVerifier.verify_delete_by_path_args(
+            force=force,
+            creds=creds,
+        )
+
+        client = ManagedServiceClient(token=token)
+        client.delete_vectorstore_by_path(
+            path=path,
+            force=force,
+            creds=creds,
+        )
+
     def _get_summary(self):
         """Returns a summary of the Managed Vector Store."""
         return self.client.get_vectorstore_summary(self.path)
@@ -389,11 +373,6 @@ class ManagedDH(DHBase):
         """Length of the dataset"""
         return self._get_summary().length
 
-    # def dataset(self):
-    #     raise NotImplementedError(
-    #         "ManagedVectorStore does not support returning dataset for now."
-    #     )
-
 
 class ArgsVerifierBase:
     def __init__(
@@ -406,11 +385,28 @@ class ArgsVerifierBase:
         for arg in self.kwargs:
             self._verify_argument(arg, self.kwargs)
 
+        self._exec_option_verifier(self.kwargs)
+
     @classmethod
     def _verify_argument(cls, argument, kwargs):
         if argument in cls._not_implemented_args and kwargs[argument] is not None:
             raise NotImplementedError(
                 f"{argument} is not supported for ManagedVectorStore for now."
+            )
+
+    @staticmethod
+    def _exec_option_verifier(kwargs):
+        exec_option = kwargs.get("exec_option", "auto")
+        if exec_option not in ("tensor_db", "auto"):
+            raise NotImplementedError(
+                "ManagedVectorStore does not support passing exec_option other than `tensor_db` for now."
+            )
+
+    def _verify_filter_is_dictionary(self):
+        filter_ = self.kwargs.get("filter", None)
+        if filter_ is not None and not isinstance(filter_, dict):
+            raise NotImplementedError(
+                "Only Filter Dictionary is supported for the ManagedVectorStore."
             )
 
 
@@ -422,14 +418,45 @@ class InitArgsVerfier(ArgsVerifierBase):
         "org_id",
     ]
 
+    def verify(self, cls):
+        super().verify()
+        if cls.deserialized_vectorstore:
+            raise NotImplementedError(
+                "ManagedVectorStore does not support passing path to serialized vectorstore object for now."
+            )
+
+        if get_path_type(cls.path) != "hub":
+            raise ValueError(
+                "ManagedVectorStore can only be initialized with a Deep Lake Cloud path."
+            )
+
+        if self.kwargs.get("other_kwargs", {}) != {}:
+            other_kwargs = self.kwargs["other_kwargs"]
+            other_kwargs_names = list(other_kwargs.keys())
+            other_kwargs_names = "`" + "` ,`".join(other_kwargs_names) + "`"
+
+            raise NotImplementedError(
+                f"ManagedVectorStore does not support passing: {other_kwargs_names} for now."
+            )
+
 
 class AddArgsVerfier(ArgsVerifierBase):
     _not_implemented_args = [
         "embedding_function",
         "embedding_data",
         "embedding_tensor",
-        "rate_limiter",
     ]
+
+    def verify(self):
+        super().verify()
+
+        if (
+            self.kwargs.get("rate_limiter", None) is not None
+            and self.kwargs["rate_limiter"]["enabled"] != False
+        ):
+            raise NotImplementedError(
+                "rate_limiter is not supported for the ManagedVectorStore."
+            )
 
 
 class SearchArgsVerfier(ArgsVerifierBase):
@@ -440,6 +467,15 @@ class SearchArgsVerfier(ArgsVerifierBase):
         "exec_option",
     ]
 
+    def verify(self):
+        super().verify()
+        self._verify_filter_is_dictionary()
+
+        if self.kwargs.get("return_view", None) is not None:
+            raise NotImplementedError(
+                "return_view is not supported for the ManagedVectorStore."
+            )
+
 
 class UpdateArgsVerfier(ArgsVerifierBase):
     _not_implemented_args = [
@@ -449,11 +485,19 @@ class UpdateArgsVerfier(ArgsVerifierBase):
         "embedding_tensor",
     ]
 
+    def verify(self):
+        super().verify()
+        self._verify_filter_is_dictionary()
+
 
 class DeleteArgsVerfier(ArgsVerifierBase):
     _not_implemented_args = [
         "exec_option",
     ]
+
+    def verify(self):
+        super().verify()
+        self._verify_filter_is_dictionary()
 
 
 class DeleteByPathArgsVerfier(ArgsVerifierBase):

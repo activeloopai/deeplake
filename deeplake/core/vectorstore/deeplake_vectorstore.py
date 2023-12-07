@@ -15,6 +15,12 @@ from deeplake.constants import (
 )
 from deeplake.util.bugout_reporter import feature_report_path
 from deeplake.util.exceptions import DeepMemoryWaitingListError
+from deeplake.core.vectorstore.dataset_handlers.managed_dataset_handler import (
+    ManagedDH,
+)
+from deeplake.core.vectorstore.dataset_handlers.embedded_dataset_handler import (
+    EmbeddedDH,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -452,6 +458,7 @@ class VectorStore:
         token: Optional[str] = None,
         force: bool = False,
         creds: Optional[Union[Dict, str]] = None,
+        runtime: Optional[Dict] = None,
     ) -> None:
         """Deleted the Vector Store at the specified path.
 
@@ -463,22 +470,25 @@ class VectorStore:
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
                 - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             force (bool): delete the path in a forced manner without rising an exception. Defaults to ``True``.
+            runtime (Dict, optional): dictionary representing runtime parameters for creating the Vector Store in Deep Lake's Managed Tensor Database.
 
         Danger:
             This method permanently deletes all of your data if the Vector Store exists! Be very careful when using this method.
         """
-        feature_report_path(
-            path,
-            "vs.delete_by_path",
-            parameters={
-                "path": path,
-                "token": token,
-                "force": force,
-                "creds": creds,
-            },
-            token=token,
-        )
-        deeplake.delete(path, large_ok=True, token=token, force=force, creds=creds)
+        if runtime and runtime.get("tensor_db"):
+            ManagedDH.delete_by_path(
+                path=path,
+                token=token,
+                force=force,
+                creds=creds,
+            )
+        else:
+            EmbeddedDH.delete_by_path(
+                path=path,
+                token=token,
+                force=force,
+                creds=creds,
+            )
 
     def commit(self, allow_empty: bool = True) -> None:
         """Commits the Vector Store.
@@ -511,8 +521,8 @@ class VectorStore:
         try:
             return self.dataset_handler.dataset
         except AttributeError:
-            raise AttributeError(
-                "Acessing the dataset is not available for managed Vector Store."
+            raise NotImplementedError(
+                "Acessing the dataset is not implemented for managed Vector Store yet."
             )
 
     def __len__(self):

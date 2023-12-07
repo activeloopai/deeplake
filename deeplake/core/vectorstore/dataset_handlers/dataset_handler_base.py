@@ -197,6 +197,13 @@ class DHBase(ABC):
     ):
         pass
 
+    @staticmethod
+    @abstractmethod
+    def delete_by_path(
+        path: str, force: bool, creds: Union[Dict, str], token: str
+    ) -> bool:
+        pass
+
     @abstractmethod
     def tensors(self):
         pass
@@ -220,7 +227,7 @@ class DHBase(ABC):
         """
         raise NotImplementedError()
 
-    def checkout(self, branch: str = "main") -> None:
+    def checkout(self, branch: str = "main", create: bool = False) -> None:
         """Checkout the Vector Store to a specific branch.
 
         Args:

@@ -143,7 +143,7 @@ def test_managed_vectorstore_should_not_accept_rate_limiter_during_add(
         db.add(
             text=["a", "b", "c"],
             metadata=[{}, {}, {}],
-            rate_limiter={"bytes_per_minute": 1000000},
+            rate_limiter={"enabled": True, "bytes_per_minute": 1000000},
         )
 
 
@@ -151,23 +151,11 @@ def test_managed_vectorstore_should_not_accept_rate_limiter_during_add(
 def test_managed_vectorstore_should_not_accept_embedding_function_during_search(
     hub_cloud_path, hub_cloud_dev_token
 ):
-    db = VectorStore(
+    db = utils.create_and_populate_vs(
         path=hub_cloud_path,
         token=hub_cloud_dev_token,
         runtime={"tensor_db": True},
-    )
-    # create data
-    texts, embeddings, ids, metadatas, _ = utils.create_data(
-        number_of_data=10,
         embedding_dim=100,
-    )
-
-    # populate vectorstore
-    db.add(
-        text=texts,
-        metadata=metadatas,
-        embedding=embeddings,
-        id=ids,
     )
 
     with pytest.raises(NotImplementedError):
@@ -345,7 +333,11 @@ def test_managed_vectorstore_should_not_accept_creds_during_delete_by_path(
     )
 
     with pytest.raises(NotImplementedError):
-        db.delete_by_path(path=hub_cloud_path, creds={"creds": "Non existing creds"})
+        db.delete_by_path(
+            path=hub_cloud_path,
+            creds={"creds": "Non existing creds"},
+            runtime={"tensor_db": True},
+        )
 
 
 def test_managed_vectorstore_should_not_accept_commit(
