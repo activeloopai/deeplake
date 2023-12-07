@@ -1293,33 +1293,6 @@ def test_update_embedding(
     vector_store.delete_by_path(path + "_multi", token=ds.token)
 
 
-def create_and_populate_vs(
-    path,
-    token=None,
-    overwrite=True,
-    verbose=False,
-    exec_option="compute_engine",
-    index_params={"threshold": -1},
-    number_of_data=NUMBER_OF_DATA,
-):
-    # TODO: cache the vectostore object and reuse it in other tests (maybe with deepcopy)
-    vector_store = DeepLakeVectorStore(
-        path=path,
-        overwrite=overwrite,
-        verbose=verbose,
-        exec_option=exec_option,
-        index_params=index_params,
-        token=token,
-    )
-
-    utils.create_data(number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM)
-
-    # add data to the dataset:
-    metadatas[1:6] = [{"a": 1} for _ in range(5)]
-    vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
-    return vector_store
-
-
 def test_update_embedding_row_ids_and_ids_specified_should_throw_exception(
     memory_path,
     vector_store_hash_ids,
@@ -1328,7 +1301,7 @@ def test_update_embedding_row_ids_and_ids_specified_should_throw_exception(
 ):
     # specifying both row_ids and ids during update embedding should throw an exception
     # initializing vectorstore and populating it:
-    vector_store = create_and_populate_vs(
+    vector_store = utils.create_and_populate_vs(
         memory_path,
         token=hub_cloud_dev_token,
     )
@@ -1351,7 +1324,7 @@ def test_update_embedding_row_ids_and_filter_specified_should_throw_exception(
 ):
     # specifying both row_ids and filter during update embedding should throw an exception
     # initializing vectorstore and populating it:
-    vector_store = create_and_populate_vs(
+    vector_store = utils.create_and_populate_vs(
         memory_path,
         token=hub_cloud_dev_token,
     )
@@ -1374,7 +1347,7 @@ def test_update_embedding_query_and_filter_specified_should_throw_exception(
     hub_cloud_dev_token,
 ):
     # initializing vectorstore and populating it:
-    vector_store = create_and_populate_vs(
+    vector_store = utils.create_and_populate_vs(
         memory_path,
         token=hub_cloud_dev_token,
     )
@@ -1395,7 +1368,7 @@ def test_update_specifying_embedding_function_and_embedding_dict_should_raise_ex
     vector_store_row_ids,
 ):
     # initializing vectorstore and populating it:
-    vector_store = create_and_populate_vs(
+    vector_store = utils.create_and_populate_vs(
         memory_path,
         token=hub_cloud_dev_token,
     )
@@ -1417,7 +1390,7 @@ def test_update_specifying_embedding_as_list_float_and_embedding_tensor_as_str_s
     hub_cloud_dev_token,
 ):
     # initializing vectorstore and populating it:
-    vector_store = create_and_populate_vs(
+    vector_store = utils.create_and_populate_vs(
         memory_path,
         token=hub_cloud_dev_token,
     )
@@ -2885,7 +2858,7 @@ def test_dataset_init_param(local_ds):
 
 def test_vs_commit(local_path):
     # TODO: add index params, when index will support commit
-    db = create_and_populate_vs(
+    db = utils.create_and_populate_vs(
         local_path, number_of_data=NUMBER_OF_DATA, index_params=None
     )
     db.checkout("branch_1", create=True)
