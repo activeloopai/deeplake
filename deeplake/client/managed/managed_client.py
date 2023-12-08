@@ -1,3 +1,5 @@
+from time import sleep
+
 import numpy as np
 from typing import Callable, Dict, List, Any, Optional, Union
 
@@ -94,23 +96,43 @@ class ManagedServiceClient(DeepLakeBackendClient):
         return_tensors: Optional[List[str]] = None,
         deep_memory: bool = False,
     ):
-        response = self.request(
-            method="POST",
-            relative_url=VECTORSTORE_SEARCH_SUFFIX,
-            json={
-                "dataset": path,
-                "embedding": self._preprocess_embedding(embedding),
-                "k": k,
-                "distance_metric": distance_metric,
-                "query": query,
-                "filter": filter,
-                "embedding_tensor": embedding_tensor,
-                "return_tensors": return_tensors,
-                "deep_memory": deep_memory,
-            },
-        )
-        check_response_status(response)
-        data = response.json()
+        has_data = False
+        url = VECTORSTORE_SEARCH_SUFFIX
+        method = "POST"
+        body = {
+            "dataset": path,
+            "embedding": self._preprocess_embedding(embedding),
+            "k": k,
+            "distance_metric": distance_metric,
+            "query": query,
+            "filter": filter,
+            "embedding_tensor": embedding_tensor,
+            "return_tensors": return_tensors,
+            "deep_memory": deep_memory,
+        }
+
+        while not has_data:
+            response = self.request(
+                method=method,
+                relative_url=url,
+                json=body,
+            )
+            check_response_status(response)
+            data = response.json()
+            print(data)
+
+            if "status" in data:
+                if data["status"] == "PENDING":
+                    # print("Waiting for data... job is {data['status']}")
+                    # print(data)
+                    url = data["url"]
+                    body = None
+                    method = "GET"
+                    sleep(5)
+                else:
+                    raise ValueError(f"Server request failed with status {data['status']}")
+            else:
+                has_data = True
 
         return VectorStoreSearchResponse(
             status_code=response.status_code,
