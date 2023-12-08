@@ -3,7 +3,6 @@ from deeplake.constants import (
     AZURE_OPT,
     HUB_CLOUD_OPT,
     ENV_AZURE_CLIENT_ID,
-    # ENV_AZURE_SUBSCRIPTION_ID,
     ENV_AZURE_CLIENT_SECRET,
     ENV_AZURE_TENANT_ID,
     ENV_HUB_DEV_USERNAME,
