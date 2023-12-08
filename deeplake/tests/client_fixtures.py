@@ -1,6 +1,10 @@
 from deeplake.constants import (
     ENV_HUB_DEV_MANAGED_CREDS_KEY,
+    AZURE_OPT,
     HUB_CLOUD_OPT,
+    ENV_AZURE_CLIENT_ID,
+    ENV_AZURE_SUBSCRIPTION_ID,
+    ENV_AZURE_TENANT_ID,
     ENV_HUB_DEV_USERNAME,
     ENV_HUB_DEV_PASSWORD,
     ENV_KAGGLE_USERNAME,
@@ -73,4 +77,19 @@ def hub_cloud_dev_managed_creds_key(request):
         pytest.skip(f"{HUB_CLOUD_OPT} flag not set")
 
     creds_key = os.getenv(ENV_HUB_DEV_MANAGED_CREDS_KEY, "aws_creds")
+    return creds_key
+
+
+@pytest.fixture(scope="session")
+def azure_creds_key(request):
+    if not is_opt_true(
+        request,
+    ):
+        pytest.skip(f"{AZURE_OPT} flag not set")
+
+    creds_key = {
+        "azure_client_id": os.getenv(ENV_AZURE_CLIENT_ID),
+        "azure_tenant_id": os.getenv(ENV_AZURE_TENANT_ID),
+        "azure_client_secret": os.getenv(ENV_AZURE_SUBSCRIPTION_ID),
+    }
     return creds_key

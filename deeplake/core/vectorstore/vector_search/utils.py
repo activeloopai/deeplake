@@ -55,7 +55,8 @@ class ExecOptionCloudDataset(ExecOptionBase):
         # option 1: dataset is created in vector_db:
         if (
             isinstance(self.dataset, DeepLakeCloudDataset)
-            and "vectordb/" in self.dataset.base_storage.root
+            # and "vectordb/" in self.dataset.base_storage.root
+            and "vectordb/" in self.dataset.base_storage.path
             and self.token is not None
         ):
             return "tensor_db"

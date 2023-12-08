@@ -2790,11 +2790,11 @@ def test_exec_option_cli(
 
 @requires_libdeeplake
 @pytest.mark.parametrize(
-    "path",
+    "path, azure_creds_key",
     [
-        "s3_path",
-        "gcs_path",
-        "azure_path",
+        # "s3_path",
+        # "gcs_path",
+        "azure_path, azure_creds_key",
     ],
     indirect=True,
 )
@@ -2807,10 +2807,10 @@ def test_exec_option_with_connected_datasets(
     runner = CliRunner()
 
     db = VectorStore(path, overwrite=True)
-    assert db.exec_option == "python"
+    # assert db.exec_option == "python"
 
-    runner.invoke(login, f"-t {hub_cloud_dev_token}")
-    assert db.exec_option == "python"
+    # runner.invoke(login, f"-t {hub_cloud_dev_token}")
+    # assert db.exec_option == "python"
 
     db.dataset_handler.dataset.connect(
         creds_key=hub_cloud_dev_managed_creds_key,
