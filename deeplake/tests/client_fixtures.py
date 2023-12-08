@@ -3,7 +3,8 @@ from deeplake.constants import (
     AZURE_OPT,
     HUB_CLOUD_OPT,
     ENV_AZURE_CLIENT_ID,
-    ENV_AZURE_SUBSCRIPTION_ID,
+    # ENV_AZURE_SUBSCRIPTION_ID,
+    ENV_AZURE_CLIENT_SECRET,
     ENV_AZURE_TENANT_ID,
     ENV_HUB_DEV_USERNAME,
     ENV_HUB_DEV_PASSWORD,
@@ -90,6 +91,6 @@ def azure_creds_key(request):
     creds_key = {
         "azure_client_id": os.getenv(ENV_AZURE_CLIENT_ID),
         "azure_tenant_id": os.getenv(ENV_AZURE_TENANT_ID),
-        "azure_client_secret": os.getenv(ENV_AZURE_SUBSCRIPTION_ID),
+        "azure_client_secret": os.getenv(ENV_AZURE_CLIENT_SECRET),
     }
     return creds_key

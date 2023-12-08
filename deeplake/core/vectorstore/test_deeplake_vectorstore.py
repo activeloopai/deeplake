@@ -20,6 +20,7 @@ from deeplake.tests.common import requires_libdeeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     DEFAULT_VECTORSTORE_DISTANCE_METRIC,
+    HUB_CLOUD_DEV_USERNAME,
 )
 from deeplake.constants import MB
 from deeplake.util.exceptions import (
@@ -2790,36 +2791,26 @@ def test_exec_option_cli(
 
 @requires_libdeeplake
 @pytest.mark.parametrize(
-    "path, azure_creds_key",
+    "path, creds",
     [
-        # "s3_path",
-        # "gcs_path",
-        "azure_path, azure_creds_key",
+        ("s3_path", "s3_creds"),
+        ("gcs_path", "gcs_creds"),
+        ("azure_path", "azure_creds"),
     ],
     indirect=True,
 )
 def test_exec_option_with_connected_datasets(
-    hub_cloud_dev_token,
     hub_cloud_path,
-    hub_cloud_dev_managed_creds_key,
     path,
+    creds,
 ):
-    runner = CliRunner()
-
-    db = VectorStore(path, overwrite=True)
-    # assert db.exec_option == "python"
-
-    # runner.invoke(login, f"-t {hub_cloud_dev_token}")
-    # assert db.exec_option == "python"
+    db = VectorStore(path, overwrite=True, creds=creds)
 
     db.dataset_handler.dataset.connect(
-        creds_key=hub_cloud_dev_managed_creds_key,
+        creds_key=creds,
         dest_path=hub_cloud_path,
-        token=hub_cloud_dev_token,
     )
-    db.dataset_handler.dataset.add_creds_key(
-        hub_cloud_dev_managed_creds_key, managed=True
-    )
+    db.dataset_handler.dataset.add_creds_key(creds, managed=True)
     assert db.exec_option == "compute_engine"
 
 
