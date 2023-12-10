@@ -35,8 +35,9 @@ def test_multi_source_query():
     assert ds.labels.meta.htype == "class_label"
 
     ds = deeplake.query(
-        'SELECT * FROM (SELECT * FROM "hub://activeloop/mnist-train" UNION (SELECT images, labels FROM "hub://activeloop/imagenet-train")) WHERE labels == 0 ORDER BY RANDOM()'
+        'SELECT * FROM (SELECT * FROM "hub://activeloop/mnist-train" UNION (SELECT images, labels FROM "hub://activeloop/imagenet-train")) WHERE labels == 0'
     )
     assert len(ds) == 7223
+    assert len(ds.tensors) == 2
     d = ds.labels.numpy()
     assert np.all(d == 0)
