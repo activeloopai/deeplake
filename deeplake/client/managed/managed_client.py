@@ -98,7 +98,6 @@ class ManagedServiceClient(DeepLakeBackendClient):
     ):
         has_data = False
         url = VECTORSTORE_SEARCH_SUFFIX
-        method = "POST"
         body = {
             "dataset": path,
             "embedding": self._preprocess_embedding(embedding),
@@ -113,7 +112,7 @@ class ManagedServiceClient(DeepLakeBackendClient):
 
         while not has_data:
             response = self.request(
-                method=method,
+                method="POST",
                 relative_url=url,
                 json=body,
             )
@@ -121,17 +120,13 @@ class ManagedServiceClient(DeepLakeBackendClient):
             data = response.json()
             print(data)
 
-            if "status" in data:
-                if data["status"] == "PENDING":
-                    # print("Waiting for data... job is {data['status']}")
-                    # print(data)
-                    url = data["url"]
-                    body = None
-                    method = "GET"
-                    sleep(5)
-                else:
-                    raise ValueError(f"Server request failed with status {data['status']}")
+            if response.status_code == 202:
+                # print(f"Waiting for data... job is: {data['status']}")
+                url = data["url"]
+                body = None
+                sleep(5)
             else:
+                # print(f"got response {response.status_code}")
                 has_data = True
 
         return VectorStoreSearchResponse(
