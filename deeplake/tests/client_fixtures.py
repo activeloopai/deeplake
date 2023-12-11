@@ -84,6 +84,7 @@ def hub_cloud_dev_managed_creds_key(request):
 def azure_creds_key(request):
     if not is_opt_true(
         request,
+        AZURE_OPT,
     ):
         pytest.skip(f"{AZURE_OPT} flag not set")
 
