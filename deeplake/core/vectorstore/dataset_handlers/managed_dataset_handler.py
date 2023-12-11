@@ -463,7 +463,6 @@ class SearchArgsVerfier(ArgsVerifierBase):
     _not_implemented_args = [
         "embedding_function",
         "embedding_data",
-        "embedding_tensor",
         "exec_option",
     ]
 
@@ -481,7 +480,6 @@ class UpdateArgsVerfier(ArgsVerifierBase):
     _not_implemented_args = [
         "embedding_function",
         "exec_option",
-        "embedding_source_tensor",
         "embedding_tensor",
     ]
 
