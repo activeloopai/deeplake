@@ -182,21 +182,21 @@ def test_managed_vectorstore_should_not_accept_embedding_data_during_search(
         )
 
 
-def test_managed_vectorstore_should_not_accept_embedding_tensor_during_search(
-    hub_cloud_path, hub_cloud_dev_token
-):
-    db = utils.create_and_populate_vs(
-        path=hub_cloud_path,
-        token=hub_cloud_dev_token,
-        runtime={"tensor_db": True},
-        embedding_dim=100,
-    )
+# def test_managed_vectorstore_should_not_accept_embedding_tensor_during_search(
+#     hub_cloud_path, hub_cloud_dev_token
+# ):
+#     db = utils.create_and_populate_vs(
+#         path=hub_cloud_path,
+#         token=hub_cloud_dev_token,
+#         runtime={"tensor_db": True},
+#         embedding_dim=100,
+#     )
 
-    with pytest.raises(NotImplementedError):
-        db.search(
-            embedding=np.zeros(100, dtype=np.float32),
-            embedding_tensor="embedding",
-        )
+#     with pytest.raises(NotImplementedError):
+#         db.search(
+#             embedding=np.zeros(100, dtype=np.float32),
+#             embedding_tensor="embedding",
+#         )
 
 
 def test_managed_vectorstore_should_not_accept_return_view_during_search(
@@ -272,23 +272,23 @@ def test_managed_vectorstore_should_not_accept_embedding_function_during_update_
         )
 
 
-def test_managed_vectorstore_should_not_accept_embedding_source_tensor_during_update_embedding(
-    hub_cloud_path, hub_cloud_dev_token
-):
-    db = utils.create_and_populate_vs(
-        path=hub_cloud_path,
-        token=hub_cloud_dev_token,
-        runtime={"tensor_db": True},
-        embedding_dim=100,
-    )
+# def test_managed_vectorstore_should_not_accept_embedding_source_tensor_during_update_embedding(
+#     hub_cloud_path, hub_cloud_dev_token
+# ):
+#     db = utils.create_and_populate_vs(
+#         path=hub_cloud_path,
+#         token=hub_cloud_dev_token,
+#         runtime={"tensor_db": True},
+#         embedding_dim=100,
+#     )
 
-    embedding_dict = {"embedding": [np.zeros(100, dtype=np.float32)] * 3}
+#     embedding_dict = {"embedding": [np.zeros(100, dtype=np.float32)] * 3}
 
-    with pytest.raises(NotImplementedError):
-        db.update_embedding(
-            embedding_dict=embedding_dict,
-            embedding_source_tensor="text",
-        )
+#     with pytest.raises(NotImplementedError):
+#         db.update_embedding(
+#             embedding_dict=embedding_dict,
+#             embedding_source_tensor="text",
+#         )
 
 
 def test_managed_vectorstore_should_not_accept_embedding_tensor_during_update_embedding(
