@@ -4654,11 +4654,11 @@ class Dataset:
             for tensor in self.tensors.values():
                 if tensor.num_samples > index:
                     tensor._pop(index)
-    
+
     def _pop_multiple(self, index: List[int]):
         if not list:
             return
-        
+
         index = sorted(index, reverse=True)
 
         max_len = self.max_len
@@ -4672,7 +4672,7 @@ class Dataset:
                 raise IndexError(
                     f"Index {idx} is out of range. The longest tensor has {max_len} samples."
                 )
-        
+
         with self:
             for tensor in self.tensors.values():
                 for idx in index:
@@ -4680,7 +4680,6 @@ class Dataset:
                         tensor._check_for_pop(idx)
             for tensor in self.tensors.values():
                 tensor._pop_multiple(index)
-
 
     @invalid_view_op
     def pop(self, index: Optional[Union[int, List[int]]] = None):
