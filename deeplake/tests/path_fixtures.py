@@ -312,8 +312,12 @@ def s3_path(request):
         S3Provider(path).clear()
 
 
-@pytest.fixture(scope="session")
-def s3_creds():
+@pytest.fixture
+def s3_creds(request):
+    if not is_opt_true(request, S3_OPT):
+        pytest.skip(f"{S3_OPT} flag not set")
+        return
+
     aws_access_key = os.environ.get(ENV_AWS_ACCESS_KEY)
     aws_secrets_key = os.environ.get(ENV_AWS_SECRETS_ACCESS_KEY)
     endpoint_url = os.environ.get(ENV_AWS_ENDPOINT_URL)
@@ -403,8 +407,12 @@ def gdrive_creds():
     return creds
 
 
-@pytest.fixture(scope="session")
-def azure_creds():
+@pytest.fixture
+def azure_creds(request):
+    if not is_opt_true(request, AZURE_OPT):
+        pytest.skip(f"{AZURE_OPT} flag not set")
+        return
+
     azure_client_id = os.environ.get(ENV_AZURE_CLIENT_ID)
     azure_tenant_id = os.environ.get(ENV_AZURE_TENANT_ID)
     azure_client_secret = os.environ.get(ENV_AZURE_CLIENT_SECRET)
