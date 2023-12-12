@@ -27,6 +27,12 @@ from deeplake.constants import (
     ENV_GDRIVE_CLIENT_SECRET,
     ENV_GDRIVE_REFRESH_TOKEN,
     HUB_CLOUD_DEV_USERNAME,
+    ENV_AZURE_CLIENT_ID,
+    ENV_AZURE_TENANT_ID,
+    ENV_AZURE_CLIENT_SECRET,
+    ENV_AWS_ACCESS_KEY,
+    ENV_AWS_SECRETS_ACCESS_KEY,
+    ENV_AWS_ENDPOINT_URL,
 )
 from deeplake import VectorStore
 from deeplake.client.client import DeepMemoryBackendClient
@@ -307,6 +313,23 @@ def s3_path(request):
 
 
 @pytest.fixture
+def s3_creds(request):
+    if not is_opt_true(request, S3_OPT):
+        pytest.skip(f"{S3_OPT} flag not set")
+        return
+
+    aws_access_key = os.environ.get(ENV_AWS_ACCESS_KEY)
+    aws_secrets_key = os.environ.get(ENV_AWS_SECRETS_ACCESS_KEY)
+    endpoint_url = os.environ.get(ENV_AWS_ENDPOINT_URL)
+    creds = {
+        "aws_access_key": aws_access_key,
+        "aws_secrets_key": aws_secrets_key,
+        "endpoint_url": endpoint_url,
+    }
+    return creds
+
+
+@pytest.fixture
 def s3_vstream_path(request):
     if not is_opt_true(request, S3_OPT):
         pytest.skip(f"{S3_OPT} flag not set")
@@ -380,6 +403,23 @@ def gdrive_creds():
         "client_id": client_id,
         "client_secret": client_secret,
         "refresh_token": refresh_token,
+    }
+    return creds
+
+
+@pytest.fixture
+def azure_creds(request):
+    if not is_opt_true(request, AZURE_OPT):
+        pytest.skip(f"{AZURE_OPT} flag not set")
+        return
+
+    azure_client_id = os.environ.get(ENV_AZURE_CLIENT_ID)
+    azure_tenant_id = os.environ.get(ENV_AZURE_TENANT_ID)
+    azure_client_secret = os.environ.get(ENV_AZURE_CLIENT_SECRET)
+    creds = {
+        "azure_client_id": azure_client_id,
+        "azure_tenant_id": azure_tenant_id,
+        "azure_client_secret": azure_client_secret,
     }
     return creds
 
@@ -688,6 +728,18 @@ def vstream_path(request):
 @pytest.fixture
 def path(request):
     """Used with parametrize to get all dataset paths."""
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture
+def dest_path(request):
+    """Used with parametrize to get all dataset paths."""
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture
+def creds(request):
+    """Used with parametrize to get all dataset creds."""
     return request.getfixturevalue(request.param)
 
 
