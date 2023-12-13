@@ -465,7 +465,7 @@ def extend(
     processed_tensors: Dict[str, Union[List[Any], np.ndarray]],
     dataset: deeplake.core.dataset.Dataset,
     rate_limiter: Dict,
-    _extend_batch_size: int = VECTORSTORE_EXTEND_BATCH_SIZE,
+    ingestion_batch_size: int,
     logger=None,
 ):
     """
@@ -475,17 +475,17 @@ def extend(
         embedding_data = [embedding_data]
 
     if embedding_function:
-        number_of_batches = ceil(len(embedding_data[0]) / _extend_batch_size)
+        number_of_batches = ceil(len(embedding_data[0]) / ingestion_batch_size)
         progressbar_str = (
             f"Creating {len(embedding_data[0])} embeddings in "
-            f"{number_of_batches} batches of size {min(_extend_batch_size, len(embedding_data[0]))}:"
+            f"{number_of_batches} batches of size {min(ingestion_batch_size, len(embedding_data[0]))}:"
         )
 
         for idx in tqdm(
-            range(0, len(embedding_data[0]), _extend_batch_size),
+            range(0, len(embedding_data[0]), ingestion_batch_size),
             progressbar_str,
         ):
-            batch_start, batch_end = idx, idx + _extend_batch_size
+            batch_start, batch_end = idx, idx + ingestion_batch_size
 
             batched_embeddings = _compute_batched_embeddings(
                 embedding_function,
@@ -537,6 +537,7 @@ def extend_or_ingest_dataset(
     embedding_tensor,
     embedding_data,
     rate_limiter,
+    ingestion_batch_size,
     logger,
 ):
     rate_limiter = populate_rate_limiter(rate_limiter)
@@ -548,6 +549,7 @@ def extend_or_ingest_dataset(
         processed_tensors,
         dataset,
         rate_limiter,
+        ingestion_batch_size,
         logger=logger,
     )
 

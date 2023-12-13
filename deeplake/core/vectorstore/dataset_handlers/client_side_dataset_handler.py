@@ -89,6 +89,7 @@ class ClientSideDH(DHBase):
         embedding_tensor: Union[str, List[str]],
         return_ids: bool,
         rate_limiter: Dict,
+        ingestion_batch_size: int,
         **tensors,
     ):
         feature_report_path(
@@ -100,6 +101,7 @@ class ClientSideDH(DHBase):
                 "return_ids": return_ids,
                 "embedding_function": True if embedding_function is not None else False,
                 "embedding_data": True if embedding_data is not None else False,
+                "ingestion_batch_size": ingestion_batch_size,
             },
             token=self.token,
             username=self.username,
@@ -144,6 +146,7 @@ class ClientSideDH(DHBase):
             embedding_tensor=embedding_tensor,
             rate_limiter=rate_limiter,
             logger=self.logger,
+            ingestion_batch_size=ingestion_batch_size,
         )
 
         if self.verbose:

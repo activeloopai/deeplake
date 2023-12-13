@@ -14,6 +14,7 @@ from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     MAX_BYTES_PER_MINUTE,
     TARGET_BYTE_SIZE,
+    VECTORSTORE_EXTEND_BATCH_SIZE,
 )
 from deeplake.util.bugout_reporter import feature_report_path
 from deeplake.util.exceptions import DeepMemoryWaitingListError
@@ -152,6 +153,7 @@ class VectorStore:
             "bytes_per_minute": MAX_BYTES_PER_MINUTE,
             "batch_byte_size": TARGET_BYTE_SIZE,
         },
+        ingestion_batch_size: int = VECTORSTORE_EXTEND_BATCH_SIZE,
         **tensors,
     ) -> Optional[List[str]]:
         """Adding elements to deeplake vector store.
@@ -226,6 +228,7 @@ class VectorStore:
             embedding_tensor=embedding_tensor,
             return_ids=return_ids,
             rate_limiter=rate_limiter,
+            ingestion_batch_size=ingestion_batch_size,
             **tensors,
         )
 
