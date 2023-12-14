@@ -397,7 +397,7 @@ class ArgsVerifierBase:
     @staticmethod
     def _exec_option_verifier(kwargs):
         exec_option = kwargs.get("exec_option", "auto")
-        if exec_option not in ("tensor_db", "auto"):
+        if exec_option is not None and exec_option not in ("tensor_db", "auto"):
             raise NotImplementedError(
                 "ManagedVectorStore does not support passing exec_option other than `tensor_db` for now."
             )
@@ -470,7 +470,7 @@ class SearchArgsVerfier(ArgsVerifierBase):
         super().verify()
         self._verify_filter_is_dictionary()
 
-        if self.kwargs.get("return_view", None) is not None:
+        if self.kwargs.get("return_view", False) is not False:
             raise NotImplementedError(
                 "return_view is not supported for the ManagedVectorStore."
             )
