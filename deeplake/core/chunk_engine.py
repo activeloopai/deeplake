@@ -2092,18 +2092,19 @@ class ChunkEngine:
                             )
                             sample = sample[tuple(entry.value for entry in index.values[2:])]
                         else:
-                            print(idx)
                             sample = chunk.read_sample(
                                 idx,
                                 cast=self.tensor_meta.htype != "dicom",
                             )
                             if len(index) > 1:
                                 sample = sample[tuple(entry.value for entry in index.values[1:])]
-                check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
-                last_shape = sample.shape
-                if is_polygon:
-                    sample = [p.__array__() for p in sample]
-                samples.append(sample)
+                    check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
+                    last_shape = sample.shape
+                    if is_polygon:
+                        sample = [p.__array__() for p in sample]
+                    samples.append(sample)
+                else:
+                    break
         return samples
 
 
