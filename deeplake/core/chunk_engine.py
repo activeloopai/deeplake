@@ -2060,6 +2060,53 @@ class ChunkEngine:
 
         return sample
 
+    def get_samples(self, chunks, index, aslist):
+        samples = []
+        indices = index.values[0].indices(self.num_samples)
+        last_shape = None
+        is_polygon = self.tensor_meta.htype == "polygon"
+        for chunk_id, row, last_idx, is_tile in chunks:
+            if is_tile:
+                pass
+            elif self.is_video:
+                chunk, stream = self.get_video_chunk(chunk_id)
+                sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
+            else:
+                chunk = self.get_chunk_from_chunk_id(chunk_id)
+                decompress = True
+            for idx in indices:
+                if idx <= last_idx:
+                    if self._is_tiled_sample(idx):
+                        if len(index.values) == 1:
+                            chunks = self.get_chunks_for_sample(idx)
+                            sample = combine_chunks(chunks, idx, self.tile_encoder)
+                        else:
+                            sample = self.get_partial_tiled_sample(idx, index)
+                    else:
+                        if row != 0:
+                            idx -= self.chunk_id_encoder.array[row - 1][1] + 1
+                        if self.is_video:
+                            sample = chunk.read_sample(
+                                idx,
+                                sub_index=sub_index,
+                                stream=stream,
+                            )
+                            sample = sample[tuple(entry.value for entry in index.values[2:])]
+                        else:
+                            sample = chunk.read_sample(
+                                idx,
+                                cast=self.tensor_meta.htype != "dicom",
+                            )
+                            if len(index) > 1:
+                                sample = sample[tuple(entry.value for entry in index.values[1:])]
+                check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
+                last_shape = sample.shape
+                if is_polygon:
+                    sample = [p.__array__() for p in sample]
+                samples.append(sample)
+        return samples
+
+
     def _numpy(
         self,
         index: Index,
@@ -2099,33 +2146,35 @@ class ChunkEngine:
         else:
             samples = []
             if fetch_chunks:
-                self.get_chunks_for_indices(list(index.values[0].indices(length)))
-            for global_sample_index in index.values[0].indices(length):
-                try:
-                    sample = self.get_single_sample(
-                        global_sample_index,
-                        index,
-                        fetch_chunks=fetch_chunks,
-                        pad_tensor=pad_tensor,
-                    )
-                except GetChunkError as e:
-                    raise GetChunkError(
-                        e.chunk_key, global_sample_index, self.name
-                    ) from e
-                except ReadSampleFromChunkError as e:
-                    raise ReadSampleFromChunkError(
-                        e.chunk_key, global_sample_index, self.name
-                    ) from e
-                except GetDataFromLinkError as e:
-                    raise GetDataFromLinkError(
-                        e.link, global_sample_index, self.name
-                    ) from e
+                chunk_ids = self.get_chunks_for_indices(list(index.values[0].indices(length)))
+                samples = self.get_samples(chunk_ids, index, aslist)
+            else:
+                for global_sample_index in index.values[0].indices(length):
+                    try:
+                        sample = self.get_single_sample(
+                            global_sample_index,
+                            index,
+                            fetch_chunks=fetch_chunks,
+                            pad_tensor=pad_tensor,
+                        )
+                    except GetChunkError as e:
+                        raise GetChunkError(
+                            e.chunk_key, global_sample_index, self.name
+                        ) from e
+                    except ReadSampleFromChunkError as e:
+                        raise ReadSampleFromChunkError(
+                            e.chunk_key, global_sample_index, self.name
+                        ) from e
+                    except GetDataFromLinkError as e:
+                        raise GetDataFromLinkError(
+                            e.link, global_sample_index, self.name
+                        ) from e
 
-                check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
-                last_shape = sample.shape
-                if ispolygon:
-                    sample = [p.__array__() for p in sample]
-                samples.append(sample)
+                    check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
+                    last_shape = sample.shape
+                    if ispolygon:
+                        sample = [p.__array__() for p in sample]
+                    samples.append(sample)
         if aslist and all(map(np.isscalar, samples)):
             samples = list(arr.item() for arr in samples)
 
@@ -2208,28 +2257,34 @@ class ChunkEngine:
         pos = np.searchsorted(indices, last_idxs, side="right")
 
         chunk_ids = []
+        chunk_keys = []
 
         last_pos = 0
         for i in range(len(last_idxs)):
+            is_tile = False
+
             if pos[i] == 0:
                 continue
             
             if pos[i] == last_pos:
                 # tile
-                if last_idxs[i] == last_idxs[i - 1]:
-                    chunk_ids.append((encoded[i][0].item(), last_idxs[i].item()))
-                else:
+                if last_idxs[i] != last_idxs[i - 1]:
                     continue
+                is_tile = True
 
             last_pos = pos[i]
 
-            chunk_ids.append((encoded[i][0].item(), last_idxs[i].item()))
+            chunk_id = encoded[i][0].item()
+            row = i
+            last_idx = last_idxs[i].item()
+
+            chunk_ids.append((chunk_id, row, last_idx, is_tile))
+            if not is_tile:
+                chunk_keys.append(self.get_chunk_key_for_id(chunk_id))
         
-        chunk_keys = [self.get_chunk_key_for_id(chunk_id[0]) for chunk_id in chunk_ids]
         print(f"Getting {len(chunk_keys)} chunks")
-        print("CACHE LEFT:", self.cache.cache_size - self.cache.cache_used)
         self.cache.load_items_from_next_storage(chunk_keys)
-        print("CACHE LEFT:", self.cache.cache_size - self.cache.cache_used)
+        return chunk_ids
 
 
     def validate_num_samples_is_synchronized(self):
