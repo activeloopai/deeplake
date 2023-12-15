@@ -2098,8 +2098,8 @@ class ChunkEngine:
             samples = self.numpy_from_data_cache(index, length, aslist, pad_tensor)
         else:
             samples = []
-            if not fetch_chunks:
-                self.get_chunks_for_indices(index.values[0].indices(length))
+            if fetch_chunks:
+                self.get_chunks_for_indices(list(index.values[0].indices(length)))
             for global_sample_index in index.values[0].indices(length):
                 try:
                     sample = self.get_single_sample(
