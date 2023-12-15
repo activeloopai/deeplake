@@ -2074,7 +2074,7 @@ class ChunkEngine:
                 sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
             else:
                 chunk = self.get_chunk_from_chunk_id(chunk_id)
-            while idx:
+            while idx is not None:
                 if idx <= last_idx:
                     if self._is_tiled_sample(idx):
                         if len(index.values) == 1:
