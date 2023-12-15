@@ -1171,20 +1171,7 @@ class Tensor:
         ):
             raise EmbeddingTensorPopError(self.meta.name, index)
 
-    def _pop(self, index: Optional[int] = None):
-        self._check_for_pop(index)
-        sample_id_tensor = self._sample_id_tensor
-        if index is None:
-            index = self.num_samples - 1
-        sample_id = int(sample_id_tensor[index].numpy()) if sample_id_tensor else None
-        self.chunk_engine.pop(
-            index,
-            link_callback=self._pop_links if self.meta.links else None,
-            sample_id=sample_id,
-        )
-        self.invalidate_libdeeplake_dataset()
-
-    def _pop_multiple(self, index: List[int]):
+    def _pop(self, index: List[int]):
         sample_id_tensor = self._sample_id_tensor
         sample_ids = (
             sample_id_tensor[index].numpy().reshape(-1).tolist()
@@ -1193,22 +1180,34 @@ class Tensor:
         )
         for idx in index:
             self._check_for_pop(idx)
-        self.chunk_engine.pop_multiple(
-            index,
-            link_callback=self._pop_links if self.meta.links else None,
-            sample_ids=sample_ids,
-        )
+
+        with self.dataset:
+            self.chunk_engine.get_chunks_for_indices(index)
+            for idx in index:
+                self.chunk_engine.pop(
+                    index,
+                    link_callback=self._pop_links if self.meta.links else None,
+                    sample_ids=sample_ids,
+                )
         self.invalidate_libdeeplake_dataset()
 
     @invalid_view_op
     def pop(self, index: Optional[Union[int, List[int]]] = None):
         """Removes an element at the given index."""
-        if isinstance(index, list):
-            self._pop_multiple(index)
-        else:
-            self._pop(index)
+        if index is None:
+            index = [self.num_samples - 1]
+
+        if not isinstance(index, list):
+            index = [index]
+        
+        if not index:
+            return
+        
+        index = sorted(index, reverse=True)
+
+        self._pop(index)
         if index_maintenance.is_embedding_tensor(self):
-            row_ids = [index if index is not None else self.num_samples - 1]
+            row_ids = index
             index_maintenance.index_operation_dataset(
                 self.dataset,
                 dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],

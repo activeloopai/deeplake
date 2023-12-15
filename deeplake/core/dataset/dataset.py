@@ -4632,35 +4632,7 @@ class Dataset:
     def _disable_padding(self):
         self._pad_tensors = False
 
-    def _pop(self, index: Optional[int] = None):
-        max_len = self.max_len
-        if max_len == 0:
-            raise IndexError("Can't pop from empty dataset.")
-
-        if index is None:
-            index = max_len - 1
-
-        if index < 0:
-            raise IndexError("Pop doesn't support negative indices.")
-        elif index >= max_len:
-            raise IndexError(
-                f"Index {index} is out of range. The longest tensor has {max_len} samples."
-            )
-
-        with self:
-            for tensor in self.tensors.values():
-                if tensor.num_samples > index:
-                    tensor._check_for_pop(index)
-            for tensor in self.tensors.values():
-                if tensor.num_samples > index:
-                    tensor._pop(index)
-
-    def _pop_multiple(self, index: List[int]):
-        if not list:
-            return
-
-        index = sorted(index, reverse=True)
-
+    def _pop(self, index: List[int]):
         max_len = self.max_len
         if max_len == 0:
             raise IndexError("Can't pop from empty dataset.")
@@ -4679,7 +4651,7 @@ class Dataset:
                     if tensor.num_samples > idx:
                         tensor._check_for_pop(idx)
             for tensor in self.tensors.values():
-                tensor._pop_multiple(index)
+                tensor._pop(index)
 
     @invalid_view_op
     def pop(self, index: Optional[Union[int, List[int]]] = None):
@@ -4693,12 +4665,20 @@ class Dataset:
         Raises:
             IndexError: If the index is out of range.
         """
-        if isinstance(index, list):
-            self._pop_multiple(index)
-            row_ids = [index if index is not None else self.max_len - 1]
-        else:
-            self._pop(index)
-            row_ids = index
+        if index is None:
+            index = [self.max_len - 1]
+        
+        if not isinstance(index, list):
+            index = [index]
+        
+        if not index:
+            return
+
+        index = sorted(index, reverse=True)
+
+        self._pop(index)
+        row_ids = index
+
         index_maintenance.index_operation_dataset(
             self,
             dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
