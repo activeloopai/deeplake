@@ -2065,6 +2065,7 @@ class ChunkEngine:
         indices = index.values[0].indices(self.num_samples)
         last_shape = None
         is_polygon = self.tensor_meta.htype == "polygon"
+        idx = next(indices, None)
         for chunk_id, row, last_idx, is_tile in chunks:
             if is_tile:
                 pass
@@ -2073,7 +2074,7 @@ class ChunkEngine:
                 sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
             else:
                 chunk = self.get_chunk_from_chunk_id(chunk_id)
-            for idx in indices:
+            while idx:
                 if idx <= last_idx:
                     if self._is_tiled_sample(idx):
                         if len(index.values) == 1:
@@ -2103,6 +2104,7 @@ class ChunkEngine:
                     if is_polygon:
                         sample = [p.__array__() for p in sample]
                     samples.append(sample)
+                    idx = next(indices, None)
                 else:
                     break
         return samples
