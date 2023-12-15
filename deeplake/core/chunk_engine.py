@@ -2227,6 +2227,7 @@ class ChunkEngine:
         
         chunk_keys = [self.get_chunk_key_for_id(chunk_id[0]) for chunk_id in chunk_ids]
         print(f"Getting {len(chunk_keys)} chunks")
+        print("CACHE LEFT:", self.cache.cache_size - self.cache.cache_used)
         self.cache.load_items_from_next_storage(chunk_keys)
 
 
