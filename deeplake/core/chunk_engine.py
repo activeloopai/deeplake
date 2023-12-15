@@ -2226,6 +2226,7 @@ class ChunkEngine:
             chunk_ids.append((encoded[i][0].item(), last_idxs[i].item()))
         
         chunk_keys = [self.get_chunk_key_for_id(chunk_id[0]) for chunk_id in chunk_ids]
+        print(f"Getting {len(chunk_keys)} chunks")
         self.cache.load_items_from_next_storage(chunk_keys)
 
 
