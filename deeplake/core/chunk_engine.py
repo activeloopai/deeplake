@@ -2229,6 +2229,7 @@ class ChunkEngine:
         print(f"Getting {len(chunk_keys)} chunks")
         print("CACHE LEFT:", self.cache.cache_size - self.cache.cache_used)
         self.cache.load_items_from_next_storage(chunk_keys)
+        print("CACHE LEFT:", self.cache.cache_size - self.cache.cache_used)
 
 
     def validate_num_samples_is_synchronized(self):
