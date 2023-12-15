@@ -2073,7 +2073,6 @@ class ChunkEngine:
                 sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
             else:
                 chunk = self.get_chunk_from_chunk_id(chunk_id)
-                decompress = True
             for idx in indices:
                 if idx <= last_idx:
                     if self._is_tiled_sample(idx):
@@ -2084,7 +2083,7 @@ class ChunkEngine:
                             sample = self.get_partial_tiled_sample(idx, index)
                     else:
                         if row != 0:
-                            idx -= self.chunk_id_encoder.array[row - 1][1] + 1
+                            idx -= self.chunk_id_encoder.array[row - 1][-1] + 1
                         if self.is_video:
                             sample = chunk.read_sample(
                                 idx,
@@ -2093,6 +2092,7 @@ class ChunkEngine:
                             )
                             sample = sample[tuple(entry.value for entry in index.values[2:])]
                         else:
+                            print(idx)
                             sample = chunk.read_sample(
                                 idx,
                                 cast=self.tensor_meta.htype != "dicom",
