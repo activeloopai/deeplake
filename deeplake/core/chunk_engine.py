@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import os
 from deeplake.client.log import logger
 import deeplake
 import numpy as np
@@ -2083,7 +2084,7 @@ class ChunkEngine:
                     if row == 0:
                         local_idx = idx
                     else:
-                        local_idx = idx - self.chunk_id_encoder.array[row - 1][-1] + 1
+                        local_idx = idx - (self.chunk_id_encoder.array[row - 1][-1] + 1)
                     if self.is_video:
                         sample = chunk.read_sample(
                             local_idx,
