@@ -2061,12 +2061,10 @@ class ChunkEngine:
         return sample
 
     def get_samples(self, chunks, index, aslist):
-        samples = []
-        indices = index.values[0].indices(self.num_samples)
         last_shape = None
         is_polygon = self.tensor_meta.htype == "polygon"
-        idx = next(indices, None)
-        for chunk_id, row, last_idx, is_tile in chunks:
+        samples = {}
+        for chunk_id, row, idxs, is_tile in chunks:
             if is_tile:
                 pass
             elif self.is_video:
@@ -2074,40 +2072,36 @@ class ChunkEngine:
                 sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
             else:
                 chunk = self.get_chunk_from_chunk_id(chunk_id)
-            while idx is not None:
-                if idx <= last_idx:
-                    if self._is_tiled_sample(idx):
-                        if len(index.values) == 1:
-                            chunks = self.get_chunks_for_sample(idx)
-                            sample = combine_chunks(chunks, idx, self.tile_encoder)
-                        else:
-                            sample = self.get_partial_tiled_sample(idx, index)
+            for idx in idxs:
+                if self._is_tiled_sample(idx):
+                    if len(index.values) == 1:
+                        chunks = self.get_chunks_for_sample(idx)
+                        sample = combine_chunks(chunks, idx, self.tile_encoder)
                     else:
-                        if row != 0:
-                            idx -= self.chunk_id_encoder.array[row - 1][-1] + 1
-                        if self.is_video:
-                            sample = chunk.read_sample(
-                                idx,
-                                sub_index=sub_index,
-                                stream=stream,
-                            )
-                            sample = sample[tuple(entry.value for entry in index.values[2:])]
-                        else:
-                            sample = chunk.read_sample(
-                                idx,
-                                cast=self.tensor_meta.htype != "dicom",
-                            )
-                            if len(index) > 1:
-                                sample = sample[tuple(entry.value for entry in index.values[1:])]
+                        sample = self.get_partial_tiled_sample(idx, index)
+                else:
+                    if row != 0:
+                        idx -= self.chunk_id_encoder.array[row - 1][-1] + 1
+                    if self.is_video:
+                        sample = chunk.read_sample(
+                            idx,
+                            sub_index=sub_index,
+                            stream=stream,
+                        )
+                        sample = sample[tuple(entry.value for entry in index.values[2:])]
+                    else:
+                        sample = chunk.read_sample(
+                            idx,
+                            cast=self.tensor_meta.htype != "dicom",
+                        )
+                        if len(index) > 1:
+                            sample = sample[tuple(entry.value for entry in index.values[1:])]
                     check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
                     last_shape = sample.shape
                     if is_polygon:
                         sample = [p.__array__() for p in sample]
-                    samples.append(sample)
-                    idx = next(indices, None)
-                else:
-                    break
-        return samples
+                    samples[idx] = sample
+        return [samples[idx] for idx in index.values[0].indices(self.num_samples)]
 
 
     def _numpy(
@@ -2253,6 +2247,7 @@ class ChunkEngine:
         indices: List[int],
     ):
         """Parallel chunk retrieval"""
+        indices = sorted(indices)
         indices = np.asarray(indices, dtype=np.uint32)
         encoded = self.chunk_id_encoder._encoded
         last_idxs = encoded[:, -1]
@@ -2274,14 +2269,15 @@ class ChunkEngine:
                 if last_idxs[i] != last_idxs[i - 1]:
                     continue
                 is_tile = True
+            
+            samples_in_chunk = indices[last_pos : pos[i]]
 
             last_pos = pos[i]
 
             chunk_id = encoded[i][0].item()
             row = i
-            last_idx = last_idxs[i].item()
 
-            chunk_ids.append((chunk_id, row, last_idx, is_tile))
+            chunk_ids.append((chunk_id, row, samples_in_chunk, is_tile))
             if not is_tile:
                 chunk_keys.append(self.get_chunk_key_for_id(chunk_id))
         
