@@ -2107,43 +2107,19 @@ class ChunkEngine:
         is_polygon = self.tensor_meta.htype == "polygon"
         read_samples = partial(self._get_samples, index=index, is_polygon=is_polygon, aslist=aslist)
         samples = {}
-        if not isinstance(self.base_storage, MemoryProvider):
-            with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
-                future_list = []
-                for chunk_id, row, idxs, is_tile in self.get_chunk_infos(list(index.values[0].indices(self.num_samples))):
-                    extras = {}
-                    if is_tile:
-                        pass
-                    elif self.is_video:
-                        chunk, stream = self.get_video_chunk(chunk_id)
-                        sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
-                        extras = {"stream": stream, "sub_index": sub_index}
-                    else:
-                        chunk = self.get_chunk_from_chunk_id(chunk_id)
-                    future_list.append(executor.submit(read_samples, chunk, row, idxs, **extras))
-
-
-                for future in futures.as_completed(future_list):
-                    exception = future.exception()
-                    if exception is not None:
-                        raise exception
-                    worker_samples, worker_last_shape = future.result()
-                    check_sample_shape(worker_last_shape, last_shape, self.key, index, aslist)
-                    samples.update(worker_samples)
-        else:
-            for chunk_id, row, idxs, is_tile in self.get_chunk_infos(list(index.values[0].indices(self.num_samples))):
-                extras = {}
-                if is_tile:
-                    pass
-                elif self.is_video:
-                    chunk, stream = self.get_video_chunk(chunk_id)
-                    sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
-                    extras = {"stream": stream, "sub_index": sub_index}
-                else:
-                    chunk = self.get_chunk_from_chunk_id(chunk_id)
-                worker_samples, worker_last_shape = read_samples(chunk, row, idxs, **extras)
-                check_sample_shape(worker_last_shape, last_shape, self.key, index, aslist)
-                samples.update(worker_samples)
+        for chunk_id, row, idxs, is_tile in self.get_chunk_infos(list(index.values[0].indices(self.num_samples))):
+            extras = {}
+            if is_tile:
+                pass
+            elif self.is_video:
+                chunk, stream = self.get_video_chunk(chunk_id)
+                sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
+                extras = {"stream": stream, "sub_index": sub_index}
+            else:
+                chunk = self.get_chunk_from_chunk_id(chunk_id)
+            worker_samples, worker_last_shape = read_samples(chunk, row, idxs, **extras)
+            check_sample_shape(worker_last_shape, last_shape, self.key, index, aslist)
+            samples.update(worker_samples)
             
         return [samples[idx] for idx in index.values[0].indices(self.num_samples)]
 
