@@ -2072,10 +2072,11 @@ class ChunkEngine:
         last_shape = None
 
         for idx in idxs:
+            if idx in samples:
+                continue
             if self._is_tiled_sample(idx):
                 if len(index.values) == 1:
-                    chunks = self.get_chunks_for_sample(idx)
-                    sample = combine_chunks(chunks, idx, self.tile_encoder)
+                    sample = self.get_full_tiled_sample(idx)
                 else:
                     sample = self.get_partial_tiled_sample(idx, index)
             else:
@@ -2083,28 +2084,77 @@ class ChunkEngine:
                     local_idx = idx
                 else:
                     local_idx = idx - (self.chunk_id_encoder.array[row - 1][-1] + 1)
-                if self.is_video:
-                    sample = chunk.read_sample(
-                        local_idx,
-                        sub_index=sub_index,
-                        stream=stream,
-                    )
-                    sample = sample[tuple(entry.value for entry in index.values[2:])]
-                else:
-                    sample = chunk.read_sample(
-                        local_idx,
-                        cast=self.tensor_meta.htype != "dicom",
-                    )
-                    if len(index) > 1:
-                        sample = sample[
-                            tuple(entry.value for entry in index.values[1:])
-                        ]
-                check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
-                last_shape = sample.shape
-                if is_polygon:
-                    sample = [p.__array__() for p in sample]
-                samples[idx] = sample
+
+                sample = chunk.read_sample(
+                    local_idx,
+                    cast=self.tensor_meta.htype != "dicom",
+                )
+                if len(index) > 1:
+                    sample = sample[tuple(entry.value for entry in index.values[1:])]
+            check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
+            last_shape = sample.shape
+            if is_polygon:
+                sample = [p.__array__() for p in sample]
+            samples[idx] = sample
         return samples, last_shape
+
+    def _load_chunk(self, chunk_info):
+        is_tile = chunk_info[3]
+        if is_tile:
+            return chunk_info
+        chunk_id = chunk_info[0]
+        chunk_key = self.get_chunk_key_for_id(chunk_id)
+        chunk = self.base_storage.__getitem__(chunk_key)
+        if _get_nbytes(chunk) <= self.cache.cache_size:
+            self.cache._insert_in_cache(chunk_key, chunk)
+        return chunk_info
+
+    def get_chunk_infos(
+        self,
+        indices: List[int],
+    ):
+        """Parallel chunk retrieval"""
+        indices = sorted(indices)
+        indices = np.asarray(indices, dtype=np.uint32)
+        encoded = self.chunk_id_encoder._encoded
+        last_idxs = encoded[:, -1]
+
+        pos = np.searchsorted(indices, last_idxs, side="right")
+
+        chunk_infos = []
+
+        last_pos = 0
+        for i in range(len(last_idxs)):
+            is_tile = False
+
+            if pos[i] == 0:
+                continue
+
+            if pos[i] == last_pos:
+                # tile
+                if last_idxs[i] != last_idxs[i - 1]:
+                    continue
+                is_tile = True
+
+            samples_in_chunk = indices[last_pos : pos[i]]
+
+            last_pos = pos[i]
+
+            chunk_id = encoded[i][0].item()
+            row = i
+
+            chunk_infos.append((chunk_id, row, samples_in_chunk, is_tile))
+
+        with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+            future_list = [
+                executor.submit(self._load_chunk, chunk_info)
+                for chunk_info in chunk_infos
+            ]
+            for future in futures.as_completed(future_list):
+                exception = future.exception()
+                if exception is not None:
+                    raise exception
+                yield future.result()
 
     def get_samples(self, index, aslist):
         last_shape = None
@@ -2119,15 +2169,10 @@ class ChunkEngine:
             extras = {}
             if is_tile:
                 pass
-            elif self.is_video:
-                chunk, stream = self.get_video_chunk(chunk_id)
-                sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
-                extras = {"stream": stream, "sub_index": sub_index}
-            else:
-                chunk = self.get_chunk_from_chunk_id(chunk_id)
-            worker_samples, worker_last_shape = read_samples(chunk, row, idxs, **extras)
-            check_sample_shape(worker_last_shape, last_shape, self.key, index, aslist)
-            samples.update(worker_samples)
+            chunk = self.get_chunk_from_chunk_id(chunk_id)
+            chunk_samples, chunk_last_shape = read_samples(chunk, row, idxs, **extras)
+            check_sample_shape(chunk_last_shape, last_shape, self.key, index, aslist)
+            samples.update(chunk_samples)
 
         return [samples[idx] for idx in index.values[0].indices(self.num_samples)]
 
@@ -2169,7 +2214,7 @@ class ChunkEngine:
             samples = self.numpy_from_data_cache(index, length, aslist, pad_tensor)
         else:
             samples = []
-            if fetch_chunks:
+            if fetch_chunks and not (self.tensor_meta.is_link or self.is_video):
                 samples = self.get_samples(index, aslist)
             else:
                 for global_sample_index in index.values[0].indices(length):
@@ -2269,64 +2314,6 @@ class ChunkEngine:
             self.get_chunk_from_chunk_id(chunk_id, copy)
             for chunk_id in self.chunk_id_encoder[global_sample_index]
         ]
-
-    def _load_chunk(self, chunk_info):
-        is_tile = chunk_info[3]
-        if is_tile:
-            return chunk_info
-        chunk_id = chunk_info[0]
-        chunk_key = self.get_chunk_key_for_id(chunk_id)
-        chunk = self.base_storage.__getitem__(chunk_key)
-        if _get_nbytes(chunk) <= self.cache.cache_size:
-            self.cache._insert_in_cache(chunk_key, chunk)
-        return chunk_info
-
-    def get_chunk_infos(
-        self,
-        indices: List[int],
-    ):
-        """Parallel chunk retrieval"""
-        indices = sorted(indices)
-        indices = np.asarray(indices, dtype=np.uint32)
-        encoded = self.chunk_id_encoder._encoded
-        last_idxs = encoded[:, -1]
-
-        pos = np.searchsorted(indices, last_idxs, side="right")
-
-        chunk_infos = []
-
-        last_pos = 0
-        for i in range(len(last_idxs)):
-            is_tile = False
-
-            if pos[i] == 0:
-                continue
-
-            if pos[i] == last_pos:
-                # tile
-                if last_idxs[i] != last_idxs[i - 1]:
-                    continue
-                is_tile = True
-
-            samples_in_chunk = indices[last_pos : pos[i]]
-
-            last_pos = pos[i]
-
-            chunk_id = encoded[i][0].item()
-            row = i
-
-            chunk_infos.append((chunk_id, row, samples_in_chunk, is_tile))
-
-        with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
-            future_list = [
-                executor.submit(self._load_chunk, chunk_info)
-                for chunk_info in chunk_infos
-            ]
-            for future in futures.as_completed(future_list):
-                exception = future.exception()
-                if exception is not None:
-                    raise exception
-                yield future.result()
 
     def validate_num_samples_is_synchronized(self):
         """Check if tensor meta length and chunk ID encoder are representing the same number of samples.
