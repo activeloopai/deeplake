@@ -164,7 +164,8 @@ def _load_tensor_metas(dataset):
         get_tensor_meta_key(key, dataset.version_state["commit_id"])
         for key in dataset.meta.tensors
     ]
-    dataset.storage.load_items_from_next_storage(meta_keys)
+    for _ in dataset.storage.get_items(meta_keys):
+        pass
     dataset._tensors()  # access all tensors to set chunk engines
 
 

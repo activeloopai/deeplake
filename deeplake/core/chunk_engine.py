@@ -112,7 +112,8 @@ from collections.abc import Iterable
 from PIL import Image  # type: ignore
 from functools import partial
 from concurrent import futures
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from deeplake.core.storage.lru_cache import _get_nbytes
 
 class ChunkEngine:
     def __init__(
@@ -2101,15 +2102,15 @@ class ChunkEngine:
         return samples, last_shape
         
 
-    def get_samples(self, chunks, index, aslist):
+    def get_samples(self, index, aslist):
         last_shape = None
         is_polygon = self.tensor_meta.htype == "polygon"
         read_samples = partial(self._get_samples, index=index, is_polygon=is_polygon, aslist=aslist)
         samples = {}
-        if not isinstance(self.base_storage, MemoryProvider) and len(chunks) > 20:
+        if not isinstance(self.base_storage, MemoryProvider):
             with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
                 future_list = []
-                for chunk_id, row, idxs, is_tile in chunks:
+                for chunk_id, row, idxs, is_tile in self.get_chunk_infos(list(index.values[0].indices(self.num_samples))):
                     extras = {}
                     if is_tile:
                         pass
@@ -2130,7 +2131,7 @@ class ChunkEngine:
                     check_sample_shape(worker_last_shape, last_shape, self.key, index, aslist)
                     samples.update(worker_samples)
         else:
-            for chunk_id, row, idxs, is_tile in chunks:
+            for chunk_id, row, idxs, is_tile in self.get_chunk_infos(list(index.values[0].indices(self.num_samples))):
                 extras = {}
                 if is_tile:
                     pass
@@ -2186,9 +2187,7 @@ class ChunkEngine:
         else:
             samples = []
             if fetch_chunks:
-                chunk_ids = self.get_chunks_for_indices(list(index.values[0].indices(length)))
-                print("FETCHED CHUNKS")
-                samples = self.get_samples(chunk_ids, index, aslist)
+                samples = self.get_samples(index, aslist)
             else:
                 for global_sample_index in index.values[0].indices(length):
                     try:
@@ -2285,8 +2284,20 @@ class ChunkEngine:
             self.get_chunk_from_chunk_id(chunk_id, copy)
             for chunk_id in self.chunk_id_encoder[global_sample_index]
         ]
+    
+    def _load_chunk(self, chunk_info):
+        is_tile = chunk_info[3]
+        if is_tile:
+            return chunk_info
+        chunk_id = chunk_info[0]
+        chunk_key = self.get_chunk_key_for_id(chunk_id)
+        chunk = self.base_storage.__getitem__(chunk_key)
+        if _get_nbytes(chunk) <= self.cache.cache_size:
+            self.cache._insert_in_cache(chunk_key, chunk)
+        return chunk_info
 
-    def get_chunks_for_indices(
+
+    def get_chunk_infos(
         self,
         indices: List[int],
     ):
@@ -2298,8 +2309,7 @@ class ChunkEngine:
 
         pos = np.searchsorted(indices, last_idxs, side="right")
 
-        chunk_ids = []
-        chunk_keys = []
+        chunk_infos = []
 
         last_pos = 0
         for i in range(len(last_idxs)):
@@ -2321,13 +2331,15 @@ class ChunkEngine:
             chunk_id = encoded[i][0].item()
             row = i
 
-            chunk_ids.append((chunk_id, row, samples_in_chunk, is_tile))
-            if not is_tile:
-                chunk_keys.append(self.get_chunk_key_for_id(chunk_id))
+            chunk_infos.append((chunk_id, row, samples_in_chunk, is_tile))
         
-        print(f"Getting {len(chunk_keys)} chunks")
-        self.cache.load_items_from_next_storage(chunk_keys)
-        return chunk_ids
+        with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+            future_list = [executor.submit(self._load_chunk, chunk_info) for chunk_info in chunk_infos]
+            for future in futures.as_completed(future_list):
+                exception = future.exception()
+                if exception is not None:
+                    raise exception
+                yield future.result()
 
 
     def validate_num_samples_is_synchronized(self):
