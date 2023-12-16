@@ -118,6 +118,7 @@ class DynamicTensorNumpyError(Exception):
             f"Tensor '{key}' with index = {str(index)} has dynamic '{property_key}' and cannot be converted into a `np.ndarray`. Try setting the parameter `aslist=True`"
         )
 
+
 class InvalidShapeIntervalError(Exception):
     def __init__(
         self,

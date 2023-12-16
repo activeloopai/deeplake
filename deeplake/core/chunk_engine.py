@@ -115,6 +115,7 @@ from concurrent import futures
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from deeplake.core.storage.lru_cache import _get_nbytes
 
+
 class ChunkEngine:
     def __init__(
         self,
@@ -2063,11 +2064,13 @@ class ChunkEngine:
             )
 
         return sample
-    
-    def _get_samples(self, chunk, row, idxs, index, is_polygon, aslist, stream=None, sub_index=None):
+
+    def _get_samples(
+        self, chunk, row, idxs, index, is_polygon, aslist, stream=None, sub_index=None
+    ):
         samples = {}
         last_shape = None
-        
+
         for idx in idxs:
             if self._is_tiled_sample(idx):
                 if len(index.values) == 1:
@@ -2093,21 +2096,26 @@ class ChunkEngine:
                         cast=self.tensor_meta.htype != "dicom",
                     )
                     if len(index) > 1:
-                        sample = sample[tuple(entry.value for entry in index.values[1:])]
+                        sample = sample[
+                            tuple(entry.value for entry in index.values[1:])
+                        ]
                 check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
                 last_shape = sample.shape
                 if is_polygon:
                     sample = [p.__array__() for p in sample]
                 samples[idx] = sample
         return samples, last_shape
-        
 
     def get_samples(self, index, aslist):
         last_shape = None
         is_polygon = self.tensor_meta.htype == "polygon"
-        read_samples = partial(self._get_samples, index=index, is_polygon=is_polygon, aslist=aslist)
+        read_samples = partial(
+            self._get_samples, index=index, is_polygon=is_polygon, aslist=aslist
+        )
         samples = {}
-        for chunk_id, row, idxs, is_tile in self.get_chunk_infos(list(index.values[0].indices(self.num_samples))):
+        for chunk_id, row, idxs, is_tile in self.get_chunk_infos(
+            list(index.values[0].indices(self.num_samples))
+        ):
             extras = {}
             if is_tile:
                 pass
@@ -2120,9 +2128,8 @@ class ChunkEngine:
             worker_samples, worker_last_shape = read_samples(chunk, row, idxs, **extras)
             check_sample_shape(worker_last_shape, last_shape, self.key, index, aslist)
             samples.update(worker_samples)
-            
-        return [samples[idx] for idx in index.values[0].indices(self.num_samples)]
 
+        return [samples[idx] for idx in index.values[0].indices(self.num_samples)]
 
     def _numpy(
         self,
@@ -2186,7 +2193,9 @@ class ChunkEngine:
                             e.link, global_sample_index, self.name
                         ) from e
 
-                    check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
+                    check_sample_shape(
+                        sample.shape, last_shape, self.key, index, aslist
+                    )
                     last_shape = sample.shape
                     if ispolygon:
                         sample = [p.__array__() for p in sample]
@@ -2260,7 +2269,7 @@ class ChunkEngine:
             self.get_chunk_from_chunk_id(chunk_id, copy)
             for chunk_id in self.chunk_id_encoder[global_sample_index]
         ]
-    
+
     def _load_chunk(self, chunk_info):
         is_tile = chunk_info[3]
         if is_tile:
@@ -2271,7 +2280,6 @@ class ChunkEngine:
         if _get_nbytes(chunk) <= self.cache.cache_size:
             self.cache._insert_in_cache(chunk_key, chunk)
         return chunk_info
-
 
     def get_chunk_infos(
         self,
@@ -2293,13 +2301,13 @@ class ChunkEngine:
 
             if pos[i] == 0:
                 continue
-            
+
             if pos[i] == last_pos:
                 # tile
                 if last_idxs[i] != last_idxs[i - 1]:
                     continue
                 is_tile = True
-            
+
             samples_in_chunk = indices[last_pos : pos[i]]
 
             last_pos = pos[i]
@@ -2308,15 +2316,17 @@ class ChunkEngine:
             row = i
 
             chunk_infos.append((chunk_id, row, samples_in_chunk, is_tile))
-        
+
         with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
-            future_list = [executor.submit(self._load_chunk, chunk_info) for chunk_info in chunk_infos]
+            future_list = [
+                executor.submit(self._load_chunk, chunk_info)
+                for chunk_info in chunk_infos
+            ]
             for future in futures.as_completed(future_list):
                 exception = future.exception()
                 if exception is not None:
                     raise exception
                 yield future.result()
-
 
     def validate_num_samples_is_synchronized(self):
         """Check if tensor meta length and chunk ID encoder are representing the same number of samples.
