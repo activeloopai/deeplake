@@ -2063,17 +2063,9 @@ class ChunkEngine:
 
         return sample
     
-    def _get_samples(self, chunk_id, row, idxs, is_tile, index, is_polygon, aslist):
+    def _get_samples(self, chunk, row, idxs, index, is_polygon, aslist, stream=None, sub_index=None):
         samples = {}
         last_shape = None
-
-        if is_tile:
-            pass
-        elif self.is_video:
-            chunk, stream = self.get_video_chunk(chunk_id)
-            sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
-        else:
-            chunk = self.get_chunk_from_chunk_id(chunk_id)
         
         for idx in idxs:
             if self._is_tiled_sample(idx):
@@ -2116,7 +2108,19 @@ class ChunkEngine:
         samples = {}
         if not isinstance(self.base_storage, MemoryProvider) and len(chunks) > 50:
             with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
-                future_list = [executor.submit(read_samples, chunk_id, row, idxs, is_tile) for chunk_id, row, idxs, is_tile in chunks]
+                future_list = []
+                for chunk_id, row, idxs, is_tile in chunks:
+                    extras = {}
+                    if is_tile:
+                        pass
+                    elif self.is_video:
+                        chunk, stream = self.get_video_chunk(chunk_id)
+                        sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
+                        extras = {"stream": stream, "sub_index": sub_index}
+                    else:
+                        chunk = self.get_chunk_from_chunk_id(chunk_id)
+                    future_list.append(executor.submit(read_samples, chunk, row, idxs, **extras))
+
 
                 for future in futures.as_completed(future_list):
                     exception = future.exception()
@@ -2127,7 +2131,16 @@ class ChunkEngine:
                     samples.update(worker_samples)
         else:
             for chunk_id, row, idxs, is_tile in chunks:
-                worker_samples, worker_last_shape = read_samples(chunk_id, row, idxs, is_tile)
+                extras = {}
+                if is_tile:
+                    pass
+                elif self.is_video:
+                    chunk, stream = self.get_video_chunk(chunk_id)
+                    sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
+                    extras = {"stream": stream, "sub_index": sub_index}
+                else:
+                    chunk = self.get_chunk_from_chunk_id(chunk_id)
+                worker_samples, worker_last_shape = read_samples(chunk, row, idxs, **extras)
                 check_sample_shape(worker_last_shape, last_shape, self.key, index, aslist)
                 samples.update(worker_samples)
             
@@ -2174,6 +2187,7 @@ class ChunkEngine:
             samples = []
             if fetch_chunks:
                 chunk_ids = self.get_chunks_for_indices(list(index.values[0].indices(length)))
+                print("FETCHED CHUNKS")
                 samples = self.get_samples(chunk_ids, index, aslist)
             else:
                 for global_sample_index in index.values[0].indices(length):
