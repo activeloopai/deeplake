@@ -2106,7 +2106,7 @@ class ChunkEngine:
         is_polygon = self.tensor_meta.htype == "polygon"
         read_samples = partial(self._get_samples, index=index, is_polygon=is_polygon, aslist=aslist)
         samples = {}
-        if not isinstance(self.base_storage, MemoryProvider) and len(chunks) > 50:
+        if not isinstance(self.base_storage, MemoryProvider) and len(chunks) > 20:
             with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
                 future_list = []
                 for chunk_id, row, idxs, is_tile in chunks:
