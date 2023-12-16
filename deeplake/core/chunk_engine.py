@@ -114,6 +114,8 @@ from functools import partial
 from concurrent import futures
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from deeplake.core.storage.lru_cache import _get_nbytes
+import time
+import psutil
 
 
 class ChunkEngine:
@@ -2104,10 +2106,11 @@ class ChunkEngine:
             return chunk_info
         chunk_id = chunk_info[0]
         chunk_key = self.get_chunk_key_for_id(chunk_id)
+        cache_used_percent = lambda: self.cache.cache_used / self.cache.cache_size
+        while cache_used_percent() > 0.9:
+            time.sleep(0.1)
         chunk = self.base_storage.__getitem__(chunk_key)
-        if _get_nbytes(chunk) <= self.cache.cache_size:
-            self.cache._insert_in_cache(chunk_key, chunk)
-        return chunk_info
+        return chunk
 
     def get_chunk_infos(
         self,
@@ -2145,16 +2148,13 @@ class ChunkEngine:
 
             chunk_infos.append((chunk_id, row, samples_in_chunk, is_tile))
 
-        with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
-            future_list = [
-                executor.submit(self._load_chunk, chunk_info)
-                for chunk_info in chunk_infos
-            ]
-            for future in futures.as_completed(future_list):
-                exception = future.exception()
-                if exception is not None:
-                    raise exception
-                yield future.result()
+        with ThreadPoolExecutor() as executor:
+            for i, chunk in enumerate(executor.map(self._load_chunk, chunk_infos)):
+                chunk_id = chunk_infos[i][0]
+                chunk_key = self.get_chunk_key_for_id(chunk_id)
+                if _get_nbytes(chunk) <= self.cache.cache_size:
+                    self.cache._insert_in_cache(chunk_key, chunk)
+                yield chunk_infos[i]
 
     def get_samples(self, index, aslist):
         last_shape = None
@@ -2173,6 +2173,9 @@ class ChunkEngine:
             chunk_samples, chunk_last_shape = read_samples(chunk, row, idxs, **extras)
             check_sample_shape(chunk_last_shape, last_shape, self.key, index, aslist)
             samples.update(chunk_samples)
+            cache_used_percent = lambda: self.cache.cache_used / self.cache.cache_size
+            while cache_used_percent() > 0.9:
+                self.cache._pop_from_cache()
 
         return [samples[idx] for idx in index.values[0].indices(self.num_samples)]
 

@@ -688,7 +688,7 @@ class S3Provider(StorageProvider):
             raise S3SetError(err) from err
 
     def get_items(self, keys):
-        with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+        with ThreadPoolExecutor() as executor:
             future_to_key = {
                 executor.submit(self.__getitem__, key): key for key in keys
             }

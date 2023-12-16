@@ -288,17 +288,7 @@ class LRUCache(StorageProvider):
 
         self.maybe_flush()
 
-    def __delitem__(self, path: str):
-        """Deletes the object present at the path from the cache and the underlying storage.
-
-        Args:
-            path (str): the path to the object relative to the root of the provider.
-
-        Raises:
-            KeyError: If an object is not found at the path.
-            ReadOnlyError: If the provider is in read-only mode.
-        """
-        self.check_readonly()
+    def _del_item_from_cache(self, path: str):
         deleted_from_cache = False
 
         if path in self.deeplake_objects:
@@ -311,6 +301,21 @@ class LRUCache(StorageProvider):
             del self.cache_storage[path]
             self.dirty_keys.pop(path, None)
             deleted_from_cache = True
+
+        return deleted_from_cache
+
+    def __delitem__(self, path: str):
+        """Deletes the object present at the path from the cache and the underlying storage.
+
+        Args:
+            path (str): the path to the object relative to the root of the provider.
+
+        Raises:
+            KeyError: If an object is not found at the path.
+            ReadOnlyError: If the provider is in read-only mode.
+        """
+        self.check_readonly()
+        deleted_from_cache = self._del_item_from_cache(path)
 
         try:
             if self.next_storage is not None:
