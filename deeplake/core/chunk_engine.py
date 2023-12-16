@@ -109,7 +109,7 @@ from deeplake.core.sample import Sample
 from itertools import chain, repeat
 from collections.abc import Iterable
 from PIL import Image  # type: ignore
-
+from functools import partial
 
 class ChunkEngine:
     def __init__(
@@ -2081,17 +2081,17 @@ class ChunkEngine:
                         sample = self.get_partial_tiled_sample(idx, index)
                 else:
                     if row != 0:
-                        idx -= self.chunk_id_encoder.array[row - 1][-1] + 1
+                        local_idx = idx - self.chunk_id_encoder.array[row - 1][-1] + 1
                     if self.is_video:
                         sample = chunk.read_sample(
-                            idx,
+                            local_idx,
                             sub_index=sub_index,
                             stream=stream,
                         )
                         sample = sample[tuple(entry.value for entry in index.values[2:])]
                     else:
                         sample = chunk.read_sample(
-                            idx,
+                            local_idx,
                             cast=self.tensor_meta.htype != "dicom",
                         )
                         if len(index) > 1:
