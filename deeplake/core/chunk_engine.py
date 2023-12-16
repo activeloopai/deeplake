@@ -2429,41 +2429,6 @@ class ChunkEngine:
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
 
-    def pop_multiple(
-        self,
-        indices: List[int],
-        link_callback: Callable,
-        sample_ids: Optional[List[int]],
-    ):
-        self._write_initialization()
-
-        self.cached_data = None
-        initial_autoflush = self.cache.autoflush
-        self.cache.autoflush = False
-
-        indices = sorted(indices)
-
-        if link_callback:
-            for idx in reversed(indices):
-                link_callback(idx)
-
-        for i in reversed(range(len(indices))):
-            self.commit_diff.pop(indices[i], sample_ids[i])
-        if self.is_sequence:
-            assert self.sequence_encoder is not None
-            # pop in reverse order else indices get shifted
-            for global_sample_index in reversed(indices):
-                for idx in reversed(range(*self.sequence_encoder[global_sample_index])):
-                    self.pop_item(idx)
-                self.sequence_encoder.pop(global_sample_index)
-        else:
-            for global_sample_index in reversed(indices):
-                self.pop_item(global_sample_index)
-        for global_sample_index in reversed(indices):
-            self.pad_encoder.pop(global_sample_index)
-        self.cache.autoflush = initial_autoflush
-        self.cache.maybe_flush()
-
     def pop_item(self, global_sample_index):
         enc = self.chunk_id_encoder
         if not self._is_tiled_sample(global_sample_index):
