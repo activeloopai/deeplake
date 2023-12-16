@@ -114,10 +114,11 @@ class InvalidTensorGroupNameError(Exception):
 
 class DynamicTensorNumpyError(Exception):
     def __init__(self, key: str, index, property_key: str):
+        self.key = key
+        self.property_key = property_key
         super().__init__(
             f"Tensor '{key}' with index = {str(index)} has dynamic '{property_key}' and cannot be converted into a `np.ndarray`. Try setting the parameter `aslist=True`"
         )
-
 
 class InvalidShapeIntervalError(Exception):
     def __init__(

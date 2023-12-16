@@ -32,7 +32,7 @@ from deeplake.core.version_control.commit_chunk_map import CommitChunkMap  # typ
 from typing import Any, Dict, List, Optional, Sequence, Union, Callable
 from deeplake.core.meta.encode.tile import TileEncoder
 from deeplake.core.storage.provider import StorageProvider
-from deeplake.core.storage import S3Provider, GCSProvider, AzureProvider
+from deeplake.core.storage import S3Provider, GCSProvider, AzureProvider, MemoryProvider
 from deeplake.core.tiling.deserialize import (
     combine_chunks,
     translate_slices,
@@ -110,6 +110,8 @@ from deeplake.core.sample import Sample
 from itertools import chain, repeat
 from collections.abc import Iterable
 from PIL import Image  # type: ignore
+from functools import partial
+from concurrent import futures
 from concurrent.futures import ProcessPoolExecutor
 
 class ChunkEngine:
@@ -2060,50 +2062,75 @@ class ChunkEngine:
             )
 
         return sample
+    
+    def _get_samples(self, chunk_id, row, idxs, is_tile, index, is_polygon, aslist):
+        samples = {}
+        last_shape = None
+
+        if is_tile:
+            pass
+        elif self.is_video:
+            chunk, stream = self.get_video_chunk(chunk_id)
+            sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
+        else:
+            chunk = self.get_chunk_from_chunk_id(chunk_id)
+        
+        for idx in idxs:
+            if self._is_tiled_sample(idx):
+                if len(index.values) == 1:
+                    chunks = self.get_chunks_for_sample(idx)
+                    sample = combine_chunks(chunks, idx, self.tile_encoder)
+                else:
+                    sample = self.get_partial_tiled_sample(idx, index)
+            else:
+                if row == 0:
+                    local_idx = idx
+                else:
+                    local_idx = idx - (self.chunk_id_encoder.array[row - 1][-1] + 1)
+                if self.is_video:
+                    sample = chunk.read_sample(
+                        local_idx,
+                        sub_index=sub_index,
+                        stream=stream,
+                    )
+                    sample = sample[tuple(entry.value for entry in index.values[2:])]
+                else:
+                    sample = chunk.read_sample(
+                        local_idx,
+                        cast=self.tensor_meta.htype != "dicom",
+                    )
+                    if len(index) > 1:
+                        sample = sample[tuple(entry.value for entry in index.values[1:])]
+                check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
+                last_shape = sample.shape
+                if is_polygon:
+                    sample = [p.__array__() for p in sample]
+                samples[idx] = sample
+        return samples, last_shape
+        
 
     def get_samples(self, chunks, index, aslist):
         last_shape = None
         is_polygon = self.tensor_meta.htype == "polygon"
+        read_samples = partial(self._get_samples, index=index, is_polygon=is_polygon, aslist=aslist)
         samples = {}
-        for chunk_id, row, idxs, is_tile in chunks:
-            if is_tile:
-                pass
-            elif self.is_video:
-                chunk, stream = self.get_video_chunk(chunk_id)
-                sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
-            else:
-                chunk = self.get_chunk_from_chunk_id(chunk_id)
-            for idx in idxs:
-                if self._is_tiled_sample(idx):
-                    if len(index.values) == 1:
-                        chunks = self.get_chunks_for_sample(idx)
-                        sample = combine_chunks(chunks, idx, self.tile_encoder)
-                    else:
-                        sample = self.get_partial_tiled_sample(idx, index)
-                else:
-                    if row == 0:
-                        local_idx = idx
-                    else:
-                        local_idx = idx - (self.chunk_id_encoder.array[row - 1][-1] + 1)
-                    if self.is_video:
-                        sample = chunk.read_sample(
-                            local_idx,
-                            sub_index=sub_index,
-                            stream=stream,
-                        )
-                        sample = sample[tuple(entry.value for entry in index.values[2:])]
-                    else:
-                        sample = chunk.read_sample(
-                            local_idx,
-                            cast=self.tensor_meta.htype != "dicom",
-                        )
-                        if len(index) > 1:
-                            sample = sample[tuple(entry.value for entry in index.values[1:])]
-                    check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
-                    last_shape = sample.shape
-                    if is_polygon:
-                        sample = [p.__array__() for p in sample]
-                    samples[idx] = sample
+        if not isinstance(self.base_storage, MemoryProvider) and len(chunks) > 50:
+            with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
+                future_list = [executor.submit(read_samples, chunk_id, row, idxs, is_tile) for chunk_id, row, idxs, is_tile in chunks]
+
+                for future in futures.as_completed(future_list):
+                    exception = future.exception()
+                    if exception is not None:
+                        raise exception
+                    worker_samples, worker_last_shape = future.result()
+                    check_sample_shape(worker_last_shape, last_shape, self.key, index, aslist)
+                    samples.update(worker_samples)
+        else:
+            for chunk_id, row, idxs, is_tile in chunks:
+                worker_samples, worker_last_shape = read_samples(chunk_id, row, idxs, is_tile)
+                check_sample_shape(worker_last_shape, last_shape, self.key, index, aslist)
+                samples.update(worker_samples)
+            
         return [samples[idx] for idx in index.values[0].indices(self.num_samples)]
 
 
