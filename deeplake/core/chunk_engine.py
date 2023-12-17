@@ -2194,39 +2194,6 @@ class ChunkEngine:
             for chunk_id in self.chunk_id_encoder[global_sample_index]
         ]
 
-    def get_chunks_for_indices(
-        self,
-        indices: List[int],
-    ):
-        """Parallel chunk retrieval"""
-        indices = np.asarray(indices, dtype=np.uint32)
-        encoded = self.chunk_id_encoder._encoded
-        last_idxs = encoded[:, -1]
-
-        pos = np.searchsorted(indices, last_idxs, side="right")
-
-        chunk_ids = []
-
-        last_pos = 0
-        for i in range(len(last_idxs)):
-            if pos[i] == 0:
-                continue
-            
-            if pos[i] == last_pos:
-                # tile
-                if last_idxs[i] == last_idxs[i - 1]:
-                    chunk_ids.append((encoded[i][0].item(), last_idxs[i].item()))
-                else:
-                    continue
-
-            last_pos = pos[i]
-
-            chunk_ids.append((encoded[i][0].item(), last_idxs[i].item()))
-        
-        chunk_keys = [self.get_chunk_key_for_id(chunk_id[0]) for chunk_id in chunk_ids]
-        self.cache.load_items_from_next_storage(chunk_keys)
-
-
     def validate_num_samples_is_synchronized(self):
         """Check if tensor meta length and chunk ID encoder are representing the same number of samples.
         Helpful for determining if a user has tampered with the tensor meta or the chunk ID encoder, or if
@@ -2335,41 +2302,6 @@ class ChunkEngine:
         else:
             self.pop_item(global_sample_index)
         self.pad_encoder.pop(global_sample_index)
-        self.cache.autoflush = initial_autoflush
-        self.cache.maybe_flush()
-
-    def pop_multiple(
-        self,
-        indices: List[int],
-        link_callback: Callable,
-        sample_ids: Optional[List[int]],
-    ):
-        self._write_initialization()
-
-        self.cached_data = None
-        initial_autoflush = self.cache.autoflush
-        self.cache.autoflush = False
-
-        indices = sorted(indices)
-
-        if link_callback:
-            for idx in reversed(indices):
-                link_callback(idx)
-
-        for i in reversed(range(len(indices))):
-            self.commit_diff.pop(indices[i], sample_ids[i])
-        if self.is_sequence:
-            assert self.sequence_encoder is not None
-            # pop in reverse order else indices get shifted
-            for global_sample_index in reversed(indices):
-                for idx in reversed(range(*self.sequence_encoder[global_sample_index])):
-                    self.pop_item(idx)
-                self.sequence_encoder.pop(global_sample_index)
-        else:
-            for global_sample_index in reversed(indices):
-                self.pop_item(global_sample_index)
-        for global_sample_index in reversed(indices):
-            self.pad_encoder.pop(global_sample_index)
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
 

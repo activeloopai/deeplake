@@ -4667,17 +4667,17 @@ class Dataset:
         """
         if index is None:
             index = [self.max_len - 1]
-        
+
         if not isinstance(index, list):
             index = [index]
-        
+
         if not index:
             return
 
         index = sorted(index, reverse=True)
 
         self._pop(index)
-        row_ids = index
+        row_ids = index[:]
 
         index_maintenance.index_operation_dataset(
             self,

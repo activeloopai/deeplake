@@ -1172,6 +1172,7 @@ class Tensor:
             raise EmbeddingTensorPopError(self.meta.name, index)
 
     def _pop(self, index: List[int]):
+        """Removes elements at the given indices. ``index`` must be sorted in descending order."""
         sample_id_tensor = self._sample_id_tensor
         sample_ids = (
             sample_id_tensor[index].numpy().reshape(-1).tolist()
@@ -1193,21 +1194,21 @@ class Tensor:
 
     @invalid_view_op
     def pop(self, index: Optional[Union[int, List[int]]] = None):
-        """Removes an element at the given index."""
+        """Removes element(s) at the given index / indices."""
         if index is None:
             index = [self.num_samples - 1]
 
         if not isinstance(index, list):
             index = [index]
-        
+
         if not index:
             return
-        
+
         index = sorted(index, reverse=True)
 
         self._pop(index)
         if index_maintenance.is_embedding_tensor(self):
-            row_ids = index
+            row_ids = index[:]
             index_maintenance.index_operation_dataset(
                 self.dataset,
                 dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
