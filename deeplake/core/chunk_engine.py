@@ -2065,53 +2065,23 @@ class ChunkEngine:
 
         return sample
 
-    def _get_samples(self, chunk, row, idxs, index, is_polygon, aslist):
-        samples = {}
-        last_shape = None
-
-        for idx in idxs:
-            if idx in samples:
-                continue
-            if self._is_tiled_sample(idx):
-                if len(index.values) == 1:
-                    sample = self.get_full_tiled_sample(idx)
-                else:
-                    sample = self.get_partial_tiled_sample(idx, index)
-            else:
-                if row == 0:
-                    local_idx = idx
-                else:
-                    local_idx = idx - (self.chunk_id_encoder.array[row - 1][-1] + 1)
-
-                sample = chunk.read_sample(
-                    local_idx,
-                    cast=self.tensor_meta.htype != "dicom",
-                )
-                if len(index) > 1:
-                    sample = sample[tuple(entry.value for entry in index.values[1:])]
-            check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
-            last_shape = sample.shape
-            if is_polygon:
-                sample = [p.__array__() for p in sample]
-            samples[idx] = sample
-        return samples, last_shape
-
     def _load_chunk(self, chunk_info):
+        """Worker function for chunk retrieval."""
+        chunk_key = chunk_info[0]
+        result = self.cache._get_item_from_cache(chunk_key)
+        if result is not None:
+            return result, chunk_info
         is_tile = chunk_info[3]
         if is_tile:
             return None, chunk_info
-        chunk_key = chunk_info[0]
         cache_used_percent = lambda: self.cache.cache_used / self.cache.cache_size
         while cache_used_percent() > 0.9:
             time.sleep(0.1)
         chunk = self.base_storage.__getitem__(chunk_key)
         return chunk, chunk_info
 
-    def get_chunk_infos(
-        self,
-        indices: List[int],
-    ):
-        """Parallel chunk retrieval"""
+    def _get_chunk_infos(self, indices: List[int]):
+        """Returns chunk infos for the chunks covered by the given indices."""
         indices = sorted(indices)
         indices = np.asarray(indices, dtype=np.uint32)
         encoded = self.chunk_id_encoder._encoded
@@ -2145,6 +2115,15 @@ class ChunkEngine:
 
             chunk_infos.append((chunk_key, row, samples_in_chunk, is_tile))
 
+        return chunk_infos
+
+    def load_chunks(
+        self,
+        indices: List[int],
+    ):
+        """Fetches relevant chunks from base storage, adds them to cache and yields chunk info."""
+        chunk_infos = self._get_chunk_infos(indices)
+
         with ThreadPoolExecutor() as executor:
             futures_list = [
                 executor.submit(self._load_chunk, chunk_info)
@@ -2160,14 +2139,91 @@ class ChunkEngine:
                         self.cache._insert_in_cache(chunk_info[0], chunk)
                 yield chunk_info
 
-    def get_samples(self, index, aslist):
+    def _get_samples(
+        self,
+        chunk: Optional[BaseChunk],
+        row: int,
+        idxs: List[int],
+        index: Index,
+        is_polygon: bool,
+        aslist: bool,
+        pad_tensor: bool,
+    ):
+        """Get samples from a chunk.
+
+        Args:
+            chunk (Optional, BaseChunk): Chunk to read samples from. Can be ``None`` in case of tiles.
+            row (int): Row of the chunk in the chunk_id_encoder.
+            idxs (List[int]): List of global sample indices to read from this chunk.
+            index (Index): Original index applied on the tensor.
+            is_polygon (bool): Whether the tensor is a polygon tensor.
+            aslist (bool): Whether to return a list or numpy array.
+            pad_tensor (bool): Whether tensor is padded.
+
+        Returns:
+            Dict of samples and shape of the last sample encountered in this chunk.
+        """
+        samples = {}
+        last_shape = None
+
+        for idx in idxs:
+            if idx in samples:
+                continue
+            if pad_tensor and (idx > self.tensor_length):
+                sample = self.get_empty_sample()
+                try:
+                    ret = sample[tuple(entry.value for entry in index.values[1:])]
+                except IndexError:
+                    ret = sample
+                samples[idx] = ret
+                continue
+            if self._is_tiled_sample(idx):
+                if len(index.values) == 1:
+                    sample = self.get_full_tiled_sample(idx)
+                else:
+                    sample = self.get_partial_tiled_sample(idx, index)
+            else:
+                # convert to local index (index within chunk)
+                if row == 0:
+                    local_idx = idx
+                else:
+                    local_idx = idx - (self.chunk_id_encoder.array[row - 1][-1] + 1)
+
+                sample = chunk.read_sample(
+                    local_idx,
+                    cast=self.tensor_meta.htype != "dicom",
+                )
+                if len(index) > 1:
+                    sample = sample[tuple(entry.value for entry in index.values[1:])]
+            check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
+            last_shape = sample.shape
+            if is_polygon:
+                sample = [p.__array__() for p in sample]
+            samples[idx] = sample
+        return samples, last_shape
+
+    def get_samples(self, index, aslist, pad_tensor):
+        """Get samples for the given index, fetches chunks in parallel.
+
+        Args:
+            index (Index): Index applied on the tensor.
+            aslist (bool): Whether to return a list or numpy array.
+            pad_tensor (bool): Whether tensor is padded.
+
+        Returns:
+            List of samples.
+        """
         last_shape = None
         is_polygon = self.tensor_meta.htype == "polygon"
         read_samples = partial(
-            self._get_samples, index=index, is_polygon=is_polygon, aslist=aslist
+            self._get_samples,
+            index=index,
+            is_polygon=is_polygon,
+            aslist=aslist,
+            pad_tensor=pad_tensor,
         )
         samples = {}
-        for chunk_key, row, idxs, is_tile in self.get_chunk_infos(
+        for chunk_key, row, idxs, is_tile in self.load_chunks(
             list(index.values[0].indices(self.num_samples))
         ):
             chunk = self.get_chunk(chunk_key)
@@ -2219,7 +2275,7 @@ class ChunkEngine:
         else:
             samples = []
             if fetch_chunks and not (self.tensor_meta.is_link or self.is_video):
-                samples = self.get_samples(index, aslist)
+                samples = self.get_samples(index, aslist, pad_tensor)
             else:
                 for global_sample_index in index.values[0].indices(length):
                     try:

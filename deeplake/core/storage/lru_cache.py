@@ -186,6 +186,15 @@ class LRUCache(StorageProvider):
 
         raise ValueError(f"Item at '{path}' got an invalid type: '{type(item)}'.")
 
+    def _get_item_from_cache(self, path: str):
+        if path in self.deeplake_objects:
+            if path in self.lru_sizes:
+                self.lru_sizes.move_to_end(path)  # refresh position for LRU
+            return self.deeplake_objects[path]
+        elif path in self.lru_sizes:
+            self.lru_sizes.move_to_end(path)  # refresh position for LRU
+            return self.cache_storage[path]
+
     def __getitem__(self, path: str):
         """If item is in cache_storage, retrieves from there and returns.
         If item isn't in cache_storage, retrieves from next storage, stores in cache_storage (if possible) and returns.
@@ -199,13 +208,9 @@ class LRUCache(StorageProvider):
         Returns:
             bytes: The bytes of the object present at the path.
         """
-        if path in self.deeplake_objects:
-            if path in self.lru_sizes:
-                self.lru_sizes.move_to_end(path)  # refresh position for LRU
-            return self.deeplake_objects[path]
-        elif path in self.lru_sizes:
-            self.lru_sizes.move_to_end(path)  # refresh position for LRU
-            return self.cache_storage[path]
+        result = self._get_item_from_cache(path)
+        if result is not None:
+            return result
         else:
             if self.next_storage is not None:
                 # fetch from storage, may throw KeyError
