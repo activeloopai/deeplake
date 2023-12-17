@@ -1,4 +1,5 @@
 from time import sleep
+from requests import Response
 
 import numpy as np
 from typing import Callable, Dict, List, Any, Optional, Union
@@ -15,6 +16,7 @@ from deeplake.client.config import (
     VECTORSTORE_REMOVE_ROWS_SUFFIX,
     VECTORSTORE_UPDATE_ROWS_SUFFIX,
     VECTORSTORE_SEARCH_SUFFIX,
+    JOB_POLLING_INTERVAL,
 )
 
 from deeplake.client.managed.models import (
@@ -22,7 +24,8 @@ from deeplake.client.managed.models import (
     VectorStoreInitResponse,
     VectorStoreSearchResponse,
     VectorStoreAddResponse,
-    VectorStoreDeleteResponse, VectorStoreUpdateResponse,
+    VectorStoreDeleteResponse,
+    VectorStoreUpdateResponse,
 )
 
 
@@ -31,6 +34,28 @@ class ManagedServiceClient(DeepLakeBackendClient):
         if embedding is not None and isinstance(embedding, np.ndarray):
             return embedding.tolist()
         return embedding
+
+    def _get_result_or_poll(self, response: Response):
+        data = response.json()
+        if response.status_code == 202:
+            url = data["url"]
+            data = self.poll_status(url)
+
+        return data
+
+    def poll_status(self, url: str):
+        while True:
+            response = self.request(
+                method="GET",
+                relative_url=url,
+            )
+            if response.status_code == 202:
+                sleep(JOB_POLLING_INTERVAL)
+                continue
+
+            data = response.json()
+
+            return data
 
     def init_vectorstore(
         self,
@@ -49,7 +74,7 @@ class ManagedServiceClient(DeepLakeBackendClient):
                 "index_params": index_params,
             },
         )
-        data = response.json()
+        data = self._get_result_or_poll(response)
 
         return VectorStoreInitResponse(
             status_code=response.status_code,
@@ -96,7 +121,6 @@ class ManagedServiceClient(DeepLakeBackendClient):
         return_tensors: Optional[List[str]] = None,
         deep_memory: bool = False,
     ):
-        has_data = False
         url = VECTORSTORE_SEARCH_SUFFIX
         body = {
             "dataset": path,
@@ -109,25 +133,8 @@ class ManagedServiceClient(DeepLakeBackendClient):
             "return_tensors": return_tensors,
             "deep_memory": deep_memory,
         }
-
-        while not has_data:
-            response = self.request(
-                method="POST",
-                relative_url=url,
-                json=body,
-            )
-            check_response_status(response)
-            data = response.json()
-            print(data)
-
-            if response.status_code == 202:
-                # print(f"Waiting for data... job is: {data['status']}")
-                url = data["url"]
-                body = None
-                sleep(5)
-            else:
-                # print(f"got response {response.status_code}")
-                has_data = True
+        response = self.request(method="POST", relative_url=url, json=body)
+        data = self._get_result_or_poll(response)
 
         return VectorStoreSearchResponse(
             status_code=response.status_code,
@@ -152,8 +159,8 @@ class ManagedServiceClient(DeepLakeBackendClient):
                 "return_ids": return_ids,
             },
         )
-        check_response_status(response)
-        data = response.json().get("result", {})
+        data = self._get_result_or_poll(response)
+        data = data.get("result", {})
         ids = data.get("ids", None)
         error = data.get("error", None)
 
@@ -182,8 +189,8 @@ class ManagedServiceClient(DeepLakeBackendClient):
                 "delete_all": delete_all,
             },
         )
-        check_response_status(response)
-        data = response.json().get("result", {})
+        data = self._get_result_or_poll(response)
+        data = data.get("result", {})
         error = data.get("error", None)
 
         if error is not None:
@@ -215,8 +222,8 @@ class ManagedServiceClient(DeepLakeBackendClient):
                 "embedding_dict": embedding_dict,
             },
         )
-        check_response_status(response)
-        data = response.json().get("result", {})
+        data = self._get_result_or_poll(response)
+        data = data.get("result", {})
         error = data.get("error", None)
 
         if error is not None:

@@ -956,6 +956,14 @@ class UnprocessableEntityException(Exception):
             message = "Some request parameters were invalid."
 
 
+class RequestPayloadTooLargeException(Exception):
+    def __init__(self, message: Optional[str] = None) -> None:
+        if message is None or message == " ":
+            message = "The provided payload is too large."
+
+        super().__init__(message)
+
+
 class GroupInfoNotSupportedError(Exception):
     def __init__(self):
         message = "Tensor groups does not have info attribute. Please use `dataset.info` or `dataset.tensor.info`."

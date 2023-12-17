@@ -41,3 +41,4 @@ VECTORSTORE_SEARCH_SUFFIX = "/api/dlserver/vectorstore/search"
 VECTORSTORE_ADD_SUFFIX = "/api/dlserver/vectorstore/add"
 VECTORSTORE_REMOVE_ROWS_SUFFIX = "/api/dlserver/vectorstore/remove"
 VECTORSTORE_UPDATE_ROWS_SUFFIX = "/api/dlserver/vectorstore/update"
+JOB_POLLING_INTERVAL = 5
