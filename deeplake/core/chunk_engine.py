@@ -1,5 +1,4 @@
 from collections import OrderedDict
-import os
 from deeplake.client.log import logger
 import deeplake
 import numpy as np
@@ -32,7 +31,7 @@ from deeplake.core.version_control.commit_chunk_map import CommitChunkMap  # typ
 from typing import Any, Dict, List, Optional, Sequence, Union, Callable
 from deeplake.core.meta.encode.tile import TileEncoder
 from deeplake.core.storage.provider import StorageProvider
-from deeplake.core.storage import S3Provider, GCSProvider, AzureProvider, MemoryProvider
+from deeplake.core.storage import S3Provider, GCSProvider, AzureProvider
 from deeplake.core.tiling.deserialize import (
     combine_chunks,
     translate_slices,
@@ -112,10 +111,9 @@ from collections.abc import Iterable
 from PIL import Image  # type: ignore
 from functools import partial
 from concurrent import futures
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from deeplake.core.storage.lru_cache import _get_nbytes
 import time
-import psutil
 
 
 class ChunkEngine:
@@ -2067,9 +2065,7 @@ class ChunkEngine:
 
         return sample
 
-    def _get_samples(
-        self, chunk, row, idxs, index, is_polygon, aslist, stream=None, sub_index=None
-    ):
+    def _get_samples(self, chunk, row, idxs, index, is_polygon, aslist):
         samples = {}
         last_shape = None
 
@@ -2103,14 +2099,13 @@ class ChunkEngine:
     def _load_chunk(self, chunk_info):
         is_tile = chunk_info[3]
         if is_tile:
-            return chunk_info
-        chunk_id = chunk_info[0]
-        chunk_key = self.get_chunk_key_for_id(chunk_id)
+            return None, chunk_info
+        chunk_key = chunk_info[0]
         cache_used_percent = lambda: self.cache.cache_used / self.cache.cache_size
         while cache_used_percent() > 0.9:
             time.sleep(0.1)
         chunk = self.base_storage.__getitem__(chunk_key)
-        return chunk
+        return chunk, chunk_info
 
     def get_chunk_infos(
         self,
@@ -2146,15 +2141,24 @@ class ChunkEngine:
             chunk_id = encoded[i][0].item()
             row = i
 
-            chunk_infos.append((chunk_id, row, samples_in_chunk, is_tile))
+            chunk_key = self.get_chunk_key_for_id(chunk_id)
+
+            chunk_infos.append((chunk_key, row, samples_in_chunk, is_tile))
 
         with ThreadPoolExecutor() as executor:
-            for i, chunk in enumerate(executor.map(self._load_chunk, chunk_infos)):
-                chunk_id = chunk_infos[i][0]
-                chunk_key = self.get_chunk_key_for_id(chunk_id)
-                if _get_nbytes(chunk) <= self.cache.cache_size:
-                    self.cache._insert_in_cache(chunk_key, chunk)
-                yield chunk_infos[i]
+            futures_list = [
+                executor.submit(self._load_chunk, chunk_info)
+                for chunk_info in chunk_infos
+            ]
+            for future in futures.as_completed(futures_list):
+                exception = future.exception()
+                if exception:
+                    raise exception
+                chunk, chunk_info = future.result()
+                if chunk:
+                    if _get_nbytes(chunk) <= self.cache.cache_size:
+                        self.cache._insert_in_cache(chunk_info[0], chunk)
+                yield chunk_info
 
     def get_samples(self, index, aslist):
         last_shape = None
@@ -2163,14 +2167,11 @@ class ChunkEngine:
             self._get_samples, index=index, is_polygon=is_polygon, aslist=aslist
         )
         samples = {}
-        for chunk_id, row, idxs, is_tile in self.get_chunk_infos(
+        for chunk_key, row, idxs, is_tile in self.get_chunk_infos(
             list(index.values[0].indices(self.num_samples))
         ):
-            extras = {}
-            if is_tile:
-                pass
-            chunk = self.get_chunk_from_chunk_id(chunk_id)
-            chunk_samples, chunk_last_shape = read_samples(chunk, row, idxs, **extras)
+            chunk = self.get_chunk(chunk_key)
+            chunk_samples, chunk_last_shape = read_samples(chunk, row, idxs)
             check_sample_shape(chunk_last_shape, last_shape, self.key, index, aslist)
             samples.update(chunk_samples)
             cache_used_percent = lambda: self.cache.cache_used / self.cache.cache_size
