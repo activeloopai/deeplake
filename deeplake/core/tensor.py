@@ -1171,7 +1171,7 @@ class Tensor:
         ):
             raise EmbeddingTensorPopError(self.meta.name, index)
 
-    def _pop(self, index: List[int]):
+    def __pop(self, index: List[int]):
         """Removes elements at the given indices. ``index`` must be sorted in descending order."""
         sample_id_tensor = self._sample_id_tensor
         sample_ids = (
@@ -1206,7 +1206,7 @@ class Tensor:
 
         index = sorted(index, reverse=True)
 
-        self._pop(index)
+        self.__pop(index)
         if index_maintenance.is_embedding_tensor(self):
             row_ids = index[:]
             index_maintenance.index_operation_dataset(

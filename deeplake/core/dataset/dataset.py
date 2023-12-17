@@ -4632,7 +4632,8 @@ class Dataset:
     def _disable_padding(self):
         self._pad_tensors = False
 
-    def _pop(self, index: List[int]):
+    def __pop(self, index: List[int]):
+        """Removes elements at the given indices. ``index`` must be sorted in descending order."""
         max_len = self.max_len
         if max_len == 0:
             raise IndexError("Can't pop from empty dataset.")
@@ -4676,7 +4677,7 @@ class Dataset:
 
         index = sorted(index, reverse=True)
 
-        self._pop(index)
+        self.__pop(index)
         row_ids = index[:]
 
         index_maintenance.index_operation_dataset(
