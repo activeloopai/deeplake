@@ -23,21 +23,21 @@ def test_single_source_query():
 def test_multi_source_query():
     with pytest.raises(RuntimeError):
         ds = deeplake.query(
-            'SELECT * FROM "hub://activeloop/mnist-train" UNION (SELECT * FROM "hub://activeloop/imagenet-train")'
+            'SELECT * FROM "hub://activeloop/mnist-train" UNION (SELECT * FROM "hub://activeloop/coco-train")'
         )
 
     ds = deeplake.query(
-        'SELECT * FROM "hub://activeloop/mnist-train" UNION (SELECT images, labels FROM "hub://activeloop/imagenet-train")'
+        'SELECT * FROM "hub://activeloop/mnist-train" UNION (SELECT images, categories[0] as labels FROM "hub://activeloop/coco-train")'
     )
-    assert len(ds) == 1341166
+    assert len(ds) == 178287
     assert len(ds.tensors) == 2
     assert ds.images.meta.htype == "image"
     assert ds.labels.meta.htype == "class_label"
 
     ds = deeplake.query(
-        'SELECT * FROM (SELECT * FROM "hub://activeloop/mnist-train" UNION (SELECT images, labels FROM "hub://activeloop/imagenet-train")) WHERE labels == 0'
+        'SELECT * FROM (SELECT * FROM "hub://activeloop/mnist-train" UNION (SELECT images, labels FROM "hub://activeloop/cifar100-train")) WHERE labels == 0'
     )
-    assert len(ds) == 7223
+    assert len(ds) == 6423
     assert len(ds.tensors) == 2
     d = ds.labels.numpy()
     assert np.all(d == 0)
