@@ -20,6 +20,7 @@ from deeplake.tests.common import requires_libdeeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     DEFAULT_VECTORSTORE_DISTANCE_METRIC,
+    HUB_CLOUD_DEV_USERNAME,
 )
 from deeplake.constants import MB
 from deeplake.util.exceptions import (
@@ -1325,6 +1326,7 @@ def create_and_populate_vs(
     return vector_store
 
 
+@requires_libdeeplake
 def test_update_embedding_row_ids_and_ids_specified_should_throw_exception(
     local_path,
     vector_store_hash_ids,
@@ -1348,6 +1350,7 @@ def test_update_embedding_row_ids_and_ids_specified_should_throw_exception(
         )
 
 
+@requires_libdeeplake
 def test_update_embedding_row_ids_and_filter_specified_should_throw_exception(
     local_path,
     vector_store_filters,
@@ -2795,36 +2798,26 @@ def test_exec_option_cli(
 
 @requires_libdeeplake
 @pytest.mark.parametrize(
-    "path",
+    "path, creds",
     [
-        "s3_path",
-        "gcs_path",
-        "azure_path",
+        ("s3_path", "s3_creds"),
+        ("gcs_path", "gcs_creds"),
+        ("azure_path", "azure_creds"),
     ],
     indirect=True,
 )
 def test_exec_option_with_connected_datasets(
-    hub_cloud_dev_token,
     hub_cloud_path,
-    hub_cloud_dev_managed_creds_key,
     path,
+    creds,
 ):
-    runner = CliRunner()
-
-    db = VectorStore(path, overwrite=True)
-    assert db.exec_option == "python"
-
-    runner.invoke(login, f"-t {hub_cloud_dev_token}")
-    assert db.exec_option == "python"
+    db = VectorStore(path, overwrite=True, creds=creds)
 
     db.dataset_handler.dataset.connect(
-        creds_key=hub_cloud_dev_managed_creds_key,
+        creds_key=creds,
         dest_path=hub_cloud_path,
-        token=hub_cloud_dev_token,
     )
-    db.dataset_handler.dataset.add_creds_key(
-        hub_cloud_dev_managed_creds_key, managed=True
-    )
+    db.dataset_handler.dataset.add_creds_key(creds, managed=True)
     assert db.exec_option == "compute_engine"
 
 
@@ -2842,6 +2835,7 @@ def test_dataset_init_param(local_ds):
     assert len(db) == 10
 
 
+@requires_libdeeplake
 def test_vs_commit(local_path):
     # TODO: add index params, when index will support commit
     db = create_and_populate_vs(
