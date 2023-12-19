@@ -782,3 +782,60 @@ def test_deepmemory_evaluate_with_embedding_function_specified_in_constructor_sh
         queries=queries,
         relevance=relevance,
     )
+
+
+def test_db_deepmemory_status_should_show_best_model_with_deepmemory_v2_metadata_logic(
+    capsys,
+    corpus_query_pair_path,
+    hub_cloud_dev_token,
+):
+    corpus, queries = corpus_query_pair_path
+
+    db = VectorStore(
+        path=corpus,
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+        embedding_function=embedding_fn,
+    )
+    db.dataset.embedding.info = {
+        "deepmemory": {
+            "6581e3056a1162b64061a9a4_0.npy": {
+                "base_recall@10": 0.25,
+                "deep_memory_version": "0.2",
+                "delta": 0.25,
+                "job_id": "6581e3056a1162b64061a9a4_0",
+                "model_type": "npy",
+                "recall@10": 0.5,
+            },
+            "model.npy": {
+                "base_recall@10": 0.25,
+                "deep_memory_version": "0.2",
+                "delta": 0.25,
+                "job_id": "6581e3056a1162b64061a9a4_0",
+                "model_type": "npy",
+                "recall@10": 0.5,
+            },
+        }
+    }
+
+    job_id = "6581e3056a1162b64061a9a4"
+    output_str = (
+        "--------------------------------------------------------------\n"
+        f"|                  {job_id}                  |\n"
+        "--------------------------------------------------------------\n"
+        "| status                     | completed                     |\n"
+        "--------------------------------------------------------------\n"
+        "| progress                   | eta: 2.5 seconds              |\n"
+        "|                            | recall@10: 0.50% (+0.25%)     |\n"
+        "--------------------------------------------------------------\n"
+        "| results                    | recall@10: 0.50% (+0.25%)     |\n"
+        "--------------------------------------------------------------\n\n\n"
+    )
+
+    db.deep_memory.status()
+    jobs_list = db.deep_memory.status()
+    status = capsys.readouterr()
+    # TODO: The reason why index is added is because sometimes backends returns request
+    # parameters in different order need to address this issue either on a client side
+    # or on a backend side
+    assert status.out[511:] == output_str[511:]
