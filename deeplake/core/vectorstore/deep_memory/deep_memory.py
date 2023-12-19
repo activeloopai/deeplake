@@ -717,8 +717,14 @@ def _get_best_model(embedding: Any, job_id: str, latest_job: bool = False):
     best_recall = 0
     best_delta = 0
     if latest_job:
-        best_recall = info["deepmemory"]["model.npy"]["recall@10"]
-        best_delta = info["deepmemory"]["model.npy"]["delta"]
+        try:
+            best_recall = info["deepmemory"]["model.npy"]["recall@10"]
+            best_delta = info["deepmemory"]["model.npy"]["delta"]
+        except:
+            best_recall = info["deepmemory/model.npy"]["recall@10"]
+            best_delta = info["deepmemory/model.npy"]["delta"]
+        finally:
+            pass
 
     for job, value in info.items():
         if job_id in job:

@@ -7,7 +7,10 @@ from unittest.mock import MagicMock
 
 import deeplake
 from deeplake import VectorStore
-from deeplake.core.vectorstore.deep_memory.deep_memory import DeepMemory
+from deeplake.core.vectorstore.deep_memory.deep_memory import (
+    DeepMemory,
+    _get_best_model,
+)
 from deeplake.tests.common import requires_libdeeplake
 from deeplake.util.exceptions import (
     DeepMemoryWaitingListError,
@@ -818,24 +821,10 @@ def test_db_deepmemory_status_should_show_best_model_with_deepmemory_v2_metadata
         }
     }
 
-    job_id = "6581e3056a1162b64061a9a4"
-    output_str = (
-        "--------------------------------------------------------------\n"
-        f"|                  {job_id}                  |\n"
-        "--------------------------------------------------------------\n"
-        "| status                     | completed                     |\n"
-        "--------------------------------------------------------------\n"
-        "| progress                   | eta: 2.5 seconds              |\n"
-        "|                            | recall@10: 0.50% (+0.25%)     |\n"
-        "--------------------------------------------------------------\n"
-        "| results                    | recall@10: 0.50% (+0.25%)     |\n"
-        "--------------------------------------------------------------\n\n\n"
+    recall, delta = _get_best_model(
+        db.dataset.embedding,
+        "6581e3056a1162b64061a9a4",
+        latest_job=True,
     )
-
-    db.deep_memory.status()
-    jobs_list = db.deep_memory.status()
-    status = capsys.readouterr()
-    # TODO: The reason why index is added is because sometimes backends returns request
-    # parameters in different order need to address this issue either on a client side
-    # or on a backend side
-    assert status.out[511:] == output_str[511:]
+    assert recall == 0.5
+    assert delta == 0.25
