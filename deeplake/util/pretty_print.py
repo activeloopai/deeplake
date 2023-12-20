@@ -44,7 +44,7 @@ def summary_tensor(tensor):
     if tensor_compression == None:
         tensor_compression = "None"
 
-    if tensor.dtype == None:
+    if tensor.dtype is None:
         tensor_dtype = "None"
     else:
         tensor_dtype = tensor.dtype.name
@@ -93,7 +93,7 @@ def summary_dataset(dataset):
         if tensor_compression == None:
             tensor_compression = "None"
 
-        if tensor_object.dtype == None:
+        if tensor_object.dtype is None:
             tensor_dtype = "None"
         else:
             tensor_dtype = tensor_object.dtype.name

@@ -567,6 +567,7 @@ def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):
             return_view=True,
             k=int(1e9),
             deep_memory=False,
+            return_tql=False,
         )
 
     else:
