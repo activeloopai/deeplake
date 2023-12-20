@@ -2112,7 +2112,7 @@ class ChunkEngine:
             time.sleep(0.1)
         base_storage = storages.get(threading.get_ident())
         if base_storage is None:
-            base_storage = self.base_storage
+            base_storage = self.base_storage.copy()
             storages[threading.get_ident()] = base_storage
         chunk = base_storage.__getitem__(chunk_key)
         return chunk, chunk_info
