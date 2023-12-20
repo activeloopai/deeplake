@@ -2186,6 +2186,10 @@ class ChunkEngine:
             aslist (bool): Whether to return a list or numpy array.
             pad_tensor (bool): Whether tensor is padded.
 
+        Raises:
+            GetChunkError: If a chunk cannot be retrieved from the storage.
+            ReadSampleFromChunkError: If a sample cannot be read from a chunk.
+
         Returns:
             Dict of samples and shape of the last sample encountered in this chunk.
         """
