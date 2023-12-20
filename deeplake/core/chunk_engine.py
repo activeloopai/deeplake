@@ -2460,6 +2460,16 @@ class ChunkEngine:
             "requires StorageProvider to be able to list all chunks"
         )
 
+    def pop_samples(self, indices: List[int], link_callback: Optional[Callable] = None):
+        """Pop samples from the tensor at the given indices.
+
+        Args:
+            indices (List[int]): List of indices to pop.
+            link_callback (Optional[Callable]): Callback function to be called after popping each sample. Defaults to None.
+        """
+        for chunk_id, row, idxs, is_tile in self.load_chunks(indices):
+            ...
+
     def pop(
         self,
         global_sample_index: Optional[int] = None,

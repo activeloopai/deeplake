@@ -1196,6 +1196,18 @@ class Tensor:
         if not index:
             return
 
+        length = self.num_samples
+        if length == 0:
+            raise IndexError("Can't pop from empty tensor")
+
+        for idx in index:
+            if idx < 0:
+                raise IndexError("Pop doesn't support negative indices.")
+            elif idx >= length:
+                raise IndexError(
+                    f"Index {idx} is out of range. The tensor has {length} samples."
+                )
+
         index = sorted(index, reverse=True)
 
         self.__pop(index)

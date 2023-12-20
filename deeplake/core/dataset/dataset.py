@@ -4635,27 +4635,13 @@ class Dataset:
 
     def __pop(self, index: List[int]):
         """Removes elements at the given indices. ``index`` must be sorted in descending order."""
-        max_len = self.max_len
-        if max_len == 0:
-            raise IndexError("Can't pop from empty dataset.")
-
-        if index is None:
-            index = max_len - 1
-
-        if index < 0:
-            raise IndexError("Pop doesn't support negative indices.")
-        elif index >= max_len:
-            raise IndexError(
-                f"Index {index} is out of range. The longest tensor has {max_len} samples."
-            )
-
         with self:
             for tensor in self.tensors.values():
                 if tensor.num_samples > index:
                     tensor._check_for_pop(index)
             for tensor in self.tensors.values():
                 if tensor.num_samples > index:
-                    tensor._pop(index)
+                    tensor.__pop(index)
 
     @invalid_view_op
     def pop(self, index: Optional[int] = None):
@@ -4677,6 +4663,18 @@ class Dataset:
 
         if not index:
             return
+
+        max_len = self.max_len
+        if max_len == 0:
+            raise IndexError("Can't pop from empty dataset.")
+
+        for idx in index:
+            if idx < 0:
+                raise IndexError("Pop doesn't support negative indices.")
+            elif idx >= max_len:
+                raise IndexError(
+                    f"Index {idx} is out of range. The longest tensor has {max_len} samples."
+                )
 
         index = sorted(index, reverse=True)
 
