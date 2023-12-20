@@ -624,6 +624,12 @@ class BaseChunk(DeepLakeMemoryObject):
                 "Need to add at least one non-empty sample before retrieving data."
             )
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        if isinstance(state["_data_bytes"], memoryview):
+            state["_data_bytes"] = state["_data_bytes"].tobytes()
+        return state
+
 
 def catch_chunk_read_error(fn):
     @wraps(fn)

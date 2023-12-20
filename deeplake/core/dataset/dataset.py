@@ -164,7 +164,8 @@ def _load_tensor_metas(dataset):
         get_tensor_meta_key(key, dataset.version_state["commit_id"])
         for key in dataset.meta.tensors
     ]
-    dataset.storage.load_items_from_next_storage(meta_keys)
+    for _ in dataset.storage.get_items(meta_keys):
+        pass
     dataset._tensors()  # access all tensors to set chunk engines
 
 
@@ -4638,24 +4639,26 @@ class Dataset:
         if max_len == 0:
             raise IndexError("Can't pop from empty dataset.")
 
-        for idx in index:
-            if idx < 0:
-                raise IndexError("Pop doesn't support negative indices.")
-            elif idx >= max_len:
-                raise IndexError(
-                    f"Index {idx} is out of range. The longest tensor has {max_len} samples."
-                )
+        if index is None:
+            index = max_len - 1
+
+        if index < 0:
+            raise IndexError("Pop doesn't support negative indices.")
+        elif index >= max_len:
+            raise IndexError(
+                f"Index {index} is out of range. The longest tensor has {max_len} samples."
+            )
 
         with self:
             for tensor in self.tensors.values():
-                for idx in index:
-                    if tensor.num_samples > idx:
-                        tensor._check_for_pop(idx)
+                if tensor.num_samples > index:
+                    tensor._check_for_pop(index)
             for tensor in self.tensors.values():
-                tensor._pop(index)
+                if tensor.num_samples > index:
+                    tensor._pop(index)
 
     @invalid_view_op
-    def pop(self, index: Optional[Union[int, List[int]]] = None):
+    def pop(self, index: Optional[int] = None):
         """
         Removes a sample from all the tensors of the dataset.
         For any tensor if the index >= len(tensor), the sample won't be popped from it.
@@ -4684,6 +4687,21 @@ class Dataset:
             self,
             dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
             rowids=row_ids,
+        )
+
+    @invalid_view_op
+    def pop_multiple(self, index: List[int], progressbar=False):
+        rev_index = sorted(index, reverse=True)
+        if progressbar:
+            rev_index = tqdm(rev_index)
+        with self:
+            for i in rev_index:
+                self._pop(i)
+
+        index_maintenance.index_operation_dataset(
+            self,
+            dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
+            rowids=index,
         )
 
     @property

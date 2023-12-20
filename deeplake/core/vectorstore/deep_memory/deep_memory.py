@@ -1,4 +1,5 @@
 import logging
+import pathlib
 import uuid
 from collections import defaultdict
 from pydantic import BaseModel, ValidationError
@@ -8,13 +9,13 @@ from time import time
 import numpy as np
 
 import deeplake
-from deeplake.enterprise.dataloader import indra_available
 from deeplake.util.exceptions import (
+    DeepMemoryWaitingListError,
     DeepMemoryWaitingListError,
     IncorrectRelevanceTypeError,
     IncorrectQueriesTypeError,
 )
-from deeplake.util.remove_cache import get_base_storage
+from deeplake.util.path import convert_pathlib_to_string_if_needed
 from deeplake.constants import (
     DEFAULT_QUERIES_VECTORSTORE_TENSORS,
     DEFAULT_MEMORY_CACHE_SIZE,
@@ -30,7 +31,15 @@ from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
 from deeplake.util.path import get_path_type
-from deeplake.util.version_control import load_meta
+
+
+def access_control(func):
+    def wrapper(self, *args, **kwargs):
+        if self.client is None:
+            raise DeepMemoryWaitingListError()
+        return func(self, *args, **kwargs)
+
+    return wrapper
 
 
 def use_deep_memory(func):
@@ -41,15 +50,6 @@ def use_deep_memory(func):
         if use_deep_memory and distance_metric is None:
             kwargs["distance_metric"] = DEFAULT_DEEPMEMORY_DISTANCE_METRIC
 
-        return func(self, *args, **kwargs)
-
-    return wrapper
-
-
-def access_control(func):
-    def wrapper(self, *args, **kwargs):
-        if self.client is None:
-            raise DeepMemoryWaitingListError()
         return func(self, *args, **kwargs)
 
     return wrapper
@@ -78,7 +78,8 @@ def validate_relevance_and_queries(relevance, queries):
 class DeepMemory:
     def __init__(
         self,
-        dataset_or_path: Union[Dataset, str],
+        dataset: Dataset,
+        path: Union[str, pathlib.Path],
         logger: logging.Logger,
         embedding_function: Optional[Any] = None,
         token: Optional[str] = None,
@@ -87,7 +88,8 @@ class DeepMemory:
         """Based Deep Memory class to train and evaluate models on DeepMemory managed service.
 
         Args:
-            dataset_or_path (Union[Dataset, str]): deeplake dataset object or path.
+            dataset (Dataset): deeplake dataset object or path.
+            path (Union[str, pathlib.Path]): Path to the dataset.
             logger (logging.Logger): Logger object.
             embedding_function (Optional[Any], optional): Embedding funtion class used to convert queries/documents to embeddings. Defaults to None.
             token (Optional[str], optional): API token for the DeepMemory managed service. Defaults to None.
@@ -95,16 +97,9 @@ class DeepMemory:
 
         Raises:
             ImportError: if indra is not installed
-            ValueError: if incorrect type is specified for `dataset_or_path`
         """
-        if isinstance(dataset_or_path, Dataset):
-            self.path = dataset_or_path.path
-        elif isinstance(dataset_or_path, str):
-            self.path = dataset_or_path
-        else:
-            raise ValueError(
-                "dataset_or_path should be a Dataset object or a string path"
-            )
+        self.dataset = dataset
+        self.path = convert_pathlib_to_string_if_needed(path)
 
         feature_report_path(
             path=self.path,
@@ -143,7 +138,8 @@ class DeepMemory:
             relevance (List[List[Tuple[str, int]]]): List of relevant documents for each query with their respective relevance score.
                 The outer list corresponds to the queries and the inner list corresponds to the doc_id, relevence_score pair for each query.
                 doc_id is the document id in the corpus dataset. It is stored in the `id` tensor of the corpus dataset.
-                relevence_score is the relevance score of the document for the query. The range is between 0 and 1, where 0 stands for not relevant and 1 stands for relevant.
+                relevence_score is the relevance score of the document for the query. The value is either 0 and 1, where 0 stands for not relevant (unknown relevance)
+                and 1 stands for relevant. Currently, only values of 1 contribute to the training, and there is no reason to provide examples with relevance of 0.
             embedding_function (Optional[Callable[[str], np.ndarray]], optional): Embedding funtion used to convert queries to embeddings. Defaults to None.
             token (str, optional): API token for the DeepMemory managed service. Defaults to None.
 
@@ -178,7 +174,7 @@ class DeepMemory:
             )
 
         if embedding_function is None and self.embedding_function is not None:
-            embedding_function = self.embedding_function.embed_documents
+            embedding_function = self.embedding_function
 
         runtime = None
         if get_path_type(corpus_path) == "hub":
@@ -484,10 +480,8 @@ class DeepMemory:
         if embedding is not None:
             query_embs = embedding
         else:
-            if self.embedding_function is not None:
-                embedding_function = (
-                    embedding_function or self.embedding_function.embed_documents
-                )
+            if self.embedding_function is not None and embedding_function is None:
+                embedding_function = self.embedding_function
 
             if embedding_function is None:
                 raise ValueError(
@@ -553,6 +547,46 @@ class DeepMemory:
         self.queries_dataset.extend(queries_data, progressbar=True)
         self.queries_dataset.commit()
         return recalls
+
+    @access_control
+    def get_model(self):
+        """Get the name of the model currently being used by DeepMemory managed service."""
+        return self.dataset.embedding.info["deepmemory"]["model.npy"]["job_id"]
+
+    @access_control
+    def set_model(self, model_name: str):
+        """Set model.npy to use `model_name` instead of default model
+        Args:
+            model_name (str): name of the model to use
+        """
+
+        if "npy" not in model_name:
+            model_name += ".npy"
+
+        # verify model_name
+        self._verify_model_name(model_name)
+
+        # set model.npy to use `model_name` instead of default model
+        self._set_model_npy(model_name)
+
+    def _verify_model_name(self, model_name: str):
+        if model_name not in self.dataset.embedding.info["deepmemory"]:
+            raise ValueError(
+                "Invalid model name. Please choose from the following models: "
+                + ", ".join(self.dataset.embedding.info["deepmemory"].keys())
+            )
+
+    def _set_model_npy(self, model_name: str):
+        # get new model.npy
+        new_model_npy = self.dataset.embedding.info["deepmemory"][model_name]
+
+        # get old deepmemory dictionary and update it:
+        old_deepmemory = self.dataset.embedding.info["deepmemory"]
+        new_deepmemory = old_deepmemory.copy()
+        new_deepmemory.update({"model.npy": new_model_npy})
+
+        # assign new deepmemory dictionary to the dataset:
+        self.dataset.embedding.info["deepmemory"] = new_deepmemory
 
     def _get_dm_client(self):
         path = self.path
