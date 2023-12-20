@@ -31,7 +31,7 @@ from deeplake.core.version_control.commit_chunk_map import CommitChunkMap  # typ
 from typing import Any, Dict, List, Optional, Sequence, Union, Callable
 from deeplake.core.meta.encode.tile import TileEncoder
 from deeplake.core.storage.provider import StorageProvider
-from deeplake.core.storage import S3Provider, GCSProvider, AzureProvider
+from deeplake.core.storage import S3Provider, GCSProvider, AzureProvider, MemoryProvider
 from deeplake.core.tiling.deserialize import (
     combine_chunks,
     translate_slices,
@@ -2040,7 +2040,11 @@ class ChunkEngine:
         if self.is_video:
             return self.get_video_sample(global_sample_index, index, decompress)
         return self.get_basic_sample(
-            global_sample_index, index, fetch_chunks, decompress
+            global_sample_index,
+            index,
+            fetch_chunks,
+            is_tile=False,
+            decompress=decompress,
         )
 
     def get_full_tiled_sample(self, global_sample_index: int):
@@ -2323,7 +2327,11 @@ class ChunkEngine:
             samples = self.numpy_from_data_cache(index, length, aslist, pad_tensor)
         else:
             samples = []
-            if fetch_chunks and not (self.tensor_meta.is_link or self.is_video):
+            if (
+                fetch_chunks
+                and not (self.tensor_meta.is_link or self.is_video)
+                and not isinstance(self.base_storage, MemoryProvider)
+            ):
                 samples = self.get_samples(index, aslist, pad_tensor)
             else:
                 for global_sample_index in index.values[0].indices(length):
