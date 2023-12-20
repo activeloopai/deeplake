@@ -1,12 +1,21 @@
 import deeplake
 from deeplake.tests.common import requires_libdeeplake
 from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
+from deeplake.cli.auth import login, logout
+from click.testing import CliRunner
 import pytest
 import numpy as np
 
 
 @requires_libdeeplake
-def test_single_source_query():
+def test_single_source_query(
+    hub_cloud_dev_credentials,
+):
+    runner = CliRunner()
+    username, password = hub_cloud_dev_credentials
+    # Testing exec_option with cli login and logout commands are executed
+    runner.invoke(login, f"-u {username} -p {password}")
+
     ds = deeplake.query('SELECT * FROM "hub://activeloop/mnist-train"')
     assert len(ds) == 60000
     assert len(ds.tensors) == 2
@@ -20,7 +29,14 @@ def test_single_source_query():
 
 
 @requires_libdeeplake
-def test_multi_source_query():
+def test_multi_source_query(
+    hub_cloud_dev_credentials,
+):
+    runner = CliRunner()
+    username, password = hub_cloud_dev_credentials
+    # Testing exec_option with cli login and logout commands are executed
+    runner.invoke(login, f"-u {username} -p {password}")
+
     with pytest.raises(RuntimeError):
         ds = deeplake.query(
             'SELECT * FROM "hub://activeloop/mnist-train" UNION (SELECT * FROM "hub://activeloop/coco-train")'
