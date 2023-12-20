@@ -1953,7 +1953,9 @@ class ChunkEngine:
         """Translate global sample index to local index relative to chunks without another encoder lookup."""
         if row == 0:
             return global_sample_index
-        return global_sample_index - (self.chunk_id_encoder.array[row - 1][-1] + 1)
+        return global_sample_index - (
+            self.chunk_id_encoder.array[row - 1][-1].item() + 1
+        )
 
     def read_video_sample_from_chunk(
         self,
