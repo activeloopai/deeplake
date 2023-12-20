@@ -2178,7 +2178,7 @@ class ChunkEngine:
         """Get samples from a chunk.
 
         Args:
-            chunk_id (): Chunk to read samples from. Can be ``None`` in case of tiles.
+            chunk_id (int): Chunk to read samples from. Can be ``None`` in case of tiles.
             row (int): Row of the chunk in the chunk_id_encoder.
             idxs (List[int]): List of global sample indices to read from this chunk.
             index (Index): Original index applied on the tensor.
