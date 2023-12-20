@@ -113,6 +113,7 @@ from functools import partial
 from concurrent import futures
 from concurrent.futures import ThreadPoolExecutor
 from deeplake.core.storage.lru_cache import _get_nbytes
+import threading
 import time
 
 
@@ -2007,6 +2008,7 @@ class ChunkEngine:
         global_sample_index: int,
         index: Index,
         fetch_chunks: bool = False,
+        is_tile: bool = False,
         decompress: bool = True,
     ):
         chunk_id, row, worst_case_header_size = self.get_chunk_info(
@@ -2018,6 +2020,7 @@ class ChunkEngine:
             local_sample_index,
             index,
             worst_case_header_size,
+            is_tile=is_tile,
             decompress=decompress,
         )
 
@@ -2091,7 +2094,11 @@ class ChunkEngine:
 
         return sample
 
-    def _load_chunk(self, chunk_info: Tuple[str, int, List[int], bool]):
+    def _load_chunk(
+        self,
+        chunk_info: Tuple[str, int, List[int], bool],
+        storages: Dict[int, StorageProvider],
+    ):
         """Worker function for chunk retrieval."""
         chunk_key = self.get_chunk_key_for_id(chunk_info[0])
         result = self.cache._get_item_from_cache(chunk_key)
@@ -2103,7 +2110,11 @@ class ChunkEngine:
         cache_used_percent = lambda: self.cache.cache_used / self.cache.cache_size
         while cache_used_percent() > 0.9:
             time.sleep(0.1)
-        chunk = self.base_storage.__getitem__(chunk_key)
+        base_storage = storages.get(threading.get_ident())
+        if base_storage is None:
+            base_storage = self.base_storage
+            storages[threading.get_ident()] = base_storage
+        chunk = base_storage.__getitem__(chunk_key)
         return chunk, chunk_info
 
     def _get_chunk_infos(self, indices: List[int]):
@@ -2148,9 +2159,12 @@ class ChunkEngine:
         """Fetches relevant chunks from base storage, adds them to cache and yields chunk info."""
         chunk_infos = self._get_chunk_infos(indices)
 
+        # some storage providers are not thread safe
+        storages = {}
+
         with ThreadPoolExecutor() as executor:
             futures_list = [
-                executor.submit(self._load_chunk, chunk_info)
+                executor.submit(self._load_chunk, chunk_info, storages)
                 for chunk_info in chunk_infos
             ]
             for future in futures.as_completed(futures_list):
