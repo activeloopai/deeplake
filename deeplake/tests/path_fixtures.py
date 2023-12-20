@@ -27,6 +27,12 @@ from deeplake.constants import (
     ENV_GDRIVE_CLIENT_SECRET,
     ENV_GDRIVE_REFRESH_TOKEN,
     HUB_CLOUD_DEV_USERNAME,
+    ENV_AZURE_CLIENT_ID,
+    ENV_AZURE_TENANT_ID,
+    ENV_AZURE_CLIENT_SECRET,
+    ENV_AWS_ACCESS_KEY,
+    ENV_AWS_SECRETS_ACCESS_KEY,
+    ENV_AWS_ENDPOINT_URL,
 )
 from deeplake import VectorStore
 from deeplake.client.client import DeepMemoryBackendClient
@@ -307,6 +313,23 @@ def s3_path(request):
 
 
 @pytest.fixture
+def s3_creds(request):
+    if not is_opt_true(request, S3_OPT):
+        pytest.skip(f"{S3_OPT} flag not set")
+        return
+
+    aws_access_key = os.environ.get(ENV_AWS_ACCESS_KEY)
+    aws_secrets_key = os.environ.get(ENV_AWS_SECRETS_ACCESS_KEY)
+    endpoint_url = os.environ.get(ENV_AWS_ENDPOINT_URL)
+    creds = {
+        "aws_access_key": aws_access_key,
+        "aws_secrets_key": aws_secrets_key,
+        "endpoint_url": endpoint_url,
+    }
+    return creds
+
+
+@pytest.fixture
 def s3_vstream_path(request):
     if not is_opt_true(request, S3_OPT):
         pytest.skip(f"{S3_OPT} flag not set")
@@ -380,6 +403,23 @@ def gdrive_creds():
         "client_id": client_id,
         "client_secret": client_secret,
         "refresh_token": refresh_token,
+    }
+    return creds
+
+
+@pytest.fixture
+def azure_creds(request):
+    if not is_opt_true(request, AZURE_OPT):
+        pytest.skip(f"{AZURE_OPT} flag not set")
+        return
+
+    azure_client_id = os.environ.get(ENV_AZURE_CLIENT_ID)
+    azure_tenant_id = os.environ.get(ENV_AZURE_TENANT_ID)
+    azure_client_secret = os.environ.get(ENV_AZURE_CLIENT_SECRET)
+    creds = {
+        "azure_client_id": azure_client_id,
+        "azure_tenant_id": azure_tenant_id,
+        "azure_client_secret": azure_client_secret,
     }
     return creds
 
@@ -692,6 +732,18 @@ def path(request):
 
 
 @pytest.fixture
+def dest_path(request):
+    """Used with parametrize to get all dataset paths."""
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture
+def creds(request):
+    """Used with parametrize to get all dataset creds."""
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture
 def hub_token(request):
     """Used with parametrize to get hub_cloud_dev_token if hub-cloud option is True else None"""
     if is_opt_true(request, HUB_CLOUD_OPT):
@@ -792,3 +844,75 @@ def precomputed_jobs_list():
     with open(os.path.join(parent, "precomputed_jobs_list.txt"), "r") as f:
         jobs = f.read()
     return jobs
+
+
+@pytest.fixture
+def local_dmv2_dataset(request, hub_cloud_dev_token):
+    dmv2_path = f"hub://{HUB_CLOUD_DEV_USERNAME}/dmv2"
+
+    local_cache_path = ".deepmemory_tests_cache/"
+    if not os.path.exists(local_cache_path):
+        os.mkdir(local_cache_path)
+
+    dataset_cache_path = local_cache_path + "dmv2"
+    if not os.path.exists(dataset_cache_path):
+        deeplake.deepcopy(
+            dmv2_path,
+            dataset_cache_path,
+            token=hub_cloud_dev_token,
+            overwrite=True,
+        )
+
+    corpus = _get_storage_path(request, LOCAL)
+
+    deeplake.deepcopy(
+        dataset_cache_path,
+        corpus,
+        token=hub_cloud_dev_token,
+        overwrite=True,
+    )
+    yield corpus
+
+    delete_if_exists(corpus, hub_cloud_dev_token)
+
+
+@pytest.fixture
+def deepmemory_small_dataset_copy(request, hub_cloud_dev_token):
+    dm_path = f"hub://{HUB_CLOUD_DEV_USERNAME}/tiny_dm_dataset"
+    queries_path = f"hub://{HUB_CLOUD_DEV_USERNAME}/queries_vs"
+
+    local_cache_path = ".deepmemory_tests_cache/"
+    if not os.path.exists(local_cache_path):
+        os.mkdir(local_cache_path)
+
+    dataset_cache_path = local_cache_path + "tiny_dm_queries"
+    if not os.path.exists(dataset_cache_path):
+        deeplake.deepcopy(
+            queries_path,
+            dataset_cache_path,
+            token=hub_cloud_dev_token,
+            overwrite=True,
+        )
+
+    corpus = _get_storage_path(request, HUB_CLOUD)
+    query_vs = VectorStore(
+        path=dataset_cache_path,
+    )
+    queries = query_vs.dataset.text.data()["value"]
+    relevance = query_vs.dataset.metadata.data()["value"]
+    relevance = [rel["relevance"] for rel in relevance]
+
+    deeplake.deepcopy(
+        dm_path,
+        corpus,
+        token=hub_cloud_dev_token,
+        overwrite=True,
+        runtime={"tensor_db": True},
+    )
+
+    queries_path = corpus + "_eval_queries"
+
+    yield corpus, queries, relevance, queries_path
+
+    delete_if_exists(corpus, hub_cloud_dev_token)
+    delete_if_exists(queries_path, hub_cloud_dev_token)

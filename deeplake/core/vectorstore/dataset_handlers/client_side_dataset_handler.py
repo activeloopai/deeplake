@@ -168,6 +168,7 @@ class ClientSideDH(DHBase):
         return_tensors: List[str],
         return_view: bool,
         deep_memory: bool,
+        return_tql: bool,
     ) -> Union[Dict, Dataset]:
         feature_report_path(
             path=self.bugout_reporting_path,
@@ -243,7 +244,7 @@ class ClientSideDH(DHBase):
             embedding_tensor=embedding_tensor,
             return_tensors=return_tensors,
             return_view=return_view,
-            deep_memory=deep_memory,
+            return_tql=return_tql,
             token=self.token,
             org_id=self.org_id,
         )
