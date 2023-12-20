@@ -2155,29 +2155,49 @@ class ChunkEngine:
     def load_chunks(
         self,
         indices: List[int],
+        in_order: bool = False,
+        reverse: bool = False,
     ):
-        """Fetches relevant chunks from base storage, adds them to cache and yields chunk info."""
+        """Fetches relevant chunks from base storage, adds them to cache and yields chunk info.
+        If ``in_order`` is ``True``, chunks are yielded in order of the chunk_id_encoder.
+        If ``reverse`` is ``True``, chunks are yielded in reverse order of the chunk_id_encoder.
+        """
         chunk_infos = self._get_chunk_infos(indices)
 
         # some storage providers are not thread safe
         storages = {}
 
-        with ThreadPoolExecutor() as executor:
-            futures_list = [
-                executor.submit(self._load_chunk, chunk_info, storages)
-                for chunk_info in chunk_infos
-            ]
-            for future in futures.as_completed(futures_list):
-                exception = future.exception()
-                if exception:
-                    raise exception
-                chunk, chunk_info = future.result()
-                if chunk:
-                    if _get_nbytes(chunk) <= self.cache.cache_size:
-                        self.cache._insert_in_cache(
-                            self.get_chunk_key_for_id(chunk_info[0]), chunk
-                        )
-                yield chunk_info
+        if not (in_order or reverse):
+            with ThreadPoolExecutor() as executor:
+                futures_list = [
+                    executor.submit(self._load_chunk, chunk_info, storages)
+                    for chunk_info in chunk_infos
+                ]
+                for future in futures.as_completed(futures_list):
+                    exception = future.exception()
+                    if exception:
+                        raise exception
+                    chunk, chunk_info = future.result()
+                    if chunk:
+                        if _get_nbytes(chunk) <= self.cache.cache_size:
+                            self.cache._insert_in_cache(
+                                self.get_chunk_key_for_id(chunk_info[0]), chunk
+                            )
+                    yield chunk_info
+        else:
+            with ThreadPoolExecutor() as executor:
+                for result in executor.map(
+                    self._load_chunk,
+                    reversed(chunk_infos) if reverse else chunk_infos,
+                    storages,
+                ):
+                    chunk, chunk_info = result
+                    if chunk:
+                        if _get_nbytes(chunk) <= self.cache.cache_size:
+                            self.cache._insert_in_cache(
+                                self.get_chunk_key_for_id(chunk_info[0]), chunk
+                            )
+                    yield chunk_info
 
     def _get_samples(
         self,
@@ -2474,56 +2494,88 @@ class ChunkEngine:
             "requires StorageProvider to be able to list all chunks"
         )
 
-    def pop_samples(self, indices: List[int], link_callback: Optional[Callable] = None):
+    def pop(
+        self,
+        indices: List[int],
+        link_callback: Optional[Callable] = None,
+        sample_ids: Optional[np.ndarray] = None,
+    ):
         """Pop samples from the tensor at the given indices.
 
         Args:
             indices (List[int]): List of indices to pop.
             link_callback (Optional[Callable]): Callback function to be called after popping each sample. Defaults to None.
         """
-        for chunk_id, row, idxs, is_tile in self.load_chunks(indices):
-            ...
-
-    def pop(
-        self,
-        global_sample_index: Optional[int] = None,
-        link_callback: Optional[Callable] = None,
-        sample_id: Optional[int] = None,
-    ):
-        if global_sample_index is None:
-            if self.is_sequence:
-                assert self.sequence_encoder is not None
-                global_sample_index = self.sequence_encoder.num_samples - 1
-            else:
-                global_sample_index = self.num_samples - 1
         self._write_initialization()
-        if self.tensor_meta.length == 0:
-            raise ValueError("There are no samples to pop")
-        if global_sample_index < 0 or global_sample_index >= self.tensor_meta.length:
-            raise IndexError(
-                f"Index {global_sample_index} is out of range for tensor of length {self.tensor_meta.length}"
-            )
-
         self.cached_data = None
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
 
-        # pop links
-        if link_callback:
-            link_callback(global_sample_index)
-
-        self.commit_diff.pop(global_sample_index, sample_id)
-        if self.is_sequence:
-            assert self.sequence_encoder is not None
-            # pop in reverse order else indices get shifted
-            for idx in reversed(range(*self.sequence_encoder[global_sample_index])):
-                self.pop_item(idx)
-            self.sequence_encoder.pop(global_sample_index)
-        else:
-            self.pop_item(global_sample_index)
-        self.pad_encoder.pop(global_sample_index)
+        for chunk_id, row, idxs, is_tile in self.load_chunks(indices, reverse=True):
+            chunk_sample_ids = sample_ids[idxs] if sample_ids is not None else None
+            self.pop_samples(
+                chunk_id, row, idxs, is_tile, link_callback, chunk_sample_ids
+            )
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
+
+    def _pop_from_chunk(self, chunk, row, global_sample_index):
+        if self.is_sequence:
+            assert self.sequence_encoder is not None
+            for idx in reversed(range(*self.sequence_encoder[global_sample_index])):
+                local_idx = self.translate_to_local_index(idx, row)
+                chunk.pop(local_idx)
+            self.sequence_encoder.pop(global_sample_index)
+        else:
+            local_idx = self.translate_to_local_index(global_sample_index, row)
+            chunk.pop(local_idx)
+
+    def pop_samples(self, chunk_id, row, idxs, is_tile, link_callback, sample_ids):
+        if not idxs:
+            return
+
+        enc = self.chunk_id_encoder
+
+        if is_tile:
+            delete = True
+            chunk_ids = enc[idxs[0]]
+        else:
+            prev = -1 if row == 0 else enc.array[row - 1][LAST_SEEN_INDEX_COLUMN]
+            num_samples_in_chunk = enc.array[LAST_SEEN_INDEX_COLUMN] - prev
+
+            assert len(idxs) <= num_samples_in_chunk
+
+            if num_samples_in_chunk == len(idxs):
+                delete = True
+            else:
+                delete = False
+
+            chunk_ids = [chunk_id]
+
+        for i, idx in enumerate(reversed(idxs)):
+            if link_callback:
+                link_callback(idx)
+            if not delete:
+                chunk_to_update = self.get_chunk_from_chunk_id(chunk_ids[0], copy=True)
+                self._pop_from_chunk(chunk_to_update, row, idx)
+            self.commit_diff.pop(
+                idx, sample_ids[i].item() if sample_ids is not None else None
+            )
+            self.pad_encoder.pop(idx)
+            del self.tile_encoder[idx]
+            self.tensor_meta.pop(idx)
+
+        if delete:
+            for chunk_id in chunk_ids:
+                chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+                commit_id, tkey = self.get_chunk_commit(chunk_name)
+                if commit_id == self.commit_id:
+                    chunk_key = get_chunk_key(tkey, chunk_name, commit_id)
+                    self.check_remove_active_chunks(chunk_key)
+                    try:
+                        del self.cache[chunk_key]
+                    except KeyError:
+                        pass
 
     def pop_item(self, global_sample_index):
         enc = self.chunk_id_encoder
