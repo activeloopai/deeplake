@@ -2195,11 +2195,18 @@ class ChunkEngine:
         for idx in idxs:
             if idx in samples:
                 continue
-            if not self._is_tiled_sample(idx) and idx < self.tensor_length:
-                local_idx = self.translate_to_local_index(idx, row)
-                sample = self.read_basic_sample_from_chunk(chunk_id, local_idx, index)
-            else:
-                sample = self.get_single_sample(idx, index, pad_tensor=pad_tensor)
+            try:
+                if not self._is_tiled_sample(idx) and idx < self.tensor_length:
+                    local_idx = self.translate_to_local_index(idx, row)
+                    sample = self.read_basic_sample_from_chunk(
+                        chunk_id, local_idx, index
+                    )
+                else:
+                    sample = self.get_single_sample(idx, index, pad_tensor=pad_tensor)
+            except GetChunkError as e:
+                raise GetChunkError(e.chunk_key, idx, self.name) from e
+            except ReadSampleFromChunkError as e:
+                raise ReadSampleFromChunkError(e.chunk_key, idx, self.name) from e
             check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
             last_shape = sample.shape
             if is_polygon:
