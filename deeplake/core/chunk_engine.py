@@ -1912,23 +1912,7 @@ class ChunkEngine:
             index, aslist, use_data_cache, fetch_chunks, pad_tensor
         )
 
-    def get_video_sample(self, global_sample_index, index, decompress=True):
-        enc = self.chunk_id_encoder
-        chunk_ids = enc[global_sample_index]
-        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
-        chunk, stream = self.get_video_chunk(chunk_ids[0])
-        sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
-        sample = chunk.read_sample(
-            local_sample_index,
-            sub_index=sub_index,
-            stream=stream,
-            decompress=decompress,
-        )
-        if decompress:
-            return sample[tuple(entry.value for entry in index.values[2:])]
-        return sample
-
-    def get_chunk_info(self, global_sample_index, fetch_chunks):
+    def get_chunk_info(self, global_sample_index: int, fetch_chunks: bool):
         """Returns the chunk_id, row and worst case header size of chunk containing the given sample."""
         enc = self.chunk_id_encoder
         out = enc.__getitem__(global_sample_index, return_row_index=True)
@@ -1965,19 +1949,41 @@ class ChunkEngine:
 
         return chunk_id, row, worst_case_header_size
 
-    def get_basic_sample(
+    def translate_to_local_index(self, global_sample_index: int, row: int):
+        """Translate global sample index to local index relative to chunks without another encoder lookup."""
+        if row == 0:
+            return global_sample_index
+        return global_sample_index - (self.chunk_id_encoder.array[row - 1][-1] + 1)
+
+    def read_video_sample_from_chunk(
         self,
-        global_sample_index,
-        index,
-        fetch_chunks=False,
-        is_tile=False,
-        decompress=True,
+        chunk_id: int,
+        local_sample_index: int,
+        index: Index,
+        decompress: bool = True,
     ):
-        enc = self.chunk_id_encoder
-        chunk_id, row, worst_case_header_size = self.get_chunk_info(
-            global_sample_index, fetch_chunks
+        assert self.is_video
+        chunk, stream = self.get_video_chunk(chunk_id)
+        sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
+        sample = chunk.read_sample(
+            local_sample_index,
+            sub_index=sub_index,
+            stream=stream,
+            decompress=decompress,
         )
-        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        if decompress:
+            return sample[tuple(entry.value for entry in index.values[2:])]
+        return sample
+
+    def read_basic_sample_from_chunk(
+        self,
+        chunk_id: int,
+        local_sample_index: int,
+        index: Index,
+        worst_case_header_size: int = 0,
+        is_tile: bool = False,
+        decompress: bool = True,
+    ):
         chunk = self.get_chunk_from_chunk_id(
             chunk_id, partial_chunk_bytes=worst_case_header_size
         )
@@ -1994,22 +2000,49 @@ class ChunkEngine:
             ret = ret[tuple(entry.value for entry in index.values[1:])]
         return ret
 
+    def get_basic_sample(
+        self,
+        global_sample_index: int,
+        index: Index,
+        fetch_chunks: bool = False,
+        decompress: bool = True,
+    ):
+        chunk_id, row, worst_case_header_size = self.get_chunk_info(
+            global_sample_index, fetch_chunks=fetch_chunks
+        )
+        local_sample_index = self.translate_to_local_index(global_sample_index, row)
+        return self.read_basic_sample_from_chunk(
+            chunk_id,
+            local_sample_index,
+            index,
+            worst_case_header_size,
+            decompress=decompress,
+        )
+
+    def get_video_sample(
+        self, global_sample_index: int, index: Index, decompress: bool = True
+    ):
+        assert self.is_video
+        chunk_id, row, _ = self.get_chunk_info(global_sample_index, fetch_chunks=True)
+        local_sample_index = self.translate_to_local_index(global_sample_index, row)
+        return self.read_video_sample_from_chunk(
+            chunk_id, local_sample_index, index, decompress=decompress
+        )
+
     def get_non_tiled_sample(
         self, global_sample_index, index, fetch_chunks=False, decompress=True
     ):
         if self.is_video:
-            return self.get_video_sample(
-                global_sample_index, index, decompress=decompress
-            )
+            return self.get_video_sample(global_sample_index, index, decompress)
         return self.get_basic_sample(
-            global_sample_index, index, fetch_chunks=fetch_chunks, decompress=decompress
+            global_sample_index, index, fetch_chunks, decompress
         )
 
-    def get_full_tiled_sample(self, global_sample_index, fetch_chunks=False):
+    def get_full_tiled_sample(self, global_sample_index: int):
         chunks = self.get_chunks_for_sample(global_sample_index)
         return combine_chunks(chunks, global_sample_index, self.tile_encoder)
 
-    def get_partial_tiled_sample(self, global_sample_index, index, fetch_chunks=False):
+    def get_partial_tiled_sample(self, global_sample_index: int, index: Index):
         tile_enc = self.tile_encoder
         chunk_ids = self.chunk_id_encoder[global_sample_index]
         sample_shape = tile_enc.get_sample_shape(global_sample_index)
@@ -2040,11 +2073,7 @@ class ChunkEngine:
         decompress: bool = True,
     ):
         if pad_tensor and global_sample_index >= self.tensor_length:
-            sample = self.get_empty_sample()
-            try:
-                return sample[tuple(entry.value for entry in index.values[1:])]
-            except IndexError:
-                return sample
+            return self.get_empty_sample(index)
 
         if not self._is_tiled_sample(global_sample_index):
             sample = self.get_non_tiled_sample(
@@ -2054,20 +2083,15 @@ class ChunkEngine:
                 decompress=decompress,
             )
         elif len(index.values) == 1:
-            sample = self.get_full_tiled_sample(
-                global_sample_index,
-                fetch_chunks=fetch_chunks,
-            )
+            sample = self.get_full_tiled_sample(global_sample_index)
         else:
-            sample = self.get_partial_tiled_sample(
-                global_sample_index, index, fetch_chunks=fetch_chunks
-            )
+            sample = self.get_partial_tiled_sample(global_sample_index, index)
 
         return sample
 
     def _load_chunk(self, chunk_info: Tuple[str, int, List[int], bool]):
         """Worker function for chunk retrieval."""
-        chunk_key = chunk_info[0]
+        chunk_key = self.get_chunk_key_for_id(chunk_info[0])
         result = self.cache._get_item_from_cache(chunk_key)
         if result is not None:
             return result, chunk_info
@@ -2111,9 +2135,7 @@ class ChunkEngine:
             chunk_id = encoded[i][0].item()
             row = i
 
-            chunk_key = self.get_chunk_key_for_id(chunk_id)
-
-            chunk_infos.append((chunk_key, row, idxs_in_chunk, is_tile))
+            chunk_infos.append((chunk_id, row, idxs_in_chunk, is_tile))
 
         return chunk_infos
 
@@ -2136,12 +2158,14 @@ class ChunkEngine:
                 chunk, chunk_info = future.result()
                 if chunk:
                     if _get_nbytes(chunk) <= self.cache.cache_size:
-                        self.cache._insert_in_cache(chunk_info[0], chunk)
+                        self.cache._insert_in_cache(
+                            self.get_chunk_key_for_id(chunk_info[0]), chunk
+                        )
                 yield chunk_info
 
     def _get_samples(
         self,
-        chunk: Optional[BaseChunk],
+        chunk_id: int,
         row: int,
         idxs: List[int],
         index: Index,
@@ -2152,7 +2176,7 @@ class ChunkEngine:
         """Get samples from a chunk.
 
         Args:
-            chunk (Optional, BaseChunk): Chunk to read samples from. Can be ``None`` in case of tiles.
+            chunk_id (): Chunk to read samples from. Can be ``None`` in case of tiles.
             row (int): Row of the chunk in the chunk_id_encoder.
             idxs (List[int]): List of global sample indices to read from this chunk.
             index (Index): Original index applied on the tensor.
@@ -2169,33 +2193,11 @@ class ChunkEngine:
         for idx in idxs:
             if idx in samples:
                 continue
-            if pad_tensor and (idx > self.tensor_length):
-                sample = self.get_empty_sample()
-                try:
-                    ret = sample[tuple(entry.value for entry in index.values[1:])]
-                except IndexError:
-                    ret = sample
-                samples[idx] = ret
-                continue
-            if self._is_tiled_sample(idx):
-                if len(index.values) == 1:
-                    sample = self.get_full_tiled_sample(idx)
-                else:
-                    sample = self.get_partial_tiled_sample(idx, index)
+            if not self._is_tiled_sample(idx) and idx < self.tensor_length:
+                local_idx = self.translate_to_local_index(idx, row)
+                sample = self.read_basic_sample_from_chunk(chunk_id, local_idx, index)
             else:
-                # convert to local index (index within chunk)
-                if row == 0:
-                    local_idx = idx
-                else:
-                    local_idx = idx - (self.chunk_id_encoder.array[row - 1][-1] + 1)
-
-                assert chunk is not None
-                sample = chunk.read_sample(
-                    local_idx,
-                    cast=self.tensor_meta.htype != "dicom",
-                )
-                if len(index) > 1:
-                    sample = sample[tuple(entry.value for entry in index.values[1:])]
+                sample = self.get_single_sample(idx, index, pad_tensor=pad_tensor)
             check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
             last_shape = sample.shape
             if is_polygon:
@@ -2203,7 +2205,7 @@ class ChunkEngine:
             samples[idx] = sample
         return samples, last_shape
 
-    def get_samples(self, index, aslist, pad_tensor):
+    def get_samples(self, index: Index, aslist: bool, pad_tensor: bool):
         """Get samples for the given index, fetches chunks in parallel.
 
         Args:
@@ -2224,11 +2226,10 @@ class ChunkEngine:
             pad_tensor=pad_tensor,
         )
         samples = {}
-        for chunk_key, row, idxs, is_tile in self.load_chunks(
+        for chunk_id, row, idxs, is_tile in self.load_chunks(
             list(index.values[0].indices(self.num_samples))
         ):
-            chunk = self.get_chunk(chunk_key)
-            chunk_samples, chunk_last_shape = read_samples(chunk, row, idxs)
+            chunk_samples, chunk_last_shape = read_samples(chunk_id, row, idxs)
             check_sample_shape(chunk_last_shape, last_shape, self.key, index, aslist)
             samples.update(chunk_samples)
             cache_used_percent = lambda: self.cache.cache_used / self.cache.cache_size
@@ -3236,18 +3237,27 @@ class ChunkEngine:
                 links = list(self.tensor_meta.links.keys())
             [self._all_chunk_engines[link].pop() for link in links]
 
-    def get_empty_sample(self):
+    def get_empty_sample(self, index: Optional[Index] = None):
         if self.num_samples == 0:
             raise ValueError("This tensor has no samples, cannot get empty sample.")
         htype = self.tensor_meta.htype
         dtype = self.tensor_meta.dtype
         if htype in ("text", "json", "list", "tag"):
-            return get_empty_text_like_sample(htype)
-        ndim = len(self.tensor_meta.max_shape)
-        if self.is_sequence:
-            ndim += 1
-        shape = (0,) * ndim
-        return np.ones(shape, dtype=dtype)
+            sample = get_empty_text_like_sample(htype)
+        else:
+            ndim = len(self.tensor_meta.max_shape)
+            if self.is_sequence:
+                ndim += 1
+            shape = (0,) * ndim
+            sample = np.ones(shape, dtype=dtype)
+
+        if index:
+            try:
+                return sample[tuple(entry.value for entry in index.values[1:])]
+            except IndexError:
+                pass
+
+        return sample
 
     @property
     def is_text_like(self):
