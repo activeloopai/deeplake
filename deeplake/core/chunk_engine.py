@@ -2033,11 +2033,11 @@ class ChunkEngine:
 
     def get_single_sample(
         self,
-        global_sample_index,
-        index,
-        fetch_chunks=False,
-        pad_tensor=False,
-        decompress=True,
+        global_sample_index: int,
+        index: Index,
+        fetch_chunks: bool = False,
+        pad_tensor: bool = False,
+        decompress: bool = True,
     ):
         if pad_tensor and global_sample_index >= self.tensor_length:
             sample = self.get_empty_sample()
@@ -2065,7 +2065,7 @@ class ChunkEngine:
 
         return sample
 
-    def _load_chunk(self, chunk_info):
+    def _load_chunk(self, chunk_info: Tuple[str, int, List[int], bool]):
         """Worker function for chunk retrieval."""
         chunk_key = chunk_info[0]
         result = self.cache._get_item_from_cache(chunk_key)
@@ -2083,7 +2083,7 @@ class ChunkEngine:
     def _get_chunk_infos(self, indices: List[int]):
         """Returns chunk infos for the chunks covered by the given indices."""
         indices = sorted(indices)
-        indices = np.asarray(indices, dtype=np.uint32)
+        indices = np.asarray(indices, dtype=np.uint32)  # type: ignore
         encoded = self.chunk_id_encoder._encoded
         last_idxs = encoded[:, -1]
 
@@ -2104,7 +2104,7 @@ class ChunkEngine:
                     continue
                 is_tile = True
 
-            samples_in_chunk = indices[last_pos : pos[i]]
+            idxs_in_chunk = indices[last_pos : pos[i]]
 
             last_pos = pos[i]
 
@@ -2113,7 +2113,7 @@ class ChunkEngine:
 
             chunk_key = self.get_chunk_key_for_id(chunk_id)
 
-            chunk_infos.append((chunk_key, row, samples_in_chunk, is_tile))
+            chunk_infos.append((chunk_key, row, idxs_in_chunk, is_tile))
 
         return chunk_infos
 
@@ -2189,6 +2189,7 @@ class ChunkEngine:
                 else:
                     local_idx = idx - (self.chunk_id_encoder.array[row - 1][-1] + 1)
 
+                assert chunk is not None
                 sample = chunk.read_sample(
                     local_idx,
                     cast=self.tensor_meta.htype != "dicom",
