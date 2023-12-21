@@ -2619,12 +2619,13 @@ class Dataset:
 
         self.storage.clear()
 
-    def summary(self, force: bool = False):
+    def summary(self, force: bool = False, return_as_string: bool = False):
         """Prints a summary of the dataset.
 
         Args:
             force (bool): Dataset views with more than 10000 samples might take a long time to summarize. If `force=True`,
                 the summary will be printed regardless. An error will be raised otherwise.
+            return_as_string (bool): If ``True``, the summary will be returned as a string instead of being printed.
 
         Raises:
             ValueError: If the dataset view might take a long time to summarize and `force=False`
@@ -2642,6 +2643,9 @@ class Dataset:
             )
 
         pretty_print = summary_dataset(self)
+
+        if return_as_string:
+            return pretty_print
 
         print(self)
         print(pretty_print)
