@@ -1173,12 +1173,10 @@ class Tensor:
 
     def __pop(self, index: List[int]):
         """Removes elements at the given indices. ``index`` must be sorted in descending order."""
-        sample_id_tensor = self._sample_id_tensor
-        sample_ids = sample_id_tensor[index].numpy() if sample_id_tensor else None
         self.chunk_engine.pop(
             index,
             link_callback=self._pop_links if self.meta.links else None,
-            sample_ids=sample_ids,
+            sample_id_tensor=self._sample_id_tensor,
         )
         self.invalidate_libdeeplake_dataset()
 

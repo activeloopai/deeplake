@@ -2116,7 +2116,10 @@ class ChunkEngine:
             time.sleep(0.1)
         base_storage = storages.get(threading.get_ident())
         if base_storage is None:
-            base_storage = self.base_storage.copy()
+            if isinstance(self.base_storage, MemoryProvider):
+                base_storage = self.base_storage
+            else:
+                base_storage = self.base_storage.copy()
             storages[threading.get_ident()] = base_storage
         chunk = base_storage.__getitem__(chunk_key)
         return chunk, chunk_info
@@ -2145,7 +2148,7 @@ class ChunkEngine:
                     continue
                 is_tile = True
 
-            idxs_in_chunk = indices[last_pos : pos[i]]
+            idxs_in_chunk = indices[last_pos : pos[i]].tolist()
 
             last_pos = pos[i]
 
@@ -2193,7 +2196,7 @@ class ChunkEngine:
                 for result in executor.map(
                     self._load_chunk,
                     reversed(chunk_infos) if reverse else chunk_infos,
-                    storages,
+                    repeat(storages),
                 ):
                     chunk, chunk_info = result
                     if chunk:
@@ -2506,7 +2509,7 @@ class ChunkEngine:
         self,
         indices: List[int],
         link_callback: Optional[Callable] = None,
-        sample_ids: Optional[np.ndarray] = None,
+        sample_id_tensor=None,
     ):
         """Pop samples from the tensor at the given indices.
 
@@ -2520,8 +2523,10 @@ class ChunkEngine:
         self.cache.autoflush = False
 
         for chunk_id, row, idxs, is_tile in self.load_chunks(indices, reverse=True):
-            print(chunk_id, row, idxs, is_tile)
-            chunk_sample_ids = sample_ids[idxs] if sample_ids is not None else None
+            if sample_id_tensor:
+                chunk_sample_ids = sample_id_tensor[idxs].numpy()
+            else:
+                chunk_sample_ids = None
             self.pop_samples(
                 chunk_id, row, idxs, is_tile, link_callback, chunk_sample_ids
             )
@@ -2529,11 +2534,17 @@ class ChunkEngine:
         self.cache.maybe_flush()
 
     def _pop_from_chunk(self, chunk: BaseChunk, row: int, global_sample_index: int):
-        local_idx = self.translate_to_local_index(global_sample_index, row)
-        chunk.pop(local_idx)
-        print("popping", local_idx)
         if self.is_sequence:
+            for idx in range(*self.sequence_encoder[global_sample_index]):
+                local_idx = self.translate_to_local_index(idx, row)
+                chunk.pop(local_idx)
+                self.chunk_id_encoder._encoded[row][LAST_SEEN_INDEX_COLUMN] -= 1
             self.sequence_encoder.pop(global_sample_index)
+        else:
+            local_idx = self.translate_to_local_index(global_sample_index, row)
+            chunk.pop(local_idx)
+            self.chunk_id_encoder._encoded[row][LAST_SEEN_INDEX_COLUMN] -= 1
+        self.chunk_id_encoder.is_dirty = True
 
     def pop_samples(
         self,
@@ -2547,13 +2558,6 @@ class ChunkEngine:
         if not idxs:
             return
 
-        if self.is_sequence:
-            assert self.sequence_encoder is not None
-            flattened_idxs = []
-            for idx in idxs:
-                flattened_idxs.extend(range(*self.sequence_encoder[idx]))
-            idxs = flattened_idxs
-
         enc = self.chunk_id_encoder
 
         if is_tile:
@@ -2562,11 +2566,22 @@ class ChunkEngine:
             chunk_ids, _, _ = enc.pop(idxs[0])
         else:
             prev = -1 if row == 0 else enc.array[row - 1][LAST_SEEN_INDEX_COLUMN]
-            num_samples_in_chunk = enc.array[LAST_SEEN_INDEX_COLUMN] - prev
+            num_samples_in_chunk = (
+                enc.array[row][LAST_SEEN_INDEX_COLUMN] - prev
+            ).item()
 
-            assert len(idxs) <= num_samples_in_chunk
+            if self.is_sequence:
+                num_samples_indexed = 0
+                for idx in idxs:
+                    num_samples_indexed += (
+                        self.sequence_encoder[idx][1] - self.sequence_encoder[idx][0]
+                    )
+            else:
+                num_samples_indexed = len(idxs)
 
-            if num_samples_in_chunk == len(idxs):
+            assert num_samples_indexed <= num_samples_in_chunk
+
+            if num_samples_in_chunk == num_samples_indexed:
                 delete = True
             else:
                 delete = False
