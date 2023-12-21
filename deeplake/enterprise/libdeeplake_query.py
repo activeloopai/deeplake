@@ -121,7 +121,7 @@ def sample_by(
     return dataset.no_view_dataset[indexes]
 
 
-def universal_query(query_string: str):
+def universal_query(query_string: str, token: Optional[str]):
     """Runs query without initially loading dataset and returns a sliced :class:`~deeplake.core.dataset.Dataset` with given sampler applied.
 
 
@@ -156,7 +156,7 @@ def universal_query(query_string: str):
     from deeplake.enterprise.convert_to_libdeeplake import import_indra_api
 
     api = import_indra_api()
-    dsv = api.tql.query(query_string)
+    dsv = api.tql.query(query_string, token)
     view = DeepLakeQueryDataset(deeplake_ds=None, indra_ds=dsv)
     view._tql_query = query_string
     return view

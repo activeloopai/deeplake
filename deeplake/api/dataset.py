@@ -2017,9 +2017,7 @@ class dataset:
 
     @staticmethod
     @spinner
-    def query(
-        query_string: str,
-    ) -> Dataset:
+    def query(query_string: str, token: Optional[str] = "") -> Dataset:
         from deeplake.enterprise.libdeeplake_query import universal_query
 
-        return universal_query(query_string=query_string)
+        return universal_query(query_string=query_string, token=token)
