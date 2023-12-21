@@ -2520,6 +2520,7 @@ class ChunkEngine:
         self.cache.autoflush = False
 
         for chunk_id, row, idxs, is_tile in self.load_chunks(indices, reverse=True):
+            print(chunk_id, row, idxs, is_tile)
             chunk_sample_ids = sample_ids[idxs] if sample_ids is not None else None
             self.pop_samples(
                 chunk_id, row, idxs, is_tile, link_callback, chunk_sample_ids
@@ -2527,26 +2528,38 @@ class ChunkEngine:
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
 
-    def _pop_from_chunk(self, chunk, row, global_sample_index):
+    def _pop_from_chunk(self, chunk: BaseChunk, row: int, global_sample_index: int):
+        local_idx = self.translate_to_local_index(global_sample_index, row)
+        chunk.pop(local_idx)
+        print("popping", local_idx)
         if self.is_sequence:
-            assert self.sequence_encoder is not None
-            for idx in reversed(range(*self.sequence_encoder[global_sample_index])):
-                local_idx = self.translate_to_local_index(idx, row)
-                chunk.pop(local_idx)
             self.sequence_encoder.pop(global_sample_index)
-        else:
-            local_idx = self.translate_to_local_index(global_sample_index, row)
-            chunk.pop(local_idx)
 
-    def pop_samples(self, chunk_id, row, idxs, is_tile, link_callback, sample_ids):
+    def pop_samples(
+        self,
+        chunk_id: int,
+        row: int,
+        idxs: List[int],
+        is_tile: bool,
+        link_callback: Optional[Callable],
+        sample_ids: Optional[np.ndarray],
+    ):
         if not idxs:
             return
+
+        if self.is_sequence:
+            assert self.sequence_encoder is not None
+            flattened_idxs = []
+            for idx in idxs:
+                flattened_idxs.extend(range(*self.sequence_encoder[idx]))
+            idxs = flattened_idxs
 
         enc = self.chunk_id_encoder
 
         if is_tile:
+            assert len(idxs) == 1, "Tile chunks should only have one sample"
             delete = True
-            chunk_ids = enc[idxs[0]]
+            chunk_ids, _, _ = enc.pop(idxs[0])
         else:
             prev = -1 if row == 0 else enc.array[row - 1][LAST_SEEN_INDEX_COLUMN]
             num_samples_in_chunk = enc.array[LAST_SEEN_INDEX_COLUMN] - prev
@@ -2574,6 +2587,9 @@ class ChunkEngine:
             self.tensor_meta.pop(idx)
 
         if delete:
+            # tile rows already deleted
+            if not is_tile:
+                enc._delete_rows([row])
             for chunk_id in chunk_ids:
                 chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
                 commit_id, tkey = self.get_chunk_commit(chunk_name)
