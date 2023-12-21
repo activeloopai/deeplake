@@ -127,6 +127,7 @@ def universal_query(query_string: str, token: Optional[str]):
 
     Args:
         query_string (str): TQL string containing the FROM as a source dataset.
+        token (Optional[str]): Token which is used to get access to the source dataset.
 
 
     Returns:
