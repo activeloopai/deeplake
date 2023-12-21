@@ -1916,7 +1916,7 @@ class ChunkEngine:
     def get_chunk_info(self, global_sample_index: int, fetch_chunks: bool):
         """Returns the chunk_id, row and worst case header size of chunk containing the given sample."""
         enc = self.chunk_id_encoder
-        out = enc.__getitem__(global_sample_index, return_row_index=True)
+        out = enc.__getitem__(global_sample_index, return_row_index=True)  # type: ignore
         chunk_id, row = out[0][0], out[0][1]
 
         worst_case_header_size = 0
@@ -2164,7 +2164,7 @@ class ChunkEngine:
         chunk_infos = self._get_chunk_infos(indices)
 
         # some storage providers are not thread safe
-        storages = {}
+        storages: Dict[int, StorageProvider] = {}
 
         with ThreadPoolExecutor() as executor:
             futures_list = [
