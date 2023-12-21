@@ -210,7 +210,7 @@ class LinkedChunkEngine(ChunkEngine):
         return sample
 
     def get_basic_sample(
-        self, global_sample_index, index, fetch_chunks=False, decompress=True
+        self, global_sample_index, index, fetch_chunks=False, is_tile=False, decompress=True
     ):
         sample = self.get_deeplake_read_sample(global_sample_index, fetch_chunks)
         if sample is None:
