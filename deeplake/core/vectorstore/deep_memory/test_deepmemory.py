@@ -7,7 +7,10 @@ from unittest.mock import MagicMock
 
 import deeplake
 from deeplake import VectorStore
-from deeplake.core.vectorstore.deep_memory.deep_memory import DeepMemory
+from deeplake.core.vectorstore.deep_memory.deep_memory import (
+    DeepMemory,
+    _get_best_model,
+)
 from deeplake.tests.common import requires_libdeeplake
 from deeplake.util.exceptions import (
     DeepMemoryWaitingListError,
@@ -507,9 +510,9 @@ def test_deepmemory_status(capsys, job_id, corpus_query_pair_path, hub_cloud_dev
         "| status                     | completed                     |\n"
         "--------------------------------------------------------------\n"
         "| progress                   | eta: 2.5 seconds              |\n"
-        "|                            | recall@10: 0.62% (+0.62%)     |\n"
+        "|                            | recall@10: 50.00% (+25.00%)   |\n"
         "--------------------------------------------------------------\n"
-        "| results                    | recall@10: 0.62% (+0.62%)     |\n"
+        "| results                    | recall@10: 50.00% (+25.00%)   |\n"
         "--------------------------------------------------------------\n\n\n"
     )
 
@@ -782,3 +785,89 @@ def test_deepmemory_evaluate_with_embedding_function_specified_in_constructor_sh
         queries=queries,
         relevance=relevance,
     )
+
+
+def test_db_deepmemory_status_should_show_best_model_with_deepmemory_v2_metadata_logic(
+    capsys,
+    corpus_query_pair_path,
+    hub_cloud_dev_token,
+):
+    corpus, queries = corpus_query_pair_path
+
+    db = VectorStore(
+        path=corpus,
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+        embedding_function=embedding_fn,
+    )
+    db.dataset.embedding.info = {
+        "deepmemory": {
+            "6581e3056a1162b64061a9a4_0.npy": {
+                "base_recall@10": 0.25,
+                "deep_memory_version": "0.2",
+                "delta": 0.25,
+                "job_id": "6581e3056a1162b64061a9a4_0",
+                "model_type": "npy",
+                "recall@10": 0.5,
+            },
+            "model.npy": {
+                "base_recall@10": 0.25,
+                "deep_memory_version": "0.2",
+                "delta": 0.25,
+                "job_id": "6581e3056a1162b64061a9a4_0",
+                "model_type": "npy",
+                "recall@10": 0.5,
+            },
+        }
+    }
+
+    recall, delta = _get_best_model(
+        db.dataset.embedding,
+        "6581e3056a1162b64061a9a4",
+        latest_job=True,
+    )
+    assert recall == 0.5
+    assert delta == 0.25
+
+
+def test_db_deepmemory_status_should_show_best_model_with_deepmemory_v1_metadata_logic(
+    capsys,
+    corpus_query_pair_path,
+    hub_cloud_dev_token,
+):
+    corpus, queries = corpus_query_pair_path
+
+    db = VectorStore(
+        path=corpus,
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+        embedding_function=embedding_fn,
+    )
+    db.dataset.embedding.info = {
+        "deepmemory": {
+            "6581e3056a1162b64061a9a4_0.npy": {
+                "base_recall@10": 0.25,
+                "deep_memory_version": "0.2",
+                "delta": 0.25,
+                "job_id": "6581e3056a1162b64061a9a4_0",
+                "model_type": "npy",
+                "recall@10": 0.5,
+            },
+        },
+        "deepmemory/model.npy": {
+            "base_recall@10": 0.25,
+            "deep_memory_version": "0.2",
+            "delta": 0.25,
+            "job_id": "6581e3056a1162b64061a9a4_0",
+            "model_type": "npy",
+            "recall@10": 0.5,
+        },
+    }
+
+    recall, delta = _get_best_model(
+        db.dataset.embedding,
+        "6581e3056a1162b64061a9a4",
+        latest_job=True,
+    )
+    assert recall == 0.5
+    assert delta == 0.25
