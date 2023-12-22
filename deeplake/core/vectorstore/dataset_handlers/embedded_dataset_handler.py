@@ -310,6 +310,9 @@ class EmbeddedDH(DHBase):
         embedding_function: Union[Callable, List[Callable]],
         embedding_source_tensor: Union[str, List[str]],
         embedding_tensor: Union[str, List[str]],
+        embedding_dict: Union[
+            List[float], np.ndarray, List[List[float]], List[np.ndarray]
+        ],
     ):
         feature_report_path(
             path=self.bugout_reporting_path,
@@ -345,25 +348,29 @@ class EmbeddedDH(DHBase):
             embedding_tensor=embedding_tensor,
         )
 
-        if not row_ids:
-            row_ids = dataset_utils.search_row_ids(
+        if embedding_dict is not None:
+            self.dataset[row_ids].update(embedding_tensor_data)
+
+        else:
+            if not row_ids:
+                row_ids = dataset_utils.search_row_ids(
+                    dataset=self.dataset,
+                    search_fn=self.search,
+                    ids=ids,
+                    filter=filter,
+                    query=query,
+                    exec_option=exec_option or self.exec_option,
+                )
+
+            embedding_tensor_data = utils.convert_embedding_source_tensor_to_embeddings(
                 dataset=self.dataset,
-                search_fn=self.search,
-                ids=ids,
-                filter=filter,
-                query=query,
-                exec_option=exec_option or self.exec_option,
+                embedding_source_tensor=embedding_source_tensor,
+                embedding_tensor=embedding_tensor,
+                embedding_function=embedding_function,
+                row_ids=row_ids,
             )
 
-        embedding_tensor_data = utils.convert_embedding_source_tensor_to_embeddings(
-            dataset=self.dataset,
-            embedding_source_tensor=embedding_source_tensor,
-            embedding_tensor=embedding_tensor,
-            embedding_function=embedding_function,
-            row_ids=row_ids,
-        )
-
-        self.dataset[row_ids].update(embedding_tensor_data)
+            self.dataset[row_ids].update(embedding_tensor_data)
 
     def commit(self, allow_empty: bool = True) -> None:
         """Commits the Vector Store.

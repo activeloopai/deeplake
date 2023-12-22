@@ -100,6 +100,8 @@ class ManagedDH(DHBase):
         # because we don't support read/write access to the managed vectorstore using deeplake
         del self.dataset
 
+        self.verbose = verbose
+
         # verifying not implemented args
         self.args_verifier.verify_init_args(
             cls=self,
@@ -151,6 +153,9 @@ class ManagedDH(DHBase):
             username=self.username,
         )
 
+        if self.verbose:
+            self.logger.info("Uploading data to deeplake dataset.")
+
         # verifying not implemented args
         self.args_verifier.verify_add_args(
             embedding_function=embedding_function,
@@ -180,6 +185,9 @@ class ManagedDH(DHBase):
             rate_limiter=rate_limiter,
             return_ids=return_ids,
         )
+
+        if self.verbose:
+            self.summary()
 
         if return_ids:
             return response.ids
@@ -227,6 +235,7 @@ class ManagedDH(DHBase):
             embedding_tensor=embedding_tensor,
             exec_option=exec_option,
             return_view=return_view,
+            filter=filter,
         )
 
         response = self.client.vectorstore_search(
@@ -480,7 +489,6 @@ class UpdateArgsVerfier(ArgsVerifierBase):
     _not_implemented_args = [
         "embedding_function",
         "exec_option",
-        "embedding_tensor",
     ]
 
     def verify(self):

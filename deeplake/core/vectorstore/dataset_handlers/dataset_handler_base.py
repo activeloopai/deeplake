@@ -194,6 +194,9 @@ class DHBase(ABC):
         embedding_source_tensor: Union[str, List[str]],
         embedding_tensor: Union[str, List[str]],
         embedding: Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]],
+        embedding_dict: Union[
+            List[float], np.ndarray, List[List[float]], List[np.ndarray]
+        ],
     ):
         pass
 
