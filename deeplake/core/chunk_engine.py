@@ -2143,6 +2143,9 @@ class ChunkEngine:
                 # tile
                 if last_idxs[i] != last_idxs[i - 1]:
                     continue
+                # mark the previous chunk as tile
+                chunk_infos[-1][3] = True
+                # mark this chunk as tile
                 is_tile = True
 
             idxs_in_chunk = indices[last_pos : pos[i]]
