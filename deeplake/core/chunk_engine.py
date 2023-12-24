@@ -1097,7 +1097,7 @@ class ChunkEngine:
                         link_callback([sample], flat=flat, progressbar=progressbar)
                     except Exception:
                         # if link callback fails, remove the sample
-                        self.pop(self.tensor_length - len(samples) + i - skipped)
+                        self.pop([self.tensor_length - len(samples) + i - skipped])
                         skipped += 1
                 return
             raise
@@ -1134,10 +1134,12 @@ class ChunkEngine:
                 except Exception:
                     if ignore_errors:
                         self.pop(
-                            self.tensor_length
-                            - len(verified_samples)
-                            + i
-                            - len(skipped)
+                            [
+                                self.tensor_length
+                                - len(verified_samples)
+                                + i
+                                - len(skipped)
+                            ]
                         )
                         skipped.append(i)
                         continue
@@ -1209,9 +1211,7 @@ class ChunkEngine:
             self.cache.autoflush = initial_autoflush
             self.cache.maybe_flush()
         except Exception as e:
-            num_samples_added = self.tensor_length - num_samples
-            for _ in range(num_samples_added):
-                self.pop(self.tensor_length - 1)
+            self.pop(list(range(self.tensor_length - 1, num_samples - 1, -1)))
             raise SampleAppendError(self.name) from e
 
     def _create_new_chunk(self, register=True, row: Optional[int] = None) -> BaseChunk:
