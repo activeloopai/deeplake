@@ -63,6 +63,8 @@ class ManagedServiceClient(DeepLakeBackendClient):
         overwrite: Optional[bool] = None,
         tensor_params: Optional[List[Dict[str, Any]]] = None,
         index_params: Dict = None,
+        branch: Optional[str] = None,
+        verbose: bool = False,
     ):
         response = self.request(
             method="POST",
@@ -72,6 +74,8 @@ class ManagedServiceClient(DeepLakeBackendClient):
                 "overwrite": overwrite,
                 "tensor_params": tensor_params,
                 "index_params": index_params,
+                "branch": branch,
+                "verbose": verbose,
             },
         )
         data = self._get_result_or_poll(response)

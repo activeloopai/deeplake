@@ -16,6 +16,8 @@ from deeplake.core.vectorstore.deep_memory.deep_memory import (
 from deeplake.core.vectorstore import utils
 from deeplake.util.bugout_reporter import feature_report_path
 from deeplake.util.path import convert_pathlib_to_string_if_needed, get_path_type
+from deeplake.util.logging import log_visualizer_link
+from deeplake.client.log import logger
 
 
 class ManagedVectorStoreArgsVerifier:
@@ -114,12 +116,17 @@ class ManagedDH(DHBase):
         )
 
         self.client = ManagedServiceClient(token=self.token)
-        self.client.init_vectorstore(
+        response = self.client.init_vectorstore(
             path=self.bugout_reporting_path,
             overwrite=overwrite,
             tensor_params=tensor_params,
             index_params=index_params,
+            verbose=verbose,
         )
+
+        if self.verbose:
+            log_visualizer_link(response.path)
+            logger.info(response.summary)
 
         self.deep_memory = DeepMemory(
             dataset_or_path=self.path,
