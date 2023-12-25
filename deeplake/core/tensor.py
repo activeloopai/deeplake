@@ -1173,6 +1173,7 @@ class Tensor:
 
     def _pop(self, index: List[int]):
         """Removes elements at the given indices. ``index`` must be sorted in descending order."""
+        self._check_for_pop(index)
         self.chunk_engine.pop(
             index,
             link_callback=self._pop_links if self.meta.links else None,

@@ -4637,8 +4637,6 @@ class Dataset:
         """Removes elements at the given indices."""
         with self:
             for tensor in self.tensors.values():
-                tensor._check_for_pop(index)
-            for tensor in self.tensors.values():
                 tensor._pop(index)
 
     @invalid_view_op
