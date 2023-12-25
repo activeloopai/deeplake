@@ -1162,16 +1162,16 @@ class Tensor:
                         val = cast_to_type(val, tensor.dtype)
                         tensor[global_sample_index] = val
 
-    def _check_for_pop(self, index: Optional[int] = None):
-        if (
-            index is not None
-            and index != self.num_samples - 1
-            and self.meta.htype == "embedding"
-            and len(self.get_vdb_indexes()) > 0
-        ):
-            raise EmbeddingTensorPopError(self.meta.name, index)
+    def _check_for_pop(self, index: List[int] = None):
+        for idx in index:
+            if (
+                idx != self.num_samples - 1
+                and self.meta.htype == "embedding"
+                and len(self.get_vdb_indexes()) > 0
+            ):
+                raise EmbeddingTensorPopError(self.meta.name, idx)
 
-    def __pop(self, index: List[int]):
+    def _pop(self, index: List[int]):
         """Removes elements at the given indices. ``index`` must be sorted in descending order."""
         self.chunk_engine.pop(
             index,
@@ -1192,6 +1192,9 @@ class Tensor:
         if not index:
             return
 
+        if len(set(index)) != len(index):
+            raise ValueError("Duplicate indices are not allowed.")
+
         length = self.num_samples
         if length == 0:
             raise IndexError("Can't pop from empty tensor")
@@ -1206,7 +1209,7 @@ class Tensor:
 
         index = sorted(index, reverse=True)
 
-        self.__pop(index)
+        self._pop(index)
         if index_maintenance.is_embedding_tensor(self):
             row_ids = index[:]
             index_maintenance.index_operation_dataset(
@@ -1230,8 +1233,7 @@ class Tensor:
                 assert seq_enc is not None
                 for link in flat_links:
                     link_tensor = self.dataset[rev_tensor_names.get(link)]
-                    for idx in reversed(range(*seq_enc[global_sample_index])):
-                        link_tensor.pop(idx)
+                    link_tensor.pop(list(range(*seq_enc[global_sample_index])))
         else:
             links = list(self.meta.links.keys())
         [

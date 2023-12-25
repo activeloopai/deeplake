@@ -1097,7 +1097,7 @@ class ChunkEngine:
                         link_callback([sample], flat=flat, progressbar=progressbar)
                     except Exception:
                         # if link callback fails, remove the sample
-                        self.pop([self.tensor_length - len(samples) + i - skipped])
+                        self.pop(self.tensor_length - len(samples) + i - skipped)
                         skipped += 1
                 return
             raise
@@ -1134,12 +1134,10 @@ class ChunkEngine:
                 except Exception:
                     if ignore_errors:
                         self.pop(
-                            [
-                                self.tensor_length
-                                - len(verified_samples)
-                                + i
-                                - len(skipped)
-                            ]
+                            self.tensor_length
+                            - len(verified_samples)
+                            + i
+                            - len(skipped)
                         )
                         skipped.append(i)
                         continue
@@ -1211,7 +1209,7 @@ class ChunkEngine:
             self.cache.autoflush = initial_autoflush
             self.cache.maybe_flush()
         except Exception as e:
-            self.pop(list(range(self.tensor_length - 1, num_samples - 1, -1)))
+            self.pop(list(range(num_samples, self.tensor_length)))
             raise SampleAppendError(self.name) from e
 
     def _create_new_chunk(self, register=True, row: Optional[int] = None) -> BaseChunk:
@@ -1518,7 +1516,7 @@ class ChunkEngine:
             samples,
             start_chunk=new_chunk,
             register=True,
-            update_commit_diff=True,
+            update_commit_diff=False,
             update_tensor_meta=False,
             start_chunk_row=new_chunk_row,
             register_creds=False,
@@ -2143,8 +2141,10 @@ class ChunkEngine:
                 continue
 
             if pos[i] == last_pos:
-                # tile
+                # not tile
                 if last_idxs[i] != last_idxs[i - 1]:
+                    if pos[i] == len(indices):
+                        break
                     continue
                 # mark the previous chunk as tile
                 chunk_infos[-1][3] = True
@@ -2158,7 +2158,7 @@ class ChunkEngine:
             chunk_id = encoded[i][0].item()
             row = i
 
-            chunk_infos.append((chunk_id, row, idxs_in_chunk, is_tile))
+            chunk_infos.append([chunk_id, row, idxs_in_chunk, is_tile])
 
         return chunk_infos
 
@@ -2244,7 +2244,7 @@ class ChunkEngine:
             if idx in samples:
                 continue
             try:
-                if not self._is_tiled_sample(idx) and idx < self.tensor_length:
+                if not self._is_tiled_sample(idx) and idx < self.num_samples:
                     local_idx = self.translate_to_local_index(idx, row)
                     sample = self.read_basic_sample_from_chunk(
                         chunk_id, local_idx, index
@@ -2510,43 +2510,79 @@ class ChunkEngine:
 
     def pop(
         self,
-        indices: List[int],
+        indices: Optional[Union[int, List[int]]] = None,
         link_callback: Optional[Callable] = None,
         sample_id_tensor=None,
     ):
         """Pop samples from the tensor at the given indices.
 
         Args:
-            indices (List[int]): List of indices to pop.
+            indices (Optional[Union[int, List[int]]]): List of indices to pop.
             link_callback (Optional[Callable]): Callback function to be called after popping each sample. Defaults to None.
         """
+        if indices is None:
+            indices = [self.tensor_length - 1]
+
+        if not isinstance(indices, list):
+            indices = [indices]
+
         self._write_initialization()
         self.cached_data = None
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
 
-        for chunk_id, row, idxs, is_tile in self.load_chunks(indices, reverse=True):
-            if sample_id_tensor:
-                chunk_sample_ids = sample_id_tensor[idxs].numpy()
-            else:
-                chunk_sample_ids = None
-            self.pop_samples(
-                chunk_id, row, idxs, is_tile, link_callback, chunk_sample_ids
+        def update_links_and_encoders(idx):
+            """Update linked tensors and sample level encoders"""
+            self.commit_diff.pop(
+                idx,
+                sample_id_tensor[idx].numpy().item()
+                if sample_id_tensor is not None
+                else None,
             )
+            if link_callback:
+                link_callback(idx)
+            if self.is_sequence:
+                self.sequence_encoder.pop(idx)
+            self.pad_encoder.pop(idx)
+
+        if self.is_sequence:
+            item_lengths = [
+                [index, -np.subtract(*self.sequence_encoder[index])]
+                for index in sorted(indices)
+            ]
+            flat_indices = []
+            for index in indices:
+                flat_indices.extend(range(*self.sequence_encoder[index]))
+            indices = flat_indices
+
+        for chunk_id, row, idxs, is_tile in self.load_chunks(indices, reverse=True):
+            idxs = list(reversed(idxs))
+            if self.is_sequence:
+                num_flat_samples = len(idxs)
+                while item_lengths and num_flat_samples >= item_lengths[-1][1]:
+                    num_flat_samples -= item_lengths[-1][1]
+                    idx_2d, _ = item_lengths.pop()
+                    update_links_and_encoders(idx_2d)
+
+                if num_flat_samples:
+                    item_lengths[-1][1] -= num_flat_samples
+            else:
+                for idx in idxs:
+                    update_links_and_encoders(idx)
+            self.pop_samples(chunk_id, row, idxs, is_tile)
+
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
 
-    def _pop_from_chunk(
-        self, chunk: Optional[BaseChunk], row: int, global_sample_index: int
-    ):
+    def _pop_from_chunk(self, chunk: Optional[BaseChunk], row: int, global_idx: int):
         """Pop sample from chunk. If chunk is ``None``, only updates tensor meta, chunk id encoder and tile encoder."""
         if chunk:
-            local_idx = self.translate_to_local_index(global_sample_index, row)
+            local_idx = self.translate_to_local_index(global_idx, row)
             chunk.pop(local_idx)
-        self.chunk_id_encoder._encoded[row][LAST_SEEN_INDEX_COLUMN] -= 1
-        self.chunk_id_encoder.is_dirty = True
-        self.tensor_meta.pop(global_sample_index)
-        del self.tile_encoder[global_sample_index]
+            self.chunk_id_encoder._encoded[row:, LAST_SEEN_INDEX_COLUMN] -= 1
+            self.chunk_id_encoder.is_dirty = True
+        self.tensor_meta.pop(global_idx)
+        del self.tile_encoder[global_idx]
 
     def pop_samples(
         self,
@@ -2554,8 +2590,6 @@ class ChunkEngine:
         row: int,
         idxs: List[int],
         is_tile: bool,
-        link_callback: Optional[Callable],
-        sample_ids: Optional[np.ndarray],
     ):
         if not idxs:
             return
@@ -2571,15 +2605,7 @@ class ChunkEngine:
             num_samples_in_chunk = (
                 enc.array[row][LAST_SEEN_INDEX_COLUMN] - prev
             ).item()
-
-            if self.is_sequence:
-                num_samples_indexed = 0
-                for idx in idxs:
-                    num_samples_indexed += (
-                        self.sequence_encoder[idx][1] - self.sequence_encoder[idx][0]
-                    )
-            else:
-                num_samples_indexed = len(idxs)
+            num_samples_indexed = len(idxs)
 
             assert num_samples_indexed <= num_samples_in_chunk
 
@@ -2590,26 +2616,13 @@ class ChunkEngine:
 
             chunk_ids = [chunk_id]
 
-        for i, idx in enumerate(reversed(idxs)):
-            if link_callback:
-                link_callback(idx)
-
-            chunk_to_update = (
-                self.get_chunk_from_chunk_id(chunk_ids[0], copy=True)
-                if not delete
-                else None
-            )
-            if self.is_sequence:
-                for j in reversed(range(*self.sequence_encoder[idx])):
-                    self._pop_from_chunk(chunk_to_update, row, j)
-                self.sequence_encoder.pop(idx)
-            else:
-                self._pop_from_chunk(chunk_to_update, row, idx)
-
-            self.commit_diff.pop(
-                idx, sample_ids[-(i + 1)].item() if sample_ids is not None else None
-            )
-            self.pad_encoder.pop(idx)
+        chunk_to_update = (
+            self.get_chunk_from_chunk_id(chunk_ids[0], copy=True)
+            if not delete
+            else None
+        )
+        for idx in idxs:
+            self._pop_from_chunk(chunk_to_update, row, idx)
 
         if delete:
             # tile rows already deleted
@@ -2625,41 +2638,14 @@ class ChunkEngine:
                         del self.cache[chunk_key]
                     except KeyError:
                         pass
-
-    def pop_item(self, global_sample_index):
-        enc = self.chunk_id_encoder
-        if not self._is_tiled_sample(global_sample_index):
-            local_sample_index = enc.translate_index_relative_to_chunks(
-                global_sample_index
-            )
-        chunk_ids, rows, delete = enc.pop(global_sample_index)
-        if len(chunk_ids) > 1:  # Tiled sample, delete all chunks
-            pass
-        elif not delete:  # There are other samples in the last chunk
-            chunk_to_update = self.get_chunk_from_chunk_id(chunk_ids[0], copy=True)
-            chunk_to_update.pop(local_sample_index)
-
-            self._check_rechunk(chunk_to_update, chunk_row=rows[0])
-
+        else:
+            self._check_rechunk(chunk_to_update, row)
             if (
                 self.active_updated_chunk is not None
                 and self.active_updated_chunk.key != chunk_to_update.key  # type: ignore
             ):
                 self.write_chunk_to_storage(self.active_updated_chunk)
             self.active_updated_chunk = chunk_to_update
-        if delete:
-            for chunk_id in chunk_ids:
-                chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-                commit_id, tkey = self.get_chunk_commit(chunk_name)
-                if commit_id == self.commit_id:
-                    chunk_key = get_chunk_key(tkey, chunk_name, commit_id)
-                    self.check_remove_active_chunks(chunk_key)
-                    try:
-                        del self.cache[chunk_key]
-                    except KeyError:
-                        pass
-        del self.tile_encoder[global_sample_index]
-        self.tensor_meta.pop(global_sample_index)
 
     def write_chunk_to_storage(self, chunk):
         if chunk is None or not chunk.is_dirty:
@@ -3352,9 +3338,7 @@ class ChunkEngine:
             for k, num_samples in updated_tensors.items():
                 assert self._all_chunk_engines is not None
                 chunk_engine = self._all_chunk_engines[k]
-                num_samples_added = chunk_engine.tensor_length - num_samples
-                for _ in range(num_samples_added):
-                    chunk_engine.pop()
+                chunk_engine.pop(list(range(num_samples, chunk_engine.tensor_length)))
             raise
 
     def _transform_pop_callback(self, index: int):
@@ -3371,8 +3355,7 @@ class ChunkEngine:
                     assert self._all_chunk_engines is not None
                     for link in flat_links:
                         link_chunk_engine = self._all_chunk_engines[link]
-                        for idx in reversed(range(*seq_enc[index])):
-                            link_chunk_engine.pop(idx)
+                        link_chunk_engine.pop(list(range(*seq_enc[index])))
             else:
                 links = list(self.tensor_meta.links.keys())
             [self._all_chunk_engines[link].pop() for link in links]

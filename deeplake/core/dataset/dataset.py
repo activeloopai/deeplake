@@ -4633,15 +4633,13 @@ class Dataset:
     def _disable_padding(self):
         self._pad_tensors = False
 
-    def __pop(self, index: List[int]):
-        """Removes elements at the given indices. ``index`` must be sorted in descending order."""
+    def _pop(self, index: List[int]):
+        """Removes elements at the given indices."""
         with self:
             for tensor in self.tensors.values():
-                if tensor.num_samples > index:
-                    tensor._check_for_pop(index)
+                tensor._check_for_pop(index)
             for tensor in self.tensors.values():
-                if tensor.num_samples > index:
-                    tensor.__pop(index)
+                tensor._pop(index)
 
     @invalid_view_op
     def pop(self, index: Optional[int] = None):
@@ -4664,6 +4662,9 @@ class Dataset:
         if not index:
             return
 
+        if len(set(index)) != len(index):
+            raise ValueError("Duplicate indices are not allowed.")
+
         max_len = self.max_len
         if max_len == 0:
             raise IndexError("Can't pop from empty dataset.")
@@ -4678,28 +4679,13 @@ class Dataset:
 
         index = sorted(index, reverse=True)
 
-        self.__pop(index)
+        self._pop(index)
         row_ids = index[:]
 
         index_maintenance.index_operation_dataset(
             self,
             dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
             rowids=row_ids,
-        )
-
-    @invalid_view_op
-    def pop_multiple(self, index: List[int], progressbar=False):
-        rev_index = sorted(index, reverse=True)
-        if progressbar:
-            rev_index = tqdm(rev_index)
-        with self:
-            for i in rev_index:
-                self._pop(i)
-
-        index_maintenance.index_operation_dataset(
-            self,
-            dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
-            rowids=index,
         )
 
     @property

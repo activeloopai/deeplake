@@ -283,7 +283,14 @@ class ChunkIdEncoder(Encoder, DeepLakeMemoryObject):
 
     def _delete_rows(self, rows: List[int]):
         if rows:
-            self._encoded[rows[-1] + 1 :, LAST_SEEN_INDEX_COLUMN] -= 1
+            for row in rows:
+                prev = (
+                    np.uint64(-1)
+                    if row == 0
+                    else self._encoded[row - 1][LAST_SEEN_INDEX_COLUMN]
+                )
+                num_samples_in_chunk = self._encoded[row][LAST_SEEN_INDEX_COLUMN] - prev
+                self._encoded[row:, LAST_SEEN_INDEX_COLUMN] -= num_samples_in_chunk
             self._encoded = np.delete(self._encoded, rows, axis=0)
             self.is_dirty = True
             return True
@@ -303,7 +310,11 @@ class ChunkIdEncoder(Encoder, DeepLakeMemoryObject):
             to_delete = self._delete_rows(rows)
         else:
             row = rows[0]
-            prev = -1 if row == 0 else self._encoded[row - 1][LAST_SEEN_INDEX_COLUMN]
+            prev = (
+                np.uint64(-1)
+                if row == 0
+                else self._encoded[row - 1][LAST_SEEN_INDEX_COLUMN]
+            )
             num_samples_in_chunk = self.array[row][LAST_SEEN_INDEX_COLUMN] - prev
 
             if num_samples_in_chunk == 1:

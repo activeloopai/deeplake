@@ -295,7 +295,7 @@ class ClientSideDH(DHBase):
             delete_all,
         )
 
-        self.dataset.pop_multiple(row_ids)
+        self.dataset.pop(row_ids)
 
         return True
 
