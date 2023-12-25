@@ -2140,8 +2140,10 @@ class ChunkEngine:
                 continue
 
             if pos[i] == last_pos:
-                # tile
+                # not tile
                 if last_idxs[i] != last_idxs[i - 1]:
+                    if pos[i] == len(indices):
+                        break
                     continue
                 # mark the previous chunk as tile
                 chunk_infos[-1][3] = True
@@ -2155,7 +2157,7 @@ class ChunkEngine:
             chunk_id = encoded[i][0].item()
             row = i
 
-            chunk_infos.append((chunk_id, row, idxs_in_chunk, is_tile))
+            chunk_infos.append([chunk_id, row, idxs_in_chunk, is_tile])
 
         return chunk_infos
 
@@ -2221,7 +2223,7 @@ class ChunkEngine:
             if idx in samples:
                 continue
             try:
-                if not self._is_tiled_sample(idx) and idx < self.tensor_length:
+                if not self._is_tiled_sample(idx) and idx < self.num_samples:
                     local_idx = self.translate_to_local_index(idx, row)
                     sample = self.read_basic_sample_from_chunk(
                         chunk_id, local_idx, index
