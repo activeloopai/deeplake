@@ -79,6 +79,10 @@ class ManagedServiceClient(DeepLakeBackendClient):
             },
         )
         data = self._get_result_or_poll(response)
+        error = data.get("error", None)
+
+        if error is not None:
+            raise ValueError(error)
 
         return VectorStoreInitResponse(
             status_code=response.status_code,
@@ -139,6 +143,10 @@ class ManagedServiceClient(DeepLakeBackendClient):
         }
         response = self.request(method="POST", relative_url=url, json=body)
         data = self._get_result_or_poll(response)
+        error = data.get("error", None)
+
+        if error is not None:
+            raise ValueError(error)
 
         return VectorStoreSearchResponse(
             status_code=response.status_code,
@@ -167,6 +175,9 @@ class ManagedServiceClient(DeepLakeBackendClient):
         data = data.get("result", {})
         ids = data.get("ids", None)
         error = data.get("error", None)
+
+        if error is not None:
+            raise ValueError(error)
 
         return VectorStoreAddResponse(
             status_code=response.status_code, ids=ids, error=error
