@@ -2131,7 +2131,7 @@ class ChunkEngine:
 
         pos = np.searchsorted(indices, last_idxs, side="right")
 
-        chunk_infos = []
+        chunk_infos: List[List[int, int, List[int], bool]] = []
 
         last_pos = 0
         for i in range(len(last_idxs)):
