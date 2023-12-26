@@ -2150,7 +2150,7 @@ class ChunkEngine:
                 # mark this chunk as tile
                 is_tile = True
 
-            idxs_in_chunk = indices[last_pos : pos[i]]
+            idxs_in_chunk = indices[last_pos : pos[i]].tolist()  # type: ignore
 
             last_pos = pos[i]
 
