@@ -1162,7 +1162,7 @@ class Tensor:
                         val = cast_to_type(val, tensor.dtype)
                         tensor[global_sample_index] = val
 
-    def _check_for_pop(self, index: List[int] = None):
+    def _check_for_pop(self, index: List[int]):
         for idx in index:
             if (
                 idx != self.num_samples - 1

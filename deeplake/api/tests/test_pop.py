@@ -344,9 +344,28 @@ def test_pop_list(local_ds_generator, cat_path):
             [[deeplake.read(cat_path) for _ in range(i)] for i in range(10)]
         )
 
-        ds.seq_images.pop([0, 2, 4, 6, 8])
+        ds.pop([0, 2, 4, 6, 8])
 
-        # assert ds.images.numpy().shape == (5, 900, 900, 3)
-        print([len(i) for i in ds.seq_images.numpy(aslist=True)])
+        assert ds.images.numpy().shape == (5, 900, 900, 3)
         assert len(ds._seq_images_shape.numpy()) == 25
         integrity_check(ds)
+
+    # test persist
+    with local_ds_generator() as ds:
+        assert ds.images.numpy().shape == (5, 900, 900, 3)
+        assert len(ds._seq_images_shape.numpy()) == 25
+        integrity_check(ds)
+
+
+def test_pop_duplicate_indices(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend([1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
+
+    with pytest.raises(ValueError):
+        ds.pop([0, 2, 3, 0, 0])
+
+    ds.pop([0, 2, 3, 5])
+
+    assert len(ds.abc) == 6
+    assert ds.abc.numpy().flatten().tolist() == [2, 5, 7, 8, 9, 0]

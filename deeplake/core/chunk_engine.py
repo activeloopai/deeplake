@@ -2131,7 +2131,7 @@ class ChunkEngine:
 
         pos = np.searchsorted(indices, last_idxs, side="right")
 
-        chunk_infos: List[List[int, int, List[int], bool]] = []
+        chunk_infos: List[List[Union[int, int, List[int], bool]]] = []
 
         last_pos = 0
         for i in range(len(last_idxs)):
@@ -2151,7 +2151,7 @@ class ChunkEngine:
                 # mark this chunk as tile
                 is_tile = True
 
-            idxs_in_chunk = indices[last_pos : pos[i]].tolist()
+            idxs_in_chunk = indices[last_pos : pos[i]].tolist()  # type: ignore
 
             last_pos = pos[i]
 
@@ -2519,6 +2519,7 @@ class ChunkEngine:
         Args:
             indices (Optional[Union[int, List[int]]]): List of indices to pop.
             link_callback (Optional[Callable]): Callback function to be called after popping each sample. Defaults to None.
+            sample_id_tensor (Optional[deeplake.Tensor]): Associated sample ID tensor, if any.
         """
         if indices is None:
             indices = [self.tensor_length - 1]
@@ -2546,11 +2547,12 @@ class ChunkEngine:
             self.pad_encoder.pop(idx)
 
         if self.is_sequence:
+            assert self.sequence_encoder is not None
             item_lengths = [
                 [index, -np.subtract(*self.sequence_encoder[index])]
                 for index in sorted(indices)
             ]
-            flat_indices = []
+            flat_indices: List[int] = []
             for index in indices:
                 flat_indices.extend(range(*self.sequence_encoder[index]))
             indices = flat_indices
@@ -2639,6 +2641,7 @@ class ChunkEngine:
                     except KeyError:
                         pass
         else:
+            assert chunk_to_update is not None
             self._check_rechunk(chunk_to_update, row)
             if (
                 self.active_updated_chunk is not None

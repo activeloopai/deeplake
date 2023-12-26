@@ -4649,6 +4649,7 @@ class Dataset:
             index (int, Optional): The index of the sample to be removed. If it is ``None``, the index becomes the ``length of the longest tensor - 1``.
 
         Raises:
+            ValueError: If duplicate indices are provided.
             IndexError: If the index is out of range.
         """
         if index is None:
