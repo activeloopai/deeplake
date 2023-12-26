@@ -83,6 +83,7 @@ __all__ = [
     "config",
     "delete",
     "copy",
+    "query",
     "rename",
     "random",
 ]
