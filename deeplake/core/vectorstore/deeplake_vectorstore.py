@@ -8,6 +8,8 @@ import deeplake
 from deeplake.core.dataset import Dataset
 from deeplake.core.vectorstore.dataset_handlers import get_dataset_handler
 from deeplake.core.vectorstore.deep_memory import DeepMemory
+from deeplake.core.vectorstore.dataset_handlers import get_dataset_handler
+from deeplake.core.vectorstore.deep_memory import DeepMemory
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     MAX_BYTES_PER_MINUTE,
@@ -137,7 +139,8 @@ class VectorStore:
         )
 
         self.deep_memory = DeepMemory(
-            dataset_or_path=self.dataset_handler.path,
+            dataset=self.dataset_handler.dataset,
+            path=self.dataset_handler.path,
             token=self.dataset_handler.token,
             logger=logger,
             embedding_function=embedding_function,
@@ -246,6 +249,7 @@ class VectorStore:
         return_tensors: Optional[List[str]] = None,
         return_view: bool = False,
         deep_memory: bool = False,
+        return_tql: bool = False,
     ) -> Union[Dict, Dataset]:
         """VectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
@@ -296,6 +300,7 @@ class VectorStore:
             return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictionary with data. Defaults to False. If ``True`` return_tensors is set to "*" beucase data is lazy-loaded and there is no cost to including all tensors in the view.
             deep_memory (bool): Whether to use the Deep Memory model for improving search results. Defaults to False if deep_memory is not specified in the Vector Store initialization.
                 If True, the distance metric is set to "deepmemory_distance", which represents the metric with which the model was trained. The search is performed using the Deep Memory model. If False, the distance metric is set to "COS" or whatever distance metric user specifies.
+            return_tql (bool): Whether to return the TQL query string used for the search. Defaults to False.
 
         ..
             # noqa: DAR101
@@ -323,6 +328,7 @@ class VectorStore:
             embedding_tensor=embedding_tensor,
             return_tensors=return_tensors,
             return_view=return_view,
+            return_tql=return_tql,
             deep_memory=deep_memory,
         )
 

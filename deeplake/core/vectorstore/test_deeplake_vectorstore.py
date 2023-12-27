@@ -20,6 +20,7 @@ from deeplake.tests.common import requires_libdeeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     DEFAULT_VECTORSTORE_DISTANCE_METRIC,
+    HUB_CLOUD_DEV_USERNAME,
 )
 from deeplake.constants import MB
 from deeplake.util.exceptions import (
@@ -1293,6 +1294,39 @@ def test_update_embedding(
     vector_store.delete_by_path(path + "_multi", token=ds.token)
 
 
+def create_and_populate_vs(
+    path,
+    token=None,
+    overwrite=True,
+    verbose=False,
+    exec_option="compute_engine",
+    index_params={"threshold": -1},
+    number_of_data=NUMBER_OF_DATA,
+    runtime=None,
+):
+    # if runtime specified and tensor_db is enabled, then set exec_option to None
+    if runtime and runtime.get("tensor_db", False):
+        exec_option = None
+
+    vector_store = DeepLakeVectorStore(
+        path=path,
+        overwrite=overwrite,
+        verbose=verbose,
+        exec_option=exec_option,
+        index_params=index_params,
+        token=token,
+        runtime=runtime,
+    )
+
+    utils.create_data(number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM)
+
+    # add data to the dataset:
+    metadatas[1:6] = [{"a": 1} for _ in range(5)]
+    vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
+    return vector_store
+
+
+@requires_libdeeplake
 def test_update_embedding_row_ids_and_ids_specified_should_throw_exception(
     memory_path,
     vector_store_hash_ids,
@@ -1316,6 +1350,7 @@ def test_update_embedding_row_ids_and_ids_specified_should_throw_exception(
         )
 
 
+@requires_libdeeplake
 def test_update_embedding_row_ids_and_filter_specified_should_throw_exception(
     memory_path,
     vector_store_filters,
@@ -1330,7 +1365,6 @@ def test_update_embedding_row_ids_and_filter_specified_should_throw_exception(
     )
     embedding_fn = get_embedding_function()
 
-    # calling update_embedding with both ids and filter being specified
     with pytest.raises(ValueError):
         vector_store.update_embedding(
             row_ids=vector_store_row_ids,
@@ -1354,6 +1388,7 @@ def test_update_embedding_query_and_filter_specified_should_throw_exception(
     embedding_fn = get_embedding_function()
 
     # calling update_embedding with both query and filter being specified
+
     with pytest.raises(ValueError):
         vector_store.update_embedding(
             filter=vector_store_filters,
@@ -2809,36 +2844,26 @@ def test_exec_option_cli(
 
 @requires_libdeeplake
 @pytest.mark.parametrize(
-    "path",
+    "path, creds",
     [
-        "s3_path",
-        "gcs_path",
-        "azure_path",
+        ("s3_path", "s3_creds"),
+        ("gcs_path", "gcs_creds"),
+        ("azure_path", "azure_creds"),
     ],
     indirect=True,
 )
 def test_exec_option_with_connected_datasets(
-    hub_cloud_dev_token,
     hub_cloud_path,
-    hub_cloud_dev_managed_creds_key,
     path,
+    creds,
 ):
-    runner = CliRunner()
-
-    db = VectorStore(path, overwrite=True)
-    assert db.exec_option == "python"
-
-    runner.invoke(login, f"-t {hub_cloud_dev_token}")
-    assert db.exec_option == "python"
+    db = VectorStore(path, overwrite=True, creds=creds)
 
     db.dataset_handler.dataset.connect(
-        creds_key=hub_cloud_dev_managed_creds_key,
+        creds_key=creds,
         dest_path=hub_cloud_path,
-        token=hub_cloud_dev_token,
     )
-    db.dataset_handler.dataset.add_creds_key(
-        hub_cloud_dev_managed_creds_key, managed=True
-    )
+    db.dataset_handler.dataset.add_creds_key(creds, managed=True)
     assert db.exec_option == "compute_engine"
 
 
@@ -2856,6 +2881,7 @@ def test_dataset_init_param(local_ds):
     assert len(db) == 10
 
 
+@requires_libdeeplake
 def test_vs_commit(local_path):
     # TODO: add index params, when index will support commit
     db = utils.create_and_populate_vs(
@@ -2868,6 +2894,46 @@ def test_vs_commit(local_path):
 
     db.checkout("main")
     assert len(db) == NUMBER_OF_DATA
+
+
+def test_vs_init_when_both_dataset_and_path_is_specified(local_path):
+    with pytest.raises(ValueError):
+        VectorStore(
+            path=local_path,
+            dataset=deeplake.empty(local_path, overwrite=True),
+        )
+
+
+def test_vs_init_when_both_dataset_and_path_are_not_specified():
+    with pytest.raises(ValueError):
+        VectorStore()
+
+
+def test_vs_init_with_emptyt_token(local_path):
+    with patch("deeplake.client.config.DEEPLAKE_AUTH_TOKEN", ""):
+        db = VectorStore(
+            path=local_path,
+        )
+
+    assert db.dataset_handler.username == "public"
+
+
+@pytest.fixture
+def mock_search_managed(mocker):
+    # Replace SearchManaged with a mock
+    mock_class = mocker.patch(
+        "deeplake.core.vectorstore.vector_search.indra.search_algorithm.SearchManaged"
+    )
+    return mock_class
+
+
+@pytest.fixture
+def mock_search_indra(mocker):
+    # Replace SearchIndra with a mock
+    mock_class = mocker.patch(
+        "deeplake.core.vectorstore.vector_search.indra.search_algorithm.SearchIndra"
+    )
+    return mock_class
 
 
 def test_vs_init_when_both_dataset_and_path_is_specified_should_throw_exception(
@@ -2899,3 +2965,74 @@ def test_vs_init_with_emptyt_token_should_not_throw_exception(local_path):
         )
 
     assert db.dataset_handler.username == "public"
+
+
+@pytest.mark.slow
+def test_db_search_with_managed_db_should_instantiate_SearchManaged_class(
+    mock_search_managed, hub_cloud_path, hub_cloud_dev_token
+):
+    # using interaction test to ensure that the search managed class is executed
+    db = create_and_populate_vs(
+        hub_cloud_path,
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+    )
+
+    # Perform the search
+    db.search(embedding=query_embedding)
+
+    # Assert that SearchManaged was instantiated
+    mock_search_managed.assert_called()
+
+
+@pytest.mark.slow
+@requires_libdeeplake
+def test_db_search_should_instantiate_SearchIndra_class(
+    mock_search_indra, hub_cloud_path, hub_cloud_dev_token
+):
+    # using interaction test to ensure that the search indra class is executed
+    db = create_and_populate_vs(
+        hub_cloud_path,
+        token=hub_cloud_dev_token,
+    )
+
+    # Perform the search
+    db.search(embedding=query_embedding)
+
+    # Assert that SearchIndra was instantiated
+    mock_search_indra.assert_called()
+
+
+def returning_tql_for_exec_option_python_should_throw_exception(local_path):
+    db = VectorStore(
+        path=local_path,
+    )
+    db.add(text=texts, embedding=embeddings, id=ids, metadata=metadatas)
+
+    with pytest.raises(NotImplementedError):
+        db.search(embedding=query_embedding, return_tql=True)
+
+
+def test_returning_tql_for_exec_option_compute_engine_should_return_correct_tql(
+    local_path,
+    hub_cloud_dev_token,
+):
+    db = VectorStore(
+        path=local_path,
+        token=hub_cloud_dev_token,
+    )
+
+    texts, embeddings, ids, metadatas, _ = utils.create_data(
+        number_of_data=10, embedding_dim=3
+    )
+
+    db.add(text=texts, embedding=embeddings, id=ids, metadata=metadatas)
+
+    query_embedding = np.zeros(3, dtype=np.float32)
+    output = db.search(embedding=query_embedding, return_tql=True)
+
+    assert output["tql"] == (
+        "select text, metadata, id, score from "
+        "(select *, COSINE_SIMILARITY(embedding, ARRAY[0.0, 0.0, 0.0]) as score "
+        "order by COSINE_SIMILARITY(embedding, ARRAY[0.0, 0.0, 0.0]) DESC limit 4)"
+    )

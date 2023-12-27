@@ -1,7 +1,7 @@
 ID                        STATUS     RESULTS                        PROGRESS       
-65198efcd28df3238c49a849  completed  recall@10: 0.62% (+0.62%)      eta: 2.5 seconds
-                                                                    recall@10: 0.62% (+0.62%)
-651a4d41d05a21a5a6a15f67  completed  recall@10: 0.62% (+0.62%)      eta: 2.5 seconds
-                                                                    recall@10: 0.62% (+0.62%)
-651a56c15a18dea3283ffc1c  completed  recall@10: 0.62% (+0.62%)      eta: 2.4 seconds
-                                                                    recall@10: 0.62% (+0.62%)
+65198efcd28df3238c49a849  completed  recall@10: 0.00% (+0.00%)      eta: 2.5 seconds
+                                                                    recall@10: 0.00% (+0.00%)
+651a4d41d05a21a5a6a15f67  completed  recall@10: 0.00% (+0.00%)      eta: 2.5 seconds
+                                                                    recall@10: 0.00% (+0.00%)
+651a56c15a18dea3283ffc1c  completed  recall@10: 50.00% (+25.00%)    eta: 2.4 seconds
+                                                                    recall@10: 50.00% (+25.00%)

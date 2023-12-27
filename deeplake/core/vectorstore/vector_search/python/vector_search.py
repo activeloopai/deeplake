@@ -18,13 +18,18 @@ def vector_search(
     k,
     return_tensors,
     return_view,
-    deep_memory,
     token,
     org_id,
+    return_tql,
 ) -> Union[Dict, DeepLakeDataset]:
     if query is not None:
         raise NotImplementedError(
             f"User-specified TQL queries are not supported for exec_option={exec_option} "
+        )
+
+    if return_tql:
+        raise NotImplementedError(
+            f"return_tql is not supported for exec_option={exec_option}"
         )
 
     view = filter_utils.attribute_based_filtering_python(dataset, filter)
