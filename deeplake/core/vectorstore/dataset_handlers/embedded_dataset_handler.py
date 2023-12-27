@@ -337,6 +337,18 @@ class EmbeddedDH(DHBase):
         if filter and query:
             raise ValueError("Only one of filter and query can be specified.")
 
+        if embedding_dict is not None:
+            if embedding_dict and any(
+                [
+                    embedding_function,
+                    self.embedding_function,
+                ]
+            ):
+                raise ValueError(
+                    "Only one of embedding_dict and embedding_function/embedding_source_tensor/embedding_tensor can be specified."
+                )
+            return self.dataset[row_ids].update(embedding_dict)
+
         (
             embedding_function,
             embedding_source_tensor,
@@ -349,29 +361,25 @@ class EmbeddedDH(DHBase):
             embedding_tensor=embedding_tensor,
         )
 
-        if embedding_dict is not None:
-            self.dataset[row_ids].update(embedding_tensor_data)
-
-        else:
-            if not row_ids:
-                row_ids = dataset_utils.search_row_ids(
-                    dataset=self.dataset,
-                    search_fn=self.search,
-                    ids=ids,
-                    filter=filter,
-                    query=query,
-                    exec_option=exec_option or self.exec_option,
-                )
-
-            embedding_tensor_data = utils.convert_embedding_source_tensor_to_embeddings(
+        if not row_ids:
+            row_ids = dataset_utils.search_row_ids(
                 dataset=self.dataset,
-                embedding_source_tensor=embedding_source_tensor,
-                embedding_tensor=embedding_tensor,
-                embedding_function=embedding_function,
-                row_ids=row_ids,
+                search_fn=self.search,
+                ids=ids,
+                filter=filter,
+                query=query,
+                exec_option=exec_option or self.exec_option,
             )
 
-            self.dataset[row_ids].update(embedding_tensor_data)
+        embedding_tensor_data = utils.convert_embedding_source_tensor_to_embeddings(
+            dataset=self.dataset,
+            embedding_source_tensor=embedding_source_tensor,
+            embedding_tensor=embedding_tensor,
+            embedding_function=embedding_function,
+            row_ids=row_ids,
+        )
+
+        self.dataset[row_ids].update(embedding_tensor_data)
 
     def commit(self, allow_empty: bool = True) -> None:
         """Commits the Vector Store.

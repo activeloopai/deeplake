@@ -1249,7 +1249,6 @@ def test_update_embedding(
             filter=vector_store_filters,
             query=vector_store_query,
             embedding_source_tensor=embedding_source_tensor,
-            embedding_function=embedding_fn,
         )
 
     # case 10: single embedding_source_tensor, multiple embedding_tensor,  multiple embedding_function -> error out?
