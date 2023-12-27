@@ -317,7 +317,7 @@ class EmbeddedDH(DHBase):
     ):
         feature_report_path(
             path=self.bugout_reporting_path,
-            feature_name="vs.delete",
+            feature_name="vs.update_embedding",
             parameters={
                 "ids": True if ids is not None else False,
                 "row_ids": True if row_ids is not None else False,
