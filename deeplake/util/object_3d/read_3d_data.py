@@ -12,7 +12,7 @@ _POINT_CLOUD_EXTENSIONS_TO_CLASS = {
 
 def read_3d_data(point_cloud_path):
     try:
-        import laspy as lp
+        import laspy as lp  # type: ignore
         from laspy import LasData
     except ImportError:
         raise ModuleNotFoundError("laspy not found. Install using `pip install laspy`")

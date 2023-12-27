@@ -36,11 +36,6 @@ import math
 from pathlib import Path
 from gzip import GzipFile
 
-try:
-    _PYAV_INSTALLED = True
-except ImportError:
-    _PYAV_INSTALLED = False
-
 if sys.byteorder == "little":
     _NATIVE_INT32 = "<i4"
     _NATIVE_FLOAT32 = "<f4"

@@ -98,13 +98,16 @@ class GDriveProvider(StorageProvider):
             token(dict, str, optional): Google Drive token. Can be path to the token file or the actual credentials dictionary.
             makemap(bool): Creates path to id map if ``True``.
 
+        Raises:
+            ImportError: If required packages are not installed.
+
         Note:
             - Requires ``client_secrets.json`` in working directory if ``token`` is not provided.
             - Due to limits on requests per 100 seconds on google drive api, continuous requests such as uploading many small files can be slow.
             - Users can request to increse their quotas on their google cloud platform.
         """
         try:
-            import googleapiclient
+            import googleapiclient  # type: ignore
             from google.auth.transport.requests import Request  # type: ignore
             from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
             from google.oauth2.credentials import Credentials  # type: ignore
