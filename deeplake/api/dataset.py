@@ -237,7 +237,12 @@ class dataset:
 
         if ds_exists:
             if overwrite:
-                cache_chain.clear()
+                try:
+                    cache_chain.clear()
+                except Exception as e:
+                    raise DatasetHandlerError(
+                        "Dataset overwrite failed. See traceback for more information."
+                    ) from e
                 create = True
             else:
                 create = False
@@ -452,7 +457,12 @@ class dataset:
             raise
 
         if overwrite and dataset_exists(cache_chain):
-            cache_chain.clear()
+            try:
+                cache_chain.clear()
+            except Exception as e:
+                raise DatasetHandlerError(
+                    "Dataset overwrite failed. See traceback for more information."
+                ) from e
         elif dataset_exists(cache_chain):
             raise DatasetHandlerError(
                 f"A dataset already exists at the given path ({path}). If you want to create"
@@ -871,7 +881,14 @@ class dataset:
                     raise DatasetHandlerError(
                         f"Path {path} is empty or does not exist. Cannot delete."
                     )
-                base_storage.clear()
+
+                try:
+                    base_storage.clear()
+                except Exception as e:
+                    raise DatasetHandlerError(
+                        "Dataset delete failed. See traceback for more information."
+                    ) from e
+
                 remove_path_from_backend(path, token)
                 if verbose:
                     logger.info(f"{path} folder deleted successfully.")
@@ -1239,7 +1256,12 @@ class dataset:
 
         if dataset_exists(cache_chain):
             if overwrite:
-                cache_chain.clear()
+                try:
+                    cache_chain.clear()
+                except Exception as e:
+                    raise DatasetHandlerError(
+                        "Dataset overwrite failed. See traceback for more information."
+                    ) from e
             else:
                 raise DatasetHandlerError(
                     f"A dataset already exists at the given path ({dest}). If you want to copy to a new dataset, either specify another path or use overwrite=True."
