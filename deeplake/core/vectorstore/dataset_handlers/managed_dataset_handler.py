@@ -129,7 +129,7 @@ class ManagedDH(DHBase):
             logger.info(response.summary)
 
         self.deep_memory = DeepMemory(
-            dataset_or_path=self.path,
+            path=self.path,
             token=self.token,
             logger=self.logger,
             embedding_function=self.embedding_function,
