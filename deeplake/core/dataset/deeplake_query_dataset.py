@@ -65,6 +65,8 @@ class DeepLakeQueryDataset(Dataset):
 
     @property
     def read_only(self):
+        if self.deeplake_ds is not None:
+            return self.deeplake_ds.read_only
         return True
 
     @property
