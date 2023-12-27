@@ -6,8 +6,6 @@ from deeplake.core.vectorstore.vector_search.indra import query
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
-from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
-from deeplake.enterprise.util import raise_indra_installation_error
 
 
 class SearchBasic(ABC):
@@ -123,11 +121,17 @@ class SearchIndra(SearchBasic):
         pass
 
         if not INDRA_INSTALLED:
+            from deeplake.enterprise.util import raise_indra_installation_error
+
             raise raise_indra_installation_error(indra_import_error=None)
 
         if self.deeplake_dataset.libdeeplake_dataset is not None:
             indra_dataset = self.deeplake_dataset.libdeeplake_dataset
         else:
+            from deeplake.enterprise.convert_to_libdeeplake import (
+                dataset_to_libdeeplake,
+            )
+
             if self.org_id is not None:
                 self.deeplake_dataset.org_id = self.org_id
             if self.token is not None:

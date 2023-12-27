@@ -9,21 +9,6 @@ from typing import Dict, Optional, Tuple, Union
 
 from deeplake.util.path import relpath
 
-try:
-    from google.cloud import storage  # type: ignore
-    from google.api_core import retry  # type: ignore
-    from google.oauth2 import service_account  # type: ignore
-    import google.auth as gauth  # type: ignore
-    import google.auth.compute_engine  # type: ignore
-    import google.auth.credentials  # type: ignore
-    import google.auth.exceptions  # type: ignore
-    from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
-    from google.api_core.exceptions import NotFound  # type: ignore
-
-    _GOOGLE_PACKAGES_INSTALLED = True
-except ImportError:
-    _GOOGLE_PACKAGES_INSTALLED = False
-
 
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.util.exceptions import (
@@ -70,6 +55,8 @@ class GCloudCredentials:
             ValueError: If the name of the default project doesn't match the GCSProvider project name.
             DefaultCredentialsError: If no credentials are found.
         """
+        import google.auth as gauth  # type: ignore
+
         credentials, project = gauth.default(scopes=[self.scope])
         if self.project and self.project != project:
             raise ValueError(
@@ -113,6 +100,8 @@ class GCloudCredentials:
             FileNotFoundError: If token file doesn't exist.
             ValueError: If token format isn't supported by gauth.
         """
+        import google.auth.credentials  # type: ignore
+
         if isinstance(token, str):
             if not os.path.exists(token):
                 raise FileNotFoundError(token)
@@ -132,6 +121,8 @@ class GCloudCredentials:
         self.credentials = credentials
 
     def _connect_service(self, fn):
+        from google.oauth2 import service_account  # type: ignore
+
         credentials = service_account.Credentials.from_service_account_file(
             fn, scopes=[self.scope]
         )
@@ -145,6 +136,8 @@ class GCloudCredentials:
         Raises:
             GCSDefaultCredsNotFoundError: if application deafault credentials can't be found.
         """
+        from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
+
         try:
             if os.name == "nt":
                 path = os.path.join(
@@ -255,10 +248,19 @@ class GCSProvider(StorageProvider):
         Raises:
             ModuleNotFoundError: If google cloud packages aren't installed.
         """
-        if not _GOOGLE_PACKAGES_INSTALLED:
+
+        try:
+            import google.cloud.storage  # type: ignore
+            import google.api_core  # type: ignore
+            import google.oauth2  # type: ignore
+            import google.auth  # type: ignore
+            import google_auth_oauthlib  # type: ignore
+            from google.api_core.exceptions import NotFound  # type: ignore
+        except ImportError:
             raise ModuleNotFoundError(
                 "Google cloud packages are not installed. Run `pip install deeplake[gcp]`."
             )
+
         self.root = root
         self.token: Union[str, Dict, None] = token
         self.tag: Optional[str] = None
@@ -290,6 +292,9 @@ class GCSProvider(StorageProvider):
         return sd
 
     def _initialize_provider(self):
+        from google.cloud import storage  # type: ignore
+        from google.api_core import retry  # type: ignore
+
         self._set_bucket_and_path()
         if not self.token:
             self.token = None
@@ -442,6 +447,8 @@ class GCSProvider(StorageProvider):
 
     def __contains__(self, key):
         """Checks if key exists in mapping."""
+        from google.cloud import storage  # type: ignore
+
         stats = storage.Blob(
             bucket=self.client_bucket, name=self._get_path_from_key(key)
         ).exists(self.client_bucket.client)

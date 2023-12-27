@@ -1,4 +1,5 @@
 import mmcv  # type: ignore
+
 import torch
 import logging
 from mmcv import runner

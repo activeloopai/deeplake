@@ -7,7 +7,6 @@ from typing import Optional, List, Dict, Tuple
 
 import deeplake
 from deeplake.constants import MB, DEFAULT_VECTORSTORE_INDEX_PARAMS, TARGET_BYTE_SIZE
-from deeplake.enterprise.util import raise_indra_installation_error
 from deeplake.util.exceptions import TensorDoesNotExistError
 from deeplake.util.warnings import always_warn
 from deeplake.client.utils import read_token
@@ -140,6 +139,8 @@ def parse_return_tensors(dataset, return_tensors, embedding_tensor, return_view)
 
 def check_indra_installation(exec_option, indra_installed):
     if exec_option == "compute_engine" and not indra_installed:
+        from deeplake.enterprise.util import raise_indra_installation_error
+
         raise raise_indra_installation_error(
             indra_import_error=False
         )  # pragma: no cover

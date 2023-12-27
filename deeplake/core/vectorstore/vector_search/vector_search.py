@@ -9,13 +9,6 @@ from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
 
 
-EXEC_OPTION_TO_SEARCH_TYPE: Dict[str, Callable] = {
-    "compute_engine": vectorstore.indra_vector_search,
-    "python": vectorstore.python_vector_search,
-    "tensor_db": vectorstore.indra_vector_search,
-}
-
-
 def search(
     k: Optional[int],
     exec_option: str,
@@ -54,6 +47,11 @@ def search(
         org_id (Optional[str], optional): Organization ID, is needed only for local datasets. Defaults to None.
         return_tql (bool): Return TQL query used for the search. Defaults to False.
     """
+    EXEC_OPTION_TO_SEARCH_TYPE: Dict[str, Callable] = {
+        "compute_engine": vectorstore.indra_vector_search,
+        "python": vectorstore.python_vector_search,
+        "tensor_db": vectorstore.indra_vector_search,
+    }
     return EXEC_OPTION_TO_SEARCH_TYPE[exec_option](
         query=query,
         query_emb=query_embedding,

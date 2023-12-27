@@ -6,13 +6,6 @@ from deeplake.util.keys import get_sample_shape_tensor_key
 import numpy as np
 from PIL import Image  # type: ignore
 
-try:
-    import torch
-    from torch.utils.data.distributed import DistributedSampler
-except ImportError:
-    torch = None  # type: ignore
-    DistributedSampler = None  # type: ignore
-
 
 def identity(x):
     return x
@@ -161,6 +154,9 @@ class DummyDataloader:
         pil_compressed_tensors,
         persistent_workers,
     ):
+        import torch
+        from torch.utils.data.distributed import DistributedSampler
+
         self.dataset = DummyDataset(
             deeplake_dataset,
             tensors,

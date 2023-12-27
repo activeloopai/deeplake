@@ -42,11 +42,6 @@ import time
 
 import numpy as np
 
-try:
-    import pandas as pd  # type: ignore
-except ImportError:
-    pd = None
-
 
 def transform_sample(
     sample: Any,
@@ -165,6 +160,11 @@ def _handle_transform_error(
     end_input_idx,
     ignore_errors,
 ):
+    try:
+        import pandas as pd  # type: ignore
+    except ImportError:
+        pd = None
+
     start_input_idx = transform_dataset.start_input_idx
     skipped_samples = 0
     for i in range(start_input_idx, end_input_idx + 1):
@@ -200,6 +200,11 @@ def _transform_and_append_data_slice(
     ignore_errors,
 ):
     """Appends a data slice. Returns ``True`` if any samples were appended and ``False`` otherwise."""
+    try:
+        import pandas as pd  # type: ignore
+    except ImportError:
+        pd = None
+
     n = len(data_slice)
     skipped_samples = 0
     skipped_samples_in_current_batch = 0

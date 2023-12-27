@@ -3,14 +3,6 @@ from typing import Dict, List
 
 import numpy as np
 
-try:
-    import laspy as lp  # type: ignore
-    from laspy import LasData
-
-    _LASPY_INSTALLED = True
-except ImportError:
-    _LASPY_INSTALLED = False
-
 from deeplake.util.object_3d.object_base_3d import ObjectBase3D
 
 
@@ -40,6 +32,8 @@ class PointCloudLas(ObjectBase3D):
         super().__init__(point_cloud)
 
     def _parse_3d_data(self, path):
+        import laspy as lp  # type: ignore
+
         return lp.read(path)
 
     @property
@@ -73,6 +67,8 @@ class PointCloudLas(ObjectBase3D):
         return dimensions_names, dimension_name_to_dtype_dict
 
     def _parse_meta_data(self):
+        from laspy import LasData
+
         meta_data = {"dimension_names": self.dimensions_names}
 
         if isinstance(self.data, LasData):
