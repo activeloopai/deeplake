@@ -145,7 +145,7 @@ class DeepLakeQueryDataset(Dataset):
                 tensor = self._get_tensor_from_root(fullpath)
                 if tensor is not None:
                     return tensor
-            if not self.deeplake_ds is None and self.deeplake_ds._has_group_in_root(
+            if self.deeplake_ds is not None and self.deeplake_ds._has_group_in_root(
                 fullpath
             ):
                 ret = DeepLakeQueryDataset(
