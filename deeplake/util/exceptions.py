@@ -1104,11 +1104,11 @@ class IncompatibleHtypeError(Exception):
         super().__init__(msg)
 
 
-class DeepMemoryWaitingListError(Exception):
+class DeepMemoryAccessError(Exception):
     def __init__(self):
         msg = (
-            "Deep Memory is available only for waiting list users. "
-            "Please, follow the link and join the waiting list: https://www.deeplake.ai/deepmemory"
+            "Deep Memory is not available only organization on Community plan."
+            "Please, consider upgrading or start a free trial."
         )
         super().__init__(msg)
 

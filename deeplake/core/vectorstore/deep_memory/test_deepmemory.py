@@ -13,11 +13,11 @@ from deeplake.core.vectorstore.deep_memory.deep_memory import (
 )
 from deeplake.tests.common import requires_libdeeplake
 from deeplake.util.exceptions import (
-    DeepMemoryWaitingListError,
+    DeepMemoryAccessError,
     IncorrectQueriesTypeError,
     IncorrectRelevanceTypeError,
 )
-from deeplake.util.exceptions import DeepMemoryWaitingListError
+from deeplake.util.exceptions import DeepMemoryAccessError
 
 
 logger = logging.getLogger(__name__)
@@ -593,19 +593,19 @@ def test_unsupported_deepmemory_users(local_ds):
         logger=logger,
         embedding_function=DummyEmbedder,
     )
-    with pytest.raises(DeepMemoryWaitingListError):
+    with pytest.raises(DeepMemoryAccessError):
         dm.train(
             queries=[],
             relevance=[],
         )
 
-    with pytest.raises(DeepMemoryWaitingListError):
+    with pytest.raises(DeepMemoryAccessError):
         dm.status(job_id="123")
 
-    with pytest.raises(DeepMemoryWaitingListError):
+    with pytest.raises(DeepMemoryAccessError):
         dm.list_jobs()
 
-    with pytest.raises(DeepMemoryWaitingListError):
+    with pytest.raises(DeepMemoryAccessError):
         dm.evaluate(
             queries=[],
             relevance=[],
