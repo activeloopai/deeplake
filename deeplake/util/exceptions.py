@@ -1107,7 +1107,7 @@ class IncompatibleHtypeError(Exception):
 class DeepMemoryAccessError(Exception):
     def __init__(self):
         msg = (
-            "Deep Memory is not available only organization on Community plan."
+            "Deep Memory is not available for organizations on Community plan."
             "Please, consider upgrading or start a free trial."
         )
         super().__init__(msg)
