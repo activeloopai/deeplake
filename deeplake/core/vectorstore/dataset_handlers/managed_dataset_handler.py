@@ -215,6 +215,7 @@ class ManagedDH(DHBase):
         return_view: bool,
         deep_memory: bool,
         exec_option: Optional[str] = "tensor_db",
+        return_tql: bool = False,
     ) -> Union[Dict, Dataset]:
         feature_report_path(
             path=self.bugout_reporting_path,
