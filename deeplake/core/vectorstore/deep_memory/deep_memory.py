@@ -5,6 +5,7 @@ from collections import defaultdict
 from pydantic import BaseModel, ValidationError
 from typing import Any, Dict, Optional, List, Union, Callable, Tuple
 from time import time
+from tqdm import tqdm
 
 import numpy as np
 
@@ -118,7 +119,7 @@ class DeepMemory:
         self.token = token
         self.embedding_function = embedding_function
         self.client = self._get_dm_client()
-        self.creds = creds or {}
+        self.creds = creds
         self.logger = logger
 
     @access_control
@@ -194,13 +195,30 @@ class DeepMemory:
         )
 
         self.logger.info("Preparing training data for deepmemory:")
+
+        embedding = []
+
+        # TODO: after allowing to send embedding function to managed side, remove the following lines: 203-209
+        # internal batch size for embedding function
+        batch_size = 128
+        query_batches = [
+            queries[i : i + batch_size] for i in range(0, len(queries), 100)
+        ]
+
+        for _, query in tqdm(enumerate(query_batches), total=len(query_batches)):
+            embedded_docs = embedding_function.embed_documents(query)
+            for idx, embedded_doc in enumerate(embedded_docs):
+                if isinstance(embedded_doc, np.ndarray):
+                    embedded_docs[idx] = embedded_doc.tolist()
+
+            embedding.extend(embedded_docs)
+
         queries_vs.add(
             text=[query for query in queries],
             metadata=[
                 {"relevance": relevance_per_doc} for relevance_per_doc in relevance
             ],
-            embedding_data=[query for query in queries],
-            embedding_function=embedding_function,
+            embedding=embedding,
         )
 
         # do some rest_api calls to train the model

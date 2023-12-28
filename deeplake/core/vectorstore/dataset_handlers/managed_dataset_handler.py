@@ -104,6 +104,15 @@ class ManagedDH(DHBase):
 
         self.verbose = verbose
 
+        self.deep_memory = DeepMemory(
+            dataset=None,
+            path=self.path,
+            token=self.token,
+            logger=self.logger,
+            embedding_function=self.embedding_function,
+            creds=self.creds,
+        )
+
         # verifying not implemented args
         self.args_verifier.verify_init_args(
             cls=self,
@@ -113,6 +122,7 @@ class ManagedDH(DHBase):
             creds=creds,
             org_id=org_id,
             other_kwargs=kwargs,
+            deep_memory=self.deep_memory,
         )
 
         self.client = ManagedServiceClient(token=self.token)
@@ -128,14 +138,11 @@ class ManagedDH(DHBase):
             log_visualizer_link(response.path)
             logger.info(response.summary)
 
-        self.deep_memory = DeepMemory(
-            dataset=None,
-            path=self.path,
-            token=self.token,
-            logger=self.logger,
-            embedding_function=self.embedding_function,
-            creds=self.creds,
-        )
+        if self.deep_memory is not None and self.embedding_function is not None:
+            logger.warning(
+                "ManagedVectorStore does not support passing embedding_function for now. "
+                "Embedding function will be used only for deepmemory training and inference."
+            )
 
     def add(
         self,
@@ -167,6 +174,7 @@ class ManagedDH(DHBase):
         # verifying not implemented args
         self.args_verifier.verify_add_args(
             embedding_function=embedding_function,
+            deep_memory=self.deep_memory,
             embedding_data=embedding_data,
             embedding_tensor=embedding_tensor,
             rate_limiter=rate_limiter,
@@ -215,6 +223,7 @@ class ManagedDH(DHBase):
         return_view: bool,
         deep_memory: bool,
         exec_option: Optional[str] = "tensor_db",
+        return_tql: bool = False,
     ) -> Union[Dict, Dataset]:
         feature_report_path(
             path=self.bugout_reporting_path,
@@ -244,6 +253,7 @@ class ManagedDH(DHBase):
             exec_option=exec_option,
             return_view=return_view,
             filter=filter,
+            return_tql=return_tql,
         )
 
         response = self.client.vectorstore_search(
@@ -374,6 +384,10 @@ class ManagedDH(DHBase):
             creds=creds,
         )
 
+    @property
+    def exec_option(self):
+        return "tensor_db"
+
     def _get_summary(self):
         """Returns a summary of the Managed Vector Store."""
         return self.client.get_vectorstore_summary(self.path)
@@ -426,11 +440,16 @@ class ArgsVerifierBase:
                 "Only Filter Dictionary is supported for the ManagedVectorStore."
             )
 
+    def _verify_kwarg_is_non_default_and_nonsupported(self, kwarg):
+        if self.kwargs.get(kwarg, False) is not False:
+            raise NotImplementedError(
+                f"`{kwarg}` is not supported for ManagedVectorStore for now."
+            )
+
 
 class InitArgsVerfier(ArgsVerifierBase):
     _not_implemented_args = [
         "dataset",
-        "embedding_function",
         "creds",
         "org_id",
     ]
@@ -447,6 +466,14 @@ class InitArgsVerfier(ArgsVerifierBase):
                 "ManagedVectorStore can only be initialized with a Deep Lake Cloud path."
             )
 
+        if (
+            self.kwargs.get("deep_memory", False) is False
+            and self.kwargs.get("embedding_function", None) is not None
+        ):
+            raise NotImplementedError(
+                "ManagedVectorStore does not support passing embedding_function for now."
+            )
+
         if self.kwargs.get("other_kwargs", {}) != {}:
             other_kwargs = self.kwargs["other_kwargs"]
             other_kwargs_names = list(other_kwargs.keys())
@@ -459,8 +486,6 @@ class InitArgsVerfier(ArgsVerifierBase):
 
 class AddArgsVerfier(ArgsVerifierBase):
     _not_implemented_args = [
-        "embedding_function",
-        "embedding_data",
         "embedding_tensor",
     ]
 
@@ -486,11 +511,8 @@ class SearchArgsVerfier(ArgsVerifierBase):
     def verify(self):
         super().verify()
         self._verify_filter_is_dictionary()
-
-        if self.kwargs.get("return_view", False) is not False:
-            raise NotImplementedError(
-                "return_view is not supported for the ManagedVectorStore."
-            )
+        self._verify_kwarg_is_non_default_and_nonsupported("return_view")
+        self._verify_kwarg_is_non_default_and_nonsupported("return_tql")
 
 
 class UpdateArgsVerfier(ArgsVerifierBase):
@@ -516,6 +538,9 @@ class DeleteArgsVerfier(ArgsVerifierBase):
 
 class DeleteByPathArgsVerfier(ArgsVerifierBase):
     _not_implemented_args = [
-        "force",
         "creds",
     ]
+
+    def verify(self):
+        super().verify()
+        self._verify_kwarg_is_not_false("force")

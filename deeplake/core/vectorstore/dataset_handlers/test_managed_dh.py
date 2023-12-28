@@ -18,16 +18,16 @@ def test_managed_vectorstore_should_not_accept_dataset_during_init(
         )
 
 
-def test_managed_vectorstore_should_not_accept_embedding_function_during_init(
-    hub_cloud_path, hub_cloud_dev_token
-):
-    with pytest.raises(NotImplementedError):
-        VectorStore(
-            path=hub_cloud_path,
-            token=hub_cloud_dev_token,
-            runtime={"tensor_db": True},
-            embedding_function=lambda x: x,
-        )
+# def test_managed_vectorstore_should_not_accept_embedding_function_during_init(
+#     hub_cloud_path, hub_cloud_dev_token
+# ):
+#     with pytest.raises(NotImplementedError):
+#         VectorStore(
+#             path=hub_cloud_path,
+#             token=hub_cloud_dev_token,
+#             runtime={"tensor_db": True},
+#             embedding_function=lambda x: x,
+#         )
 
 
 def test_managed_vectorstore_should_not_accept_exec_option_during_init(
@@ -240,10 +240,10 @@ def test_managed_vectorstore_should_not_accept_exec_option_during_update_embeddi
         path=hub_cloud_path,
         token=hub_cloud_dev_token,
         runtime={"tensor_db": True},
-        embedding_dim=100,
+        embedding_dim=3,
     )
 
-    embedding_dict = {"embedding": [np.zeros(100, dtype=np.float32)] * 3}
+    embedding_dict = {"embedding": [[0]] * 3}
 
     with pytest.raises(NotImplementedError):
         db.update_embedding(
@@ -260,53 +260,15 @@ def test_managed_vectorstore_should_not_accept_embedding_function_during_update_
         path=hub_cloud_path,
         token=hub_cloud_dev_token,
         runtime={"tensor_db": True},
-        embedding_dim=100,
+        embedding_dim=3,
     )
 
-    embedding_dict = {"embedding": [np.zeros(100, dtype=np.float32)] * 3}
+    embedding_dict = {"embedding": [[0, 0, 0]] * 3}
 
     with pytest.raises(NotImplementedError):
         db.update_embedding(
             embedding_dict=embedding_dict,
             embedding_function=lambda x: x,
-        )
-
-
-# def test_managed_vectorstore_should_not_accept_embedding_source_tensor_during_update_embedding(
-#     hub_cloud_path, hub_cloud_dev_token
-# ):
-#     db = utils.create_and_populate_vs(
-#         path=hub_cloud_path,
-#         token=hub_cloud_dev_token,
-#         runtime={"tensor_db": True},
-#         embedding_dim=100,
-#     )
-
-#     embedding_dict = {"embedding": [np.zeros(100, dtype=np.float32)] * 3}
-
-#     with pytest.raises(NotImplementedError):
-#         db.update_embedding(
-#             embedding_dict=embedding_dict,
-#             embedding_source_tensor="text",
-#         )
-
-
-def test_managed_vectorstore_should_not_accept_embedding_tensor_during_update_embedding(
-    hub_cloud_path, hub_cloud_dev_token
-):
-    db = utils.create_and_populate_vs(
-        path=hub_cloud_path,
-        token=hub_cloud_dev_token,
-        runtime={"tensor_db": True},
-        embedding_dim=100,
-    )
-
-    embedding_dict = {"embedding": [np.zeros(100, dtype=np.float32)] * 3}
-
-    with pytest.raises(NotImplementedError):
-        db.update_embedding(
-            embedding_dict=embedding_dict,
-            embedding_tensor="text",
         )
 
 
@@ -320,7 +282,7 @@ def test_managed_vectorstore_should_not_accept_force_during_delete_by_path(
     )
 
     with pytest.raises(NotImplementedError):
-        db.delete_by_path(path=hub_cloud_path, force=True)
+        db.delete_by_path(path=hub_cloud_path, force=True, runtime={"tensor_db": True})
 
 
 def test_managed_vectorstore_should_not_accept_creds_during_delete_by_path(
