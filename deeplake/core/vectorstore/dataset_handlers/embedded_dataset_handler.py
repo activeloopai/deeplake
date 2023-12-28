@@ -13,6 +13,7 @@ from deeplake.core.dataset import Dataset
 from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.dataset_handlers.dataset_handler_base import DHBase
 from deeplake.core.vectorstore.deep_memory.deep_memory import (
+    DeepMemory,
     use_deep_memory,
 )
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
@@ -83,6 +84,15 @@ class EmbeddedDH(DHBase):
         self.verbose = verbose
         self.tensor_params = tensor_params
         self.distance_metric_index = index_maintenance.index_operation_vectorstore(self)
+
+        self.deep_memory = DeepMemory(
+            dataset=self.dataset,
+            path=self.path,
+            token=self.token,
+            logger=self.logger,
+            embedding_function=self.embedding_function,
+            creds=self.creds,
+        )
 
     def add(
         self,
