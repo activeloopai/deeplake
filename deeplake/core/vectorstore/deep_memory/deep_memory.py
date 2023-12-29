@@ -26,6 +26,8 @@ from deeplake.constants import (
 from deeplake.util.storage import get_storage_and_cache_chain
 from deeplake.core.dataset import Dataset
 from deeplake.core.dataset.deeplake_cloud_dataset import DeepLakeCloudDataset
+from deeplake.core.vectorstore import utils
+from deeplake.core.vectorstore.embeddings.embedder import DeepLakeEmbedder
 from deeplake.client.client import DeepMemoryBackendClient
 from deeplake.client.utils import JobResponseStatusSchema
 from deeplake.util.bugout_reporter import (
@@ -177,9 +179,13 @@ class DeepMemory:
             raise ValueError(
                 "Embedding function should be specifed either during initialization or during training."
             )
-
-        if embedding_function is None and self.embedding_function is not None:
+        elif embedding_function is None and self.embedding_function is not None:
             embedding_function = self.embedding_function
+        elif embedding_function is not None:
+            embedding_function = utils.create_embedding_function(embedding_function)
+
+        assert embedding_function is not None
+        assert isinstance(embedding_function, DeepLakeEmbedder)
 
         runtime = None
         if get_path_type(corpus_path) == "hub":

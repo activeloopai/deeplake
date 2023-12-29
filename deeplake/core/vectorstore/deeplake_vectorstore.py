@@ -17,6 +17,7 @@ from deeplake.constants import (
 )
 from deeplake.util.bugout_reporter import feature_report_path
 from deeplake.util.exceptions import DeepMemoryWaitingListError
+from deeplake.util.path import convert_pathlib_to_string_if_needed
 from deeplake.core.vectorstore.dataset_handlers.managed_dataset_handler import (
     ManagedDH,
 )
@@ -474,6 +475,8 @@ class VectorStore:
         Danger:
             This method permanently deletes all of your data if the Vector Store exists! Be very careful when using this method.
         """
+        path = convert_pathlib_to_string_if_needed(path)
+
         if runtime and runtime.get("tensor_db"):
             ManagedDH.delete_by_path(
                 path=path,

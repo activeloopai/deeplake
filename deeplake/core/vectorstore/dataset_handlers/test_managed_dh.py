@@ -18,18 +18,6 @@ def test_managed_vectorstore_should_not_accept_dataset_during_init(
         )
 
 
-# def test_managed_vectorstore_should_not_accept_embedding_function_during_init(
-#     hub_cloud_path, hub_cloud_dev_token
-# ):
-#     with pytest.raises(NotImplementedError):
-#         VectorStore(
-#             path=hub_cloud_path,
-#             token=hub_cloud_dev_token,
-#             runtime={"tensor_db": True},
-#             embedding_function=lambda x: x,
-#         )
-
-
 def test_managed_vectorstore_should_not_accept_exec_option_during_init(
     hub_cloud_path, hub_cloud_dev_token
 ):

@@ -1,5 +1,5 @@
 from time import sleep
-from requests import Response
+from requests import Response  # type: ignore
 
 import numpy as np
 from typing import Callable, Dict, List, Any, Optional, Union
@@ -60,11 +60,11 @@ class ManagedServiceClient(DeepLakeBackendClient):
     def init_vectorstore(
         self,
         path: str,
-        overwrite: Optional[bool] = None,
-        tensor_params: Optional[List[Dict[str, Any]]] = None,
-        index_params: Dict = None,
-        branch: Optional[str] = None,
-        verbose: bool = False,
+        overwrite: bool,
+        tensor_params: List[Dict[str, Any]],
+        index_params: Dict,
+        branch: str,
+        verbose: bool,
     ):
         response = self.request(
             method="POST",
@@ -220,10 +220,7 @@ class ManagedServiceClient(DeepLakeBackendClient):
         ids: List[str],
         filter: Union[Dict, Callable],
         query: str,
-        embedding_function: Union[Callable, List[Callable]] = None,
-        embedding_source_tensor: Union[str, List[str]] = None,
-        embedding_tensor: Union[str, List[str]] = None,
-        embedding_dict: Optional[Dict[str, Union[List[float], List[float]]]] = None,
+        embedding_dict: Optional[Dict[str, Union[List[float], List[float]]]],
     ):
         response = self.request(
             method="POST",

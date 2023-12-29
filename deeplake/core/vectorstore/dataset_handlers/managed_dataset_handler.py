@@ -123,6 +123,7 @@ class ManagedDH(DHBase):
             org_id=org_id,
             other_kwargs=kwargs,
             deep_memory=self.deep_memory,
+            branch=branch,
         )
 
         self.client = ManagedServiceClient(token=self.token)
@@ -132,6 +133,7 @@ class ManagedDH(DHBase):
             tensor_params=tensor_params,
             index_params=index_params,
             verbose=verbose,
+            branch=self.branch,
         )
 
         if self.verbose:
@@ -207,6 +209,7 @@ class ManagedDH(DHBase):
 
         if return_ids:
             return response.ids
+        return None
 
     @use_deep_memory
     def search(
@@ -217,12 +220,12 @@ class ManagedDH(DHBase):
         k: int,
         distance_metric: str,
         query: str,
-        filter: Union[Dict, Callable],
-        embedding_tensor: str,
-        return_tensors: List[str],
-        return_view: bool,
-        deep_memory: bool,
-        exec_option: Optional[str] = "tensor_db",
+        filter: Optional[Dict] = None,
+        embedding_tensor: str = "embedding",
+        return_tensors: Optional[List[str]] = None,
+        return_view: bool = False,
+        deep_memory: bool = False,
+        exec_option: Optional[str] = None,
         return_tql: bool = False,
     ) -> Union[Dict, Dataset]:
         feature_report_path(
@@ -271,12 +274,12 @@ class ManagedDH(DHBase):
 
     def delete(
         self,
-        row_ids: List[int],
-        ids: List[str],
-        filter: Union[Dict, Callable],
-        query: str,
-        exec_option: str,
-        delete_all: bool,
+        row_ids: Optional[List[int]] = None,
+        ids: Optional[List[str]] = None,
+        filter: Optional[Dict] = None,
+        query: Optional[str] = None,
+        exec_option: Optional[str] = None,
+        delete_all: bool = False,
     ) -> bool:
         feature_report_path(
             path=self.bugout_reporting_path,
@@ -318,9 +321,7 @@ class ManagedDH(DHBase):
         embedding_function: Union[Callable, List[Callable]],
         embedding_source_tensor: Union[str, List[str]],
         embedding_tensor: Union[str, List[str]],
-        embedding_dict: Union[
-            List[float], np.ndarray, List[List[float]], List[np.ndarray]
-        ],
+        embedding_dict: Optional[dict[str, Union[list[float], list[float]]]] = None,
     ):
         feature_report_path(
             path=self.bugout_reporting_path,
@@ -345,7 +346,6 @@ class ManagedDH(DHBase):
 
         self.client.vectorstore_update_embeddings(
             path=self.bugout_reporting_path,
-            # embedding_tensor=embedding_tensor,
             row_ids=row_ids,
             ids=ids,
             filter=filter,
@@ -356,9 +356,9 @@ class ManagedDH(DHBase):
     @staticmethod
     def delete_by_path(
         path: str,
-        force: bool,
-        creds: Union[Dict, str],
-        token: str,
+        token: Optional[str] = None,
+        force: bool = False,
+        creds: Optional[Union[Dict, str]] = None,
     ):
         feature_report_path(
             path=path,
@@ -378,10 +378,9 @@ class ManagedDH(DHBase):
         )
 
         client = ManagedServiceClient(token=token)
-        client.delete_vectorstore_by_path(
+        client.delete_vectorstore(
             path=path,
             force=force,
-            creds=creds,
         )
 
     @property
