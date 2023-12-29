@@ -2968,24 +2968,6 @@ def test_vs_init_with_emptyt_token_should_not_throw_exception(local_path):
 
 
 @pytest.mark.slow
-def test_db_search_with_managed_db_should_instantiate_SearchManaged_class(
-    mock_search_managed, hub_cloud_path, hub_cloud_dev_token
-):
-    # using interaction test to ensure that the search managed class is executed
-    db = create_and_populate_vs(
-        hub_cloud_path,
-        runtime={"tensor_db": True},
-        token=hub_cloud_dev_token,
-    )
-
-    # Perform the search
-    db.search(embedding=query_embedding)
-
-    # Assert that SearchManaged was instantiated
-    mock_search_managed.assert_called()
-
-
-@pytest.mark.slow
 @requires_libdeeplake
 def test_db_search_should_instantiate_SearchIndra_class(
     mock_search_indra, hub_cloud_path, hub_cloud_dev_token

@@ -345,7 +345,7 @@ class ManagedDH(DHBase):
 
         self.client.vectorstore_update_embeddings(
             path=self.bugout_reporting_path,
-            embedding_tensor=embedding_tensor,
+            # embedding_tensor=embedding_tensor,
             row_ids=row_ids,
             ids=ids,
             filter=filter,
@@ -440,7 +440,7 @@ class ArgsVerifierBase:
                 "Only Filter Dictionary is supported for the ManagedVectorStore."
             )
 
-    def _verify_kwarg_is_non_default_and_nonsupported(self, kwarg):
+    def _verify_kwarg_is_non_default_and_unsupported(self, kwarg):
         if self.kwargs.get(kwarg, False) is not False:
             raise NotImplementedError(
                 f"`{kwarg}` is not supported for ManagedVectorStore for now."
@@ -511,8 +511,8 @@ class SearchArgsVerfier(ArgsVerifierBase):
     def verify(self):
         super().verify()
         self._verify_filter_is_dictionary()
-        self._verify_kwarg_is_non_default_and_nonsupported("return_view")
-        self._verify_kwarg_is_non_default_and_nonsupported("return_tql")
+        self._verify_kwarg_is_non_default_and_unsupported("return_view")
+        self._verify_kwarg_is_non_default_and_unsupported("return_tql")
 
 
 class UpdateArgsVerfier(ArgsVerifierBase):
@@ -543,4 +543,4 @@ class DeleteByPathArgsVerfier(ArgsVerifierBase):
 
     def verify(self):
         super().verify()
-        self._verify_kwarg_is_not_false("force")
+        self._verify_kwarg_is_non_default_and_unsupported("force")

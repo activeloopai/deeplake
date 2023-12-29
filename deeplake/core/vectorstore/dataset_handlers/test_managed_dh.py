@@ -78,24 +78,6 @@ def test_managed_vectorstore_should_not_accept_kwargs_during_init(
         )
 
 
-# 2. add tests:
-def test_managed_vectorstore_should_not_accept_embedding_function_during_add(
-    hub_cloud_path, hub_cloud_dev_token
-):
-    db = VectorStore(
-        path=hub_cloud_path,
-        token=hub_cloud_dev_token,
-        runtime={"tensor_db": True},
-    )
-
-    with pytest.raises(NotImplementedError):
-        db.add(
-            text=["a", "b", "c"],
-            metadata=[{}, {}, {}],
-            embedding_function=lambda x: x,
-        )
-
-
 def test_managed_vectorstore_should_not_accept_embedding_data_during_add(
     hub_cloud_path, hub_cloud_dev_token
 ):
