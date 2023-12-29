@@ -1,4 +1,6 @@
 import numpy as np
+import warnings
+import functools
 from abc import ABC, abstractmethod
 from typing import Union, Dict, List, Optional
 
@@ -8,6 +10,35 @@ from deeplake.core.dataset import Dataset as DeepLakeDataset
 from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
 from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 from deeplake.enterprise.util import raise_indra_installation_error
+
+
+def deprecated_class(reason):
+    """
+    Decorator to mark classes as deprecated.
+
+    Args:
+        reason (str): The reason message for deprecation.
+
+    Returns:
+        The decorated class.
+    """
+
+    def decorator(cls):
+        @functools.wraps(cls)
+        def new_init(*args, **kwargs):
+            warnings.simplefilter("always", DeprecationWarning)  # turn off filter
+            warnings.warn(
+                f"{cls.__name__} is deprecated: {reason}",
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
+            warnings.simplefilter("default", DeprecationWarning)  # reset filter
+            return cls(*args, **kwargs)
+
+        cls.__init__ = new_init
+        return cls
+
+    return decorator
 
 
 class SearchBasic(ABC):
@@ -146,6 +177,10 @@ class SearchIndra(SearchBasic):
         return return_data
 
 
+@deprecated_class(
+    "This is the old way of accessing the managed db. "
+    "Rest api calls will be used instead."
+)
 class SearchManaged(SearchBasic):
     def _get_view(self, tql_query, runtime: Optional[Dict] = None):
         view, data = self.deeplake_dataset.query(

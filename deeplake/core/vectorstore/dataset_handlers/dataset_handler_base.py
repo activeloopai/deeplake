@@ -109,7 +109,7 @@ class DHBase(ABC):
         self.index_params = utils.parse_index_params(index_params)
         kwargs["index_params"] = self.index_params
         self.num_workers = num_workers
-        self.creds = creds or {}
+        self.creds = creds
         self.embedding_function = utils.create_embedding_function(embedding_function)
         self.tensor_params = tensor_params
         self.read_only = read_only
