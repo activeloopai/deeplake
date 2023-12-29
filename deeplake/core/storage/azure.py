@@ -378,7 +378,7 @@ class AzureProvider(StorageProvider):
                 self.credential = AzureSasCredential(self.sas_token)
 
     def get_items(self, keys):
-        with ThreadPoolExecutor(max_workers=8) as executor:
+        with ThreadPoolExecutor() as executor:
             future_to_key = {
                 executor.submit(self.__getitem__, key): key for key in keys
             }
