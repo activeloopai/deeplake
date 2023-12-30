@@ -12,7 +12,7 @@ def test_managed_vectorstore_should_not_accept_dataset_during_init(
 ):
     with pytest.raises(NotImplementedError):
         VectorStore(
-            dataset=deeplake.empty(hub_cloud_path),
+            dataset=deeplake.empty(hub_cloud_path, token=hub_cloud_dev_token),
             token=hub_cloud_dev_token,
             runtime={"tensor_db": True},
         )
