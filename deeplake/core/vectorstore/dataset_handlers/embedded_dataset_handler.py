@@ -435,8 +435,8 @@ class EmbeddedDH(DHBase):
         try:
             deeplake.delete(path, large_ok=True, token=token, force=force, creds=creds)
             return True
-        except Exception:
-            return False
+        except Exception as e:
+            raise e
 
     def __len__(self):
         """Length of the dataset"""

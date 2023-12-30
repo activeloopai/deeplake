@@ -36,6 +36,7 @@ class VectorStoreDeleteResponse(NamedTuple):
     status_code: int
     error: Optional[str] = None
 
+
 class VectorStoreUpdateResponse(NamedTuple):
     status_code: int
     error: Optional[str] = None

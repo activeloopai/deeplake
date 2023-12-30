@@ -5,7 +5,7 @@ import types
 import random
 import string
 from abc import ABC, abstractmethod
-from typing import Optional, List, Dict, Tuple, Union
+from typing import Any, Optional, List, Dict, Tuple, Union
 
 import deeplake
 from deeplake.constants import MB, DEFAULT_VECTORSTORE_INDEX_PARAMS, TARGET_BYTE_SIZE
@@ -429,7 +429,7 @@ def parse_update_arguments(
 def construct_embedding_tensor_data(
     embedding: Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]],
     embedding_tensor: Union[str, List[str]],
-) -> Dict[str, Union[List[float], np.ndarray]]:
+) -> Dict[str, float | Any | list[float] | np.ndarray[Any, Any]]:
     """Function for conctructing dictionary out of embedding and embedding_tensor
     Args:
         embedding (Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]]): embedding data

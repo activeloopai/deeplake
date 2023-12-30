@@ -2629,6 +2629,9 @@ class Dataset:
 
         Raises:
             ValueError: If the dataset view might take a long time to summarize and `force=False`
+
+        Returns:
+            str: The summary of the dataset as a string if ``return_as_string`` is ``True``.
         """
 
         deeplake_reporter.feature_report(feature_name="summary", parameters={})

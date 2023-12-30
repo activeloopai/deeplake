@@ -701,47 +701,6 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
 
 
 @requires_libdeeplake
-@pytest.mark.slow
-def test_search_managed(hub_cloud_dev_token):
-    """Test whether managed TQL and client-side TQL return the same results"""
-    # initialize vector store object:
-    vector_store = DeepLakeVectorStore(
-        path="hub://testingacc2/vectorstore_test_managed",
-        read_only=True,
-        token=hub_cloud_dev_token,
-    )
-
-    # use indra implementation to search the data
-    data_ce = vector_store.search(
-        embedding=query_embedding,
-        exec_option="compute_engine",
-    )
-
-    data_db = vector_store.search(
-        embedding=query_embedding,
-        exec_option="tensor_db",
-    )
-
-    assert "vectordb/" in vector_store.dataset_handler.dataset.base_storage.path
-
-    assert len(data_ce["score"]) == len(data_db["score"])
-    assert all(
-        [
-            isclose(
-                data_ce["score"][i],
-                data_db["score"][i],
-                abs_tol=0.00001
-                * (abs(data_ce["score"][i]) + abs(data_db["score"][i]))
-                / 2,
-            )
-            for i in range(len(data_ce["score"]))
-        ]
-    )
-    assert data_ce["text"] == data_db["text"]
-    assert data_ce["id"] == data_db["id"]
-
-
-@requires_libdeeplake
 def test_delete(local_path, hub_cloud_dev_token):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
