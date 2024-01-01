@@ -991,8 +991,10 @@ class dataset:
         src = convert_pathlib_to_string_if_needed(src)
         if isinstance(src, str):
             source_ds = dataset.load(src, verbose=verbose)
+            src_path = src
         else:
             source_ds = src
+            src_path = src.path
 
         if tensors:
             tensors = source_ds._resolve_tensor_list(tensors)  # type: ignore
@@ -1005,16 +1007,23 @@ class dataset:
             dest_path = dest.path
         else:
             dest_path = dest
-            destination_ds = dataset.empty(
-                dest,
-                runtime=runtime,
-                creds=creds,
-                overwrite=overwrite,
-                token=token,
-                org_id=org_id,
-                public=public,
-                verbose=verbose,
-            )
+            common_kwargs = {
+                "creds": creds,
+                "token": token,
+                "org_id": org_id,
+                "verbose": verbose,
+                "read_only": False,
+            }
+            if dest_path == src_path:
+                destination_ds = dataset.load(dest_path, **common_kwargs)
+            else:
+                destination_ds = dataset.empty(
+                    dest_path,
+                    runtime=runtime,
+                    public=public,
+                    overwrite=overwrite,
+                    **common_kwargs,
+                )
 
         feature_report_path(
             dest_path, "like", {"Overwrite": overwrite, "Public": public}, token=token
@@ -1025,9 +1034,18 @@ class dataset:
         elif unlink is False:
             unlink = []
         for tensor_name in tensors:  # type: ignore
+            source_tensor = source_ds[tensor_name]
             if overwrite and tensor_name in destination_ds:
+                if dest_path == src_path:
+                    # load tensor data to memory before deleting
+                    # in case of in-place deeplake.like
+                    meta = source_tensor.meta
+                    info = source_tensor.info
+                    sample_shape_tensor = source_tensor._sample_shape_tensor
+                    sample_id_tensor = source_tensor._sample_id_tensor
+                    sample_info_tensor = source_tensor._sample_info_tensor
                 destination_ds.delete_tensor(tensor_name)
-            destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name], unlink=tensor_name in unlink)  # type: ignore
+            destination_ds.create_tensor_like(tensor_name, source_tensor, unlink=tensor_name in unlink)  # type: ignore
 
         destination_ds.info.update(source_ds.info.__getstate__())  # type: ignore
 

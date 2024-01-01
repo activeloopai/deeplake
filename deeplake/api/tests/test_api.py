@@ -828,6 +828,23 @@ def test_like(local_path, convert_to_pathlib):
     assert len(dest_ds) == 0
 
 
+def test_inplace_like(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc", htype="class_label")
+        ds.abc.extend([1, 0, 1, 0, 0, 1])
+        ds.abc.info.update(class_names=["a", "b"])
+
+    with deeplake.like(local_ds.path, local_ds.path, overwrite=True) as ds:
+        assert ds.abc.meta.htype == "class_label"
+        assert ds.abc.info.class_names == ["a", "b"]
+
+        ds.abc.extend([1, 0, 1, 0, 0, 1])
+
+    with deeplake.like(ds, ds, overwrite=True) as ds:
+        assert ds.abc.meta.htype == "class_label"
+        assert ds.abc.info.class_names == ["a", "b"]
+
+
 def test_tensor_creation_fail_recovery():
     with CliRunner().isolated_filesystem():
         ds = deeplake.dataset("test")
