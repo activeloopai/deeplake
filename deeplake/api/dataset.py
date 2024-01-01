@@ -192,6 +192,7 @@ class dataset:
             ValueError: If version is specified in the path when creating a dataset or If the org id is provided but dataset is ot local, or If the org id is provided but dataset is ot local
             ReadOnlyModeError: If reset is attempted in read-only mode
             LockedException: When attempting to open a dataset for writing when it is locked by another machine
+            DatasetHandlerError: If overwriting the dataset fails
             Exception: Re-raises caught exception if reset cannot fix the issue
 
         Danger:
@@ -884,10 +885,10 @@ class dataset:
 
                 try:
                     base_storage.clear()
-                except Exception as e:
+                except Exception as e2:
                     raise DatasetHandlerError(
                         "Dataset delete failed. See traceback for more information."
-                    ) from e
+                    ) from e2
 
                 remove_path_from_backend(path, token)
                 if verbose:
