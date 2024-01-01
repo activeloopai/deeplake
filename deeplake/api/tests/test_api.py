@@ -56,6 +56,8 @@ from deeplake.util.bugout_reporter import feature_report_path
 from rich import print as rich_print
 from io import BytesIO
 
+import pickle
+
 # need this for 32-bit and 64-bit systems to have correct tests
 MAX_INT_DTYPE = np.int_.__name__
 MAX_FLOAT_DTYPE = np.float_.__name__
@@ -834,8 +836,8 @@ def test_inplace_like(local_ds):
         ds.abc.extend([1, 0, 1, 0, 0, 1])
         ds.abc.info.update(class_names=["a", "b"])
 
-    # clear cache to ensure that we are not reading from cache
-    ds.storage.cache_storage.clear()
+    # reload to ensure we are not using cached data
+    ds = pickle.loads(pickle.dumps(ds))
 
     with deeplake.like(local_ds.path, local_ds.path, overwrite=True) as ds:
         assert ds.abc.meta.htype == "class_label"
@@ -843,7 +845,7 @@ def test_inplace_like(local_ds):
 
         ds.abc.extend([1, 0, 1, 0, 0, 1])
 
-    ds.storage.cache_storage.clear()
+    ds = pickle.loads(pickle.dumps(ds))
 
     with deeplake.like(ds, ds, overwrite=True) as ds:
         assert ds.abc.meta.htype == "class_label"
