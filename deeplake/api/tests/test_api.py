@@ -834,11 +834,16 @@ def test_inplace_like(local_ds):
         ds.abc.extend([1, 0, 1, 0, 0, 1])
         ds.abc.info.update(class_names=["a", "b"])
 
+    # clear cache to ensure that we are not reading from cache
+    ds.storage.cache_storage.clear()
+
     with deeplake.like(local_ds.path, local_ds.path, overwrite=True) as ds:
         assert ds.abc.meta.htype == "class_label"
         assert ds.abc.info.class_names == ["a", "b"]
 
         ds.abc.extend([1, 0, 1, 0, 0, 1])
+
+    ds.storage.cache_storage.clear()
 
     with deeplake.like(ds, ds, overwrite=True) as ds:
         assert ds.abc.meta.htype == "class_label"
