@@ -1022,7 +1022,7 @@ class dataset:
                     runtime=runtime,
                     public=public,
                     overwrite=overwrite,
-                    **common_kwargs,
+                    **common_kwargs,  # type: ignore
                 )
 
         feature_report_path(
