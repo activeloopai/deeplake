@@ -16,6 +16,7 @@ from deeplake.constants import (
     SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
 )
 from deeplake.core.index import Index
+from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.core.tensor import Tensor
 from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.exceptions import (
@@ -37,21 +38,44 @@ class DeepLakeQueryDataset(Dataset):
         self,
         deeplake_ds,
         indra_ds,
-        group_index=None,
+        group_index="",
         enabled_tensors=None,
         index: Optional[Index] = None,
     ):
         d: Dict[str, Any] = {}
         d["deeplake_ds"] = deeplake_ds
         d["indra_ds"] = indra_ds
-        d["group_index"] = group_index or deeplake_ds.group_index
-        d["enabled_tensors"] = enabled_tensors or deeplake_ds.enabled_tensors
-        d["_index"] = index or deeplake_ds.index
+        d["group_index"] = (
+            group_index or deeplake_ds.group_index if deeplake_ds is not None else ""
+        )
+        d["enabled_tensors"] = (
+            enabled_tensors or deeplake_ds.enabled_tensors
+            if deeplake_ds is not None
+            else None
+        )
+        d["version_state"] = (
+            deeplake_ds.version_state if deeplake_ds is not None else {}
+        )
+        d["_index"] = (
+            index or deeplake_ds.index
+            if deeplake_ds is not None
+            else Index(item=slice(None))
+        )
         self.__dict__.update(d)
 
     @property
+    def read_only(self):
+        if self.deeplake_ds is not None:
+            return self.deeplake_ds.read_only
+        return True
+
+    @property
     def meta(self):
-        return self.deeplake_ds.meta
+        return self.deeplake_ds.meta if self.deeplake_ds is not None else DatasetMeta()
+
+    @property
+    def path(self):
+        return self.deeplake_ds.path if self.deeplake_ds is not None else ""
 
     def merge(self, *args, **kwargs):
         raise InvalidOperationError(
@@ -121,7 +145,9 @@ class DeepLakeQueryDataset(Dataset):
                 tensor = self._get_tensor_from_root(fullpath)
                 if tensor is not None:
                     return tensor
-            if self.deeplake_ds._has_group_in_root(fullpath):
+            if self.deeplake_ds is not None and self.deeplake_ds._has_group_in_root(
+                fullpath
+            ):
                 ret = DeepLakeQueryDataset(
                     deeplake_ds=self.deeplake_ds,
                     indra_ds=self.indra_ds,
@@ -193,6 +219,8 @@ class DeepLakeQueryDataset(Dataset):
                 raise AttributeError(
                     f"'{self.__class__}' object has no attribute '{key}'"
                 ) from ke
+        except AttributeError:
+            return getattr(self.indra_ds, key)
 
     def __len__(self):
         return len(self.indra_ds)
@@ -293,11 +321,26 @@ class DeepLakeQueryDataset(Dataset):
                 pass
         return range(len(self))
 
+    def _all_tensors_filtered(
+        self, include_hidden: bool = True, include_disabled=True
+    ) -> List[str]:
+        if self.deeplake_ds is not None:
+            return self.deeplake_ds._all_tensors_filtered(
+                include_hidden, include_disabled
+            )
+
+        indra_tensors = self.indra_ds.tensors
+        return list(t.name for t in indra_tensors)
+
     def _tensors(
         self, include_hidden: bool = True, include_disabled=True
     ) -> Dict[str, Tensor]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
-        original_tensors = self.deeplake_ds._tensors(include_hidden, include_disabled)
+        original_tensors = (
+            self.deeplake_ds._tensors(include_hidden, include_disabled)
+            if self.deeplake_ds is not None
+            else {}
+        )
         indra_tensors = self.indra_ds.tensors
         indra_keys = set(t.name for t in indra_tensors)
         original_tensors = {
@@ -324,8 +367,8 @@ class DeepLakeQueryDataset(Dataset):
         if self.read_only:
             mode_str = f"read_only=True, "
 
-        index_str = f"index={self.deeplake_ds.index}, "
-        if self.deeplake_ds.index.is_trivial():
+        index_str = f"index={self.index}, "
+        if self.index.is_trivial():
             index_str = ""
 
         group_index_str = (

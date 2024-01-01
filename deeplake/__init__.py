@@ -44,6 +44,7 @@ delete = api_dataset.delete
 rename = api_dataset.rename
 copy = api_dataset.copy
 deepcopy = api_dataset.deepcopy
+query = api_dataset.query
 connect = api_dataset.connect
 ingest_classification = api_dataset.ingest_classification
 ingest_coco = api_dataset.ingest_coco
@@ -82,12 +83,13 @@ __all__ = [
     "config",
     "delete",
     "copy",
+    "query",
     "rename",
     "random",
 ]
 
 
-__version__ = "3.8.13"
+__version__ = "3.8.14"
 warn_if_update_required(__version__)
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}

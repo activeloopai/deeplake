@@ -33,6 +33,10 @@ from deeplake.util.bugout_reporter import (
 from deeplake.util.path import get_path_type
 
 
+DEEP_MEMORY_MODEL = "model.npy"
+RECALL = "recall@10"
+
+
 def access_control(func):
     def wrapper(self, *args, **kwargs):
         if self.client is None:
@@ -303,7 +307,7 @@ class DeepMemory:
 
             recall = "{:.2f}".format(100 * recall)
             improvement = "{:.2f}".format(100 * improvement)
-        except:
+        except Exception:
             recall = None
             improvement = None
         self.client.check_status(job_id=job_id, recall=recall, improvement=improvement)
@@ -357,7 +361,7 @@ class DeepMemory:
                 )
                 recall = "{:.2f}".format(100 * recall)
                 delta = "{:.2f}".format(100 * delta)
-            except:
+            except Exception:
                 recall = None
                 delta = None
 
@@ -551,7 +555,7 @@ class DeepMemory:
     @access_control
     def get_model(self):
         """Get the name of the model currently being used by DeepMemory managed service."""
-        return self.dataset.embedding.info["deepmemory"]["model.npy"]["job_id"]
+        return self.dataset.embedding.info["deepmemory"][DEEP_MEMORY_MODEL]["job_id"]
 
     @access_control
     def set_model(self, model_name: str):
@@ -583,7 +587,7 @@ class DeepMemory:
         # get old deepmemory dictionary and update it:
         old_deepmemory = self.dataset.embedding.info["deepmemory"]
         new_deepmemory = old_deepmemory.copy()
-        new_deepmemory.update({"model.npy": new_model_npy})
+        new_deepmemory.update({DEEP_MEMORY_MODEL: new_model_npy})
 
         # assign new deepmemory dictionary to the dataset:
         self.dataset.embedding.info["deepmemory"] = new_deepmemory
@@ -717,12 +721,18 @@ def _get_best_model(embedding: Any, job_id: str, latest_job: bool = False):
     best_recall = 0
     best_delta = 0
     if latest_job:
-        best_recall = info["deepmemory/model.npy"]["recall@10"]
-        best_delta = info["deepmemory/model.npy"]["delta"]
+        try:
+            best_recall = info["deepmemory"][DEEP_MEMORY_MODEL][RECALL]
+            best_delta = info["deepmemory"][DEEP_MEMORY_MODEL]["delta"]
+        except:
+            best_recall = info["deepmemory/model.npy"][RECALL]
+            best_delta = info["deepmemory/model.npy"]["delta"]
+        finally:
+            pass
 
     for job, value in info.items():
         if job_id in job:
-            recall = value["recall@10"]
+            recall = value[RECALL]
             delta = value["delta"]
             if delta > best_delta:
                 best_recall = recall

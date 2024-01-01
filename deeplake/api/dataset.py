@@ -2014,3 +2014,10 @@ class dataset:
         structured.fill_dataset(ds, progressbar)  # type: ignore
 
         return ds  # type: ignore
+
+    @staticmethod
+    @spinner
+    def query(query_string: str, token: Optional[str] = "") -> Dataset:
+        from deeplake.enterprise.libdeeplake_query import universal_query
+
+        return universal_query(query_string=query_string, token=token)
