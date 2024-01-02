@@ -1012,10 +1012,11 @@ class dataset:
                 "token": token,
                 "org_id": org_id,
                 "verbose": verbose,
-                "read_only": False,
             }
             if dest_path == src_path:
-                destination_ds = dataset.load(dest_path, **common_kwargs)
+                destination_ds = dataset.load(
+                    dest_path, read_only=False, **common_kwargs
+                )
             else:
                 destination_ds = dataset.empty(
                     dest_path,
