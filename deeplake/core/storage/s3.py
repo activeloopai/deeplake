@@ -29,7 +29,6 @@ from botocore.exceptions import (
 )
 from concurrent import futures
 from concurrent.futures import ThreadPoolExecutor
-import os
 
 CONNECTION_ERRORS = (
     ReadTimeoutError,

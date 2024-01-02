@@ -4633,28 +4633,11 @@ class Dataset:
     def _disable_padding(self):
         self._pad_tensors = False
 
-    def _pop(self, index: Optional[int] = None):
-        max_len = self.max_len
-        if max_len == 0:
-            raise IndexError("Can't pop from empty dataset.")
-
-        if index is None:
-            index = max_len - 1
-
-        if index < 0:
-            raise IndexError("Pop doesn't support negative indices.")
-        elif index >= max_len:
-            raise IndexError(
-                f"Index {index} is out of range. The longest tensor has {max_len} samples."
-            )
-
+    def _pop(self, index: List[int]):
+        """Removes elements at the given indices."""
         with self:
             for tensor in self.tensors.values():
-                if tensor.num_samples > index:
-                    tensor._check_for_pop(index)
-            for tensor in self.tensors.values():
-                if tensor.num_samples > index:
-                    tensor._pop(index)
+                tensor._pop(index)
 
     @invalid_view_op
     def pop(self, index: Optional[int] = None):
@@ -4666,29 +4649,42 @@ class Dataset:
             index (int, Optional): The index of the sample to be removed. If it is ``None``, the index becomes the ``length of the longest tensor - 1``.
 
         Raises:
+            ValueError: If duplicate indices are provided.
             IndexError: If the index is out of range.
         """
+        if index is None:
+            index = [self.max_len - 1]
+
+        if not isinstance(index, list):
+            index = [index]
+
+        if not index:
+            return
+
+        if len(set(index)) != len(index):
+            raise ValueError("Duplicate indices are not allowed.")
+
+        max_len = self.max_len
+        if max_len == 0:
+            raise IndexError("Can't pop from empty dataset.")
+
+        for idx in index:
+            if idx < 0:
+                raise IndexError("Pop doesn't support negative indices.")
+            elif idx >= max_len:
+                raise IndexError(
+                    f"Index {idx} is out of range. The longest tensor has {max_len} samples."
+                )
+
+        index = sorted(index, reverse=True)
+
         self._pop(index)
-        row_ids = [index if index is not None else self.max_len - 1]
+        row_ids = index[:]
+
         index_maintenance.index_operation_dataset(
             self,
             dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
             rowids=row_ids,
-        )
-
-    @invalid_view_op
-    def pop_multiple(self, index: List[int], progressbar=False):
-        rev_index = sorted(index, reverse=True)
-        if progressbar:
-            rev_index = tqdm(rev_index)
-        with self:
-            for i in rev_index:
-                self._pop(i)
-
-        index_maintenance.index_operation_dataset(
-            self,
-            dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
-            rowids=index,
         )
 
     @property

@@ -205,8 +205,15 @@ class TransformDataset:
         for t in updated_tensors:
             chunk_engine = self.all_chunk_engines[t]
             num_samples = updated_tensors[t]
-            for _ in range(num_samples):
-                chunk_engine.pop(link_callback=chunk_engine._transform_pop_callback)
+            chunk_engine.pop(
+                list(
+                    range(
+                        chunk_engine.tensor_length - num_samples,
+                        chunk_engine.tensor_length,
+                    )
+                ),
+                link_callback=chunk_engine._transform_pop_callback,
+            )
 
             if t in no_dtype_tensors:
                 meta = chunk_engine.tensor_meta

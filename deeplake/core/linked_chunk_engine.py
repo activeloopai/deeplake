@@ -365,9 +365,9 @@ class LinkedChunkEngine(ChunkEngine):
                 f"Creds keys {missing_used_keys} are used in the data but not populated. Please populate the dataset using ds.populate_creds()."
             )
 
-    def pop_item(self, index):
-        self.creds_encoder.pop(index)
-        return super().pop_item(index)
+    def _pop_from_chunk(self, chunk: Optional[BaseChunk], row: int, global_idx: int):
+        self.creds_encoder.pop(global_idx)
+        return super()._pop_from_chunk(chunk, row, global_idx)
 
     def get_empty_sample(self):
         return np.ones((0,))

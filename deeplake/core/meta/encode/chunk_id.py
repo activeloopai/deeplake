@@ -281,6 +281,21 @@ class ChunkIdEncoder(Encoder, DeepLakeMemoryObject):
     def _num_samples_in_last_chunk(self):
         return self._num_samples_in_last_row()
 
+    def _delete_rows(self, rows: List[int]):
+        if rows:
+            for row in rows:
+                prev = (
+                    -1 if row == 0 else self._encoded[row - 1][LAST_SEEN_INDEX_COLUMN]
+                )
+                num_samples_in_chunk = int(
+                    self._encoded[row][LAST_SEEN_INDEX_COLUMN] - prev
+                )
+                self._encoded[row:, LAST_SEEN_INDEX_COLUMN] -= num_samples_in_chunk
+            self._encoded = np.delete(self._encoded, rows, axis=0)
+            self.is_dirty = True
+            return True
+        return False
+
     def pop(self, index: Optional[int] = None) -> Tuple[List, List, bool]:
         """Pops the last sample added to the encoder and returns ids of chunks to be deleted from storage.
         Returns:
@@ -292,18 +307,14 @@ class ChunkIdEncoder(Encoder, DeepLakeMemoryObject):
         chunk_ids = [out[i][0] for i in range(len(out))]
         rows = [out[i][1] for i in range(len(out))]
         if len(chunk_ids) > 1:  # tiled sample
-            self._encoded[rows[-1] + 1 :, LAST_SEEN_INDEX_COLUMN] -= 1
-            self._encoded = np.delete(self._encoded, rows, axis=0)
-            to_delete = True
+            to_delete = self._delete_rows(rows)
         else:
             row = rows[0]
             prev = -1 if row == 0 else self._encoded[row - 1][LAST_SEEN_INDEX_COLUMN]
-            num_samples_in_chunk = self.array[row][LAST_SEEN_INDEX_COLUMN] - prev
+            num_samples_in_chunk = int(self.array[row][LAST_SEEN_INDEX_COLUMN] - prev)
 
             if num_samples_in_chunk == 1:
-                self._encoded = np.delete(self._encoded, row, axis=0)
-                self._encoded[row:, LAST_SEEN_INDEX_COLUMN] -= 1
-                to_delete = True
+                to_delete = self._delete_rows(rows)
             elif num_samples_in_chunk > 1:
                 self._encoded[row:, LAST_SEEN_INDEX_COLUMN] -= 1
                 to_delete = False
