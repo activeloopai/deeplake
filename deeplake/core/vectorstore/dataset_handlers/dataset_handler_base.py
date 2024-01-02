@@ -238,6 +238,7 @@ class DHBase(ABC):
 
         Args:
             branch (str): Branch name to checkout. Defaults to "main".
+            create (bool): Whether to create the branch if it does not exist. Defaults to False.
 
         Raises:
             NotImplementedError: This method is not implemented by the base class.
