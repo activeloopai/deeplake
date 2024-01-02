@@ -365,7 +365,29 @@ def test_pop_duplicate_indices(local_ds):
     with pytest.raises(ValueError):
         ds.pop([0, 2, 3, 0, 0])
 
+    with pytest.raises(ValueError):
+        ds.abc.pop([0, 2, 3, 0, 0])
+
     ds.pop([0, 2, 3, 5])
 
     assert len(ds.abc) == 6
     assert ds.abc.numpy().flatten().tolist() == [2, 5, 7, 8, 9, 0]
+
+
+def test_pop_errors(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+
+    with pytest.raises(IndexError):
+        ds.abc.pop(0)
+
+    ds.abc.extend([1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
+
+    with pytest.raises(IndexError):
+        ds.pop(10)
+
+    with pytest.raises(IndexError):
+        ds.abc.pop(10)
+
+    with pytest.raises(IndexError):
+        ds.abc.pop(-1)
