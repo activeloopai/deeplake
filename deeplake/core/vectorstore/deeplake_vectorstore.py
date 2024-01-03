@@ -302,7 +302,7 @@ class VectorStore:
         Raises:
             ValueError: When invalid parameters are specified.
             ValueError: when deep_memory is True. Deep Memory is only available for datasets stored in the Deep Lake Managed Database for paid accounts.
-            DeepMemoryWaitingListError: if user is not waitlisted to use deep_memory.
+            DeepMemoryAccessError: if user does not have access to deep_memory.
 
         Returns:
             Dict: Dictionary where keys are tensor names and values are the results of the search
