@@ -22,7 +22,7 @@ def get_bugout_reporting_path(path: str, dataset: Dataset) -> str:
     elif dataset:
         return dataset.path
     else:
-        return None
+        raise ValueError("Either `path` or `dataset` should be provided.")
 
 
 class DHBase(ABC):
@@ -58,7 +58,7 @@ class DHBase(ABC):
 
         self._exec_option = exec_option
 
-        self.path: Optional[str] = None
+        # self.path: Optional[str] = None
         self.dataset = dataset
         if dataset and path:
             raise ValueError(
@@ -75,11 +75,14 @@ class DHBase(ABC):
             self.dataset = dataset
             self.path = dataset.path
 
+        assert isinstance(self.path, str)
+
         self.deserialized_vectorstore = utils.get_deserialized_vectorstore(self.path)
 
         self._token = token
         self.logger = logger
         self.org_id = org_id if get_path_type(self.path) == "local" else None
+        path = convert_pathlib_to_string_if_needed(path)
         self.bugout_reporting_path = get_bugout_reporting_path(path, dataset)
 
         feature_report_path(
@@ -173,12 +176,12 @@ class DHBase(ABC):
     @abstractmethod
     def delete(
         self,
-        row_ids: List[int],
-        ids: List[str],
-        filter: Union[Dict, Callable],
-        query: str,
-        exec_option: str,
-        delete_all: bool,
+        row_ids: Optional[List[int]] = None,
+        ids: Optional[List[str]] = None,
+        filter: Optional[Dict] = None,
+        query: Optional[str] = None,
+        exec_option: Optional[str] = None,
+        delete_all: bool = False,
     ) -> bool:
         pass
 
@@ -193,17 +196,17 @@ class DHBase(ABC):
         embedding_function: Union[Callable, List[Callable]],
         embedding_source_tensor: Union[str, List[str]],
         embedding_tensor: Union[str, List[str]],
-        embedding: Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]],
-        embedding_dict: Union[
-            List[float], np.ndarray, List[List[float]], List[np.ndarray]
-        ],
+        embedding_dict: Optional[dict[str, Union[list[float], list[float]]]] = None,
     ):
         pass
 
     @staticmethod
     @abstractmethod
     def delete_by_path(
-        path: str, force: bool, creds: Union[Dict, str], token: str
+        path: str,
+        token: Optional[str] = None,
+        force: bool = False,
+        creds: Optional[Union[Dict, str]] = None,
     ) -> bool:
         pass
 
@@ -235,6 +238,7 @@ class DHBase(ABC):
 
         Args:
             branch (str): Branch name to checkout. Defaults to "main".
+            create (bool): Whether to create the branch if it does not exist. Defaults to False.
 
         Raises:
             NotImplementedError: This method is not implemented by the base class.

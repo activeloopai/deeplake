@@ -12,22 +12,10 @@ def test_managed_vectorstore_should_not_accept_dataset_during_init(
 ):
     with pytest.raises(NotImplementedError):
         VectorStore(
-            dataset=deeplake.empty(hub_cloud_path),
+            dataset=deeplake.empty(hub_cloud_path, token=hub_cloud_dev_token),
             token=hub_cloud_dev_token,
             runtime={"tensor_db": True},
         )
-
-
-# def test_managed_vectorstore_should_not_accept_embedding_function_during_init(
-#     hub_cloud_path, hub_cloud_dev_token
-# ):
-#     with pytest.raises(NotImplementedError):
-#         VectorStore(
-#             path=hub_cloud_path,
-#             token=hub_cloud_dev_token,
-#             runtime={"tensor_db": True},
-#             embedding_function=lambda x: x,
-#         )
 
 
 def test_managed_vectorstore_should_not_accept_exec_option_during_init(
@@ -75,23 +63,6 @@ def test_managed_vectorstore_should_not_accept_kwargs_during_init(
             token=hub_cloud_dev_token,
             some_argument="some_argument",
             runtime={"tensor_db": True},
-        )
-
-
-def test_managed_vectorstore_should_not_accept_embedding_data_during_add(
-    hub_cloud_path, hub_cloud_dev_token
-):
-    db = VectorStore(
-        path=hub_cloud_path,
-        token=hub_cloud_dev_token,
-        runtime={"tensor_db": True},
-    )
-
-    with pytest.raises(NotImplementedError):
-        db.add(
-            text=["a", "b", "c"],
-            metadata=[{}, {}, {}],
-            embedding_function=lambda x: x,
         )
 
 
@@ -230,8 +201,7 @@ def test_managed_vectorstore_should_not_accept_exec_option_during_update_embeddi
     with pytest.raises(NotImplementedError):
         db.update_embedding(
             embedding_dict=embedding_dict,
-            embedding_source_tensor="text",
-            embedding_tensor="embedding",
+            exec_option="compute_engine",
         )
 
 

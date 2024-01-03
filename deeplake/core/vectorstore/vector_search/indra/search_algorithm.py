@@ -237,7 +237,9 @@ def search(
     """
     searcher: SearchBasic
     if runtime and runtime.get("db_engine", False):
-        searcher = SearchManaged(deeplake_dataset, org_id, token, runtime=runtime)
+        raise ValueError(
+            "Changing `exec_option` during search to `tensor_db` parameter is not supported. "
+        )
     else:
         searcher = SearchIndra(deeplake_dataset, org_id, token)
 

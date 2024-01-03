@@ -263,12 +263,12 @@ class EmbeddedDH(DHBase):
 
     def delete(
         self,
-        row_ids: List[int],
-        ids: List[str],
-        filter: Union[Dict, Callable],
-        query: str,
-        exec_option: str,
-        delete_all: bool,
+        row_ids: Optional[List[int]] = None,
+        ids: Optional[List[str]] = None,
+        filter: Optional[Union[Dict, Callable]] = None,
+        query: Optional[str] = None,
+        exec_option: Optional[str] = None,
+        delete_all: bool = False,
     ) -> bool:
         feature_report_path(
             path=self.bugout_reporting_path,
@@ -321,9 +321,7 @@ class EmbeddedDH(DHBase):
         embedding_function: Union[Callable, List[Callable]],
         embedding_source_tensor: Union[str, List[str]],
         embedding_tensor: Union[str, List[str]],
-        embedding_dict: Union[
-            List[float], np.ndarray, List[List[float]], List[np.ndarray]
-        ],
+        embedding_dict: Optional[dict[str, Union[list[float], list[float]]]] = None,
     ):
         feature_report_path(
             path=self.bugout_reporting_path,
@@ -399,7 +397,7 @@ class EmbeddedDH(DHBase):
         """
         self.dataset.commit(allow_empty=allow_empty)
 
-    def checkout(self, branch: str, create: bool) -> None:
+    def checkout(self, branch: str = "main", create: bool = False) -> None:
         """Checkout the Vector Store to a specific branch.
 
         Args:
@@ -418,7 +416,10 @@ class EmbeddedDH(DHBase):
 
     @staticmethod
     def delete_by_path(
-        path: str, force: bool, creds: Union[Dict, str], token: str
+        path: str,
+        token: Optional[str] = None,
+        force: bool = False,
+        creds: Optional[Union[Dict, str]] = None,
     ) -> bool:
         feature_report_path(
             path,
@@ -431,7 +432,11 @@ class EmbeddedDH(DHBase):
             },
             token=token,
         )
-        deeplake.delete(path, large_ok=True, token=token, force=force, creds=creds)
+        try:
+            deeplake.delete(path, large_ok=True, token=token, force=force, creds=creds)
+            return True
+        except Exception as e:
+            raise e
 
     def __len__(self):
         """Length of the dataset"""
