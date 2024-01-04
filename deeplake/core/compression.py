@@ -36,22 +36,6 @@ import math
 from pathlib import Path
 from gzip import GzipFile
 
-try:
-    import av  # type: ignore
-
-    _PYAV_INSTALLED = True
-except ImportError:
-    _PYAV_INSTALLED = False
-
-
-try:
-    import nibabel as nib  # type: ignore
-    from nibabel import FileHolder, Nifti1Image, Nifti2Image  # type: ignore
-
-    _NIBABEL_INSTALLED = True
-except ImportError:
-    _NIBABEL_INSTALLED = False
-
 if sys.byteorder == "little":
     _NATIVE_INT32 = "<i4"
     _NATIVE_FLOAT32 = "<f4"
@@ -864,10 +848,13 @@ def _frame_to_stamp(nframe, stream):
 
 
 def _open_video(file: Union[str, bytes, memoryview]):
-    if not _PYAV_INSTALLED:
+    try:
+        import av  # type: ignore
+    except ImportError:
         raise ModuleNotFoundError(
             "PyAV is not installed. Run `pip install deeplake[video]`."
         )
+
     if isinstance(file, str):
         container = av.open(
             file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
@@ -886,6 +873,8 @@ def _open_video(file: Union[str, bytes, memoryview]):
 
 
 def _read_metadata_from_vstream(container, vstream):
+    import av
+
     duration = vstream.duration
     if duration is None:
         duration = container.duration
@@ -920,6 +909,8 @@ def _decompress_video(
     step: int,
     reverse: bool,
 ):
+    import av
+
     container, vstream = _open_video(file)
     nframes, height, width, _ = _read_metadata_from_vstream(container, vstream)[0]
 
@@ -983,6 +974,8 @@ def _read_timestamps(
     step: int,
     reverse: bool,
 ) -> np.ndarray:
+    import av
+
     container, vstream = _open_video(file)
 
     nframes = math.ceil((stop - start) / step)
@@ -1039,10 +1032,13 @@ def _read_timestamps(
 
 
 def _open_audio(file: Union[str, bytes, memoryview]):
-    if not _PYAV_INSTALLED:
+    try:
+        import av
+    except ImportError:
         raise ModuleNotFoundError(
             "PyAV is not installed. Please run `pip install deeplake[audio]`"
         )
+
     if isinstance(file, str):
         container = av.open(
             file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
@@ -1061,6 +1057,8 @@ def _open_audio(file: Union[str, bytes, memoryview]):
 
 
 def _read_shape_from_astream(container, astream):
+    import av
+
     nchannels = astream.channels
     duration = astream.duration
     if duration is None:
@@ -1090,6 +1088,8 @@ def _read_audio_shape(
 def _read_audio_meta(
     file: Union[bytes, memoryview, str],
 ) -> dict:
+    import av
+
     container, astream = _open_audio(file)
     meta = {}
     if astream.duration:
@@ -1163,7 +1163,10 @@ def _read_3d_data_meta(file: Union[bytes, memoryview, str]):
 
 
 def _open_nifti(file: Union[bytes, memoryview, str], gz: bool = False):
-    if not _NIBABEL_INSTALLED:
+    try:
+        import nibabel as nib  # type: ignore
+        from nibabel import FileHolder, Nifti1Image, Nifti2Image  # type: ignore
+    except ImportError:
         raise ModuleNotFoundError(
             "nibabel is not installed. Please run `pip install deeplake[medical]`"
         )

@@ -1968,15 +1968,6 @@ def test_hub_exists(ds_generator, path, hub_token, convert_to_pathlib):
     assert deeplake.exists(f"{path}_does_not_exist", token=hub_token) == False
 
 
-def test_pyav_not_installed(local_ds, video_paths):
-    pyav_installed = deeplake.core.compression._PYAV_INSTALLED
-    deeplake.core.compression._PYAV_INSTALLED = False
-    local_ds.create_tensor("videos", htype="video", sample_compression="mp4")
-    with pytest.raises(SampleAppendError):
-        local_ds.videos.append(deeplake.read(video_paths["mp4"][0]))
-    deeplake.core.compression._PYAV_INSTALLED = pyav_installed
-
-
 @pytest.mark.slow
 def test_partial_read_then_write(s3_ds_generator):
     ds = s3_ds_generator()

@@ -8,22 +8,6 @@ from typing import Dict, Optional, Union
 from deeplake.util.hash import hash_inputs
 import logging
 
-try:
-    from httplib2 import Http  # type: ignore
-    from googleapiclient import discovery  # type: ignore
-    from googleapiclient.http import (  # type: ignore
-        MediaIoBaseDownload,
-        MediaIoBaseUpload,
-    )
-    from googleapiclient.errors import HttpError  # type: ignore
-    from google.auth.transport.requests import Request  # type: ignore
-    from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
-    from google.oauth2.credentials import Credentials  # type: ignore
-
-    _GDRIVE_PACKAGES_INSTALLED = True
-except ImportError:
-    _GDRIVE_PACKAGES_INSTALLED = False
-
 
 logging.getLogger("googleapiclient.discovery_cache").setLevel(logging.ERROR)
 
@@ -47,6 +31,7 @@ class GoogleDriveIDManager:
 
     def find_id(self, path):
         """Find google drive id given path of folder"""
+        from googleapiclient.errors import HttpError  # type: ignore
 
         dirname, basename = posixpath.split(path)
         try:
@@ -113,11 +98,23 @@ class GDriveProvider(StorageProvider):
             token(dict, str, optional): Google Drive token. Can be path to the token file or the actual credentials dictionary.
             makemap(bool): Creates path to id map if ``True``.
 
+        Raises:
+            ImportError: If required packages are not installed.
+
         Note:
             - Requires ``client_secrets.json`` in working directory if ``token`` is not provided.
             - Due to limits on requests per 100 seconds on google drive api, continuous requests such as uploading many small files can be slow.
             - Users can request to increse their quotas on their google cloud platform.
         """
+        try:
+            import googleapiclient  # type: ignore
+            from google.auth.transport.requests import Request  # type: ignore
+            from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
+            from google.oauth2.credentials import Credentials  # type: ignore
+        except ImportError:
+            raise ImportError(
+                "Packages required for Google Drive Storage not installed. Run `pip install deeplake[gdrive]`."
+            )
 
         creds = None
 
@@ -171,6 +168,8 @@ class GDriveProvider(StorageProvider):
         self._init_provider(creds, makemap=makemap)
 
     def _init_provider(self, creds, makemap=True):
+        from googleapiclient import discovery  # type: ignore
+
         self.drive = discovery.build("drive", "v3", credentials=creds)
         self.root_path = self.root.replace("gdrive://", "")
         if self.root_path == "":
@@ -192,6 +191,8 @@ class GDriveProvider(StorageProvider):
             self.gid.makemap(self.root_id, self.root_path)
 
     def _init_from_state(self):
+        from google.oauth2.credentials import Credentials  # type: ignore
+
         token = {
             "client_id": self.client_id,
             "client_secret": self.client_secret,
@@ -230,6 +231,8 @@ class GDriveProvider(StorageProvider):
         return folder
 
     def _create_file(self, name, mimeType, parent=None, content=None):
+        from googleapiclient.http import MediaIoBaseUpload  # type: ignore
+
         file_metadata = {
             "name": name,
             "mimeType": mimeType,
@@ -249,6 +252,8 @@ class GDriveProvider(StorageProvider):
         return file
 
     def _write_to_file(self, id, content):
+        from googleapiclient.http import MediaIoBaseUpload  # type: ignore
+
         content = MediaIoBaseUpload(BytesIO(content), FILE)
         file = self.drive.files().update(media_body=content, fileId=id).execute()
         return file
@@ -262,6 +267,8 @@ class GDriveProvider(StorageProvider):
         self.gid.makemap(self.root_id, self.root_path)
 
     def get_object_by_id(self, id):
+        from googleapiclient.http import MediaIoBaseDownload  # type: ignore
+
         request = self.drive.files().get_media(fileId=id)
         file = BytesIO()
         downloader = MediaIoBaseDownload(file, request)
