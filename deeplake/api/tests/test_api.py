@@ -56,6 +56,8 @@ from deeplake.util.bugout_reporter import feature_report_path
 from rich import print as rich_print
 from io import BytesIO
 
+import pickle
+
 # need this for 32-bit and 64-bit systems to have correct tests
 MAX_INT_DTYPE = np.int_.__name__
 MAX_FLOAT_DTYPE = np.float_.__name__
@@ -826,6 +828,28 @@ def test_like(local_path, convert_to_pathlib):
     assert dest_ds.d.info.key == 1
 
     assert len(dest_ds) == 0
+
+
+def test_inplace_like(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc", htype="class_label")
+        ds.abc.extend([1, 0, 1, 0, 0, 1])
+        ds.abc.info.update(class_names=["a", "b"])
+
+    # reload to ensure we are not using cached data
+    ds = pickle.loads(pickle.dumps(ds))
+
+    with deeplake.like(local_ds.path, local_ds.path, overwrite=True) as ds:
+        assert ds.abc.meta.htype == "class_label"
+        assert ds.abc.info.class_names == ["a", "b"]
+
+        ds.abc.extend([1, 0, 1, 0, 0, 1])
+
+    ds = pickle.loads(pickle.dumps(ds))
+
+    with deeplake.like(ds, ds, overwrite=True) as ds:
+        assert ds.abc.meta.htype == "class_label"
+        assert ds.abc.info.class_names == ["a", "b"]
 
 
 def test_tensor_creation_fail_recovery():
