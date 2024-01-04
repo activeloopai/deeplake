@@ -1162,34 +1162,57 @@ class Tensor:
                         val = cast_to_type(val, tensor.dtype)
                         tensor[global_sample_index] = val
 
-    def _check_for_pop(self, index: Optional[int] = None):
-        if (
-            index is not None
-            and index != self.num_samples - 1
-            and self.meta.htype == "embedding"
-            and len(self.get_vdb_indexes()) > 0
-        ):
-            raise EmbeddingTensorPopError(self.meta.name, index)
+    def _check_for_pop(self, index: List[int]):
+        for idx in index:
+            if (
+                idx != self.num_samples - 1
+                and self.meta.htype == "embedding"
+                and len(self.get_vdb_indexes()) > 0
+            ):
+                raise EmbeddingTensorPopError(self.meta.name, idx)
 
-    def _pop(self, index: Optional[int] = None):
-        sample_id_tensor = self._sample_id_tensor
-        if index is None:
-            index = self.num_samples - 1
-        sample_id = int(sample_id_tensor[index].numpy()) if sample_id_tensor else None
+    def _pop(self, index: List[int]):
+        """Removes elements at the given indices. ``index`` must be sorted in descending order."""
+        self._check_for_pop(index)
         self.chunk_engine.pop(
             index,
             link_callback=self._pop_links if self.meta.links else None,
-            sample_id=sample_id,
+            sample_id_tensor=self._sample_id_tensor,
         )
         self.invalidate_libdeeplake_dataset()
 
     @invalid_view_op
-    def pop(self, index: Optional[int] = None):
-        """Removes an element at the given index."""
-        self._check_for_pop(index)
+    def pop(self, index: Optional[Union[int, List[int]]] = None):
+        """Removes element(s) at the given index / indices."""
+        if index is None:
+            index = [self.num_samples - 1]
+
+        if not isinstance(index, list):
+            index = [index]
+
+        if not index:
+            return
+
+        if len(set(index)) != len(index):
+            raise ValueError("Duplicate indices are not allowed.")
+
+        length = self.num_samples
+        if length == 0:
+            raise IndexError("Can't pop from empty tensor")
+
+        for idx in index:
+            if idx < 0:
+                raise IndexError("Pop doesn't support negative indices.")
+            elif idx >= length:
+                raise IndexError(
+                    f"Index {idx} is out of range. The tensor has {length} samples."
+                )
+
+        index = sorted(index, reverse=True)
+
         self._pop(index)
         if index_maintenance.is_embedding_tensor(self):
-            row_ids = [index if index is not None else self.num_samples - 1]
+            row_ids = index[:]
             index_maintenance.index_operation_dataset(
                 self.dataset,
                 dml_type=_INDEX_OPERATION_MAPPING["REMOVE"],
@@ -1211,8 +1234,7 @@ class Tensor:
                 assert seq_enc is not None
                 for link in flat_links:
                     link_tensor = self.dataset[rev_tensor_names.get(link)]
-                    for idx in reversed(range(*seq_enc[global_sample_index])):
-                        link_tensor.pop(idx)
+                    link_tensor.pop(list(range(*seq_enc[global_sample_index])))
         else:
             links = list(self.meta.links.keys())
         [

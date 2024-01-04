@@ -12,8 +12,6 @@ from deeplake.core.sample import Sample
 from deeplake.core.linked_sample import LinkedSample
 import pathlib
 
-import pandas as pd  # type: ignore
-
 
 from deeplake.client.log import logger
 
@@ -127,6 +125,7 @@ class DataFrame(StructuredDataset):
 
     def _get_extend_values(self, tensor_params: dict, key: str):  # type: ignore
         """Method creates a list of values to be extended to the tensor, based on the tensor parameters and the data in the dataframe column"""
+        import pandas as pd  # type: ignore
 
         column_data = self.source[key]
         column_data = column_data.where(pd.notnull(column_data), None).values.tolist()

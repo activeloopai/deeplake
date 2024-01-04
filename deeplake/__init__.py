@@ -44,6 +44,7 @@ delete = api_dataset.delete
 rename = api_dataset.rename
 copy = api_dataset.copy
 deepcopy = api_dataset.deepcopy
+query = api_dataset.query
 connect = api_dataset.connect
 ingest_classification = api_dataset.ingest_classification
 ingest_coco = api_dataset.ingest_coco
@@ -82,6 +83,7 @@ __all__ = [
     "config",
     "delete",
     "copy",
+    "query",
     "rename",
     "random",
 ]

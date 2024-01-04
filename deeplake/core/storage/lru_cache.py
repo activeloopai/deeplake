@@ -186,6 +186,15 @@ class LRUCache(StorageProvider):
 
         raise ValueError(f"Item at '{path}' got an invalid type: '{type(item)}'.")
 
+    def _get_item_from_cache(self, path: str):
+        if path in self.deeplake_objects:
+            if path in self.lru_sizes:
+                self.lru_sizes.move_to_end(path)  # refresh position for LRU
+            return self.deeplake_objects[path]
+        elif path in self.lru_sizes:
+            self.lru_sizes.move_to_end(path)  # refresh position for LRU
+            return self.cache_storage[path]
+
     def __getitem__(self, path: str):
         """If item is in cache_storage, retrieves from there and returns.
         If item isn't in cache_storage, retrieves from next storage, stores in cache_storage (if possible) and returns.
@@ -199,13 +208,9 @@ class LRUCache(StorageProvider):
         Returns:
             bytes: The bytes of the object present at the path.
         """
-        if path in self.deeplake_objects:
-            if path in self.lru_sizes:
-                self.lru_sizes.move_to_end(path)  # refresh position for LRU
-            return self.deeplake_objects[path]
-        elif path in self.lru_sizes:
-            self.lru_sizes.move_to_end(path)  # refresh position for LRU
-            return self.cache_storage[path]
+        result = self._get_item_from_cache(path)
+        if result is not None:
+            return result
         else:
             if self.next_storage is not None:
                 # fetch from storage, may throw KeyError
@@ -216,7 +221,7 @@ class LRUCache(StorageProvider):
                 return result
             raise KeyError(path)
 
-    def load_items_from_next_storage(self, paths):
+    def get_items(self, paths):
         """Pre-load items from next storage into cache"""
         if self.next_storage is not None:
             for key, result in self.next_storage.get_items(paths):
@@ -224,6 +229,7 @@ class LRUCache(StorageProvider):
                     continue
                 if _get_nbytes(result) <= self.cache_size:
                     self._insert_in_cache(key, result)
+                yield result
 
     def get_bytes(
         self,
@@ -287,17 +293,7 @@ class LRUCache(StorageProvider):
 
         self.maybe_flush()
 
-    def __delitem__(self, path: str):
-        """Deletes the object present at the path from the cache and the underlying storage.
-
-        Args:
-            path (str): the path to the object relative to the root of the provider.
-
-        Raises:
-            KeyError: If an object is not found at the path.
-            ReadOnlyError: If the provider is in read-only mode.
-        """
-        self.check_readonly()
+    def _del_item_from_cache(self, path: str):
         deleted_from_cache = False
 
         if path in self.deeplake_objects:
@@ -310,6 +306,21 @@ class LRUCache(StorageProvider):
             del self.cache_storage[path]
             self.dirty_keys.pop(path, None)
             deleted_from_cache = True
+
+        return deleted_from_cache
+
+    def __delitem__(self, path: str):
+        """Deletes the object present at the path from the cache and the underlying storage.
+
+        Args:
+            path (str): the path to the object relative to the root of the provider.
+
+        Raises:
+            KeyError: If an object is not found at the path.
+            ReadOnlyError: If the provider is in read-only mode.
+        """
+        self.check_readonly()
+        deleted_from_cache = self._del_item_from_cache(path)
 
         try:
             if self.next_storage is not None:

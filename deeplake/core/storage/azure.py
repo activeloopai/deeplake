@@ -11,28 +11,17 @@ from concurrent.futures import ThreadPoolExecutor
 from deeplake.util.path import relpath
 from concurrent import futures
 
-try:
-    from azure.identity import DefaultAzureCredential  # type: ignore
-    from azure.storage.blob import (  # type: ignore
-        BlobServiceClient,
-        BlobSasPermissions,
-        ContainerSasPermissions,
-        generate_blob_sas,
-        generate_container_sas,
-    )
-    from azure.core.credentials import AzureNamedKeyCredential, AzureSasCredential
-
-    logger = logging.getLogger("azure.identity")
-    logger.setLevel(logging.ERROR)
-
-    _AZURE_PACKAGES_INSTALLED = True
-except ImportError:
-    _AZURE_PACKAGES_INSTALLED = False
-
 
 class AzureProvider(StorageProvider):
     def __init__(self, root: str, creds: Dict = {}, token: Optional[str] = None):
-        if not _AZURE_PACKAGES_INSTALLED:
+        try:
+            import azure.identity
+            import azure.storage.blob
+            import azure.core
+
+            logger = logging.getLogger("azure.identity")
+            logger.setLevel(logging.ERROR)
+        except ImportError:
             raise ImportError(
                 "Azure packages not installed. Run `pip install deeplake[azure]`."
             )
@@ -69,6 +58,9 @@ class AzureProvider(StorageProvider):
         return account_name, container_name, root_folder
 
     def _set_credential(self, creds: Dict[str, str]):
+        from azure.identity import DefaultAzureCredential  # type: ignore
+        from azure.core.credentials import AzureNamedKeyCredential, AzureSasCredential
+
         self.account_name = (
             creds.get("account_name") or self.account_name
         )  # account name in creds can override account name in path
@@ -86,6 +78,8 @@ class AzureProvider(StorageProvider):
             self.credential = DefaultAzureCredential()
 
     def _set_clients(self):
+        from azure.storage.blob import BlobServiceClient  # type: ignore
+
         self.blob_service_client = BlobServiceClient(
             self.account_url, credential=self.credential
         )
@@ -162,6 +156,8 @@ class AzureProvider(StorageProvider):
             self.container_client.delete_blobs(*batch)
 
     def get_sas_token(self):
+        from azure.storage.blob import generate_container_sas, ContainerSasPermissions  # type: ignore
+
         self._check_update_creds()
         if self.sas_token:
             return self.sas_token
@@ -288,6 +284,8 @@ class AzureProvider(StorageProvider):
         return blob_client.get_blob_properties().size
 
     def get_clients_from_full_path(self, url: str):
+        from azure.storage.blob import BlobServiceClient  # type: ignore
+
         self._check_update_creds()
         account_name, container_name, blob_path = self._get_attrs(url)
         account_url = f"https://{account_name}.blob.core.windows.net"
@@ -298,6 +296,8 @@ class AzureProvider(StorageProvider):
         return blob_client, blob_service_client
 
     def get_presigned_url(self, path: str, full: bool = False) -> str:
+        from azure.storage.blob import BlobSasPermissions, generate_blob_sas  # type: ignore
+
         self._check_update_creds()
         if full:
             blob_client, blob_service_client = self.get_clients_from_full_path(path)
@@ -356,6 +356,8 @@ class AzureProvider(StorageProvider):
         """If the client has an expiration time, check if creds are expired and fetch new ones.
         This would only happen for datasets stored on Deep Lake storage for which temporary 12 hour credentials are generated.
         """
+        from azure.core.credentials import AzureSasCredential  # type: ignore
+
         if self.expiration and (
             force or float(self.expiration) < datetime.now(timezone.utc).timestamp()
         ):
@@ -378,7 +380,7 @@ class AzureProvider(StorageProvider):
                 self.credential = AzureSasCredential(self.sas_token)
 
     def get_items(self, keys):
-        with ThreadPoolExecutor(max_workers=8) as executor:
+        with ThreadPoolExecutor() as executor:
             future_to_key = {
                 executor.submit(self.__getitem__, key): key for key in keys
             }

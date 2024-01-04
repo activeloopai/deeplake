@@ -192,6 +192,7 @@ class dataset:
             ValueError: If version is specified in the path when creating a dataset or If the org id is provided but dataset is ot local, or If the org id is provided but dataset is ot local
             ReadOnlyModeError: If reset is attempted in read-only mode
             LockedException: When attempting to open a dataset for writing when it is locked by another machine
+            DatasetHandlerError: If overwriting the dataset fails
             Exception: Re-raises caught exception if reset cannot fix the issue
 
         Danger:
@@ -237,7 +238,12 @@ class dataset:
 
         if ds_exists:
             if overwrite:
-                cache_chain.clear()
+                try:
+                    cache_chain.clear()
+                except Exception as e:
+                    raise DatasetHandlerError(
+                        "Dataset overwrite failed. See traceback for more information."
+                    ) from e
                 create = True
             else:
                 create = False
@@ -452,7 +458,12 @@ class dataset:
             raise
 
         if overwrite and dataset_exists(cache_chain):
-            cache_chain.clear()
+            try:
+                cache_chain.clear()
+            except Exception as e:
+                raise DatasetHandlerError(
+                    "Dataset overwrite failed. See traceback for more information."
+                ) from e
         elif dataset_exists(cache_chain):
             raise DatasetHandlerError(
                 f"A dataset already exists at the given path ({path}). If you want to create"
@@ -871,7 +882,14 @@ class dataset:
                     raise DatasetHandlerError(
                         f"Path {path} is empty or does not exist. Cannot delete."
                     )
-                base_storage.clear()
+
+                try:
+                    base_storage.clear()
+                except Exception as e2:
+                    raise DatasetHandlerError(
+                        "Dataset delete failed. See traceback for more information."
+                    ) from e2
+
                 remove_path_from_backend(path, token)
                 if verbose:
                     logger.info(f"{path} folder deleted successfully.")
@@ -991,8 +1009,10 @@ class dataset:
         src = convert_pathlib_to_string_if_needed(src)
         if isinstance(src, str):
             source_ds = dataset.load(src, verbose=verbose)
+            src_path = src
         else:
             source_ds = src
+            src_path = src.path
 
         if tensors:
             tensors = source_ds._resolve_tensor_list(tensors)  # type: ignore
@@ -1005,16 +1025,24 @@ class dataset:
             dest_path = dest.path
         else:
             dest_path = dest
-            destination_ds = dataset.empty(
-                dest,
-                runtime=runtime,
-                creds=creds,
-                overwrite=overwrite,
-                token=token,
-                org_id=org_id,
-                public=public,
-                verbose=verbose,
-            )
+            common_kwargs = {
+                "creds": creds,
+                "token": token,
+                "org_id": org_id,
+                "verbose": verbose,
+            }
+            if dest_path == src_path:
+                destination_ds = dataset.load(
+                    dest_path, read_only=False, **common_kwargs
+                )
+            else:
+                destination_ds = dataset.empty(
+                    dest_path,
+                    runtime=runtime,
+                    public=public,
+                    overwrite=overwrite,
+                    **common_kwargs,  # type: ignore
+                )
 
         feature_report_path(
             dest_path, "like", {"Overwrite": overwrite, "Public": public}, token=token
@@ -1025,9 +1053,18 @@ class dataset:
         elif unlink is False:
             unlink = []
         for tensor_name in tensors:  # type: ignore
+            source_tensor = source_ds[tensor_name]
             if overwrite and tensor_name in destination_ds:
+                if dest_path == src_path:
+                    # load tensor data to memory before deleting
+                    # in case of in-place deeplake.like
+                    meta = source_tensor.meta
+                    info = source_tensor.info
+                    sample_shape_tensor = source_tensor._sample_shape_tensor
+                    sample_id_tensor = source_tensor._sample_id_tensor
+                    sample_info_tensor = source_tensor._sample_info_tensor
                 destination_ds.delete_tensor(tensor_name)
-            destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name], unlink=tensor_name in unlink)  # type: ignore
+            destination_ds.create_tensor_like(tensor_name, source_tensor, unlink=tensor_name in unlink)  # type: ignore
 
         destination_ds.info.update(source_ds.info.__getstate__())  # type: ignore
 
@@ -1239,7 +1276,12 @@ class dataset:
 
         if dataset_exists(cache_chain):
             if overwrite:
-                cache_chain.clear()
+                try:
+                    cache_chain.clear()
+                except Exception as e:
+                    raise DatasetHandlerError(
+                        "Dataset overwrite failed. See traceback for more information."
+                    ) from e
             else:
                 raise DatasetHandlerError(
                     f"A dataset already exists at the given path ({dest}). If you want to copy to a new dataset, either specify another path or use overwrite=True."
@@ -2014,3 +2056,10 @@ class dataset:
         structured.fill_dataset(ds, progressbar)  # type: ignore
 
         return ds  # type: ignore
+
+    @staticmethod
+    @spinner
+    def query(query_string: str, token: Optional[str] = "") -> Dataset:
+        from deeplake.enterprise.libdeeplake_query import universal_query
+
+        return universal_query(query_string=query_string, token=token)

@@ -1,13 +1,4 @@
 from pathlib import Path
-
-try:
-    import laspy as lp  # type: ignore
-    from laspy import LasData
-
-    _LASPY_INSTALLED = True
-except ImportError:
-    _LASPY_INSTALLED = False
-
 from deeplake.util.exceptions import UnsupportedExtensionError
 from deeplake.util.object_3d.point_cloud import PointCloudLas
 from deeplake.util.object_3d.mesh import MeshPly
@@ -20,7 +11,10 @@ _POINT_CLOUD_EXTENSIONS_TO_CLASS = {
 
 
 def read_3d_data(point_cloud_path):
-    if not _LASPY_INSTALLED:
+    try:
+        import laspy as lp  # type: ignore
+        from laspy import LasData
+    except ImportError:
         raise ModuleNotFoundError("laspy not found. Install using `pip install laspy`")
 
     if isinstance(point_cloud_path, str):

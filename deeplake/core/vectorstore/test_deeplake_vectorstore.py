@@ -1,3 +1,4 @@
+import pickle
 import uuid
 import os
 import sys
@@ -2977,3 +2978,24 @@ def test_returning_tql_for_exec_option_compute_engine_should_return_correct_tql(
         "(select *, COSINE_SIMILARITY(embedding, ARRAY[0.0, 0.0, 0.0]) as score "
         "order by COSINE_SIMILARITY(embedding, ARRAY[0.0, 0.0, 0.0]) DESC limit 4)"
     )
+
+
+def test_delete_all_bug(local_path):
+    vs = VectorStore("local_path", overwrite=True)
+    ids = vs.add(
+        text=["a", "b"],
+        metadata=[{}, {}],
+        embedding=[[1, 2, 3], [2, 3, 4]],
+        return_ids=True,
+    )
+
+    ds = vs.dataset
+    pickled = pickle.dumps(ds)
+    unpickled = pickle.loads(pickled)
+
+    vs = VectorStore(dataset=unpickled)
+
+    assert len(vs) == 2
+    vs.delete(delete_all=True)
+
+    assert len(vs) == 0

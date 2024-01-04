@@ -1,5 +1,6 @@
 import numpy as np
 import deeplake
+from deeplake.constants import MB
 from deeplake.api.tests.test_api_tiling import compressions_paremetrized
 import pytest
 
@@ -321,3 +322,72 @@ def test_sequence_pop_bug(local_ds_generator):
     assert len(ds._abc_shape.numpy()) == 5
 
     integrity_check(ds)
+
+
+def test_pop_list(local_ds_generator, cat_path):
+    with local_ds_generator() as ds:
+        ds.create_tensor(
+            "images", htype="image", sample_compression="jpg", max_chunk_size=2 * MB
+        )
+        ds.create_tensor(
+            "seq_images",
+            htype="sequence[image]",
+            sample_compression="jpg",
+            max_chunk_size=2 * MB,
+            # create_shape_tensor=False,
+            create_id_tensor=False,
+            create_sample_info_tensor=False,
+        )
+
+        ds.images.extend([deeplake.read(cat_path) for _ in range(10)])
+        ds.seq_images.extend(
+            [[deeplake.read(cat_path) for _ in range(i)] for i in range(10)]
+        )
+
+        ds.pop([0, 2, 4, 6, 8])
+
+        assert ds.images.numpy().shape == (5, 900, 900, 3)
+        assert len(ds._seq_images_shape.numpy()) == 25
+        integrity_check(ds)
+
+    # test persist
+    with local_ds_generator() as ds:
+        assert ds.images.numpy().shape == (5, 900, 900, 3)
+        assert len(ds._seq_images_shape.numpy()) == 25
+        integrity_check(ds)
+
+
+def test_pop_duplicate_indices(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend([1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
+
+    with pytest.raises(ValueError):
+        ds.pop([0, 2, 3, 0, 0])
+
+    with pytest.raises(ValueError):
+        ds.abc.pop([0, 2, 3, 0, 0])
+
+    ds.pop([0, 2, 3, 5])
+
+    assert len(ds.abc) == 6
+    assert ds.abc.numpy().flatten().tolist() == [2, 5, 7, 8, 9, 0]
+
+
+def test_pop_errors(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+
+    with pytest.raises(IndexError):
+        ds.abc.pop(0)
+
+    ds.abc.extend([1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
+
+    with pytest.raises(IndexError):
+        ds.pop(10)
+
+    with pytest.raises(IndexError):
+        ds.abc.pop(10)
+
+    with pytest.raises(IndexError):
+        ds.abc.pop(-1)

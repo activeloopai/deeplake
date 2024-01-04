@@ -8,8 +8,6 @@ import deeplake
 from deeplake.core.dataset import Dataset
 from deeplake.core.vectorstore.dataset_handlers import get_dataset_handler
 from deeplake.core.vectorstore.deep_memory import DeepMemory
-from deeplake.core.vectorstore.dataset_handlers import get_dataset_handler
-from deeplake.core.vectorstore.deep_memory import DeepMemory
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     MAX_BYTES_PER_MINUTE,
