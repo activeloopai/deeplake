@@ -1,5 +1,6 @@
 import deeplake
 from math import ceil
+from io import BytesIO
 import time
 import boto3
 import botocore  # type: ignore
@@ -8,6 +9,7 @@ from typing import Dict, Optional, Tuple, Type
 from datetime import datetime, timezone
 from botocore.session import ComponentLocator
 from deeplake.client.client import DeepLakeBackendClient
+from deeplake.constants import GB
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.util.exceptions import (
     S3GetAccessError,
@@ -153,12 +155,16 @@ class S3Provider(StorageProvider):
         return sd
 
     def _set(self, path, content):
-        self.client.put_object(
-            Bucket=self.bucket,
-            Body=content,
-            Key=path,
-            ContentType="application/octet-stream",  # signifies binary data
-        )
+        if len(content) >= 1 * GB:
+            stream = BytesIO(content)
+            self.client.upload_fileobj(stream, self.bucket, path)
+        else:
+            self.client.put_object(
+                Bucket=self.bucket,
+                Body=content,
+                Key=path,
+                ContentType="application/octet-stream",  # signifies binary data
+            )
 
     def __setitem__(self, path, content):
         """Sets the object present at the path with the value
