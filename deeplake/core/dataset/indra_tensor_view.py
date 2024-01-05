@@ -11,7 +11,7 @@ from deeplake.util.pretty_print import summary_tensor
 import json
 
 
-class DeepLakeQueryTensor(tensor.Tensor):
+class IndraTensorView(tensor.Tensor):
     def __init__(
         self,
         deeplake_tensor,
@@ -57,7 +57,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
         indra_tensor = self.indra_tensor[item]
 
-        return DeepLakeQueryTensor(
+        return IndraTensorView(
             self.deeplake_tensor,
             indra_tensor,
             index=self.index[item],

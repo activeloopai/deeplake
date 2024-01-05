@@ -30,10 +30,10 @@ from deeplake.core.dataset import Dataset
 
 import warnings
 
-from deeplake.core.dataset.deeplake_query_tensor import DeepLakeQueryTensor
+from deeplake.core.dataset.indra_tensor_view import IndraTensorView
 
 
-class DeepLakeQueryDataset(Dataset):
+class IndraDatasetView(Dataset):
     def __init__(
         self,
         deeplake_ds,
@@ -97,7 +97,7 @@ class DeepLakeQueryDataset(Dataset):
                 except:
                     pass
                 indra_tensor = tensor
-                return DeepLakeQueryTensor(
+                return IndraTensorView(
                     deeplake_tensor, indra_tensor, index=self.index
                 )
 
@@ -148,7 +148,7 @@ class DeepLakeQueryDataset(Dataset):
             if self.deeplake_ds is not None and self.deeplake_ds._has_group_in_root(
                 fullpath
             ):
-                ret = DeepLakeQueryDataset(
+                ret = IndraDatasetView(
                     deeplake_ds=self.deeplake_ds,
                     indra_ds=self.indra_ds,
                     index=self.index,
@@ -179,7 +179,7 @@ class DeepLakeQueryDataset(Dataset):
                     )
                     for x in item
                 ]
-                ret = DeepLakeQueryDataset(
+                ret = IndraDatasetView(
                     deeplake_ds=self.deeplake_ds,
                     indra_ds=self.indra_ds,
                     enabled_tensors=enabled_tensors,
@@ -197,7 +197,7 @@ class DeepLakeQueryDataset(Dataset):
                         warnings.warn(
                             "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
                         )
-                ret = DeepLakeQueryDataset(
+                ret = IndraDatasetView(
                     deeplake_ds=self.deeplake_ds,
                     indra_ds=self.indra_ds[item],
                     index=self.index[item],
@@ -349,11 +349,11 @@ class DeepLakeQueryDataset(Dataset):
         original_keys = set(original_tensors.keys())
         for t in indra_tensors:
             if t.name in original_keys:
-                original_tensors[t.name] = DeepLakeQueryTensor(
+                original_tensors[t.name] = IndraTensorView(
                     original_tensors[t.name], t, index=self.index
                 )
             else:
-                original_tensors[t.name] = DeepLakeQueryTensor(
+                original_tensors[t.name] = IndraTensorView(
                     None, t, index=self.index
                 )
         return original_tensors
@@ -391,4 +391,4 @@ class DeepLakeQueryDataset(Dataset):
             lengths = calculate_absolute_lengths(lengths, len(self))
 
         vs = self.indra_ds.random_split(lengths)
-        return [DeepLakeQueryDataset(self.deeplake_ds, v) for v in vs]
+        return [IndraDatasetView(self.deeplake_ds, v) for v in vs]
