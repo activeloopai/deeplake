@@ -32,7 +32,6 @@ class VectorStore:
         read_only: Optional[bool] = None,
         ingestion_batch_size: int = 1000,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
-        num_workers: int = 0,
         exec_option: str = "auto",
         token: Optional[str] = None,
         overwrite: bool = False,
@@ -76,7 +75,6 @@ class VectorStore:
             tensor_params (List[Dict[str, dict]], optional): List of dictionaries that contains information about tensors that user wants to create. See ``create_tensor`` in Deep Lake API docs for more information. Defaults to ``DEFAULT_VECTORSTORE_TENSORS``.
             embedding_function (Optional[Any], optional): Function or class that converts the embeddable data into embeddings. Input to `embedding_function` is a list of data and output is a list of embeddings. Defaults to None.
             read_only (bool, optional):  Opens dataset in read-only mode if True. Defaults to False.
-            num_workers (int): Number of workers to use for parallel ingestion.
             ingestion_batch_size (int): Batch size to use for parallel ingestion.
             index_params (Dict[str, Union[int, str]]): Dictionary containing information about vector index that will be created. Defaults to None, which will utilize ``DEFAULT_VECTORSTORE_INDEX_PARAMS`` from ``deeplake.constants``. The specified key-values override the default ones.
                 - threshold: The threshold for the dataset size above which an index will be created for the embedding tensor. When the threshold value is set to -1, index creation is turned off.
@@ -117,7 +115,7 @@ class VectorStore:
             read_only=read_only,
             ingestion_batch_size=ingestion_batch_size,
             index_params=index_params,
-            num_workers=num_workers,
+            num_workers=0,
             exec_option=exec_option,
             token=token,
             overwrite=overwrite,
