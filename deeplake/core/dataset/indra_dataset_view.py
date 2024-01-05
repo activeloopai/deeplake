@@ -97,9 +97,7 @@ class IndraDatasetView(Dataset):
                 except:
                     pass
                 indra_tensor = tensor
-                return IndraTensorView(
-                    deeplake_tensor, indra_tensor, index=self.index
-                )
+                return IndraTensorView(deeplake_tensor, indra_tensor, index=self.index)
 
     def pytorch(
         self,
@@ -353,9 +351,7 @@ class IndraDatasetView(Dataset):
                     original_tensors[t.name], t, index=self.index
                 )
             else:
-                original_tensors[t.name] = IndraTensorView(
-                    None, t, index=self.index
-                )
+                original_tensors[t.name] = IndraTensorView(None, t, index=self.index)
         return original_tensors
 
     def __str__(self):
