@@ -1108,7 +1108,7 @@ class DeepMemoryAccessError(Exception):
     def __init__(self):
         msg = (
             "Deep Memory is not available for organizations on Community plan."
-            "Please, consider upgrading or start a free trial."
+            "Please, consider upgrading or start a free trial at https://app.activeloop.ai/pricing."
         )
         super().__init__(msg)
 
