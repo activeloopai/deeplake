@@ -14,7 +14,7 @@ from deeplake.constants import (
     TARGET_BYTE_SIZE,
 )
 from deeplake.util.bugout_reporter import feature_report_path
-from deeplake.util.exceptions import DeepMemoryWaitingListError
+from deeplake.util.exceptions import DeepMemoryAccessError
 
 
 logger = logging.getLogger(__name__)
@@ -300,13 +300,13 @@ class VectorStore:
         Raises:
             ValueError: When invalid parameters are specified.
             ValueError: when deep_memory is True. Deep Memory is only available for datasets stored in the Deep Lake Managed Database for paid accounts.
-            DeepMemoryWaitingListError: if user is not waitlisted to use deep_memory.
+            DeepMemoryAccessError: if user does not have access to deep_memory.
 
         Returns:
             Dict: Dictionary where keys are tensor names and values are the results of the search
         """
         if deep_memory and not self.deep_memory:
-            raise DeepMemoryWaitingListError()
+            raise DeepMemoryAccessError()
 
         return self.dataset_handler.search(
             embedding_data=embedding_data,
