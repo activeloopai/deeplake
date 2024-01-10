@@ -16,6 +16,7 @@ IMAGE_COMPRESSIONS = [
     "ico",
     "im",
     "jpeg",
+    "jpg",
     "jpeg2000",
     "msp",
     "mpo",
@@ -40,6 +41,7 @@ IMAGE_COMPRESSION_EXT_DICT = {
     "ico": [".ico"],
     "im": [".im"],
     "jpeg": [".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp"],
+    "jpg": [".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp"],
     "jpeg2000": [
         ".jp2",
         ".j2k",
