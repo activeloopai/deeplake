@@ -111,3 +111,5 @@ def send_event():
 
 
 threading.Thread(target=send_event, daemon=True).start()
+
+shutdown_event = threading.Event()

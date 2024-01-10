@@ -430,7 +430,7 @@ def parse_update_arguments(
 def construct_embedding_tensor_data(
     embedding: Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]],
     embedding_tensor: Union[str, List[str]],
-) -> Dict[str, float | Any | list[float] | np.ndarray[Any, Any]]:
+) -> Dict[str, Union[float, Any, list[float], np.ndarray[Any, Any]]]:
     """Function for conctructing dictionary out of embedding and embedding_tensor
     Args:
         embedding (Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]]): embedding data

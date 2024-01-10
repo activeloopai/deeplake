@@ -1,5 +1,6 @@
 # type: ignore
 import os
+import sys
 import uuid
 import json
 import posixpath
@@ -3118,6 +3119,11 @@ class Dataset:
                     num_chunks = enc.num_chunks
                     num_samples = tensor.meta.length
                     if extend:
+                        if deeplake.shutdown_event.is_set():
+                            for k in tensors_appended:
+                                tensor = tensors[k]
+                                tensor.pop(list(range(tensor.num_samples - max_len, tensor.num_samples)))
+                            sys.exit()
                         tensor._extend(v)
                         if extend_extra_nones:
                             tensor._extend([None] * extend_extra_nones)
@@ -3211,6 +3217,9 @@ class Dataset:
                 else:
                     indices = range(n)
                 for i in indices:
+                    if deeplake.shutdown_event.is_set():
+                        self.pop(new_row_ids[:i])
+                        sys.exit()
                     try:
                         self._append_or_extend(
                             {k: v[i] for k, v in samples.items()},
@@ -3271,6 +3280,62 @@ class Dataset:
         index_maintenance.index_operation_dataset(
             self, dml_type=_INDEX_OPERATION_MAPPING["ADD"], rowids=new_row_ids
         )
+    
+    def _get_backup_samples(self, tensor_name, indices):
+        def get_sample_from_engine(
+            engine, idx, is_link, compression, dtype, decompress
+        ):
+            # tiled data will always be decompressed
+            decompress = decompress or engine._is_tiled_sample(idx)
+            if is_link:
+                creds_key = engine.creds_key(idx)
+                item = engine.get_path(idx)
+                return LinkedSample(item, creds_key)
+            item = engine.get_single_sample(idx, self.index, decompress=decompress)
+            shape = engine.read_shape_for_sample(idx)
+            return engine._get_sample_object(
+                item, shape, compression, dtype, decompress
+            )
+
+        tensor = self[tensor_name]
+        tensor_meta = tensor.meta
+        dtype = tensor_meta.dtype
+        sample_compression = tensor_meta.sample_compression
+        chunk_compression = tensor_meta.chunk_compression
+
+        compression = sample_compression or chunk_compression
+
+        engine = tensor.chunk_engine
+
+        decompress = chunk_compression is not None or engine.is_text_like
+
+        old_samples = []
+        for idx in indices:
+            if tensor_meta.is_sequence:
+                old_sample = []
+                for i in range(*engine.sequence_encoder[idx]):
+                    item = get_sample_from_engine(
+                        engine,
+                        i,
+                        tensor_meta.is_link,
+                        compression,
+                        dtype,
+                        decompress,
+                    )
+                    old_sample.append(item)
+            else:
+                old_sample = get_sample_from_engine(
+                    engine,
+                    idx,
+                    tensor_meta.is_link,
+                    compression,
+                    dtype,
+                    decompress,
+                )
+            old_samples.append(old_sample)
+        
+        return old_samples
+
 
     def update(self, sample: Dict[str, Any]):
         """Update existing samples in the dataset with new values.
@@ -3294,73 +3359,27 @@ class Dataset:
                 "Cannot make partial updates to samples using `ds.update`. Use `ds.tensor[index] = value` instead."
             )
 
-        def get_sample_from_engine(
-            engine, idx, is_link, compression, dtype, decompress
-        ):
-            # tiled data will always be decompressed
-            decompress = decompress or engine._is_tiled_sample(idx)
-            if is_link:
-                creds_key = engine.creds_key(idx)
-                item = engine.get_path(idx)
-                return LinkedSample(item, creds_key)
-            item = engine.get_single_sample(idx, self.index, decompress=decompress)
-            shape = engine.read_shape_for_sample(idx)
-            return engine._get_sample_object(
-                item, shape, compression, dtype, decompress
-            )
-
         # remove update hooks from view base so that the view is not invalidated
         if self._view_base:
             saved_update_hooks = self._view_base._update_hooks
             self._view_base._update_hooks = {}
-        idx = self.index.values[0].value
+
         with self:
             saved = defaultdict(list)
             try:
                 for k, v in sample.items():
-                    tensor_meta = self[k].meta
-                    dtype = tensor_meta.dtype
-                    sample_compression = tensor_meta.sample_compression
-                    chunk_compression = tensor_meta.chunk_compression
+                    if deeplake.shutdown_event.is_set():
+                        sys.exit()
 
-                    compression = sample_compression or chunk_compression
+                    if self.index.values[0].subscriptable():
+                        indices = list(self.index.values[0].indices(self[k].num_samples))
+                    else:
+                        indices = [self.index.values[0].value]
 
-                    engine = self[k].chunk_engine
-
-                    decompress = chunk_compression is not None or engine.is_text_like
-
-                    for idx in self.index.values[0].indices(self[k].num_samples):
-                        if tensor_meta.is_sequence:
-                            old_sample = []
-                            for i in range(*engine.sequence_encoder[idx]):
-                                item = get_sample_from_engine(
-                                    engine,
-                                    i,
-                                    tensor_meta.is_link,
-                                    compression,
-                                    dtype,
-                                    decompress,
-                                )
-                                old_sample.append(item)
-                        else:
-                            old_sample = get_sample_from_engine(
-                                engine,
-                                idx,
-                                tensor_meta.is_link,
-                                compression,
-                                dtype,
-                                decompress,
-                            )
-
-                        saved[k].append(old_sample)
+                    saved[k] = self._get_backup_samples(k, indices)
                     self[k] = v
-                # Regenerate Index
-                index_maintenance.index_operation_dataset(
-                    self,
-                    dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
-                    rowids=list(self.index.values[0].indices(self.__len__(warn=False))),
-                )
-            except Exception as e:
+            # except BaseException to catch sys.exit() as well
+            except BaseException as e:
                 for k, v in saved.items():
                     # squeeze
                     if len(v) == 1:
@@ -3371,14 +3390,15 @@ class Dataset:
                         raise Exception(
                             "Error while attempting to rollback updates"
                         ) from e2
+                raise e
+            finally:
+                # regenerate index in case of error or not
                 # in case of error, regenerate index again to avoid index corruption
                 index_maintenance.index_operation_dataset(
                     self,
                     dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
                     rowids=list(self.index.values[0].indices(self.__len__(warn=False))),
                 )
-                raise e
-            finally:
                 # restore update hooks
                 if self._view_base:
                     self._view_base._update_hooks = saved_update_hooks
@@ -4647,7 +4667,13 @@ class Dataset:
     def _pop(self, index: List[int]):
         """Removes elements at the given indices."""
         with self:
-            for tensor in self.tensors.values():
+            saved = {}
+            for k, tensor in self.tensors.items():
+                if deeplake.shutdown_event.is_set():
+                    for k, v in saved.items():
+                        self[k].extend(v)
+                    sys.exit()
+                saved[k] = self._get_backup_samples(k, index)
                 tensor._pop(index)
 
     @invalid_view_op
