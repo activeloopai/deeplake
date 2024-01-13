@@ -175,7 +175,7 @@ class LocalProvider(StorageProvider):
             for root, dirs, files in os.walk(full_path):
                 for file in files:
                     key_set.add(
-                        relpath(
+                        posixpath.relpath(
                             posixpath.join(pathlib.Path(root).as_posix(), file),
                             pathlib.Path(full_path).as_posix(),
                         )

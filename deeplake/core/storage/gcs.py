@@ -325,7 +325,7 @@ class GCSProvider(StorageProvider):
 
     def _all_keys(self):
         self._blob_objects = self.client_bucket.list_blobs(prefix=self.path)
-        return {relpath(obj.name, self.path) for obj in self._blob_objects}
+        return {posixpath.relpath(obj.name, self.path) for obj in self._blob_objects}
 
     def _set_hub_creds_info(
         self,
