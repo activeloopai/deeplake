@@ -107,6 +107,9 @@ class VectorStore:
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
         """
+
+        del kwargs["num_workers"]
+
         self.dataset_handler = get_dataset_handler(
             path=path,
             dataset=dataset,
