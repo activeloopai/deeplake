@@ -3122,7 +3122,14 @@ class Dataset:
                         if deeplake.shutdown_event.is_set():
                             for k in tensors_appended:
                                 tensor = tensors[k]
-                                tensor.pop(list(range(tensor.num_samples - max_len, tensor.num_samples)))
+                                tensor.pop(
+                                    list(
+                                        range(
+                                            tensor.num_samples - max_len,
+                                            tensor.num_samples,
+                                        )
+                                    )
+                                )
                             sys.exit()
                         tensor._extend(v)
                         if extend_extra_nones:
@@ -3280,7 +3287,7 @@ class Dataset:
         index_maintenance.index_operation_dataset(
             self, dml_type=_INDEX_OPERATION_MAPPING["ADD"], rowids=new_row_ids
         )
-    
+
     def _get_backup_samples(self, tensor_name, indices):
         def get_sample_from_engine(
             engine, idx, is_link, compression, dtype, decompress
@@ -3333,9 +3340,8 @@ class Dataset:
                     decompress,
                 )
             old_samples.append(old_sample)
-        
-        return old_samples
 
+        return old_samples
 
     def update(self, sample: Dict[str, Any]):
         """Update existing samples in the dataset with new values.
@@ -3365,31 +3371,15 @@ class Dataset:
             self._view_base._update_hooks = {}
 
         with self:
-            saved = defaultdict(list)
             try:
+                self._commit("Backup before update", None, False)
                 for k, v in sample.items():
                     if deeplake.shutdown_event.is_set():
                         sys.exit()
-
-                    if self.index.values[0].subscriptable():
-                        indices = list(self.index.values[0].indices(self[k].num_samples))
-                    else:
-                        indices = [self.index.values[0].value]
-
-                    saved[k] = self._get_backup_samples(k, indices)
                     self[k] = v
-            # except BaseException to catch sys.exit() as well
+            # except BaseException to catch system exit as well
             except BaseException as e:
-                for k, v in saved.items():
-                    # squeeze
-                    if len(v) == 1:
-                        v = v[0]
-                    try:
-                        self[k] = v
-                    except Exception as e2:
-                        raise Exception(
-                            "Error while attempting to rollback updates"
-                        ) from e2
+                self.reset(verbose=False)
                 raise e
             finally:
                 # regenerate index in case of error or not
@@ -4320,7 +4310,7 @@ class Dataset:
 
     @invalid_view_op
     @spinner
-    def reset(self, force: bool = False):
+    def reset(self, force: bool = False, verbose: bool = True):
         """Resets the uncommitted changes present in the branch.
 
         Note:
@@ -4333,10 +4323,10 @@ class Dataset:
         )
 
         storage, version_state = self.storage, self.version_state
-        if version_state["commit_node"].children:
+        if version_state["commit_node"].children and verbose:
             print("You are not at the head node of the branch, cannot reset.")
             return
-        if not self.has_head_changes and not force:
+        if not self.has_head_changes and not force and verbose:
             print("There are no uncommitted changes on this branch.")
             return
 
@@ -4667,14 +4657,14 @@ class Dataset:
     def _pop(self, index: List[int]):
         """Removes elements at the given indices."""
         with self:
-            saved = {}
-            for k, tensor in self.tensors.items():
-                if deeplake.shutdown_event.is_set():
-                    for k, v in saved.items():
-                        self[k].extend(v)
-                    sys.exit()
-                saved[k] = self._get_backup_samples(k, index)
-                tensor._pop(index)
+            self._commit("Backup before pop", None, False)
+            try:
+                for tensor in self.tensors.values():
+                    if deeplake.shutdown_event.is_set():
+                        sys.exit()
+                    tensor._pop(index)
+            except BaseException:
+                self.reset(verbose=False)
 
     @invalid_view_op
     def pop(self, index: Optional[int] = None):
