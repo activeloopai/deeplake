@@ -199,7 +199,7 @@ def test_metadata(local_auth_ds_generator):
     assert deeplake_indra_ds.label.sample_compression == None
     assert deeplake_indra_ds.image.htype == "image"
     assert deeplake_indra_ds.image.dtype == np.uint8
-    assert deeplake_indra_ds.image.sample_compression == "jpg"
+    assert deeplake_indra_ds.image.sample_compression == "jpeg"
     assert deeplake_indra_ds.sequence.htype == "sequence[class_label]"
     assert deeplake_indra_ds.sequence.dtype == np.uint8
     assert deeplake_indra_ds.sequence.sample_compression == None
