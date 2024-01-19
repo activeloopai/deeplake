@@ -382,6 +382,8 @@ class S3Provider(StorageProvider):
 
     def _clear(self, prefix):
         bucket = self.resource.Bucket(self.bucket)
+        _error = False
+        _success = False
         for response in bucket.objects.filter(Prefix=prefix):
             try:
                 self.client.delete_object(Bucket=response.bucket_name, Key=response.key)
