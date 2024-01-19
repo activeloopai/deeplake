@@ -384,7 +384,7 @@ class S3Provider(StorageProvider):
         bucket = self.resource.Bucket(self.bucket)
         for response in bucket.objects.filter(Prefix=prefix):
             try:
-                self.client.delete_object(Bucket=response.bucket, Key=response.key)
+                self.client.delete_object(Bucket=response.bucket_name, Key=response.key)
                 _success = True
             except botocore.exceptions.ClientError:
                 _error = True
