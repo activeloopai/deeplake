@@ -54,7 +54,7 @@ class SampleCompressedChunk(BaseChunk):
                 else:
                     if serialized_sample:
                         sample = Sample(
-                            buffer=serialized_sample, compression=compr, shape=shape, dtype=dtype  # type: ignore
+                            buffer=serialized_sample, compression=compr, shape=shape, dtype=dtype, path=incoming_sample.path  # type: ignore
                         )
                         sample.htype = self.htype
                         incoming_samples[i] = sample
