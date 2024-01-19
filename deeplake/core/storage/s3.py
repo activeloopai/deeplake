@@ -382,9 +382,17 @@ class S3Provider(StorageProvider):
 
     def _clear(self, prefix):
         bucket = self.resource.Bucket(self.bucket)
-        for response in bucket.objects.filter(Prefix=prefix).delete():
-            if response["Errors"]:
-                raise S3DeletionError(response["Errors"][0]["Message"])
+        for response in bucket.objects.filter(Prefix=prefix):
+            try:
+                self.client.delete_object(Bucket=response.bucket, Key=response.key)
+                _success = True
+            except botocore.exceptions.ClientError:
+                _error = True
+                continue
+        if _error != _success:
+            raise S3DeletionError("Partial deletion error")
+        if _error:
+            raise S3DeletionError()
 
     def clear(self, prefix=""):
         """Deletes ALL data with keys having given prefix on the s3 bucket (under self.root).
@@ -396,12 +404,7 @@ class S3Provider(StorageProvider):
         self._check_update_creds()
         path = posixpath.join(self.path, prefix) if prefix else self.path
         if self.resource is not None:
-            try:
-                self._clear(path)
-            except Exception as err:
-                with S3ResetReloadCredentialsManager(self, S3DeletionError):
-                    self._clear(path)
-
+            self._clear(path)
         else:
             super().clear()
 
