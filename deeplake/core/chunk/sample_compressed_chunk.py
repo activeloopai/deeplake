@@ -61,7 +61,7 @@ class SampleCompressedChunk(BaseChunk):
                             compression=compr,
                             shape=shape,
                             dtype=dtype,
-                            path=path  # type: ignore
+                            path=path,  # type: ignore
                         )
                         sample.htype = self.htype
                         incoming_samples[i] = sample
