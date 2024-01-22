@@ -54,9 +54,14 @@ def storage_provider_from_path(
     if creds is None:
         creds = {}
     if path.startswith("hub://"):
-        storage: StorageProvider = storage_provider_from_hub_path(
-            path, read_only, db_engine=db_engine, token=token, creds=creds
-        )
+        if read_only and not db_engine:
+            from deeplake.core.storage.indra import IndraProvider
+
+            storage = IndraProvider(path, read_only=True, token=token, creds=creds)
+        else:
+            storage: StorageProvider = storage_provider_from_hub_path(
+                path, read_only, db_engine=db_engine, token=token, creds=creds
+            )
     else:
         if path.startswith("s3://"):
             creds_used = "PLATFORM"

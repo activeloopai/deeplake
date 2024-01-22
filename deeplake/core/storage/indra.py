@@ -2,6 +2,7 @@ from deeplake.core.storage.provider import StorageProvider
 from indra.api import storage
 from typing import Optional, Union
 
+
 class IndraProvider(StorageProvider):
     """Provider class for using Indra storage provider."""
 
@@ -24,17 +25,26 @@ class IndraProvider(StorageProvider):
         self.core.set(path, content)
 
     def __getitem__(self, path):
-        return bytes(self.core.get(path))
+        try:
+            return bytes(self.core.get(path))
+        except RuntimeError as e:
+            raise KeyError(path)
 
     def get_bytes(
         self, path, start_byte: Optional[int] = None, end_byte: Optional[int] = None
     ):
         s = start_byte or 0
         e = end_byte or 0
-        return bytes(self.core.get(path, s, e))
+        try:
+            return bytes(self.core.get(path, s, e))
+        except RuntimeError as e:
+            raise KeyError(path)
 
     def get_object_size(self, path: str) -> int:
-        return self.core.length(path)
+        try:
+            return self.core.length(path)
+        except RuntimeError as e:
+            raise KeyError(path)
 
     def __delitem__(self, path):
         return self.core.remove(path)
@@ -50,4 +60,3 @@ class IndraProvider(StorageProvider):
 
     def clear(self, prefix=""):
         self.core.clear(prefix)
-
