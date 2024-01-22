@@ -180,7 +180,7 @@ class AzureProvider(StorageProvider):
         self._check_update_creds()
         prefix = posixpath.join(self.root_folder, prefix)
         return {
-            relpath(blob.name, self.root_folder)
+            posixpath.relpath(blob.name, self.root_folder)
             for blob in self.container_client.list_blobs(
                 name_starts_with=prefix, include=["metadata"]
             )

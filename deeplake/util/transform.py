@@ -348,7 +348,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     if isinstance(data_slice, deeplake.Dataset):
         data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
-    rel_tensors = [relpath(tensor, group_index) for tensor in visible_tensors]
+    rel_tensors = [posixpath.relpath(tensor, group_index) for tensor in visible_tensors]
 
     transform_dataset = TransformDataset(
         rel_tensors,

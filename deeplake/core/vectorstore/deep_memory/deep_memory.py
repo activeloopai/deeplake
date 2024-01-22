@@ -10,8 +10,7 @@ import numpy as np
 
 import deeplake
 from deeplake.util.exceptions import (
-    DeepMemoryWaitingListError,
-    DeepMemoryWaitingListError,
+    DeepMemoryAccessError,
     IncorrectRelevanceTypeError,
     IncorrectQueriesTypeError,
 )
@@ -40,7 +39,7 @@ RECALL = "recall@10"
 def access_control(func):
     def wrapper(self, *args, **kwargs):
         if self.client is None:
-            raise DeepMemoryWaitingListError()
+            raise DeepMemoryAccessError()
         return func(self, *args, **kwargs)
 
     return wrapper
