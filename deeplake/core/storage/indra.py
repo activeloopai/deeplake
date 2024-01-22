@@ -1,5 +1,5 @@
 from deeplake.core.storage.provider import StorageProvider
-from indra.api import storage
+from indra.api import storage # type: ignore
 from typing import Optional, Union
 
 
