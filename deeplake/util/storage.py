@@ -57,9 +57,9 @@ def storage_provider_from_path(
         if read_only and not db_engine:
             from deeplake.core.storage.indra import IndraProvider
 
-            storage = IndraProvider(path, read_only=True, token=token, creds=creds)
+            storage: StorageProvider = IndraProvider(path, read_only=True, token=token, creds=creds)
         else:
-            storage: StorageProvider = storage_provider_from_hub_path(
+            storage = storage_provider_from_hub_path(
                 path, read_only, db_engine=db_engine, token=token, creds=creds
             )
     else:
