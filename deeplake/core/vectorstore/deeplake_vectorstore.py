@@ -14,7 +14,6 @@ from deeplake.constants import (
     TARGET_BYTE_SIZE,
 )
 from deeplake.util.bugout_reporter import feature_report_path
-from deeplake.util.exceptions import DeepMemoryWaitingListError
 from deeplake.util.path import convert_pathlib_to_string_if_needed
 from deeplake.core.vectorstore.dataset_handlers.managed_dataset_handler import (
     ManagedDH,
@@ -22,6 +21,7 @@ from deeplake.core.vectorstore.dataset_handlers.managed_dataset_handler import (
 from deeplake.core.vectorstore.dataset_handlers.embedded_dataset_handler import (
     EmbeddedDH,
 )
+from deeplake.util.exceptions import DeepMemoryAccessError
 
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,6 @@ class VectorStore:
         read_only: Optional[bool] = None,
         ingestion_batch_size: int = 1000,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
-        num_workers: int = 0,
         exec_option: str = "auto",
         token: Optional[str] = None,
         overwrite: bool = False,
@@ -83,7 +82,6 @@ class VectorStore:
             tensor_params (List[Dict[str, dict]], optional): List of dictionaries that contains information about tensors that user wants to create. See ``create_tensor`` in Deep Lake API docs for more information. Defaults to ``DEFAULT_VECTORSTORE_TENSORS``.
             embedding_function (Optional[Any], optional): Function or class that converts the embeddable data into embeddings. Input to `embedding_function` is a list of data and output is a list of embeddings. Defaults to None.
             read_only (bool, optional):  Opens dataset in read-only mode if True. Defaults to False.
-            num_workers (int): Number of workers to use for parallel ingestion.
             ingestion_batch_size (int): Batch size to use for parallel ingestion.
             index_params (Dict[str, Union[int, str]]): Dictionary containing information about vector index that will be created. Defaults to None, which will utilize ``DEFAULT_VECTORSTORE_INDEX_PARAMS`` from ``deeplake.constants``. The specified key-values override the default ones.
                 - threshold: The threshold for the dataset size above which an index will be created for the embedding tensor. When the threshold value is set to -1, index creation is turned off.
@@ -116,6 +114,9 @@ class VectorStore:
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
         """
+
+        kwargs.pop("num_workers", None)
+
         self.dataset_handler = get_dataset_handler(
             path=path,
             dataset=dataset,
@@ -124,7 +125,7 @@ class VectorStore:
             read_only=read_only,
             ingestion_batch_size=ingestion_batch_size,
             index_params=index_params,
-            num_workers=num_workers,
+            num_workers=0,
             exec_option=exec_option,
             token=token,
             overwrite=overwrite,
@@ -300,13 +301,13 @@ class VectorStore:
         Raises:
             ValueError: When invalid parameters are specified.
             ValueError: when deep_memory is True. Deep Memory is only available for datasets stored in the Deep Lake Managed Database for paid accounts.
-            DeepMemoryWaitingListError: if user is not waitlisted to use deep_memory.
+            DeepMemoryAccessError: if user does not have access to deep_memory.
 
         Returns:
             Dict: Dictionary where keys are tensor names and values are the results of the search
         """
         if deep_memory and not self.deep_memory:
-            raise DeepMemoryWaitingListError()
+            raise DeepMemoryAccessError()
 
         return self.dataset_handler.search(
             embedding_data=embedding_data,

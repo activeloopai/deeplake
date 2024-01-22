@@ -237,7 +237,10 @@ class TransformDataset:
                     name = self._get_engine_name(name)
                     updated_tensors[name] = 0
                     chunk_engine = all_chunk_engines[name]
-                    callback = chunk_engine._transform_callback
+                    if chunk_engine.tensor_meta.links:
+                        callback = chunk_engine._transform_callback
+                    else:
+                        callback = None
 
                     meta = chunk_engine.tensor_meta
                     if meta.length == 0 and meta.dtype is None:

@@ -151,6 +151,9 @@ class ChunkCompressedChunk(BaseChunk):
         update_tensor_meta: bool = True,
     ):
         sample = incoming_samples[0]
+        shape = sample.shape
+        if not shape:
+            shape = (1,)
         chunk_dtype = self.dtype
         sample_dtype = sample.dtype
         if chunk_dtype == sample_dtype:
@@ -220,7 +223,7 @@ class ChunkCompressedChunk(BaseChunk):
         if num_samples:
             self.register_in_meta_and_headers(
                 sample_nbytes,
-                sample.shape,
+                shape,
                 update_tensor_meta=update_tensor_meta,
                 num_samples=num_samples,
             )
