@@ -19,6 +19,7 @@ from deeplake.compression import (
     POINT_CLOUD_COMPRESSION,
     MESH_COMPRESSION,
     NIFTI_COMPRESSION,
+    BYTE_COMPRESSION,
 )
 from deeplake.util.exceptions import SampleReadError, UnableToReadFromUrlError
 from deeplake.util.exif import getexif
@@ -349,10 +350,7 @@ class Sample:
                 )
 
         else:
-            if self.path and get_path_type(self.path) == "local":
-                compressed = self.path
-            else:
-                compressed = self.buffer
+            compressed = self.buffer
 
             if to_pil:
                 self._pil = decompress_array(
