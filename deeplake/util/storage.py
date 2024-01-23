@@ -54,6 +54,7 @@ def storage_provider_from_path(
     if creds is None:
         creds = {}
     from deeplake.core.storage.indra import IndraProvider
+
     if path.startswith("hub://"):
         if read_only and not db_engine:
             storage: StorageProvider = IndraProvider(
