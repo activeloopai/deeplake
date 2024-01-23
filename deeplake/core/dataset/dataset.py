@@ -55,6 +55,7 @@ from deeplake.core.fast_forwarding import ffw_dataset_meta
 from deeplake.core.index import Index
 from deeplake.core.lock import lock_dataset, unlock_dataset, Lock
 from deeplake.core.meta.dataset_meta import DatasetMeta
+from deeplake.core.meta.tensor_meta import TensorMeta
 from deeplake.core.storage import (
     LRUCache,
     S3Provider,
@@ -148,6 +149,7 @@ from deeplake.util.version_control import (
     save_version_info,
     replace_head,
     reset_and_checkout,
+    _version_info_from_json,
 )
 from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
@@ -450,6 +452,86 @@ class Dataset:
         self.storage.clear_cache_without_flush()
         self._set_derived_attributes(verbose=False)
         self._indexing_history = []
+
+    @classmethod
+    def from_meta(
+        self,
+        storage: LRUCache,
+        path: str,
+        commit_id: str,
+        dataset_meta: DatasetMeta,
+        version_control_info: Dict[str, Any],
+        link_creds: Optional[LinkCreds],
+        tensor_metas: Dict[str, TensorMeta],
+    ):
+        """Create a dataset object from metadata."""
+        state = {}
+        state["is_first_load"] = False
+        state["_info"] = None
+        state["_read_only_error"] = False
+        state["_initial_autoflush"] = []
+        state["_ds_diff"] = None
+        state["_view_base"] = None
+        state["_update_hooks"] = {}
+        state["_commit_hooks"] = {}
+        state["_checkout_hooks"] = {}
+        state["_client"] = state["org_id"] = state["ds_name"] = None
+        state["_temp_tensors"] = []
+        state["libdeeplake_dataset"] = None
+        state["index_params"] = DEFAULT_VECTORSTORE_INDEX_PARAMS
+        state["_vc_info_updated"] = False
+        state["_locked_out"] = False
+
+        state["path"] = convert_pathlib_to_string_if_needed(
+            path
+        ) or get_path_from_storage(storage)
+        state["storage"] = storage
+        state["base_storage"] = get_base_storage(storage)
+        state["_read_only"] = state["base_storage"].read_only
+        state["is_iteration"] = False
+        state["index"] = Index()
+        state["group_index"] = ""
+        state["_token"] = None
+        state["public"] = False  # FIXME
+        state["verbose"] = False
+        state["is_filtered_view"] = False
+        state["enabled_tensors"] = None
+        state["_view_id"] = str(uuid.uuid4())
+        state["_view_use_parent_commit"] = False
+        state["_parent_dataset"] = None
+        state["_pad_tensors"] = False
+        state["_locking_enabled"] = False
+        state["_lock_timeout"] = 0
+        state["_query_string"] = None
+
+        version_state = _version_info_from_json(version_control_info)
+        version_state["commit_id"] = commit_id
+        version_state["commit_node"] = version_state["commit_node_map"][commit_id]
+        version_state["branch"] = version_state["commit_node"].branch
+
+        version_state["meta"] = dataset_meta
+        version_state["tensor_names"] = dataset_meta.tensor_names.copy()
+        version_state["full_tensors"] = {
+            key: Tensor(key, self) for key in version_state["tensor_names"]
+        }
+
+        # put metas in cache so that they are not fetched again
+        for key, meta in tensor_metas.items():
+            meta_key = get_tensor_meta_key(key, commit_id)
+            storage[meta_key] = meta
+            storage.register_deeplake_object(meta_key, meta)
+            # given meta is already up-to-date
+            storage.dirty_keys.pop(meta_key)
+            meta.is_dirty = False
+
+        state["version_state"] = version_state
+
+        link_creds_key = get_dataset_linked_creds_key()
+        storage[link_creds_key] = link_creds.tobytes()
+        storage.dirty_keys.pop(link_creds_key)
+
+        self._load_link_creds()
+        self._first_load_init()
 
     def _reload_version_state(self):
         version_state = self.version_state
