@@ -3012,3 +3012,19 @@ def test_delete_all_bug(local_path):
     vs.delete(delete_all=True)
 
     assert len(vs) == 0
+
+
+def test_adding_list_of_numpy_float64_embeddings_should_not_throw_exception(local_path):
+    db = VectorStore(
+        path="mem://xyz",
+    )
+
+    texts, embeddings, ids, metadatas, _ = utils.create_data(
+        number_of_data=10, embedding_dim=3
+    )
+
+    embeddings = [embedding.astype(np.float64) for embedding in embeddings]
+
+    db.add(text=texts, embedding=embeddings, id=ids, metadata=metadatas)
+
+    assert len(db) == 10

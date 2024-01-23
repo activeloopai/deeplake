@@ -471,6 +471,9 @@ def extend(
     """
     Function to extend the dataset with new data.
     """
+
+
+     
     if embedding_data and not isinstance(embedding_data[0], list):
         embedding_data = [embedding_data]
 
@@ -504,8 +507,38 @@ def extend(
 
             dataset.extend(batched_processed_tensors, progressbar=False)
     else:
+        # checkin whether embedding tensor's dtype is float32
+        tensors=dataset.tensors
+        embedding_tensor=[tensor for tensor in tensors if dataset[tensor].htype=="embedding"]
+        embedding=_convert_embeddings_to_float32(processed_tensors, embedding_tensor)
+        for embedding_tensor_name in embedding_tensor:
+            processed_tensors[embedding_tensor_name]=embedding[embedding_tensor_name]
+
         logger.info("Uploading data to deeplake dataset.")
         dataset.extend(processed_tensors, progressbar=True)
+
+
+
+def _convert_embeddings_to_float32(processed_tensors, embedding_tensor):
+    embedding_tensor_name = embedding_tensor
+    if not isinstance(embedding_tensor, list):
+        embedding_tensor_name=[embedding_tensor]
+    
+    embedding={
+        embedding: _convert_embedding_to_float32(processed_tensors, embedding) 
+        for embedding in embedding_tensor_name
+    }
+
+    return embedding
+
+
+def _convert_embedding_to_float32(processed_tensors, embedding_tensor_name):
+    embedding=processed_tensors[embedding_tensor_name]
+    if isinstance(embedding,list):
+        embedding=np.array(embedding,dtype=np.float32)
+    elif embedding.dtype!="float32":
+        embedding=np.array(embedding,dtype=np.float32)
+    return embedding
 
 
 def populate_rate_limiter(rate_limiter):
