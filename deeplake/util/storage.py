@@ -53,10 +53,9 @@ def storage_provider_from_path(
     """
     if creds is None:
         creds = {}
+    from deeplake.core.storage.indra import IndraProvider
     if path.startswith("hub://"):
         if read_only and not db_engine:
-            from deeplake.core.storage.indra import IndraProvider
-
             storage: StorageProvider = IndraProvider(
                 path, read_only=True, token=token, creds=creds
             )
@@ -110,7 +109,10 @@ def storage_provider_from_path(
                 storage = MemoryProvider(path)
             else:
                 if not os.path.exists(path) or os.path.isdir(path):
-                    storage = LocalProvider(path)
+                    if read_only:
+                        storage = IndraProvider(path)
+                    else:
+                        storage = LocalProvider(path)
                 else:
                     raise ValueError(
                         f"Local path {path} must be a path to a local directory"

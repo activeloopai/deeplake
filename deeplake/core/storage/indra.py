@@ -17,6 +17,9 @@ class IndraProvider(StorageProvider):
         else:
             self.core = root
 
+    def copy(self):
+        return IndraProvider(self.core)
+
     def subdir(self, path: str, read_only: bool = False):
         return IndraProvider(self.core.subdir(path, read_only))
 
