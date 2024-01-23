@@ -455,7 +455,7 @@ class Dataset:
 
     @classmethod
     def from_meta(
-        self,
+        cls,
         storage: LRUCache,
         path: str,
         commit_id: str,
@@ -465,6 +465,7 @@ class Dataset:
         tensor_metas: Dict[str, TensorMeta],
     ):
         """Create a dataset object from metadata."""
+        dataset = cls.__new__(cls)
         state = {}
         state["is_first_load"] = False
         state["_info"] = None
@@ -512,7 +513,7 @@ class Dataset:
         version_state["meta"] = dataset_meta
         version_state["tensor_names"] = dataset_meta.tensor_names.copy()
         version_state["full_tensors"] = {
-            key: Tensor(key, self) for key in version_state["tensor_names"]
+            key: Tensor(key, dataset) for key in version_state["tensor_names"]
         }
 
         # put metas in cache so that they are not fetched again
@@ -530,8 +531,12 @@ class Dataset:
         storage[link_creds_key] = link_creds.tobytes()
         storage.dirty_keys.pop(link_creds_key)
 
-        self._load_link_creds()
-        self._first_load_init()
+        dataset.__dict__.update(state)
+
+        dataset._load_link_creds()
+        dataset._first_load_init()
+
+        return dataset
 
     def _reload_version_state(self):
         version_state = self.version_state
