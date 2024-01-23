@@ -56,6 +56,7 @@ class SampleCompressedChunk(BaseChunk):
                         path = None
                         if isinstance(incoming_sample, Sample):
                             path = incoming_sample.path
+
                         sample = Sample(
                             buffer=serialized_sample,
                             compression=compr,
