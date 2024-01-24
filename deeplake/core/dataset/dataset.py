@@ -64,6 +64,7 @@ from deeplake.core.storage import (
     LocalProvider,
     AzureProvider,
 )
+from deeplake.core.storage.lru_cache import _get_nbytes
 from deeplake.core.tensor import Tensor, create_tensor, delete_tensor
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
 from deeplake.core.version_control.dataset_diff import load_dataset_diff
@@ -465,6 +466,11 @@ class Dataset:
         tensor_metas: Dict[str, TensorMeta],
     ):
         """Create a dataset object from metadata."""
+
+        def insert_in_cache(key, item):
+            if _get_nbytes(item) < storage.cache_size:
+                storage._insert_in_cache(key, item)
+
         dataset = cls.__new__(cls)
         state = {}
         state["is_first_load"] = False
@@ -486,12 +492,14 @@ class Dataset:
         state["path"] = convert_pathlib_to_string_if_needed(
             path
         ) or get_path_from_storage(storage)
+        state["version_state"] = {}
         state["storage"] = storage
         state["base_storage"] = get_base_storage(storage)
         state["_read_only"] = state["base_storage"].read_only
         state["is_iteration"] = False
         state["index"] = Index()
         state["group_index"] = ""
+        state["link_creds"] = None
         state["_token"] = None
         state["public"] = False  # FIXME
         state["verbose"] = False
@@ -505,12 +513,27 @@ class Dataset:
         state["_lock_timeout"] = 0
         state["_query_string"] = None
 
+        dataset.__dict__.update(state)
+
+        # load link creds
+        link_creds_key = get_dataset_linked_creds_key()
+        insert_in_cache(link_creds_key, link_creds.tobytes())
+        dataset._load_link_creds()
+
+        # set version state
         version_state = _version_info_from_json(version_control_info)
         version_state["commit_id"] = commit_id
         version_state["commit_node"] = version_state["commit_node_map"][commit_id]
         version_state["branch"] = version_state["commit_node"].branch
-
         version_state["meta"] = dataset_meta
+        storage.register_deeplake_object(get_dataset_meta_key(commit_id), dataset_meta)
+        dataset_meta.is_dirty = False
+
+        state["version_state"] = version_state
+
+        dataset.__dict__.update(state)
+
+        # load tensors
         version_state["tensor_names"] = dataset_meta.tensor_names.copy()
         version_state["full_tensors"] = {
             key: Tensor(key, dataset) for key in version_state["tensor_names"]
@@ -518,22 +541,12 @@ class Dataset:
 
         # put metas in cache so that they are not fetched again
         for key, meta in tensor_metas.items():
-            meta_key = get_tensor_meta_key(key, commit_id)
-            storage[meta_key] = meta
-            storage.register_deeplake_object(meta_key, meta)
+            tensor_meta_key = get_tensor_meta_key(key, commit_id)
+            insert_in_cache(tensor_meta_key, meta)
+            storage.register_deeplake_object(tensor_meta_key, meta)
             # given meta is already up-to-date
-            storage.dirty_keys.pop(meta_key)
             meta.is_dirty = False
 
-        state["version_state"] = version_state
-
-        link_creds_key = get_dataset_linked_creds_key()
-        storage[link_creds_key] = link_creds.tobytes()
-        storage.dirty_keys.pop(link_creds_key)
-
-        dataset.__dict__.update(state)
-
-        dataset._load_link_creds()
         dataset._first_load_init()
 
         return dataset
