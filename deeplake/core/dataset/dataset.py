@@ -516,9 +516,10 @@ class Dataset:
         dataset.__dict__.update(state)
 
         # load link creds
-        link_creds_key = get_dataset_linked_creds_key()
-        insert_in_cache(link_creds_key, link_creds.tobytes())
-        dataset._load_link_creds()
+        if link_creds:
+            link_creds_key = get_dataset_linked_creds_key()
+            insert_in_cache(link_creds_key, link_creds.tobytes())
+            dataset._load_link_creds()
 
         # set version state
         version_state = _version_info_from_json(version_control_info)
