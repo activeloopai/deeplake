@@ -479,7 +479,11 @@ class Pipeline:
 
         for res in result["error"]:
             if res is not None:
-                raise res
+                print(res["traceback"])
+                print(
+                    "The above exception was the direct cause of the following exception:\n"
+                )
+                raise res["raise"]
 
 
 def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401
