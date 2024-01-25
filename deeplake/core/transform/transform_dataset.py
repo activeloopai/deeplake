@@ -4,8 +4,12 @@ from deeplake.util.exceptions import (
     SampleExtendingError,
     TensorDtypeMismatchError,
 )
-from deeplake.core.transform.transform_tensor import TransformTensor
+from deeplake.core.transform.transform_tensor import (
+    TransformTensor,
+    TransformLinkTensor,
+)
 from deeplake.util.json import validate_json_object, HubJsonEncoder
+from deeplake.core.linked_chunk_engine import LinkedChunkEngine
 from deeplake.core.linked_tiled_sample import LinkedTiledSample
 from deeplake.core.partial_sample import PartialSample
 from deeplake.core.linked_sample import LinkedSample
@@ -32,7 +36,7 @@ class TransformDataset:
         cache_size=16,
     ):
         self.tensors = tensors
-        self.data = {tensor: TransformTensor(self, tensor) for tensor in tensors}
+        self.data = {}
         self.all_chunk_engines = all_chunk_engines
         self.group_index = group_index
         self.label_temp_tensors = label_temp_tensors
@@ -41,6 +45,20 @@ class TransformDataset:
         self.idx = idx
         self.pg_callback = None
         self.start_input_idx = None
+        self._init_tensors()
+
+    def _init_tensors(self):
+        for tensor in self.tensors:
+            if self.all_chunk_engines:
+                name = self._get_engine_name(tensor)
+                chunk_engine = self.all_chunk_engines[name]
+                meta = chunk_engine.tensor_meta
+                if meta.is_link:
+                    self.data[tensor] = TransformLinkTensor(self, tensor)
+                else:
+                    self.data[tensor] = TransformTensor(self, tensor)
+            else:
+                self.data[tensor] = TransformTensor(self, tensor)
 
     def set_start_input_idx(self, start_input_idx):
         if self.start_input_idx is None:
@@ -176,6 +194,28 @@ class TransformDataset:
         if self.cache_used >= self.cache_size:
             self.flush()
 
+    def _flush_link_tensor_to_chunk_engine(
+        self, full_name, tensor, chunk_engine, callback, updated_tensors
+    ):
+        assert self.all_chunk_engines
+        items = tensor[:].numpy_compressed()
+        verified_items = tensor.verified_items
+        assert isinstance(
+            chunk_engine, LinkedChunkEngine
+        ), "Chunk engine for link tensor must be a LinkedChunkEngine"
+        assert len(items) == len(
+            verified_items
+        ), "Number of items and verified items must be equal"
+        chunk_engine.extend(
+            items,
+            link_callback=callback,
+            pg_callback=self.pg_callback,
+            verified_samples=verified_items,
+        )
+        updated_tensors[full_name] = len(items)
+        tensor.items.clear()
+        tensor.verified_items.clear()
+
     def _flush_numpy_tensor_to_chunk_engine(
         self, full_name, tensor, chunk_engine, callback, updated_tensors
     ):
@@ -247,7 +287,11 @@ class TransformDataset:
                         # for rolling back dtype change
                         no_dtype_tensors.append(name)
 
-                    if tensor.numpy_only:
+                    if isinstance(tensor, TransformLinkTensor):
+                        self._flush_link_tensor_to_chunk_engine(
+                            name, tensor, chunk_engine, callback, updated_tensors
+                        )
+                    elif tensor.numpy_only:
                         self._flush_numpy_tensor_to_chunk_engine(
                             name, tensor, chunk_engine, callback, updated_tensors
                         )
