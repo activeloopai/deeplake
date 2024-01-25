@@ -394,16 +394,18 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         # retrieve relevant objects from memory
         meta = _retrieve_memory_objects(all_chunk_engines)
         meta.update(ret)
+
+        err_dict: Optional[Dict[str, Any]] = None
         if err:
+            err_dict = {}
+            err_dict["raise"] = err
             cause = err.__cause__
-            cause_traceback = "".join(
-                traceback.format_exception(cause.__class__, cause, cause.__traceback__)
-            )
-            err = {
-                "raise": err,
-                "traceback": cause_traceback,
-            }
-        meta["error"] = err
+            if cause:
+                cause_traceback = "".join(
+                    traceback.format_exception(cause.__class__, cause, cause.__traceback__)  # type: ignore
+                )
+                err_dict["traceback"] = cause_traceback
+        meta["error"] = err_dict
         return meta
 
 
