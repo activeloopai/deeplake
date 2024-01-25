@@ -142,7 +142,7 @@ jobs:
       gcp_sa_credentials_json: ${{ secrets.GCP_SA_CREDENTIALS_JSON }}
       azure_creds_json: ${{ secrets.AZURE_CREDS_JSON }}
       hub_username: ${{ secrets.ACTIVELOOP_HUB_USERNAME }}
-      hub_password: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
+      hub_token: ${{ secrets.ACTIVELOOP_HUB_TOKEN }}
       kaggle_username: ${{ secrets.KAGGLE_USERNAME }}
       kaggle_key: ${{ secrets.KAGGLE_KEY }}
       oauth_client_id: ${{ secrets.GDRIVE_CLIENT_ID }}
