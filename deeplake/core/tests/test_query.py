@@ -8,18 +8,16 @@ import numpy as np
 
 @requires_libdeeplake
 def test_single_source_query(
-    hub_cloud_dev_credentials,
+    hub_cloud_dev_token,
 ):
-    username, password = hub_cloud_dev_credentials
-    token = DeepLakeBackendClient().request_auth_token(username, password)
-    ds = deeplake.query('SELECT * FROM "hub://activeloop/mnist-train"', token=token)
+    ds = deeplake.query('SELECT * FROM "hub://activeloop/mnist-train"', token=hub_cloud_dev_token)
     assert len(ds) == 60000
     assert len(ds.tensors) == 2
     assert ds.images.meta.htype == "image"
     assert ds.labels.meta.htype == "class_label"
 
     ds = deeplake.query(
-        'SELECT images FROM "hub://activeloop/mnist-train"', token=token
+        'SELECT images FROM "hub://activeloop/mnist-train"', token=hub_cloud_dev_token
     )
     assert len(ds) == 60000
     assert len(ds.tensors) == 1
@@ -27,19 +25,16 @@ def test_single_source_query(
 
 
 @requires_libdeeplake
-def test_multi_source_query(hub_cloud_dev_credentials):
-    username, password = hub_cloud_dev_credentials
-    token = DeepLakeBackendClient().request_auth_token(username, password)
-
+def test_multi_source_query(hub_cloud_dev_token):
     with pytest.raises(RuntimeError):
         ds = deeplake.query(
             'SELECT * FROM "hub://activeloop/mnist-train" UNION (SELECT * FROM "hub://activeloop/coco-train")',
-            token=token,
+            token=hub_cloud_dev_token,
         )
 
     ds = deeplake.query(
         'SELECT * FROM "hub://activeloop/mnist-train" UNION (SELECT images, categories[0] as labels FROM "hub://activeloop/coco-train")',
-        token=token,
+        token=hub_cloud_dev_token,
     )
     assert len(ds) == 178287
     assert len(ds.tensors) == 2
@@ -48,7 +43,7 @@ def test_multi_source_query(hub_cloud_dev_credentials):
 
     ds = deeplake.query(
         'SELECT * FROM (SELECT * FROM "hub://activeloop/mnist-train" UNION (SELECT images, labels FROM "hub://activeloop/cifar100-train")) WHERE labels == 0',
-        token=token,
+        token=hub_cloud_dev_token,
     )
     assert len(ds) == 6423
     assert len(ds.tensors) == 2

@@ -188,15 +188,11 @@ class DeepLakeBackendClient:
             LoginException: If there is an issue retrieving the auth token.
 
         """
-        json = {"username": username, "password": password}
-        response = self.request("POST", GET_TOKEN_SUFFIX, json=json)
+        if username != "public":
+            raise LoginException("Can only request a token for the public user")
 
-        try:
-            token_dict = response.json()
-            token = token_dict["token"]
-        except Exception:
-            raise LoginException()
-        return token
+        return "PUBLIC TOKEN " + ("_" * 150)
+
 
     def send_register_request(self, username: str, email: str, password: str):
         """Sends a request to backend to register a new user.
