@@ -109,6 +109,7 @@ class DeepLakeCloudDataset(Dataset):
             "commit_id": self.commit_id,
             "pending_commit_id": self.pending_commit_id,
             "has_head_changes": has_head_changes,
+            "overwrite": self.overwrite,
         }
         deeplake_meta.update(common_meta)
         event_dict = {
