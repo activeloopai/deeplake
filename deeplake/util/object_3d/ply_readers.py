@@ -41,9 +41,9 @@ class PlyASCIIWithNormalsReader(ply_reader_base.PlyReaderBase):
         self.meta_data["dimensions_names_to_dtype"][line[2].decode()] = ply_dtypes[
             line[1]
         ]
-        self.meta_data["element_name_to_property_dtypes"][name][
-            line[2].decode()
-        ] = ply_dtypes[line[1]]
+        self.meta_data["element_name_to_property_dtypes"][name][line[2].decode()] = (
+            ply_dtypes[line[1]]
+        )
 
         dimensions_names.append(line[2].decode())
 
@@ -134,9 +134,9 @@ class PlyASCIIReader(ply_reader_base.PlyReaderBase):
             meta_data["dimensions_names_to_dtype"][line[2].decode()] = ply_dtypes[
                 line[1]
             ]
-            meta_data["element_name_to_property_dtypes"][name][
-                line[2].decode()
-            ] = ply_dtypes[line[1]]
+            meta_data["element_name_to_property_dtypes"][name][line[2].decode()] = (
+                ply_dtypes[line[1]]
+            )
         dimensions_names.append(line[2].decode())
         meta_data["dimensions_names"] += dimensions_names
         return has_texture

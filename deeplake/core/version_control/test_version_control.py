@@ -1422,9 +1422,9 @@ def test_rename_diff_branch(local_ds, capsys):
     with local_ds:
         local_ds.rename_tensor("abc", "xyz")
         expected_dataset_diff_from_a_on_alt["renamed"]["abc"] = "xyz"
-        expected_tensor_diff_from_a_on_alt[
-            "xyz"
-        ] = expected_tensor_diff_from_a_on_alt.pop("abc")
+        expected_tensor_diff_from_a_on_alt["xyz"] = (
+            expected_tensor_diff_from_a_on_alt.pop("abc")
+        )
         local_ds.xyz.append([4, 5, 6])
         expected_tensor_diff_from_a_on_alt["xyz"]["data_added"] = [1, 2]
 
@@ -1459,18 +1459,18 @@ def test_rename_diff_branch(local_ds, capsys):
     with local_ds:
         local_ds.rename_tensor("abc", "efg")
         expected_dataset_diff_from_c_on_alt2["renamed"]["abc"] = "efg"
-        expected_tensor_diff_from_c_on_alt2[
-            "efg"
-        ] = expected_tensor_diff_from_c_on_alt2.pop("abc")
+        expected_tensor_diff_from_c_on_alt2["efg"] = (
+            expected_tensor_diff_from_c_on_alt2.pop("abc")
+        )
         local_ds.efg.append([5, 6, 7])
         expected_tensor_diff_from_c_on_alt2["efg"]["data_added"] = [2, 3]
         local_ds.efg.info["hello"] = "world"
         expected_tensor_diff_from_c_on_alt2["efg"]["info_updated"] = True
         local_ds.rename_tensor("red", "blue")
         expected_dataset_diff_from_c_on_alt2["renamed"]["red"] = "blue"
-        expected_tensor_diff_from_c_on_alt2[
-            "blue"
-        ] = expected_tensor_diff_from_c_on_alt2.pop("red")
+        expected_tensor_diff_from_c_on_alt2["blue"] = (
+            expected_tensor_diff_from_c_on_alt2.pop("red")
+        )
 
     d = local_ds.commit()
     expected_tensor_diff_from_d_on_alt2 = {
