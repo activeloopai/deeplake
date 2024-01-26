@@ -13,3 +13,7 @@ python:
     - requirements: deeplake/requirements/docs.txt
     - method: pip
       path: .
+
+formats:
+    - epub
+    - pdf
