@@ -14,6 +14,7 @@ from deeplake.client.utils import (
 
 from time import sleep
 
+
 def test_client_utils():
     write_token("abcdefgh")
     assert read_token() == "abcdefgh"

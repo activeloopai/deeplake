@@ -10,7 +10,9 @@ import numpy as np
 def test_single_source_query(
     hub_cloud_dev_token,
 ):
-    ds = deeplake.query('SELECT * FROM "hub://activeloop/mnist-train"', token=hub_cloud_dev_token)
+    ds = deeplake.query(
+        'SELECT * FROM "hub://activeloop/mnist-train"', token=hub_cloud_dev_token
+    )
     assert len(ds) == 60000
     assert len(ds.tensors) == 2
     assert ds.images.meta.htype == "image"

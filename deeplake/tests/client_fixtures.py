@@ -1,5 +1,3 @@
-import jwt
-
 from deeplake.constants import (
     ENV_HUB_DEV_MANAGED_CREDS_KEY,
     AZURE_OPT,
@@ -50,7 +48,7 @@ def hub_cloud_dev_token(hub_cloud_dev_credentials):
     token = os.getenv(ENV_HUB_DEV_TOKEN)
 
     assert (
-            token is not None
+        token is not None
     ), f"Deep Lake dev token was not found in the environment variable '{ENV_HUB_DEV_USERNAME}'. This is necessary for testing deeplake cloud datasets."
 
     return token
