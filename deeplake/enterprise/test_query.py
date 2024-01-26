@@ -30,11 +30,7 @@ def test_query(hub_cloud_ds):
 
 
 @requires_libdeeplake
-def test_query_on_local_datasets(local_ds, hub_cloud_dev_credentials):
-    username, password = hub_cloud_dev_credentials
-    runner = CliRunner()
-    runner.invoke(logout)
-
+def test_query_on_local_datasets(local_ds, hub_cloud_dev_token):
     path = local_ds.path
     ds = deeplake.empty(path, overwrite=True)
     ds.create_tensor("label")
@@ -44,8 +40,7 @@ def test_query_on_local_datasets(local_ds, hub_cloud_dev_credentials):
     with pytest.raises(EmptyTokenException):
         dsv = ds.query("SELECT * WHERE CONTAINS(label, 2)")
 
-    runner.invoke(login, f"-u {username} -p {password}")
-    ds = deeplake.empty(path, overwrite=True)
+    ds = deeplake.empty(path, overwrite=True, token=hub_cloud_dev_token)
     ds.create_tensor("label")
     for i in range(100):
         ds.label.append(floor(i / 20))

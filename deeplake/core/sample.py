@@ -224,9 +224,11 @@ class Sample:
             x.keyword: {
                 "name": x.name,
                 "tag": str(x.tag),
-                "value": x.value
-                if isinstance(x.value, (str, int, float))
-                else x.to_json_dict(None, None).get("Value", ""),  # type: ignore
+                "value": (
+                    x.value
+                    if isinstance(x.value, (str, int, float))
+                    else x.to_json_dict(None, None).get("Value", "")  # type: ignore
+                ),
                 "vr": x.VR,
             }
             for x in dcm

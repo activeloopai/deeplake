@@ -1156,10 +1156,14 @@ class ChunkEngine:
     def _prepare_samples_for_link_callback(self, samples):
         if not isinstance(samples, np.ndarray):
             samples = [
-                None
-                if is_empty_list(s)
-                or (isinstance(s, deeplake.core.tensor.Tensor) and s.is_empty_tensor)
-                else s
+                (
+                    None
+                    if is_empty_list(s)
+                    or (
+                        isinstance(s, deeplake.core.tensor.Tensor) and s.is_empty_tensor
+                    )
+                    else s
+                )
                 for s in samples
             ]
         return samples
@@ -2536,9 +2540,11 @@ class ChunkEngine:
             """Update linked tensors and sample level encoders"""
             self.commit_diff.pop(
                 idx,
-                sample_id_tensor[idx].numpy().item()
-                if sample_id_tensor is not None
-                else None,
+                (
+                    sample_id_tensor[idx].numpy().item()
+                    if sample_id_tensor is not None
+                    else None
+                ),
             )
             if link_callback:
                 link_callback(idx)
@@ -2996,9 +3002,11 @@ class ChunkEngine:
             is_same = np.all(shape == shape[0, :], axis=0)  # type: ignore
             shape = (len(shape),) + (
                 tuple(
-                    int(shape[0, i])  # type: ignore
-                    if is_same[i]  # type: ignore
-                    else -1
+                    (
+                        int(shape[0, i])  # type: ignore
+                        if is_same[i]  # type: ignore
+                        else -1
+                    )
                     for i in range(shape.shape[1])  # type: ignore
                 )
                 or (1,)
@@ -3165,9 +3173,11 @@ class ChunkEngine:
     def _sample_shapes_to_shape(self, sample_shapes, squeeze_dims, sample_ndim):
         is_same = np.all(sample_shapes == sample_shapes[0, :], axis=0)
         shape = [  # type: ignore
-            int(sample_shapes[0, i])
-            if sample_shapes[0, i] != -1 and is_same[i]
-            else None
+            (
+                int(sample_shapes[0, i])
+                if sample_shapes[0, i] != -1 and is_same[i]
+                else None
+            )
             for i in range(sample_ndim)
         ]
 
@@ -3318,9 +3328,11 @@ class ChunkEngine:
                     meta = self.tensor_meta
                     vs = func(
                         samples,
-                        factor=tensor.info.downsampling_factor
-                        if func == extend_downsample
-                        else None,
+                        factor=(
+                            tensor.info.downsampling_factor
+                            if func == extend_downsample
+                            else None
+                        ),
                         compression=meta.sample_compression,
                         htype=meta.htype,
                         link_creds=self.link_creds,

@@ -6,7 +6,7 @@ from deeplake.constants import (
     ENV_AZURE_CLIENT_SECRET,
     ENV_AZURE_TENANT_ID,
     ENV_HUB_DEV_USERNAME,
-    ENV_HUB_DEV_PASSWORD,
+    ENV_HUB_DEV_TOKEN,
     ENV_KAGGLE_USERNAME,
     ENV_KAGGLE_KEY,
     KAGGLE_OPT,
@@ -35,24 +35,22 @@ def hub_cloud_dev_credentials(request):
         )
 
     username = os.getenv(ENV_HUB_DEV_USERNAME)
-    password = os.getenv(ENV_HUB_DEV_PASSWORD)
 
     assert (
         username is not None
     ), f"Deep Lake dev username was not found in the environment variable '{ENV_HUB_DEV_USERNAME}'. This is necessary for testing deeplake cloud datasets."
-    assert (
-        password is not None
-    ), f"Deep Lake dev password was not found in the environment variable '{ENV_HUB_DEV_PASSWORD}'. This is necessary for testing deeplake cloud datasets."
 
-    return username, password
+    return username, None
 
 
 @pytest.fixture(scope="session")
 def hub_cloud_dev_token(hub_cloud_dev_credentials):
-    username, password = hub_cloud_dev_credentials
+    token = os.getenv(ENV_HUB_DEV_TOKEN)
 
-    client = DeepLakeBackendClient()
-    token = client.request_auth_token(username, password)
+    assert (
+        token is not None
+    ), f"Deep Lake dev token was not found in the environment variable '{ENV_HUB_DEV_USERNAME}'. This is necessary for testing deeplake cloud datasets."
+
     return token
 
 

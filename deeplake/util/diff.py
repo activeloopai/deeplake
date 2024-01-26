@@ -12,9 +12,7 @@ from deeplake.util.keys import (
 )
 
 
-def get_changes_and_messages(
-    version_state, storage, id_1, id_2
-) -> Tuple[
+def get_changes_and_messages(version_state, storage, id_1, id_2) -> Tuple[
     List[dict],
     Optional[List[dict]],
     List[dict],

@@ -1095,9 +1095,11 @@ class Tensor:
                     func = get_link_transform(func_name)
                     vs = func(
                         samples,
-                        factor=tensor.info.downsampling_factor
-                        if func == extend_downsample
-                        else None,
+                        factor=(
+                            tensor.info.downsampling_factor
+                            if func == extend_downsample
+                            else None
+                        ),
                         compression=self.meta.sample_compression,
                         htype=self.htype,
                         link_creds=self.link_creds,
@@ -1145,9 +1147,11 @@ class Tensor:
                 val = func(
                     new_sample,
                     old_value=tensor[global_sample_index],
-                    factor=tensor.info.downsampling_factor
-                    if func == update_downsample
-                    else None,
+                    factor=(
+                        tensor.info.downsampling_factor
+                        if func == update_downsample
+                        else None
+                    ),
                     compression=self.meta.sample_compression,
                     htype=self.htype,
                     link_creds=self.link_creds,
