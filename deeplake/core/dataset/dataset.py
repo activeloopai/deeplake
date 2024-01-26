@@ -289,9 +289,9 @@ class Dataset:
             else None
         )
         self._first_load_init()
-        self._initial_autoflush: List[
-            bool
-        ] = []  # This is a stack to support nested with contexts
+        self._initial_autoflush: List[bool] = (
+            []
+        )  # This is a stack to support nested with contexts
         self._indexing_history: List[int] = []
 
         if not self.read_only:
@@ -4122,16 +4122,18 @@ class Dataset:
             token=token,
             overwrite=overwrite,
             public=public,
-            unlink=[
-                t
-                for t in self.tensors
-                if (
-                    self.tensors[t].base_htype != "video"
-                    or deeplake.constants._UNLINK_VIDEOS
-                )
-            ]
-            if unlink
-            else False,
+            unlink=(
+                [
+                    t
+                    for t in self.tensors
+                    if (
+                        self.tensors[t].base_htype != "video"
+                        or deeplake.constants._UNLINK_VIDEOS
+                    )
+                ]
+                if unlink
+                else False
+            ),
             verbose=verbose,
         )
 

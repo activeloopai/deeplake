@@ -100,9 +100,11 @@ class DatasetMeta(Meta):
         self.groups.remove(name)
         self.groups = list(
             map(
-                lambda g: posixpath.join(new_name, relpath(g, name))
-                if (g == name or g.startswith(name + "/"))
-                else g,
+                lambda g: (
+                    posixpath.join(new_name, relpath(g, name))
+                    if (g == name or g.startswith(name + "/"))
+                    else g
+                ),
                 self.groups,
             )
         )
