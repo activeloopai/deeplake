@@ -15,5 +15,5 @@ python:
       path: .
 
 formats:
-    - epub
-    - pdf
+  - epub
+  - pdf
