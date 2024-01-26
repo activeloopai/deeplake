@@ -1048,6 +1048,7 @@ class ChunkEngine:
         pg_callback=None,
         update_commit_diff=True,
         ignore_errors=False,
+        verified_samples=None,
     ):
         if isinstance(samples, deeplake.Tensor):
             samples = tqdm(samples) if progressbar else samples
@@ -1061,6 +1062,9 @@ class ChunkEngine:
             return samples
         if len(samples) == 0:
             return samples
+        verified_samples = verified_samples or self.check_each_sample(
+            samples, ignore_errors=ignore_errors
+        )
         samples = self._sanitize_samples(samples, ignore_errors=ignore_errors)
         samples = self._samples_to_chunks(
             samples,
@@ -1072,7 +1076,8 @@ class ChunkEngine:
             return_samples=True,
             ignore_errors=ignore_errors,
         )
-        return samples
+        verified_samples = verified_samples or samples
+        return verified_samples
 
     def _extend_link_callback(
         self, link_callback, samples, flat, progressbar, ignore_errors
@@ -1098,20 +1103,22 @@ class ChunkEngine:
         self, samples, progressbar, link_callback, ignore_errors, verified_samples
     ):
         samples = tqdm(samples) if progressbar else samples
-        verified_samples = verified_samples or []
+        already_verified = verified_samples is not None
+        if not already_verified:
+            verified_samples = []
         num_samples_added = 0
         for sample in samples:
             try:
                 if sample is None:
                     sample = []
-                if verified_samples is None:
+                if not already_verified:
                     verified_sample = self.check_each_sample(
                         sample, ignore_errors=ignore_errors
                     )
                 sample = self._extend(
                     sample, progressbar=False, update_commit_diff=False
                 )
-                if verified_samples is None:
+                if not already_verified:
                     verified_sample = verified_sample or sample
                     verified_samples.append(
                         verified_sample if verified_sample is not None else sample
@@ -1193,16 +1200,13 @@ class ChunkEngine:
                     verified_samples,
                 )
             else:
-                verified_samples = verified_samples or self.check_each_sample(
-                    samples, ignore_errors=ignore_errors
-                )
-                samples = self._extend(
+                verified_samples = self._extend(
                     samples,
                     progressbar,
                     pg_callback=pg_callback,
                     ignore_errors=ignore_errors,
+                    verified_samples=verified_samples,
                 )
-                verified_samples = verified_samples or samples
                 if link_callback:
                     verified_samples = self._prepare_samples_for_link_callback(
                         verified_samples
@@ -1696,6 +1700,7 @@ class ChunkEngine:
             index_length = index.length(self.num_samples)
             samples = make_sequence(samples, index_length)
             verified_samples = self.check_each_sample(samples)
+            assert verified_samples is None
             if self.tensor_meta.htype == "class_label":
                 samples = self._convert_class_labels(samples)
             if self.tensor_meta.htype == "polygon":
