@@ -9,7 +9,7 @@ sphinx:
   configuration: docs/source/conf.py
 
 python:
-   install:
+  install:
     - requirements: deeplake/requirements/docs.txt
     - method: pip
       path: .
