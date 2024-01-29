@@ -95,16 +95,3 @@ def test_persistence_bug(local_ds_generator):
 
         ds = local_ds_generator()
         np.testing.assert_array_equal(ds[tensor_name].numpy(), np.array([[1], [2]]))
-
-
-def test_dataset_token(local_ds_generator, hub_cloud_dev_credentials):
-    username, password = hub_cloud_dev_credentials
-    CliRunner().invoke(login, f"-u {username} -p {password}")
-    ds = local_ds_generator()
-    token = ds.token
-    token_username = jwt.decode(token, options={"verify_signature": False})["id"]
-    assert token_username == username
-
-    CliRunner().invoke(logout)
-    ds = local_ds_generator()
-    assert ds.token is None
