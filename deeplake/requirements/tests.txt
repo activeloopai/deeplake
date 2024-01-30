@@ -1,4 +1,4 @@
-pytest
+pytest==7.4
 pytest-cases
 pytest-benchmark
 pytest-cov
