@@ -28,6 +28,7 @@ from deeplake.client.config import (
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
     HUB_REST_ENDPOINT_DEV,
+    GET_TOKEN_SUFFIX,
     HUB_REST_ENDPOINT_STAGING,
     REGISTER_USER_SUFFIX,
     DEFAULT_REQUEST_TIMEOUT,
@@ -187,10 +188,15 @@ class DeepLakeBackendClient:
             LoginException: If there is an issue retrieving the auth token.
 
         """
-        if username != "public":
-            raise LoginException("Can only request a token for the public user")
+        json = {"username": username, "password": password}
+        response = self.request("POST", GET_TOKEN_SUFFIX, json=json)
 
-        return "PUBLIC TOKEN " + ("_" * 150)
+        try:
+            token_dict = response.json()
+            token = token_dict["token"]
+        except Exception:
+            raise LoginException()
+        return token
 
     def send_register_request(self, username: str, email: str, password: str):
         """Sends a request to backend to register a new user.
