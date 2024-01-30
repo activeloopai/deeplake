@@ -98,8 +98,7 @@ class VectorStore:
                 - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             runtime (Dict, optional): Parameters for creating the Vector Store in Deep Lake's Managed Tensor Database. Not applicable when loading an existing Vector Store. To create a Vector Store in the Managed Tensor Database, set `runtime = {"tensor_db": True}`.
             branch (str): Branch name to use for the Vector Store. Defaults to "main".
-
-            **kwargs (Any): Additional keyword arguments.
+            **kwargs (dict): Additional keyword arguments.
 
         ..
             # noqa: DAR101

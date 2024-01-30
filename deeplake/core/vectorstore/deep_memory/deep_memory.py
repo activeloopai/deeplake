@@ -4,6 +4,7 @@ import uuid
 from collections import defaultdict
 from pydantic import BaseModel, ValidationError
 from typing import Any, Dict, Optional, List, Union, Callable, Tuple
+from functools import wraps
 from time import time
 
 import numpy as np
@@ -46,6 +47,7 @@ def access_control(func):
 
 
 def use_deep_memory(func):
+    @wraps(func)
     def wrapper(self, *args, **kwargs):
         use_deep_memory = kwargs.get("deep_memory")
         distance_metric = kwargs.get("distance_metric")
@@ -88,7 +90,7 @@ class DeepMemory:
         token: Optional[str] = None,
         creds: Optional[Union[Dict, str]] = None,
     ):
-        """Based Deep Memory class to train and evaluate models on DeepMemory managed service.
+        """Base Deep Memory class to train and evaluate models on DeepMemory managed service.
 
         Args:
             dataset (Dataset): deeplake dataset object or path.

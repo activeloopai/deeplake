@@ -361,6 +361,7 @@ A 3d bbox tensor can be created using
                 - ``rot_z`` - rotation angle along z axis, given in degrees
             - "vertex": 8 3D vertices - [[x0, y0, z0], [x1, y1, z1], [x2, y2, z2], ....., [x7, y7, z7]]
                 - :bluebold:`Sample dimensions:` ``(# bounding boxes, 8, 3)``
+
                 The vertex order is of the following form::
 
                                  4_____________________ 5
