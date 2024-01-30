@@ -21,6 +21,7 @@ def test_client_utils():
     remove_token()
     assert read_token() is None
 
+
 def create_response(
     job_id="6508464cd80cab681bfcfff3",
     dataset_id="some_dataset_id",
