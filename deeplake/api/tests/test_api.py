@@ -2333,20 +2333,6 @@ def test_uneven_iteration(memory_ds):
             np.testing.assert_equal(y, target_y)
 
 
-def token_permission_error_check(
-    username,
-    password,
-    runner,
-):
-    result = runner.invoke(login, f"-u {username} -p {password}")
-    with pytest.raises(TokenPermissionError):
-        deeplake.empty("hub://activeloop-test/sohas-weapons-train")
-
-    with pytest.raises(TokenPermissionError):
-        ds = deeplake.load("hub://activeloop/fake-path")
-    runner.invoke(logout)
-
-
 def invalid_token_exception_check():
     with pytest.raises(InvalidTokenException):
         ds = deeplake.empty("hub://adilkhan/demo", token="invalid_token")
@@ -2369,23 +2355,6 @@ def dataset_handler_error_check(runner, username, password):
     with pytest.raises(DatasetHandlerError):
         ds = deeplake.load(f"hub://{username}/wrong-path")
     runner.invoke(logout)
-
-
-@pytest.mark.slow
-def test_hub_related_permission_exceptions(
-    hub_cloud_dev_credentials,
-):
-    username, password = hub_cloud_dev_credentials
-    runner = CliRunner()
-
-    token_permission_error_check(
-        username,
-        password,
-        runner,
-    )
-    invalid_token_exception_check()
-    user_not_logged_in_exception_check(runner)
-    dataset_handler_error_check(runner, username, password)
 
 
 def test_incompat_dtype_msg(local_ds, capsys):

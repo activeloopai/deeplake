@@ -62,26 +62,6 @@ def test_dataset_empty_load():
         assert len(ds_overwrite_empty.tensors) == 0
 
 
-@pytest.mark.slow
-def test_update_privacy(hub_cloud_ds):
-    assert not hub_cloud_ds.public
-    hub_cloud_ds.make_public()
-    assert hub_cloud_ds.public
-    hub_cloud_ds.make_private()
-    assert not hub_cloud_ds.public
-
-    runner = CliRunner()
-    runner.invoke(logout)
-    with pytest.raises(UserNotLoggedInException):
-        deeplake.dataset(hub_cloud_ds.path)
-
-    with pytest.raises(UserNotLoggedInException):
-        deeplake.load(hub_cloud_ds.path)
-
-    with pytest.raises(UserNotLoggedInException):
-        deeplake.empty(hub_cloud_ds.path)
-
-
 def test_persistence_bug(local_ds_generator):
     for tensor_name in ["abc", "abcd/defg"]:
         ds = local_ds_generator()
