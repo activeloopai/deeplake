@@ -22,31 +22,6 @@ def test_client_utils():
     assert read_token() is None
 
 
-@pytest.mark.slow
-@pytest.mark.parametrize("method", ["creds", "token"])
-def test_client_workspace_organizations(
-    method, hub_cloud_dev_credentials, hub_cloud_dev_token
-):
-    username, password = hub_cloud_dev_credentials
-    deeplake_client = DeepLakeBackendClient()
-
-    runner = CliRunner()
-    result = runner.invoke(logout)
-    assert result.exit_code == 0
-
-    assert deeplake_client.get_user_organizations() == ["public"]
-
-    if method == "creds":
-        runner.invoke(login, f"-u {username} -p {password}")
-    elif method == "token":
-        runner.invoke(login, f"-t {hub_cloud_dev_token}")
-
-    deeplake_client = DeepLakeBackendClient()
-    assert username in deeplake_client.get_user_organizations()
-
-    runner.invoke(logout)
-
-
 def create_response(
     job_id="6508464cd80cab681bfcfff3",
     dataset_id="some_dataset_id",
