@@ -56,7 +56,7 @@ class VectorStore:
             ...        path = "hub://org_id/dataset_name",
             ...        runtime = {"tensor_db": True},
             ... )
-            
+
             >>> # Create a vector store with custom tensors
             >>> data = VectorStore(
             ...        path = "./my_vector_store",
@@ -83,11 +83,11 @@ class VectorStore:
                 - 'threshold': The threshold for the dataset size above which an index will be created for the embedding tensor. When the threshold value is set to -1, index creation is turned off.
                   Defaults to -1, which turns off the index.
                 - 'distance_metric': This key specifies the method of calculating the distance between vectors when creating the vector database (VDB) index. It can either be a string that corresponds to a member of the DistanceType enumeration, or the string value itself.
-                    
+
                     - If no value is provided, it defaults to "L2".
                     - "L2" corresponds to DistanceType.L2_NORM.
                     - "COS" corresponds to DistanceType.COSINE_SIMILARITY.
-                
+
                 - 'additional_params': Additional parameters for fine-tuning the index.
             exec_option (str): Default method for search execution. It could be either ``"auto"``, ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``"auto"``. If None, it's set to "auto".
                 - ``auto``- Selects the best execution method based on the storage location of the Vector Store. It is the default option.
