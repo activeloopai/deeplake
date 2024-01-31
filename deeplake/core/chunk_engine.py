@@ -684,6 +684,19 @@ class ChunkEngine:
         # overridden in LinkedChunkEngine
         return
 
+    def _link_tensor_to_samples(self, samples):
+        for i, sample in enumerate(samples):
+            if (
+                isinstance(sample, deeplake.core.tensor.Tensor)
+                and sample.is_link
+                and not (
+                    sample.index.values[0].subscriptable()
+                    or len(sample.index.values) > 1
+                )
+            ):
+                sample = sample._linked_sample()
+                samples[i] = sample
+
     def _sanitize_samples(self, samples, ignore_errors=False):
         check_samples_type(samples)
         samples = self._prepare_samples_for_link_callback(samples)
@@ -1062,6 +1075,7 @@ class ChunkEngine:
             return samples
         if len(samples) == 0:
             return samples
+        self._link_tensor_to_samples(samples)
         verified_samples = verified_samples or self.check_each_sample(
             samples, ignore_errors=ignore_errors
         )
@@ -1111,6 +1125,7 @@ class ChunkEngine:
             try:
                 if sample is None:
                     sample = []
+                self._link_tensor_to_samples(sample)
                 if not already_verified:
                     verified_sample = self.check_each_sample(
                         sample, ignore_errors=ignore_errors
@@ -1703,6 +1718,7 @@ class ChunkEngine:
             enc = self.chunk_id_encoder
             index_length = index.length(self.num_samples)
             samples = make_sequence(samples, index_length)
+            self._link_tensor_to_samples(samples)
             verified_samples = self.check_each_sample(samples)
             if self.tensor_meta.htype == "class_label":
                 samples = self._convert_class_labels(samples)

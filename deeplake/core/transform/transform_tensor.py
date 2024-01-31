@@ -168,9 +168,12 @@ class TransformLinkTensor(TransformTensor):
             ), "Chunk engine for link tensor must be a LinkedChunkEngine"
             meta = chunk_engine.tensor_meta
             if meta.is_sequence:
+                chunk_engine._link_tensor_to_samples(item)
                 verified_item = chunk_engine.check_each_sample(item)
             else:
-                verified_item = chunk_engine.check_each_sample([item])[0]
+                item = [item]
+                chunk_engine._link_tensor_to_samples(item)
+                verified_item = chunk_engine.check_each_sample(item)[0]
             return verified_item, meta.verify
 
     def append(self, item):
