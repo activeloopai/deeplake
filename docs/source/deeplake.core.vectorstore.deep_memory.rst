@@ -4,8 +4,6 @@ deeplake.core.vectorstore.deep_memory
 
 DeepMemory
 ~~~~~~~~~~
-.. autoclass:: DeepMemory
+.. autoclass:: DeepMemory()
+    :special-members: __init__
     :members:
-
-    .. automethod:: __init__
-    .. automethod:: train

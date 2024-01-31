@@ -38,6 +38,7 @@ RECALL = "recall@10"
 
 
 def access_control(func):
+    @wraps(func)
     def wrapper(self, *args, **kwargs):
         if self.client is None:
             raise DeepMemoryAccessError()
@@ -388,42 +389,43 @@ class DeepMemory:
         Evaluate a model using the DeepMemory managed service.
 
         Examples:
-            # 1. Evaluate a model using an embedding function:
-            relevance = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
-            queries = ["What is the capital of India?", "What is the capital of France?"]
-            embedding_function = openai_embedding.embed_documents
-            vectorstore.deep_memory.evaluate(
-                relevance=relevance,
-                queries=queries,
-                embedding_function=embedding_function,
-            )
 
-            # 2. Evaluate a model with precomputed embeddings:
-            embeddings = [[-1.2, 12, ...], ...]
-            vectorstore.deep_memory.evaluate(
-                relevance=relevance,
-                queries=queries,
-                embedding=embeddings,
-            )
+            >>> # 1. Evaluate a model using an embedding function:
+            >>> relevance = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
+            >>> queries = ["What is the capital of India?", "What is the capital of France?"]
+            >>> embedding_function = openai_embedding.embed_documents
+            >>> vectorstore.deep_memory.evaluate(
+            ...     relevance=relevance,
+            ...     queries=queries,
+            ...     embedding_function=embedding_function,
+            ... )
 
-            # 3. Evaluate a model with precomputed embeddings and log queries:
-            vectorstore.deep_memory.evaluate(
-                relevance=relevance,
-                queries=queries,
-                embedding=embeddings,
-                qvs_params={"log_queries": True},
-            )
+            >>> # 2. Evaluate a model with precomputed embeddings:
+            >>> embeddings = [[-1.2, 12, ...], ...]
+            >>> vectorstore.deep_memory.evaluate(
+            ...     relevance=relevance,
+            ...     queries=queries,
+            ...     embedding=embeddings,
+            >>> )
 
-            # 4. Evaluate with precomputed embeddings, log queries, and a custom branch:
-            vectorstore.deep_memory.evaluate(
-                relevance=relevance,
-                queries=queries,
-                embedding=embeddings,
-                qvs_params={
-                    "log_queries": True,
-                    "branch": "queries",
-                }
-            )
+            >>> # 3. Evaluate a model with precomputed embeddings and log queries:
+            >>> vectorstore.deep_memory.evaluate(
+            ...     relevance=relevance,
+            ...     queries=queries,
+            ...     embedding=embeddings,
+            ...     qvs_params={"log_queries": True},
+            ... )
+
+            >>> # 4. Evaluate with precomputed embeddings, log queries, and a custom branch:
+            >>> vectorstore.deep_memory.evaluate(
+            ...     relevance=relevance,
+            ...     queries=queries,
+            ...     embedding=embeddings,
+            ...     qvs_params={
+            ...         "log_queries": True,
+            ...         "branch": "queries",
+            ...     }
+            ... )
 
         Args:
             queries (List[str]): Queries for model evaluation.
