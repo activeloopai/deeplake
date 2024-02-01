@@ -684,15 +684,22 @@ class ChunkEngine:
         # overridden in LinkedChunkEngine
         return
 
-    def _sanitize_samples(
-        self, samples, verify=True, pg_callback=None, ignore_errors=False
-    ):
+    def _link_tensor_to_samples(self, samples):
+        for i, sample in enumerate(samples):
+            if (
+                isinstance(sample, deeplake.core.tensor.Tensor)
+                and sample.is_link
+                and not (
+                    sample.index.values[0].subscriptable()
+                    or len(sample.index.values) > 1
+                )
+            ):
+                sample = sample._linked_sample()
+                samples[i] = sample
+
+    def _sanitize_samples(self, samples, ignore_errors=False):
         check_samples_type(samples)
         samples = self._prepare_samples_for_link_callback(samples)
-        # verified samples are present only in case of linked tensors
-        verified_samples = self.check_each_sample(
-            samples, verify=verify, ignore_errors=ignore_errors
-        )
         tensor_meta = self.tensor_meta
         all_empty = all(sample is None for sample in samples)
         if tensor_meta.htype is None and not all_empty:
@@ -756,7 +763,7 @@ class ChunkEngine:
             samples = [
                 sample if isinstance(sample, list) else [sample] for sample in samples
             ]
-        return samples, verified_samples
+        return samples
 
     def _convert_class_labels(self, samples):
         tensor_info_path = get_tensor_info_key(self.key, self.commit_id)
@@ -1054,6 +1061,7 @@ class ChunkEngine:
         pg_callback=None,
         update_commit_diff=True,
         ignore_errors=False,
+        verified_samples=None,
     ):
         if isinstance(samples, deeplake.Tensor):
             samples = tqdm(samples) if progressbar else samples
@@ -1067,9 +1075,11 @@ class ChunkEngine:
             return samples
         if len(samples) == 0:
             return samples
-        samples, verified_samples = self._sanitize_samples(
-            samples, pg_callback=pg_callback, ignore_errors=ignore_errors
+        self._link_tensor_to_samples(samples)
+        verified_samples = verified_samples or self.check_each_sample(
+            samples, ignore_errors=ignore_errors
         )
+        samples = self._sanitize_samples(samples, ignore_errors=ignore_errors)
         samples = self._samples_to_chunks(
             samples,
             start_chunk=self.last_appended_chunk(allow_copy=False),
@@ -1080,7 +1090,8 @@ class ChunkEngine:
             return_samples=True,
             ignore_errors=ignore_errors,
         )
-        return verified_samples or samples
+        verified_samples = verified_samples or samples
+        return verified_samples
 
     def _extend_link_callback(
         self, link_callback, samples, flat, progressbar, ignore_errors
@@ -1102,23 +1113,34 @@ class ChunkEngine:
                 return
             raise
 
-    def _extend_sequence(self, samples, progressbar, link_callback, ignore_errors):
+    def _extend_sequence(
+        self, samples, progressbar, link_callback, ignore_errors, verified_samples
+    ):
         samples = tqdm(samples) if progressbar else samples
-        verified_samples = []
+        already_verified = verified_samples is not None
+        if not already_verified:
+            verified_samples = []
         num_samples_added = 0
         for sample in samples:
             try:
                 if sample is None:
                     sample = []
-                verified_sample = self._extend(
+                self._link_tensor_to_samples(sample)
+                if not already_verified:
+                    verified_sample = self.check_each_sample(
+                        sample, ignore_errors=ignore_errors
+                    )
+                sample = self._extend(
                     sample, progressbar=False, update_commit_diff=False
                 )
+                if not already_verified:
+                    verified_sample = verified_sample or sample
+                    verified_samples.append(
+                        verified_sample if verified_sample is not None else sample
+                    )
                 self.sequence_encoder.register_samples(len(sample), 1)
                 self.commit_diff.add_data(1)
                 num_samples_added += 1
-                verified_samples.append(
-                    verified_sample if verified_sample is not None else sample
-                )
             except Exception:
                 if ignore_errors:
                     continue
@@ -1175,6 +1197,7 @@ class ChunkEngine:
         link_callback: Optional[Callable] = None,
         pg_callback=None,
         ignore_errors: bool = False,
+        verified_samples=None,
     ):
         try:
             assert not (progressbar and pg_callback)
@@ -1189,7 +1212,11 @@ class ChunkEngine:
 
             if self.is_sequence:
                 self._extend_sequence(
-                    samples, progressbar, link_callback, ignore_errors
+                    samples,
+                    progressbar,
+                    link_callback,
+                    ignore_errors,
+                    verified_samples,
                 )
             else:
                 verified_samples = self._extend(
@@ -1197,6 +1224,7 @@ class ChunkEngine:
                     progressbar,
                     pg_callback=pg_callback,
                     ignore_errors=ignore_errors,
+                    verified_samples=verified_samples,
                 )
                 if link_callback:
                     verified_samples = self._prepare_samples_for_link_callback(
@@ -1515,7 +1543,7 @@ class ChunkEngine:
             row=new_chunk_row, num_samples=num_samples
         )
         chunk.pop_multiple(num_samples=len(samples_to_move))
-        samples, _ = self._sanitize_samples(samples_to_move, verify=False)
+        samples = self._sanitize_samples(samples_to_move)
         self._samples_to_chunks(
             samples,
             start_chunk=new_chunk,
@@ -1539,7 +1567,7 @@ class ChunkEngine:
             return True
 
         from_chunk.pop_multiple(num_samples=num_samples)
-        samples, _ = self._sanitize_samples(samples_to_move, verify=False)
+        samples = self._sanitize_samples(samples_to_move)
         to_chunk.is_dirty = True
         self.active_updated_chunk = to_chunk
         self._samples_to_chunks(
@@ -1690,6 +1718,7 @@ class ChunkEngine:
             enc = self.chunk_id_encoder
             index_length = index.length(self.num_samples)
             samples = make_sequence(samples, index_length)
+            self._link_tensor_to_samples(samples)
             verified_samples = self.check_each_sample(samples)
             if self.tensor_meta.htype == "class_label":
                 samples = self._convert_class_labels(samples)
