@@ -2346,6 +2346,7 @@ def user_not_logged_in_exception_check(runner):
     with pytest.raises(UserNotLoggedInException):
         ds = deeplake.empty("hub://adilkhan/demo")
 
+
 def test_incompat_dtype_msg(local_ds, capsys):
     local_ds.create_tensor("abc", dtype="uint32")
     with pytest.raises(SampleAppendError):

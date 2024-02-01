@@ -70,6 +70,7 @@ def test_view_public(hub_cloud_dev_token):
     with pytest.raises(ReadOnlyModeError):
         view.save_view(id="100to200")
 
+
 def test_view_with_empty_tensor(local_ds):
     with local_ds as ds:
         ds.create_tensor("images")
