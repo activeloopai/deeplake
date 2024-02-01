@@ -4,6 +4,7 @@ import uuid
 from collections import defaultdict
 from pydantic import BaseModel, ValidationError
 from typing import Any, Dict, Optional, List, Union, Callable, Tuple
+from functools import wraps
 from time import time
 
 import numpy as np
@@ -37,6 +38,7 @@ RECALL = "recall@10"
 
 
 def access_control(func):
+    @wraps(func)
     def wrapper(self, *args, **kwargs):
         if self.client is None:
             raise DeepMemoryAccessError()
@@ -46,6 +48,7 @@ def access_control(func):
 
 
 def use_deep_memory(func):
+    @wraps(func)
     def wrapper(self, *args, **kwargs):
         use_deep_memory = kwargs.get("deep_memory")
         distance_metric = kwargs.get("distance_metric")
@@ -88,7 +91,7 @@ class DeepMemory:
         token: Optional[str] = None,
         creds: Optional[Union[Dict, str]] = None,
     ):
-        """Based Deep Memory class to train and evaluate models on DeepMemory managed service.
+        """Base Deep Memory class to train and evaluate models on DeepMemory managed service.
 
         Args:
             dataset (Dataset): deeplake dataset object or path.
@@ -386,42 +389,43 @@ class DeepMemory:
         Evaluate a model using the DeepMemory managed service.
 
         Examples:
-            # 1. Evaluate a model using an embedding function:
-            relevance = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
-            queries = ["What is the capital of India?", "What is the capital of France?"]
-            embedding_function = openai_embedding.embed_documents
-            vectorstore.deep_memory.evaluate(
-                relevance=relevance,
-                queries=queries,
-                embedding_function=embedding_function,
-            )
 
-            # 2. Evaluate a model with precomputed embeddings:
-            embeddings = [[-1.2, 12, ...], ...]
-            vectorstore.deep_memory.evaluate(
-                relevance=relevance,
-                queries=queries,
-                embedding=embeddings,
-            )
+            >>> # 1. Evaluate a model using an embedding function:
+            >>> relevance = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
+            >>> queries = ["What is the capital of India?", "What is the capital of France?"]
+            >>> embedding_function = openai_embedding.embed_documents
+            >>> vectorstore.deep_memory.evaluate(
+            ...     relevance=relevance,
+            ...     queries=queries,
+            ...     embedding_function=embedding_function,
+            ... )
 
-            # 3. Evaluate a model with precomputed embeddings and log queries:
-            vectorstore.deep_memory.evaluate(
-                relevance=relevance,
-                queries=queries,
-                embedding=embeddings,
-                qvs_params={"log_queries": True},
-            )
+            >>> # 2. Evaluate a model with precomputed embeddings:
+            >>> embeddings = [[-1.2, 12, ...], ...]
+            >>> vectorstore.deep_memory.evaluate(
+            ...     relevance=relevance,
+            ...     queries=queries,
+            ...     embedding=embeddings,
+            >>> )
 
-            # 4. Evaluate with precomputed embeddings, log queries, and a custom branch:
-            vectorstore.deep_memory.evaluate(
-                relevance=relevance,
-                queries=queries,
-                embedding=embeddings,
-                qvs_params={
-                    "log_queries": True,
-                    "branch": "queries",
-                }
-            )
+            >>> # 3. Evaluate a model with precomputed embeddings and log queries:
+            >>> vectorstore.deep_memory.evaluate(
+            ...     relevance=relevance,
+            ...     queries=queries,
+            ...     embedding=embeddings,
+            ...     qvs_params={"log_queries": True},
+            ... )
+
+            >>> # 4. Evaluate with precomputed embeddings, log queries, and a custom branch:
+            >>> vectorstore.deep_memory.evaluate(
+            ...     relevance=relevance,
+            ...     queries=queries,
+            ...     embedding=embeddings,
+            ...     qvs_params={
+            ...         "log_queries": True,
+            ...         "branch": "queries",
+            ...     }
+            ... )
 
         Args:
             queries (List[str]): Queries for model evaluation.
