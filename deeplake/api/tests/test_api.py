@@ -48,11 +48,8 @@ from deeplake.util.testing import assert_array_equal
 from deeplake.util.pretty_print import summary_tensor, summary_dataset
 from deeplake.util.shape_interval import ShapeInterval
 from deeplake.constants import GDRIVE_OPT, MB, KB
-from deeplake.client.config import REPORTING_CONFIG_FILE_PATH
 
 from click.testing import CliRunner
-from deeplake.cli.auth import login, logout
-from deeplake.util.bugout_reporter import feature_report_path
 from rich import print as rich_print
 from io import BytesIO
 
@@ -2348,14 +2345,6 @@ def user_not_logged_in_exception_check(runner):
 
     with pytest.raises(UserNotLoggedInException):
         ds = deeplake.empty("hub://adilkhan/demo")
-
-
-def dataset_handler_error_check(runner, username, password):
-    result = runner.invoke(login, f"-u {username} -p {password}")
-    with pytest.raises(DatasetHandlerError):
-        ds = deeplake.load(f"hub://{username}/wrong-path")
-    runner.invoke(logout)
-
 
 def test_incompat_dtype_msg(local_ds, capsys):
     local_ds.create_tensor("abc", dtype="uint32")

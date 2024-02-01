@@ -1,7 +1,4 @@
 from deeplake.util.exceptions import ReadOnlyModeError, EmptyTensorError, TransformError
-from deeplake.client.utils import get_user_name
-from deeplake.cli.auth import logout, login
-from click.testing import CliRunner
 
 import numpy as np
 
@@ -60,29 +57,18 @@ def test_view_token_only(
 
 
 @pytest.mark.slow
-def test_view_public(hub_cloud_dev_credentials):
-    runner = CliRunner()
-    result = runner.invoke(logout)
-    assert result.exit_code == 0
-
-    username, password = hub_cloud_dev_credentials
-
+def test_view_public(hub_cloud_dev_token):
     ds = deeplake.load("hub://activeloop/mnist-train")
     view = ds[100:200]
 
     with pytest.raises(ReadOnlyModeError):
         view.save_view(id="100to200")
 
-    runner.invoke(login, f"-u {username} -p {password}")
-
-    ds = deeplake.load("hub://activeloop/mnist-train")
+    ds = deeplake.load("hub://activeloop/mnist-train", token=hub_cloud_dev_token)
     view = ds[100:200]
 
     with pytest.raises(ReadOnlyModeError):
         view.save_view(id="100to200")
-
-    runner.invoke(logout)
-
 
 def test_view_with_empty_tensor(local_ds):
     with local_ds as ds:
