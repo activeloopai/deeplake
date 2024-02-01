@@ -24,10 +24,6 @@ def populate(ds):
 def test_view_token_only(
     hub_cloud_path, hub_cloud_dev_token, hub_cloud_dev_credentials
 ):
-    runner = CliRunner()
-    result = runner.invoke(logout)
-    assert result.exit_code == 0
-
     ds = deeplake.empty(hub_cloud_path, token=hub_cloud_dev_token)
     with ds:
         populate(ds)
