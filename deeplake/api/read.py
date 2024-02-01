@@ -12,6 +12,7 @@ def read(
     creds: Optional[Dict] = None,
     compression: Optional[str] = None,
     storage: Optional[StorageProvider] = None,
+    timeout: Optional[float] = None,
 ) -> Sample:
     """Utility that reads raw data from supported files into Deep Lake format.
 
@@ -49,6 +50,7 @@ def read(
         creds (optional, Dict): Credentials for s3, gcp and http urls.
         compression (optional, str): Format of the file. Only required if path does not have an extension.
         storage (optional, StorageProvider): Storage provider to use to retrieve remote files. Useful if multiple files are being read from same storage to minimize overhead of creating a new provider.
+        timeout (optional, float): Timeout in seconds for reading the file. Applicable only for http(s) urls.
 
     Returns:
         Sample: Sample object. Call ``sample.array`` to get the ``np.ndarray``.
@@ -59,5 +61,10 @@ def read(
     """
     path = convert_pathlib_to_string_if_needed(path)
     return Sample(
-        path, verify=verify, compression=compression, creds=creds, storage=storage
+        path,
+        verify=verify,
+        compression=compression,
+        creds=creds,
+        storage=storage,
+        timeout=timeout,
     )
