@@ -120,9 +120,9 @@ class _COCO(pycocotools_coco.COCO):
                     "category_id": categories[bbox_index],
                     "bbox": bbox,
                     "area": bbox[2] * bbox[3],
-                    "segmentation": mask
-                    if masks is not None
-                    else None,  # optimize here
+                    "segmentation": (
+                        mask if masks is not None else None
+                    ),  # optimize here
                     "iscrowd": int(is_crowds[bbox_index]),
                 }
 

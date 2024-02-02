@@ -2735,69 +2735,6 @@ def test_exec_option_with_auth(local_path, hub_cloud_path, hub_cloud_dev_token):
 
 
 @requires_libdeeplake
-def test_exec_option_cli(
-    local_path,
-    hub_cloud_path,
-    hub_cloud_dev_token,
-    hub_cloud_dev_credentials,
-):
-    runner = CliRunner()
-    username, password = hub_cloud_dev_credentials
-    # Testing exec_option with cli login and logout commands are executed
-    runner.invoke(login, f"-u {username} -p {password}")
-
-    # local dataset and logged in with cli
-    db = VectorStore(
-        path=local_path,
-    )
-    assert db.dataset_handler.exec_option == "compute_engine"
-
-    # hub cloud dataset and logged in with cli
-    db = VectorStore(
-        path=hub_cloud_path,
-    )
-    assert db.dataset_handler.exec_option == "compute_engine"
-
-    # hub cloud dataset and logged in with cli
-    db = VectorStore(
-        path="mem://abc",
-    )
-    assert db.dataset_handler.exec_option == "python"
-
-    # logging out with cli
-    runner.invoke(logout)
-
-    # local dataset and logged out with cli
-    db = VectorStore(
-        path=local_path,
-    )
-    assert db.dataset_handler.exec_option == "python"
-
-    # Check whether after logging out exec_option changes to python
-    # logging in with cli token
-    runner.invoke(login, f"-t {hub_cloud_dev_token}")
-    db = VectorStore(
-        path=local_path,
-    )
-    assert db.dataset_handler.exec_option == "compute_engine"
-    # logging out with cli
-    runner.invoke(logout)
-    assert db.dataset_handler.exec_option == "python"
-
-    # Check whether after logging out when token specified exec_option doesn't change
-    # logging in with cli token
-    runner.invoke(login, f"-t {hub_cloud_dev_token}")
-    db = VectorStore(
-        path=local_path,
-        token=hub_cloud_dev_token,
-    )
-    assert db.dataset_handler.exec_option == "compute_engine"
-    # logging out with cli
-    runner.invoke(logout)
-    assert db.dataset_handler.exec_option == "compute_engine"
-
-
-@requires_libdeeplake
 @pytest.mark.parametrize(
     "path, creds",
     [

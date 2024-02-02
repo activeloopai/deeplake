@@ -1,5 +1,6 @@
 from deeplake.util.exceptions import TensorDoesNotExistError, SampleAppendError
 from deeplake.core.linked_tiled_sample import LinkedTiledSample
+from deeplake.core.linked_chunk_engine import LinkedChunkEngine
 from deeplake.core.partial_sample import PartialSample
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.sample import Sample
@@ -151,3 +152,44 @@ class TransformTensor:
 
         for item in items:
             self.append(item)
+
+
+class TransformLinkTensor(TransformTensor):
+    def __init__(self, dataset, name, is_group=False):
+        super().__init__(dataset, name, is_group)
+        self.verified_items = []
+
+    def _verify_item(self, item):
+        if self.dataset.all_chunk_engines:
+            engine_name = self.dataset._get_engine_name(self.name)
+            chunk_engine = self.dataset.all_chunk_engines[engine_name]
+            assert isinstance(
+                chunk_engine, LinkedChunkEngine
+            ), "Chunk engine for link tensor must be a LinkedChunkEngine"
+            meta = chunk_engine.tensor_meta
+            if meta.is_sequence:
+                chunk_engine._link_tensor_to_samples(item)
+                verified_item = chunk_engine.check_each_sample(item)
+            else:
+                item = [item]
+                chunk_engine._link_tensor_to_samples(item)
+                verified_item = chunk_engine.check_each_sample(item)[0]
+            return verified_item, meta.verify
+
+    def append(self, item):
+        if self.is_group:
+            raise TensorDoesNotExistError(self.name)
+        try:
+            self.non_numpy_only()
+
+            verified_item, verified = self._verify_item(item)
+            self.items.append(item)
+            self.verified_items.append(verified_item)
+            if verified:
+                self._item_added(verified_item)
+            else:
+                self._item_added(item)
+        except Exception as e:
+            self.items.clear()
+            self.verified_items.clear()
+            raise SampleAppendError(self.name, item) from e

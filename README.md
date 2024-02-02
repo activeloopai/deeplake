@@ -256,6 +256,7 @@ If you use Deep Lake in your research, please cite Activeloop using:
 }
 ```
 
+
 ## Acknowledgment
 
 This technology was inspired by our research work at Princeton University. We would like to thank William Silversmith @SeungLab for his awesome [cloud-volume](https://github.com/seung-lab/cloud-volume) tool.

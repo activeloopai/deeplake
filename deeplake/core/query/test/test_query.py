@@ -466,9 +466,11 @@ def test_link_materialize(local_ds, num_workers):
         ds.create_tensor("abc", htype="link[image]", sample_compression="jpg")
         ds.abc.extend(
             [
-                deeplake.link("https://picsum.photos/20/20")
-                if i % 2
-                else deeplake.link("https://picsum.photos/10/10")
+                (
+                    deeplake.link("https://picsum.photos/20/20")
+                    if i % 2
+                    else deeplake.link("https://picsum.photos/10/10")
+                )
                 for i in range(20)
             ]
         )

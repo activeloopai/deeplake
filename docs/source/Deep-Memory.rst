@@ -2,13 +2,40 @@
 
 Deep Memory API
 ===============
-.. currentmodule:: deeplake.core.vectorstore.deep_memory
+.. currentmodule:: deeplake.core.vectorstore.deep_memory.deep_memory
 
-.. autoclass:: DeepMemory()
-    :members:
+Creating a Deep Memory
+~~~~~~~~~~~~~~~~~~~~~~
 
-    .. automethod:: __init__
+If Deep Memory is available on your plan, it will be automatically initialized when you create a Vector Store.
 
+.. autosummary::
+    :toctree:
+    :nosignatures:
+
+    DeepMemory.__init__
+
+Deep Memory Operations
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+    :toctree:
+    :nosignatures:
+
+    DeepMemory.train
+    DeepMemory.cancel
+    DeepMemory.delete
+
+Deep Memory Properties
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+    :toctree:
+    :nosignatures:
+
+    DeepMemory.status
+    DeepMemory.list_jobs
+    
 
 Syntax
 ~~~~~~
