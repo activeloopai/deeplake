@@ -45,6 +45,7 @@ from deeplake.constants import (
     DEFAULT_READONLY,
     DATASET_META_FILENAME,
     DATASET_LOCK_FILENAME,
+    USE_V4,
 )
 from deeplake.util.access_method import (
     check_access_method,
@@ -375,6 +376,7 @@ class dataset:
         lock_timeout: Optional[int] = 0,
         verbose: bool = True,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
+        v4: bool = USE_V4,
     ) -> Dataset:
         """Creates an empty dataset
 
@@ -399,6 +401,7 @@ class dataset:
             lock_timeout (int): Number of seconds to wait before throwing a LockException. If None, wait indefinitely
             lock_enabled (bool): If true, the dataset manages a write lock. NOTE: Only set to False if you are managing concurrent access externally.
             index_params: Optional[Dict[str, Union[int, str]]]: Index parameters used while creating vector store, passed down to dataset.
+            v4 (bool): Flag indicating whether v4 api should be used to create the dataset. Defaults to false
 
         Returns:
             Dataset: Dataset created using the arguments provided.
@@ -438,6 +441,7 @@ class dataset:
                 token=token,
                 memory_cache_size=memory_cache_size,
                 local_cache_size=local_cache_size,
+                v4=v4,
             )
 
             feature_report_path(
@@ -500,6 +504,7 @@ class dataset:
         access_method: str = "stream",
         unlink: bool = False,
         reset: bool = False,
+        v4: bool = USE_V4,
         check_integrity: Optional[bool] = None,
         lock_timeout: Optional[int] = 0,
         lock_enabled: Optional[bool] = True,
@@ -570,6 +575,7 @@ class dataset:
                           setting ``reset=True`` will reset HEAD changes and load the previous version.
             check_integrity (bool, Optional): Performs an integrity check by default (None) if the dataset has 20 or fewer tensors.
                                               Set to ``True`` to force integrity check, ``False`` to skip integrity check.
+            v4 (bool): Flag indicating whether v4 api should be used to create the dataset. Defaults to false
 
         ..
             # noqa: DAR101
@@ -616,6 +622,7 @@ class dataset:
                 token=token,
                 memory_cache_size=memory_cache_size,
                 local_cache_size=local_cache_size,
+                v4=v4,
             )
             feature_report_path(
                 path,

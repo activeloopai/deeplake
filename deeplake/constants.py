@@ -349,3 +349,5 @@ DEFAULT_RATE_LIMITER_KEY_TO_VALUE = {
 
 # Size of dataset view to expose as indra dataset wrapper.
 INDRA_DATASET_SAMPLES_THRESHOLD = 10000000
+
+USE_V4 = os.environ.get("DEEPLAKE_USE_V4", "false").strip().lower() == "true"

@@ -25,6 +25,8 @@ class IndraProvider(StorageProvider):
 
     def __setitem__(self, path, content):
         self.check_readonly()
+        if not isinstance(content, bytes):
+            content = bytes(content)
         self.core.set(path, content)
 
     def __getitem__(self, path):

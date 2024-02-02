@@ -28,6 +28,7 @@ def storage_provider_from_path(
     token: Optional[str] = None,
     is_hub_path: bool = False,
     db_engine: bool = False,
+    v4: bool = False,
 ):
     """Construct a StorageProvider given a path.
 
@@ -53,17 +54,17 @@ def storage_provider_from_path(
     """
     if creds is None:
         creds = {}
-    from deeplake.core.storage.indra import IndraProvider
 
-    if path.startswith("hub://"):
-        if read_only and not db_engine:
-            storage: StorageProvider = IndraProvider(
-                path, read_only=True, token=token, creds=creds
-            )
-        else:
-            storage = storage_provider_from_hub_path(
-                path, read_only, db_engine=db_engine, token=token, creds=creds
-            )
+    if v4:
+        from deeplake.core.storage.indra import IndraProvider
+
+        storage: StorageProvider = IndraProvider(
+            path, read_only=True, token=token, creds=creds
+        )
+    elif path.startswith("hub://"):
+        storage = storage_provider_from_hub_path(
+            path, read_only, db_engine=db_engine, token=token, creds=creds
+        )
     else:
         if path.startswith("s3://"):
             creds_used = "PLATFORM"
@@ -110,10 +111,7 @@ def storage_provider_from_path(
                 storage = MemoryProvider(path)
             else:
                 if not os.path.exists(path) or os.path.isdir(path):
-                    if read_only:
-                        storage = IndraProvider(path)
-                    else:
-                        storage = LocalProvider(path)
+                    storage = LocalProvider(path)
                 else:
                     raise ValueError(
                         f"Local path {path} must be a path to a local directory"
@@ -133,7 +131,7 @@ def get_dataset_credentials(
     mode: Optional[str],
     db_engine: bool,
 ):
-    # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
+    # this will give the proper url(s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
     try:
         url, final_creds, mode, expiration, repo = client.get_dataset_credentials(
             org_id, ds_name, mode=mode, db_engine={"enabled": db_engine}
@@ -152,6 +150,7 @@ def storage_provider_from_hub_path(
     db_engine: bool = False,
     token: Optional[str] = None,
     creds: Optional[Union[dict, str]] = None,
+    v4: bool = False,
 ):
     path, org_id, ds_name, subdir = process_hub_path(path)
     client = DeepLakeBackendClient(token=token)
@@ -195,7 +194,12 @@ def storage_provider_from_hub_path(
         print(msg)
 
     storage = storage_provider_from_path(
-        path=url, creds=final_creds, read_only=read_only, is_hub_path=True, token=token
+        path=url,
+        creds=final_creds,
+        read_only=read_only,
+        is_hub_path=True,
+        token=token,
+        v4=v4,
     )
     storage.creds_used = creds_used
     if creds_used == "PLATFORM":
@@ -212,6 +216,7 @@ def get_storage_and_cache_chain(
     memory_cache_size,
     local_cache_size,
     db_engine=False,
+    v4=False,
 ):
     """
     Returns storage provider and cache chain for a given path, according to arguments passed.
@@ -236,6 +241,7 @@ def get_storage_and_cache_chain(
         creds=creds,
         read_only=read_only,
         token=token,
+        v4=v4,
     )
     memory_cache_size_bytes = memory_cache_size * MB
     local_cache_size_bytes = local_cache_size * MB
