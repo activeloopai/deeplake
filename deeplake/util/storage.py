@@ -40,6 +40,7 @@ def storage_provider_from_path(
         token (str): token for authentication into activeloop.
         is_hub_path (bool): Whether the path points to a Deep Lake dataset.
         db_engine (bool): Whether to use Activeloop DB Engine. Only applicable for hub:// paths.
+        v4 (bool): If true creates v4 storage provider.
 
     Returns:
         If given a path starting with s3:// returns the S3Provider.
@@ -230,6 +231,7 @@ def get_storage_and_cache_chain(
         memory_cache_size (int): The size of the in-memory cache to use.
         local_cache_size (int): The size of the local cache to use.
         db_engine (bool): Whether to use Activeloop DB Engine, only applicable for hub:// paths.
+        v4 (bool): If true creates v4 storage provider.
 
     Returns:
         A tuple of the storage provider and the storage chain.
