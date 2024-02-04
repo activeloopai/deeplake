@@ -42,7 +42,7 @@ class IndraDatasetView(Dataset):
         enabled_tensors=None,
         index: Optional[Index] = None,
     ):
-        if isinstance(deeplake_ds, DeepLakeQueryDataset):
+        if isinstance(deeplake_ds, IndraDatasetView):
             deeplake_ds = deeplake_ds.deeplake_ds
         d: Dict[str, Any] = {}
         d["deeplake_ds"] = deeplake_ds
