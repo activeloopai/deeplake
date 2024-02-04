@@ -174,10 +174,6 @@ def create_tensor_to_length_str(tensors):
     return tensor_lengths
 
 
-random.seed(0)
-np.random.seed(0)
-
-
 def generate_random_string(length):
     # Define the character set to include letters (both lowercase and uppercase) and digits
     characters = string.ascii_letters + string.digits
