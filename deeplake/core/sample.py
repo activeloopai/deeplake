@@ -19,6 +19,7 @@ from deeplake.compression import (
     POINT_CLOUD_COMPRESSION,
     MESH_COMPRESSION,
     NIFTI_COMPRESSION,
+    BYTE_COMPRESSION,
 )
 from deeplake.util.exceptions import SampleReadError, UnableToReadFromUrlError
 from deeplake.util.exif import getexif
@@ -59,6 +60,7 @@ class Sample:
         dtype: Optional[str] = None,
         creds: Optional[Dict] = None,
         storage: Optional[StorageProvider] = None,
+        timeout: Optional[float] = None,
     ):
         """Represents a single sample for a tensor. Provides all important meta information in one place.
 
@@ -76,6 +78,7 @@ class Sample:
             dtype (optional, str): Data type of the sample.
             creds (optional, Dict): Credentials for s3, gcp and http urls.
             storage (optional, StorageProvider): Storage provider.
+            timeout (optional, float): Timeout in seconds for reading the file. Applicable only for http(s) urls.
         """
         self._compressed_bytes = {}
         self._uncompressed_bytes = None
@@ -91,6 +94,7 @@ class Sample:
         self._buffer = None
         self._creds = creds or {}
         self._verify = verify
+        self._timeout = timeout
 
         if path is not None:
             self.path = path
@@ -135,6 +139,7 @@ class Sample:
         sample._creds = self._creds
         sample._verify = self._verify
         sample._compression = self._compression
+        sample._timeout = self._timeout
         return sample
 
     @property
@@ -223,9 +228,11 @@ class Sample:
             x.keyword: {
                 "name": x.name,
                 "tag": str(x.tag),
-                "value": x.value
-                if isinstance(x.value, (str, int, float))
-                else x.to_json_dict(None, None).get("Value", ""),  # type: ignore
+                "value": (
+                    x.value
+                    if isinstance(x.value, (str, int, float))
+                    else x.to_json_dict(None, None).get("Value", "")  # type: ignore
+                ),
                 "vr": x.VR,
             }
             for x in dcm
@@ -349,10 +356,7 @@ class Sample:
                 )
 
         else:
-            if self.path and get_path_type(self.path) == "local":
-                compressed = self.path
-            else:
-                compressed = self.buffer
+            compressed = self.buffer
 
             if to_pil:
                 self._pil = decompress_array(
@@ -447,7 +451,7 @@ class Sample:
                 elif path_type == "gdrive":
                     self._buffer = self._read_from_gdrive()
                 elif path_type == "http":
-                    self._buffer = self._read_from_http()
+                    self._buffer = self._read_from_http(timeout=self._timeout)
             except Exception as e:
                 raise SampleReadError(self.path) from e  # type: ignore
         return self._buffer  # type: ignore
@@ -505,13 +509,13 @@ class Sample:
         )
         return gdrive.get_object_from_full_url(self.path)  # type: ignore
 
-    def _read_from_http(self) -> bytes:
+    def _read_from_http(self, timeout=None) -> bytes:
         assert self.path is not None
         if "Authorization" in self._creds:
             headers = {"Authorization": self._creds["Authorization"]}
         else:
             headers = {}
-        result = requests.get(self.path, headers=headers)
+        result = requests.get(self.path, headers=headers, timeout=timeout)
         if result.status_code != 200:
             raise UnableToReadFromUrlError(self.path, result.status_code)
         return result.content

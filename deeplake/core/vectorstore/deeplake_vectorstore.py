@@ -57,11 +57,13 @@ class VectorStore:
             >>> data = VectorStore(
             ...        path = "./my_vector_store",
             ... )
+
             >>> # Create a vector store in the Deep Lake Managed Tensor Database
             >>> data = VectorStore(
             ...        path = "hub://org_id/dataset_name",
             ...        runtime = {"tensor_db": True},
             ... )
+
             >>> # Create a vector store with custom tensors
             >>> data = VectorStore(
             ...        path = "./my_vector_store",
@@ -83,14 +85,17 @@ class VectorStore:
             embedding_function (Optional[Any], optional): Function or class that converts the embeddable data into embeddings. Input to `embedding_function` is a list of data and output is a list of embeddings. Defaults to None.
             read_only (bool, optional):  Opens dataset in read-only mode if True. Defaults to False.
             ingestion_batch_size (int): Batch size to use for parallel ingestion.
-            index_params (Dict[str, Union[int, str]]): Dictionary containing information about vector index that will be created. Defaults to None, which will utilize ``DEFAULT_VECTORSTORE_INDEX_PARAMS`` from ``deeplake.constants``. The specified key-values override the default ones.
-                - threshold: The threshold for the dataset size above which an index will be created for the embedding tensor. When the threshold value is set to -1, index creation is turned off.
-                             Defaults to -1, which turns off the index.
-                - distance_metric: This key specifies the method of calculating the distance between vectors when creating the vector database (VDB) index. It can either be a string that corresponds to a member of the DistanceType enumeration, or the string value itself.
+            index_params (Dict[str, Union[int, str]]): Dictionary containing information about vector index that will be created. Defaults to ``None``, which will utilize ``DEFAULT_VECTORSTORE_INDEX_PARAMS`` from ``deeplake.constants``. The specified key-values override the default ones:
+
+                - 'threshold': The threshold for the dataset size above which an index will be created for the embedding tensor. When the threshold value is set to -1, index creation is turned off.
+                  Defaults to -1, which turns off the index.
+                - 'distance_metric': This key specifies the method of calculating the distance between vectors when creating the vector database (VDB) index. It can either be a string that corresponds to a member of the DistanceType enumeration, or the string value itself.
+
                     - If no value is provided, it defaults to "L2".
                     - "L2" corresponds to DistanceType.L2_NORM.
                     - "COS" corresponds to DistanceType.COSINE_SIMILARITY.
-                - additional_params: Additional parameters for fine-tuning the index.
+
+                - 'additional_params': Additional parameters for fine-tuning the index.
             exec_option (str): Default method for search execution. It could be either ``"auto"``, ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``"auto"``. If None, it's set to "auto".
                 - ``auto``- Selects the best execution method based on the storage location of the Vector Store. It is the default option.
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
@@ -105,8 +110,7 @@ class VectorStore:
                 - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             runtime (Dict, optional): Parameters for creating the Vector Store in Deep Lake's Managed Tensor Database. Not applicable when loading an existing Vector Store. To create a Vector Store in the Managed Tensor Database, set `runtime = {"tensor_db": True}`.
             branch (str): Branch name to use for the Vector Store. Defaults to "main".
-
-            **kwargs (Any): Additional keyword arguments.
+            **kwargs (dict): Additional keyword arguments.
 
         ..
             # noqa: DAR101

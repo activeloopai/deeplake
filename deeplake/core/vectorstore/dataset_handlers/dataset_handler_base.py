@@ -89,9 +89,9 @@ class DHBase(ABC):
             self.bugout_reporting_path,
             "vs.initialize",
             {
-                "tensor_params": "default"
-                if tensor_params is not None
-                else tensor_params,
+                "tensor_params": (
+                    "default" if tensor_params is not None else tensor_params
+                ),
                 "embedding_function": True if embedding_function is not None else False,
                 "num_workers": num_workers,
                 "overwrite": overwrite,
