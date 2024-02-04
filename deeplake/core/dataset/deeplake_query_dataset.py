@@ -42,6 +42,8 @@ class DeepLakeQueryDataset(Dataset):
         enabled_tensors=None,
         index: Optional[Index] = None,
     ):
+        if isinstance(deeplake_ds, DeepLakeQueryDataset):
+            deeplake_ds = deeplake_ds.deeplake_ds
         d: Dict[str, Any] = {}
         d["deeplake_ds"] = deeplake_ds
         d["indra_ds"] = indra_ds
@@ -76,6 +78,10 @@ class DeepLakeQueryDataset(Dataset):
     @property
     def path(self):
         return self.deeplake_ds.path if self.deeplake_ds is not None else ""
+
+    @property
+    def libdeeplake_dataset(self):
+        return self.indra_ds
 
     def merge(self, *args, **kwargs):
         raise InvalidOperationError(
