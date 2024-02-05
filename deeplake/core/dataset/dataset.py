@@ -111,6 +111,7 @@ from deeplake.util.exceptions import (
     BadRequestException,
     SampleAppendError,
     SampleExtendError,
+    DatasetHandlerError,
 )
 from deeplake.util.keys import (
     dataset_exists,
@@ -2040,6 +2041,16 @@ class Dataset:
     def read_only(self, value: bool):
         self._set_read_only(value, True)
 
+    @property
+    def allow_delete(self) -> bool:
+        """Returns True if dataset can be deleted from storage. Whether it can be deleted or not is stored in the database_meta.json and can be changed with allow_delete(boolean)"""
+        return self.meta.allow_delete
+
+    @allow_delete.setter
+    def allow_delete(self, value: bool):
+        self.meta.allow_delete = value
+        self.flush()
+
     def pytorch(
         self,
         transform: Optional[Callable] = None,
@@ -2593,6 +2604,11 @@ class Dataset:
             feature_name="delete", parameters={"large_ok": large_ok}
         )
 
+        if not self.allow_delete:
+            raise DatasetHandlerError(
+                "The dataset is marked as delete_allowed=false. To delete this dataset, you must first run `allow_delete(True)` on the dataset."
+            )
+
         if hasattr(self, "_view_entry"):
             self._view_entry.delete()
             return
@@ -2651,6 +2667,9 @@ class Dataset:
         mode_str = ""
         if self.read_only:
             mode_str = f"read_only=True, "
+
+        if not self.allow_delete:
+            mode_str = f"allow_delete=False, "
 
         index_str = f"index={self.index}, "
         if self.index.is_trivial():

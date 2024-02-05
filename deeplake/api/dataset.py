@@ -1,3 +1,4 @@
+import json
 import os
 
 import deeplake
@@ -54,7 +55,7 @@ from deeplake.util.access_method import (
 from deeplake.util.auto import get_most_common_extension
 from deeplake.util.bugout_reporter import feature_report_path, deeplake_reporter
 from deeplake.util.delete_entry import remove_path_from_backend
-from deeplake.util.keys import dataset_exists
+from deeplake.util.keys import dataset_exists, get_dataset_meta_key, FIRST_COMMIT_ID
 from deeplake.util.exceptions import (
     AgreementError,
     DatasetHandlerError,
@@ -238,6 +239,11 @@ class dataset:
 
         if ds_exists:
             if overwrite:
+                if not dataset._allow_delete(cache_chain):
+                    raise DatasetHandlerError(
+                        "Dataset overwrite failed. The dataset is marked as delete_allowed=false. To allow overwrite, you must first run `allow_delete(True)` on the dataset."
+                    )
+
                 try:
                     cache_chain.clear()
                 except Exception as e:
@@ -458,6 +464,11 @@ class dataset:
             raise
 
         if overwrite and dataset_exists(cache_chain):
+            if not dataset._allow_delete(cache_chain):
+                raise DatasetHandlerError(
+                    "Dataset overwrite failed. The dataset is marked as delete_allowed=false. To allow overwrite, you must first run `allow_delete(True)` on the dataset."
+                )
+
             try:
                 cache_chain.clear()
             except Exception as e:
@@ -867,6 +878,7 @@ class dataset:
                 ds = deeplake.load(path, verbose=False, token=token, creds=creds)
             except UserNotLoggedInException:
                 raise UserNotLoggedInException from None
+
             ds.delete(large_ok=large_ok)
             if verbose:
                 logger.info(f"{path} dataset deleted successfully.")
@@ -1276,6 +1288,11 @@ class dataset:
 
         if dataset_exists(cache_chain):
             if overwrite:
+                if not dataset._allow_delete(cache_chain):
+                    raise DatasetHandlerError(
+                        "Dataset overwrite failed. The dataset is marked as delete_allowed=false. To allow overwrite, you must first run `allow_delete(True)` on the dataset."
+                    )
+
                 try:
                     cache_chain.clear()
                 except Exception as e:
@@ -2063,3 +2080,12 @@ class dataset:
         from deeplake.enterprise.libdeeplake_query import universal_query
 
         return universal_query(query_string=query_string, token=token)
+
+    @staticmethod
+    def _allow_delete(storage, commit_id=None) -> bool:
+        meta = json.loads(
+            storage[get_dataset_meta_key(commit_id or FIRST_COMMIT_ID)].decode("utf-8")
+        )
+        if "allow_delete" in meta and not meta["allow_delete"]:
+            return False
+        return True
