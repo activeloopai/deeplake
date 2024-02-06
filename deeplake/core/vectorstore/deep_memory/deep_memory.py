@@ -1,3 +1,4 @@
+import os
 import logging
 import pathlib
 import uuid
@@ -624,6 +625,10 @@ class DeepMemory:
         path_type = get_path_type(path)
 
         dm_client = DeepMemoryBackendClient(token=self.token)
+        # TODO: Review
+        if os.environ.get("SKIP_DEEPMEMORY_CHECK", False):
+            return dm_client
+        
         user_profile = dm_client.get_user_profile()
 
         if path_type == "hub":
