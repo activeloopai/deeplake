@@ -2,8 +2,6 @@ import pytest
 from math import floor
 
 import deeplake
-from click.testing import CliRunner
-from deeplake.cli.auth import login, logout
 from deeplake.constants import QUERY_MESSAGE_MAX_SIZE
 from deeplake.tests.common import requires_libdeeplake
 from deeplake.util.exceptions import EmptyTokenException

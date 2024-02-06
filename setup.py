@@ -101,7 +101,7 @@ config = {
     "tests_require": tests,
     "include_package_data": True,
     "zip_safe": False,
-    "entry_points": {"console_scripts": ["activeloop = deeplake.cli.commands:cli"]},
+    "entry_points": {},
     "dependency_links": [],
     "project_urls": {
         "Documentation": "https://docs.activeloop.ai/",
