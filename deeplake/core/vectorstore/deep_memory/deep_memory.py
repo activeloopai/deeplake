@@ -621,13 +621,14 @@ class DeepMemory:
         self.dataset.embedding.info["deepmemory"] = new_deepmemory
 
     def _get_dm_client(self):
+        # TODO: Review
+        if os.environ.get("SKIP_DEEPMEMORY_CHECK", False):
+            return None
+        
         path = self.path
         path_type = get_path_type(path)
 
         dm_client = DeepMemoryBackendClient(token=self.token)
-        # TODO: Review
-        if os.environ.get("SKIP_DEEPMEMORY_CHECK", False):
-            return dm_client
         
         user_profile = dm_client.get_user_profile()
 
