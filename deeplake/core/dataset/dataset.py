@@ -2598,6 +2598,7 @@ class Dataset:
 
         Raises:
             DatasetTooLargeToDelete: If the dataset is larger than 1 GB and ``large_ok`` is ``False``.
+            DatasetHandlerError: If the dataset is marked as delete_allowed=False.
         """
 
         deeplake_reporter.feature_report(
