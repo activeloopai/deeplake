@@ -62,7 +62,9 @@ def storage_provider_from_path(
             creds_used = "PLATFORM"
             if creds == "ENV":
                 creds_used = "ENV"
-            elif isinstance(creds, dict) and set(creds.keys()) == {"profile_name"}:
+            elif isinstance(creds, dict) and (
+                set(creds.keys()) == {"profile_name"} or not bool(creds)
+            ):
                 creds_used = "ENV"
             elif isinstance(creds, dict) and bool(creds):
                 creds_used = "DICT"
