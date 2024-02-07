@@ -70,7 +70,7 @@ extras_require = {k: [req_map[r] for r in v] for k, v in extras.items()}
 extras_require["all"] = [req_map[r] for r in all_extras]
 
 if libdeeplake_available():
-    libdeeplake = "libdeeplake==0.0.98"
+    libdeeplake = "libdeeplake==0.0.99"
     extras_require["enterprise"] = [libdeeplake, "pyjwt"]
     extras_require["all"].append(libdeeplake)
     install_requires.append(libdeeplake)
@@ -101,7 +101,7 @@ config = {
     "tests_require": tests,
     "include_package_data": True,
     "zip_safe": False,
-    "entry_points": {"console_scripts": ["activeloop = deeplake.cli.commands:cli"]},
+    "entry_points": {},
     "dependency_links": [],
     "project_urls": {
         "Documentation": "https://docs.activeloop.ai/",

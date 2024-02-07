@@ -1,6 +1,4 @@
 import pytest
-from deeplake.cli.commands import login, logout
-from click.testing import CliRunner
 from deeplake.client.client import (
     DeepLakeBackendClient,
     DeepMemoryBackendClient,

@@ -1,7 +1,6 @@
 import jwt
 
 from deeplake.util.exceptions import DatasetHandlerError, UserNotLoggedInException
-from deeplake.cli.auth import login, logout
 from click.testing import CliRunner
 import pytest
 import deeplake
