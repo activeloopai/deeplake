@@ -127,6 +127,7 @@ class DHBase(ABC):
         embedding_tensor: Union[str, List[str]],
         return_ids: bool,
         rate_limiter: Dict,
+        ingestion_batch_size: int,
         **tensors,
     ):
         pass
