@@ -34,9 +34,6 @@ from deeplake.core.index_maintenance import (
     METRIC_TO_INDEX_METRIC,
 )
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
-from deeplake.cli.auth import login, logout
-from click.testing import CliRunner
-
 
 EMBEDDING_DIM = 100
 NUMBER_OF_DATA = 10

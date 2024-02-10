@@ -3,7 +3,6 @@ import deeplake
 import pytest
 from io import StringIO
 from contextlib import contextmanager
-from deeplake.cli.auth import login, logout
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.util.exceptions import (
     AgreementNotAcceptedError,
