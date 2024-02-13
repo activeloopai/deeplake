@@ -60,7 +60,7 @@ def storage_provider_from_path(
         from deeplake.core.storage.indra import IndraProvider
 
         storage: StorageProvider = IndraProvider(
-            path, read_only=True, token=token, creds=creds
+            path, read_only=read_only, token=token, creds=creds
         )
     elif path.startswith("hub://"):
         storage = storage_provider_from_hub_path(

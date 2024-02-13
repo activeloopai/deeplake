@@ -32,7 +32,7 @@ class IndraProvider(StorageProvider):
     def __getitem__(self, path):
         try:
             return bytes(self.core.get(path))
-        except RuntimeError as e:
+        except Exception as e:
             raise KeyError(path)
 
     def get_bytes(
