@@ -25,15 +25,10 @@ class IndraProvider(StorageProvider):
 
     def __setitem__(self, path, content):
         self.check_readonly()
-        if not isinstance(content, bytes):
-            content = bytes(content)
-        self.core.set(path, content)
+        self.core.set(path, bytes(content))
 
     def __getitem__(self, path):
-        try:
-            return bytes(self.core.get(path))
-        except Exception as e:
-            raise KeyError(path)
+        return bytes(self.core.get(path))
 
     def get_bytes(
         self, path, start_byte: Optional[int] = None, end_byte: Optional[int] = None
@@ -46,10 +41,7 @@ class IndraProvider(StorageProvider):
             raise KeyError(path)
 
     def get_object_size(self, path: str) -> int:
-        try:
-            return self.core.length(path)
-        except RuntimeError as e:
-            raise KeyError(path)
+        return self.core.length(path)
 
     def __delitem__(self, path):
         return self.core.remove(path)
