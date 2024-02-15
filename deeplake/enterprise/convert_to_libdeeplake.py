@@ -4,6 +4,7 @@ from deeplake.constants import MB
 from deeplake.core.storage.gcs import GCSProvider
 from deeplake.enterprise.util import raise_indra_installation_error  # type: ignore
 from deeplake.core.storage import S3Provider
+from deeplake.core.storage.indra import IndraProvider
 from deeplake.core.storage.azure import AzureProvider
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.exceptions import EmptyTokenException
@@ -43,6 +44,11 @@ def import_indra_api():
 
 
 INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
+
+
+def _get_indra_ds_from_native_provider(provider: IndraProvider):
+    api = import_indra_api()
+    return api.dataset(provider.core)
 
 
 def _get_indra_ds_from_azure_provider(
@@ -181,6 +187,10 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
             elif isinstance(provider, AzureProvider):
                 libdeeplake_dataset = _get_indra_ds_from_azure_provider(
                     path=path, token=token, provider=provider
+                )
+            elif isinstance(provider, IndraProvider):
+                libdeeplake_dataset = _get_indra_ds_from_native_provider(
+                    provider=provider
                 )
             else:
                 raise ValueError("Unknown storage provider for hub:// dataset")

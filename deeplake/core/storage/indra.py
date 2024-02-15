@@ -17,6 +17,10 @@ class IndraProvider(StorageProvider):
         else:
             self.core = root
 
+    @property
+    def path(self):
+        return self.core.path
+
     def copy(self):
         return IndraProvider(self.core)
 
