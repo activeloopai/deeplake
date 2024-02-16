@@ -332,6 +332,17 @@ class Dataset:
                 self.storage.flush()
 
     @property
+    def username(self) -> str:
+        token = self.token()
+        if not token:
+            return "public"
+
+        try:
+            return jwt.decode(token, options={"verify_signature": False})["id"]
+        except:
+            return "public"
+
+    @property
     def num_samples(self) -> int:
         """Returns the length of the smallest tensor.
         Ignores any applied indexing and returns the total length.

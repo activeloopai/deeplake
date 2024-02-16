@@ -1,7 +1,6 @@
 import os
 
 import deeplake
-import jwt
 import pathlib
 import posixpath
 import warnings
