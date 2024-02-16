@@ -1,3 +1,5 @@
+import os
+
 import deeplake
 import requests  # type: ignore
 import textwrap
@@ -16,9 +18,6 @@ from deeplake.util.exceptions import (
 )
 from deeplake.client.utils import (
     check_response_status,
-    write_token,
-    read_token,
-    remove_token,
     JobResponseStatusSchema,
 )
 from deeplake.client.config import (
@@ -42,6 +41,7 @@ from deeplake.client.config import (
     CONNECT_DATASET_SUFFIX,
     REMOTE_QUERY_SUFFIX,
     ORG_PERMISSION_SUFFIX,
+    DEEPLAKE_AUTH_TOKEN,
 )
 from deeplake.client.log import logger
 import jwt  # should add it to requirements.txt
@@ -63,14 +63,17 @@ class DeepLakeBackendClient:
         self.version = deeplake.__version__
         self._token_from_env = False
         self.auth_header = None
-        self.token = token or self.get_token()
+        self.token = (
+            token
+            or os.environ.get(DEEPLAKE_AUTH_TOKEN)
+            or "PUBLIC_TOKEN_" + ("_" * 150)
+        )
         self.auth_header = f"Bearer {self.token}"
 
         # remove public token, otherwise env var will be ignored
         # we can remove this after a while
         orgs = self.get_user_organizations()
         if orgs == ["public"]:
-            remove_token()
             self.token = token or self.get_token()
             self.auth_header = f"Bearer {self.token}"
         if self._token_from_env:
@@ -80,16 +83,7 @@ class DeepLakeBackendClient:
                 set_username(username)
 
     def get_token(self):
-        """Returns a token"""
-        self._token_from_env = False
-        token = read_token(from_env=False)
-        if token is None:
-            token = read_token(from_env=True)
-            if token is None:
-                token = self.request_auth_token(username="public", password="")
-            else:
-                self._token_from_env = True
-        return token
+        return self.token
 
     def request(
         self,
