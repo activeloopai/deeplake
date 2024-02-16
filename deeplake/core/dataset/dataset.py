@@ -289,9 +289,9 @@ class Dataset:
             else None
         )
         self._first_load_init()
-        self._initial_autoflush: List[
-            bool
-        ] = []  # This is a stack to support nested with contexts
+        self._initial_autoflush: List[bool] = (
+            []
+        )  # This is a stack to support nested with contexts
         self._indexing_history: List[int] = []
 
         if not self.read_only:
