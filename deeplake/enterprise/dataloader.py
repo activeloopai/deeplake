@@ -698,6 +698,12 @@ class DeepLakeDataLoader(DataLoader):
 
             if dtype.type in [np.uint16, np.uint32, np.uint64]:
                 return True
+
+            if hasattr(dtype, "type"):
+                if isinstance(
+                    dtype.type, (type(np.uint16), type(np.uint32), type(np.uint64))
+                ):
+                    return True
         return False
 
     def __create_dummy_dataloader(
