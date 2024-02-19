@@ -811,10 +811,10 @@ class dataset:
 
         feature_report_path(old_path, "rename", {}, token=token)
 
-        ds = deeplake.load(old_path, verbose=False, token=token, creds=creds)
-        ds.rename(new_path)
+        deeplake.deepcopy(old_path, new_path, verbose=False, token=token, creds=creds)
+        deeplake.delete(old_path, token=token, creds=creds)
 
-        return ds  # type: ignore
+        return deeplake.load(new_path, verbose=False, token=token, creds=creds)
 
     @staticmethod
     @spinner
