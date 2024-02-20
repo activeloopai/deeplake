@@ -31,33 +31,6 @@ PENDING_STATUS = "not available yet"
 BEST_RECALL = "best_recall@10"
 
 
-def write_token(token: str):
-    """Writes the auth token to the token file."""
-    if not token:
-        raise EmptyTokenException
-    path = Path(TOKEN_FILE_PATH)
-    os.makedirs(path.parent, exist_ok=True)
-    with open(TOKEN_FILE_PATH, "w") as f:
-        f.write(token)
-
-
-def read_token(from_env=True):
-    """Returns the token. Searches for the token first in token file and then in enviroment variables."""
-    token = None
-    if os.path.exists(TOKEN_FILE_PATH):
-        with open(TOKEN_FILE_PATH) as f:
-            token = f.read()
-    elif from_env:
-        token = os.environ.get(DEEPLAKE_AUTH_TOKEN)
-    return token
-
-
-def remove_token():
-    """Deletes the token file"""
-    if os.path.isfile(TOKEN_FILE_PATH):
-        os.remove(TOKEN_FILE_PATH)
-
-
 def remove_username_from_config():
     try:
         config = {}

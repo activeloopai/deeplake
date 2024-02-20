@@ -12,7 +12,6 @@ from deeplake.auto.unstructured.coco.coco import CocoDataset
 from deeplake.auto.unstructured.yolo.yolo import YoloDataset
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
-from deeplake.client.utils import get_user_name, read_token
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.tensor import Tensor
 from deeplake.core.meta.dataset_meta import DatasetMeta

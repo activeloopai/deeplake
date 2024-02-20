@@ -4,20 +4,6 @@ from deeplake.client.client import (
     DeepMemoryBackendClient,
     JobResponseStatusSchema,
 )
-from deeplake.client.utils import (
-    write_token,
-    read_token,
-    remove_token,
-)
-
-from time import sleep
-
-
-def test_client_utils():
-    write_token("abcdefgh")
-    assert read_token() == "abcdefgh"
-    remove_token()
-    assert read_token() is None
 
 
 def create_response(
