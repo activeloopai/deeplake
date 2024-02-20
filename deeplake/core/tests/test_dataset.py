@@ -23,7 +23,7 @@ def test_token_and_username(hub_cloud_dev_token):
         token="invalid_value",
         storage=LRUCache(
             cache_storage=MemoryProvider(), cache_size=0, next_storage=MemoryProvider()
-        )
+        ),
     )
     assert ds.token == "invalid_value"
     assert ds.username == "public"
@@ -33,7 +33,7 @@ def test_token_and_username(hub_cloud_dev_token):
         token=hub_cloud_dev_token,
         storage=LRUCache(
             cache_storage=MemoryProvider(), cache_size=0, next_storage=MemoryProvider()
-        )
+        ),
     )
     assert ds.token == hub_cloud_dev_token
     assert ds.username == "testingacc2"
@@ -43,7 +43,9 @@ def test_token_and_username(hub_cloud_dev_token):
         os.environ[DEEPLAKE_AUTH_TOKEN] = hub_cloud_dev_token
         ds = Dataset(
             storage=LRUCache(
-                cache_storage=MemoryProvider(), cache_size=0, next_storage=MemoryProvider()
+                cache_storage=MemoryProvider(),
+                cache_size=0,
+                next_storage=MemoryProvider(),
             )
         )
         assert ds.token == hub_cloud_dev_token
@@ -52,8 +54,10 @@ def test_token_and_username(hub_cloud_dev_token):
         ds = Dataset(
             token="invalid_value",
             storage=LRUCache(
-                cache_storage=MemoryProvider(), cache_size=0, next_storage=MemoryProvider()
-            )
+                cache_storage=MemoryProvider(),
+                cache_size=0,
+                next_storage=MemoryProvider(),
+            ),
         )
         assert ds.token == "invalid_value"
         assert ds.username == "public"
@@ -62,4 +66,3 @@ def test_token_and_username(hub_cloud_dev_token):
         os.environ.pop(DEEPLAKE_AUTH_TOKEN)
 
     assert DEEPLAKE_AUTH_TOKEN not in os.environ
-
