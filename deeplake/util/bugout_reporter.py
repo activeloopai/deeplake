@@ -6,9 +6,8 @@ from platform import machine
 from typing import Any, Dict, Optional, Union
 import uuid
 
-from deeplake.client.config import REPORTING_CONFIG_FILE_PATH
+from deeplake.client.config import REPORTING_CONFIG_FILE_PATH, DEEPLAKE_AUTH_TOKEN
 from deeplake.client.client import DeepLakeBackendClient
-from deeplake.client.utils import get_user_name, read_token
 from deeplake.util.bugout_token import BUGOUT_TOKEN
 from humbug.consent import HumbugConsent
 from humbug.report import HumbugReporter
@@ -164,7 +163,7 @@ def feature_report_path(
     if path.startswith(starts_with):
         parameters["Path"] = path
 
-    token = token or read_token(from_env=True)
+    token = token or os.environ.get(DEEPLAKE_AUTH_TOKEN)
 
     if token is not None:
         username = jwt.decode(token, options={"verify_signature": False})["id"]

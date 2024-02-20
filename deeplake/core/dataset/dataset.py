@@ -13,6 +13,7 @@ from time import time, sleep
 from tqdm import tqdm
 
 import deeplake
+from deeplake.client.config import DEEPLAKE_AUTH_TOKEN
 from deeplake.core import index_maintenance
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
@@ -36,7 +37,6 @@ from deeplake.util.iteration_warning import (
 from deeplake.util.tensor_db import parse_runtime_parameters
 from deeplake.api.info import load_info
 from deeplake.client.log import logger
-from deeplake.client.utils import read_token
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.constants import (
     FIRST_COMMIT_ID,
@@ -2680,7 +2680,7 @@ class Dataset:
     @property
     def token(self):
         """Get attached token of the dataset"""
-        return self._token or read_token(from_env=True)
+        return self._token or os.environ.get(DEEPLAKE_AUTH_TOKEN)
 
     @token.setter
     def token(self, new_token: str):
