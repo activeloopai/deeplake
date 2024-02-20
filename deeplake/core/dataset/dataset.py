@@ -333,12 +333,11 @@ class Dataset:
 
     @property
     def username(self) -> str:
-        token = self.token()
-        if not token:
+        if not self.token:
             return "public"
 
         try:
-            return jwt.decode(token, options={"verify_signature": False})["id"]
+            return jwt.decode(self.token, options={"verify_signature": False})["id"]
         except:
             return "public"
 

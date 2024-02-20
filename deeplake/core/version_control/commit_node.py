@@ -33,7 +33,9 @@ class CommitNode:
         node.total_samples_processed = self.total_samples_processed
         return node
 
-    def add_successor(self, node: "CommitNode", author: str, message: Optional[str] = None):
+    def add_successor(
+        self, node: "CommitNode", author: str, message: Optional[str] = None
+    ):
         """Adds a successor (a type of child) to the node, used for commits."""
         node.parent = self
         self.children.append(node)
