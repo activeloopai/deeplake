@@ -74,3 +74,23 @@ def test_persistence_bug(local_ds_generator):
 
         ds = local_ds_generator()
         np.testing.assert_array_equal(ds[tensor_name].numpy(), np.array([[1], [2]]))
+
+
+def test_allow_delete(local_ds_generator, local_path):
+    ds = local_ds_generator()
+    assert ds.allow_delete is True
+
+    ds.allow_delete = False
+    assert ds.allow_delete is False
+
+    ds2 = deeplake.load(ds.path)
+    assert ds2.allow_delete is False
+
+    with pytest.raises(DatasetHandlerError):
+        deeplake.empty(ds.path, overwrite=True)
+        deeplake.deepcopy(src=ds.path, dest=local_path, overwrite=True)
+        ds.delete()
+
+    ds.allow_delete = True
+    assert ds.allow_delete is True
+    ds.delete()
