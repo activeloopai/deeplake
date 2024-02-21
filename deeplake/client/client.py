@@ -226,11 +226,11 @@ class DeepLakeBackendClient:
             tuple: containing full url to dataset, credentials, mode and expiration time respectively.
 
         Raises:
-            UserNotLoggedInException: When user is not logged in
+            UserNotLoggedInException: When user is not authenticated
             InvalidTokenException: If the specified token is invalid
             TokenPermissionError: when there are permission or other errors related to token
             AgreementNotAcceptedError: when user has not accepted the agreement
-            NotLoggedInAgreementError: when user is not logged in and dataset has agreement which needs to be signed
+            NotLoggedInAgreementError: when user is not authenticated and dataset has agreement which needs to be signed
         """
         import json
 
@@ -397,7 +397,7 @@ class DeepLakeBackendClient:
         )
 
     def get_user_organizations(self):
-        """Get list of user organizations from the backend. If user is not logged in, returns ['public'].
+        """Get list of user organizations from the backend. If user is not authenticated, returns ['public'].
 
         Returns:
             list: user/organization names
