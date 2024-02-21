@@ -340,9 +340,7 @@ class Dataset:
             return "public"
 
         try:
-            return jwt.decode(self.token, options={"verify_signature": False})[ # NOSONAR
-                "id"
-            ]
+            return jwt.decode(self.token, options={"verify_signature": False})["id"]
         except DecodeError:
             return "public"
 
