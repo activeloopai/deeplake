@@ -10,6 +10,8 @@ from functools import partial
 import pathlib
 import numpy as np
 from time import time, sleep
+
+from jwt import DecodeError
 from tqdm import tqdm
 
 import deeplake
@@ -337,8 +339,8 @@ class Dataset:
             return "public"
 
         try:
-            return jwt.decode(self.token, options={"verify_signature": False})["id"]
-        except:
+            return jwt.decode(self.token, options={"verify_signature": False})["id"] # NOSONAR
+        except DecodeError:
             return "public"
 
     @property
