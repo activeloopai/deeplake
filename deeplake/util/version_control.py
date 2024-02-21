@@ -175,7 +175,7 @@ def commit(
         hash = generate_hash()
     version_state["commit_id"] = hash
     new_node = CommitNode(version_state["branch"], hash)
-    stored_commit_node.add_successor(new_node, message)
+    stored_commit_node.add_successor(new_node, dataset.username, message)
     stored_commit_node.is_checkpoint = is_checkpoint
     stored_commit_node.total_samples_processed = total_samples_processed
     version_state["commit_node"] = new_node

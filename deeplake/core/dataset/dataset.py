@@ -10,6 +10,8 @@ from functools import partial
 import pathlib
 import numpy as np
 from time import time, sleep
+
+from jwt import DecodeError
 from tqdm import tqdm
 
 import deeplake
@@ -331,6 +333,16 @@ class Dataset:
                 if self._vc_info_updated:
                     self._flush_vc_info()
                 self.storage.flush()
+
+    @property
+    def username(self) -> str:
+        if not self.token:
+            return "public"
+
+        try:
+            return jwt.decode(self.token, options={"verify_signature": False})["id"]
+        except DecodeError:
+            return "public"
 
     @property
     def num_samples(self) -> int:

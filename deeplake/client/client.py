@@ -61,7 +61,6 @@ class DeepLakeBackendClient:
         )
 
         self.version = deeplake.__version__
-        self._token_from_env = False
         self.auth_header = None
         self.token = (
             token
@@ -76,7 +75,7 @@ class DeepLakeBackendClient:
         if orgs == ["public"]:
             self.token = token or self.get_token()
             self.auth_header = f"Bearer {self.token}"
-        if self._token_from_env:
+        else:
             username = self.get_user_profile()["name"]
             if get_reporting_config().get("username") != username:
                 save_reporting_config(True, username=username)

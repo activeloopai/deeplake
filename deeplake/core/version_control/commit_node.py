@@ -33,12 +33,14 @@ class CommitNode:
         node.total_samples_processed = self.total_samples_processed
         return node
 
-    def add_successor(self, node: "CommitNode", message: Optional[str] = None):
+    def add_successor(
+        self, node: "CommitNode", author: str, message: Optional[str] = None
+    ):
         """Adds a successor (a type of child) to the node, used for commits."""
         node.parent = self
         self.children.append(node)
         self.commit_message = message
-        self.commit_user_name = get_user_name()
+        self.commit_user_name = author
         self.commit_time = datetime.utcnow()
 
     def merge_from(self, node: "CommitNode"):
