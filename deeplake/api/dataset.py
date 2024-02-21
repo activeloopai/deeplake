@@ -1,3 +1,4 @@
+import json
 import os
 
 import deeplake
@@ -52,7 +53,7 @@ from deeplake.util.access_method import (
 from deeplake.util.auto import get_most_common_extension
 from deeplake.util.bugout_reporter import feature_report_path, deeplake_reporter
 from deeplake.util.delete_entry import remove_path_from_backend
-from deeplake.util.keys import dataset_exists
+from deeplake.util.keys import dataset_exists, get_dataset_meta_key, FIRST_COMMIT_ID
 from deeplake.util.exceptions import (
     AgreementError,
     DatasetHandlerError,
@@ -120,7 +121,7 @@ class dataset:
 
         Args:
             path (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
+                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
@@ -182,7 +183,7 @@ class dataset:
 
         Raises:
             AgreementError: When agreement is rejected
-            UserNotLoggedInException: When user is not logged in
+            UserNotLoggedInException: When user is not authenticated
             InvalidTokenException: If the specified token is invalid
             TokenPermissionError: When there are permission or other errors related to token
             CheckoutError: If version address specified in the path cannot be found
@@ -236,6 +237,11 @@ class dataset:
 
         if ds_exists:
             if overwrite:
+                if not dataset._allow_delete(cache_chain):
+                    raise DatasetHandlerError(
+                        "Dataset overwrite failed. The dataset is marked as delete_allowed=false. To allow overwrite, you must first run `allow_delete(True)` on the dataset."
+                    )
+
                 try:
                     cache_chain.clear()
                 except Exception as e:
@@ -403,7 +409,7 @@ class dataset:
 
         Raises:
             DatasetHandlerError: If a Dataset already exists at the given path and overwrite is False.
-            UserNotLoggedInException: When user is not logged in
+            UserNotLoggedInException: When user is not authenticated
             InvalidTokenException: If the specified toke is invalid
             TokenPermissionError: When there are permission or other errors related to token
             ValueError: If version is specified in the path
@@ -456,6 +462,11 @@ class dataset:
             raise
 
         if overwrite and dataset_exists(cache_chain):
+            if not dataset._allow_delete(cache_chain):
+                raise DatasetHandlerError(
+                    "Dataset overwrite failed. The dataset is marked as delete_allowed=false. To allow overwrite, you must first run `allow_delete(True)` on the dataset."
+                )
+
             try:
                 cache_chain.clear()
             except Exception as e:
@@ -521,7 +532,7 @@ class dataset:
 
         Args:
             path (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
+                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
@@ -578,7 +589,7 @@ class dataset:
         Raises:
             DatasetHandlerError: If a Dataset does not exist at the given path.
             AgreementError: When agreement is rejected
-            UserNotLoggedInException: When user is not logged in
+            UserNotLoggedInException: When user is not authenticated
             InvalidTokenException: If the specified toke is invalid
             TokenPermissionError: When there are permission or other errors related to token
             CheckoutError: If version address specified in the path cannot be found
@@ -833,7 +844,7 @@ class dataset:
 
         Raises:
             DatasetHandlerError: If a Dataset does not exist at the given path and ``force = False``.
-            UserNotLoggedInException: When user is not logged in.
+            UserNotLoggedInException: When user is not authenticated.
             NotImplementedError: When attempting to delete a managed view.
             ValueError: If version is specified in the path
 
@@ -865,6 +876,7 @@ class dataset:
                 ds = deeplake.load(path, verbose=False, token=token, creds=creds)
             except UserNotLoggedInException:
                 raise UserNotLoggedInException from None
+
             ds.delete(large_ok=large_ok)
             if verbose:
                 logger.info(f"{path} dataset deleted successfully.")
@@ -1274,6 +1286,11 @@ class dataset:
 
         if dataset_exists(cache_chain):
             if overwrite:
+                if not dataset._allow_delete(cache_chain):
+                    raise DatasetHandlerError(
+                        "Dataset overwrite failed. The dataset is marked as delete_allowed=false. To allow overwrite, you must first run `allow_delete(True)` on the dataset."
+                    )
+
                 try:
                     cache_chain.clear()
                 except Exception as e:
@@ -1510,7 +1527,7 @@ class dataset:
             annotation_files (str, pathlib.Path, List[str]): Path to JSON annotation files in COCO format.
             dest (str, pathlib.Path):
                 - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line), or pass in a token using the 'token' parameter.
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
@@ -1626,7 +1643,7 @@ class dataset:
             data_directory (str, pathlib.Path): The path to the directory containing the data (images files and annotation files(see 'annotations_directory' input for specifying annotations in a separate directory).
             dest (str, pathlib.Path):
                 - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line), or pass in a token using the 'token' parameter.
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
@@ -1729,7 +1746,7 @@ class dataset:
         Args:
             src (str, pathlib.Path): Local path to where the unstructured dataset of images is stored or path to csv file.
             dest (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
@@ -1884,7 +1901,7 @@ class dataset:
             tag (str): Kaggle dataset tag. Example: ``"coloradokb/dandelionimages"`` points to https://www.kaggle.com/coloradokb/dandelionimages
             src (str, pathlib.Path): Local path to where the raw kaggle dataset will be downlaoded to.
             dest (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
+                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
@@ -2009,7 +2026,7 @@ class dataset:
             src (pd.DataFrame): The pandas dataframe to be converted.
             dest (str, pathlib.Path):
                 - A Dataset or The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
+                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
@@ -2061,3 +2078,12 @@ class dataset:
         from deeplake.enterprise.libdeeplake_query import universal_query
 
         return universal_query(query_string=query_string, token=token)
+
+    @staticmethod
+    def _allow_delete(storage, commit_id=None) -> bool:
+        meta = json.loads(
+            storage[get_dataset_meta_key(commit_id or FIRST_COMMIT_ID)].decode("utf-8")
+        )
+        if "allow_delete" in meta and not meta["allow_delete"]:
+            return False
+        return True

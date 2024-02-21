@@ -82,7 +82,7 @@ def check_response_status(response: requests.Response):
 
 
 def get_user_name() -> str:
-    """Returns the name of the user currently logged into Hub."""
+    """Returns the name of the user currently authenticated."""
     path = REPORTING_CONFIG_FILE_PATH
     try:
         with open(path, "r") as f:
