@@ -2043,7 +2043,7 @@ class Dataset:
 
     @property
     def allow_delete(self) -> bool:
-        """Returns True if dataset can be deleted from storage. Whether it can be deleted or not is stored in the database_meta.json and can be changed with allow_`delete = True|False`"""
+        """Returns True if dataset can be deleted from storage. Whether it can be deleted or not is stored in the database_meta.json and can be changed with `allow_delete = True|False`"""
         return self.meta.allow_delete
 
     @allow_delete.setter
