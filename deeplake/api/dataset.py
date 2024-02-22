@@ -240,7 +240,7 @@ class dataset:
             if overwrite:
                 if not dataset._allow_delete(cache_chain):
                     raise DatasetHandlerError(
-                        "Dataset overwrite failed. The dataset is marked as delete_allowed=false. To allow overwrite, you must first run `allow_delete(True)` on the dataset."
+                        "Dataset overwrite failed. The dataset is marked as allow_delete=false. To allow overwrite, you must first run `allow_delete = True` on the dataset."
                     )
 
                 try:
@@ -465,7 +465,7 @@ class dataset:
         if overwrite and dataset_exists(cache_chain):
             if not dataset._allow_delete(cache_chain):
                 raise DatasetHandlerError(
-                    "Dataset overwrite failed. The dataset is marked as delete_allowed=false. To allow overwrite, you must first run `allow_delete(True)` on the dataset."
+                    "Dataset overwrite failed. The dataset is marked as allow_delete=false. To allow overwrite, you must first run `allow_delete = True` on the dataset."
                 )
 
             try:
@@ -1289,7 +1289,7 @@ class dataset:
             if overwrite:
                 if not dataset._allow_delete(cache_chain):
                     raise DatasetHandlerError(
-                        "Dataset overwrite failed. The dataset is marked as delete_allowed=false. To allow overwrite, you must first run `allow_delete(True)` on the dataset."
+                        "Dataset overwrite failed. The dataset is marked as allow_delete=false. To allow overwrite, you must first run `allow_delete = True` on the dataset."
                     )
 
                 try:
