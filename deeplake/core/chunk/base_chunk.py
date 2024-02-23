@@ -70,6 +70,7 @@ class BaseChunk(DeepLakeMemoryObject):
         min_chunk_size: int,
         max_chunk_size: int,
         tiling_threshold: int,
+        tensor_meta: TensorMeta,
         compression: Optional[str] = None,
         encoded_shapes: Optional[np.ndarray] = None,
         encoded_byte_positions: Optional[np.ndarray] = None,
@@ -608,11 +609,6 @@ class BaseChunk(DeepLakeMemoryObject):
         if isinstance(sample, numbers.Number):
             sample = str(sample)
 
-        if not isinstance(sample, str):
-            raise ValueError(
-                f"Cannot save data of type '{type(sample).__name__}' in a text tensor"
-            )
-
         try:
             return str(sample.numpy().reshape(())).encode("utf-8")
         except AttributeError:
@@ -623,7 +619,9 @@ class BaseChunk(DeepLakeMemoryObject):
             try:
                 return str(sample.reshape(())).encode("utf-8")
             except AttributeError:  # None
-                return b""
+                raise ValueError(
+                    f"Cannot save data of type '{type(sample).__name__}' in a text tensor"
+                )
 
     def check_empty_before_read(self):
         if self.is_empty_tensor:
