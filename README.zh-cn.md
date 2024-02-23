@@ -284,7 +284,7 @@ Deep Lake 和 WebDatasets 都提供跨网络的快速数据流。它们具有几
 
 ## 社区
 
-加入我们的 [**Slack 社区**](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ)，了解有关使用 Deep Lake 进行非结构化数据集管理的更多信息，并从 Activeloop 团队和其他用户那里获得帮助。
+加入我们的 [**Slack 社区**](https://slack.activeloop.ai)，了解有关使用 Deep Lake 进行非结构化数据集管理的更多信息，并从 Activeloop 团队和其他用户那里获得帮助。
 
 通过完成我们的 3 分钟[**调查**](https://forms.gle/rLi4w33dow6CSMcm9)，我们希望得到您的反馈。
 
