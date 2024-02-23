@@ -1,3 +1,4 @@
+import numbers
 from abc import abstractmethod
 import struct
 import numpy as np
@@ -69,7 +70,6 @@ class BaseChunk(DeepLakeMemoryObject):
         min_chunk_size: int,
         max_chunk_size: int,
         tiling_threshold: int,
-        tensor_meta: TensorMeta,
         compression: Optional[str] = None,
         encoded_shapes: Optional[np.ndarray] = None,
         encoded_byte_positions: Optional[np.ndarray] = None,
@@ -605,6 +605,14 @@ class BaseChunk(DeepLakeMemoryObject):
         )
 
     def _text_sample_to_byte_string(self, sample):
+        if isinstance(sample, numbers.Number):
+            sample = str(sample)
+
+        if not isinstance(sample, str):
+            raise ValueError(
+                f"Cannot save data of type '{type(sample).__name__}' in a text tensor"
+            )
+
         try:
             return str(sample.numpy().reshape(())).encode("utf-8")
         except AttributeError:
