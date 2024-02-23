@@ -2055,7 +2055,7 @@ class Dataset:
 
     @property
     def allow_delete(self) -> bool:
-        """Returns True if dataset can be deleted from storage. Whether it can be deleted or not is stored in the database_meta.json and can be changed with allow_delete(boolean)"""
+        """Returns True if dataset can be deleted from storage. Whether it can be deleted or not is stored in the database_meta.json and can be changed with `allow_delete = True|False`"""
         return self.meta.allow_delete
 
     @allow_delete.setter
@@ -2610,7 +2610,7 @@ class Dataset:
 
         Raises:
             DatasetTooLargeToDelete: If the dataset is larger than 1 GB and ``large_ok`` is ``False``.
-            DatasetHandlerError: If the dataset is marked as delete_allowed=False.
+            DatasetHandlerError: If the dataset is marked as allow_delete=False.
         """
 
         deeplake_reporter.feature_report(
@@ -2619,7 +2619,7 @@ class Dataset:
 
         if not self.allow_delete:
             raise DatasetHandlerError(
-                "The dataset is marked as delete_allowed=false. To delete this dataset, you must first run `allow_delete(True)` on the dataset."
+                "The dataset is marked as allow_delete=false. To delete this dataset, you must first run `allow_delete = True` on the dataset."
             )
 
         if hasattr(self, "_view_entry"):
