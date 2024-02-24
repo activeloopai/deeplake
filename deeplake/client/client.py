@@ -61,7 +61,6 @@ class DeepLakeBackendClient:
         )
 
         self.version = deeplake.__version__
-        self._token_from_env = False
         self.auth_header = None
         self.token = (
             token
@@ -76,7 +75,7 @@ class DeepLakeBackendClient:
         if orgs == ["public"]:
             self.token = token or self.get_token()
             self.auth_header = f"Bearer {self.token}"
-        if self._token_from_env:
+        else:
             username = self.get_user_profile()["name"]
             if get_reporting_config().get("username") != username:
                 save_reporting_config(True, username=username)
@@ -226,11 +225,11 @@ class DeepLakeBackendClient:
             tuple: containing full url to dataset, credentials, mode and expiration time respectively.
 
         Raises:
-            UserNotLoggedInException: When user is not logged in
+            UserNotLoggedInException: When user is not authenticated
             InvalidTokenException: If the specified token is invalid
             TokenPermissionError: when there are permission or other errors related to token
             AgreementNotAcceptedError: when user has not accepted the agreement
-            NotLoggedInAgreementError: when user is not logged in and dataset has agreement which needs to be signed
+            NotLoggedInAgreementError: when user is not authenticated and dataset has agreement which needs to be signed
         """
         import json
 
@@ -397,7 +396,7 @@ class DeepLakeBackendClient:
         )
 
     def get_user_organizations(self):
-        """Get list of user organizations from the backend. If user is not logged in, returns ['public'].
+        """Get list of user organizations from the backend. If user is not authenticated, returns ['public'].
 
         Returns:
             list: user/organization names

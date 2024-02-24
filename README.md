@@ -196,7 +196,7 @@ Deep Lake and Zarr both offer storage of data as chunked arrays. However, Deep L
 
 ## Community
 
-Join our [**Slack community**](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) to learn more about unstructured dataset management using Deep Lake and to get help from the Activeloop team and other users.
+Join our [**Slack community**](https://slack.activeloop.ai) to learn more about unstructured dataset management using Deep Lake and to get help from the Activeloop team and other users.
 
 We'd love your feedback by completing our 3-minute [**survey**](https://forms.gle/rLi4w33dow6CSMcm9).
 

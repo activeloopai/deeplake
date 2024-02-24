@@ -14,10 +14,10 @@ def test_merge_commit_node_map():
     b = CommitNode("main", "b")
     c = CommitNode("main", "c")
     e = CommitNode("main", "e")
-    root.add_successor(a, "commit a")
-    root.add_successor(b, "commit b")
-    a.add_successor(c, "commit c")
-    c.add_successor(e, "commit e")
+    root.add_successor(a, "me", "commit a")
+    root.add_successor(b, "me", "commit b")
+    a.add_successor(c, "me", "commit c")
+    c.add_successor(e, "me", "commit e")
     map1 = {
         FIRST_COMMIT_ID: root,
         "a": a,
