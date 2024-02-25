@@ -80,18 +80,13 @@ class IndraTensorView(tensor.Tensor):
         """Return text data. Only applicable for tensors with 'text' base htype."""
         if self.ndim == 1:
             return self.indra_tensor.bytes().decode()
-        return list(
-            self.indra_tensor[i].bytes().decode() for i in range(len(self.indra_tensor))
-        )
+        return list(b.decode() for b in self.indra_tensor.bytes())
 
     def dict(self, fetch_chunks: bool = False):
         """Return json data. Only applicable for tensors with 'json' base htype."""
         if self.ndim == 1:
             return json.loads(self.indra_tensor.bytes().decode())
-        return list(
-            json.loads(self.indra_tensor[i].bytes().decode())
-            for i in range(len(self.indra_tensor))
-        )
+        return list(json.loads(b.decode()) for b in self.indra_tensor.bytes())
 
     @property
     def dtype(self):
