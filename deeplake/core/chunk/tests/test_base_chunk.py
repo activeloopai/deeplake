@@ -15,7 +15,5 @@ def test_text_sample_to_byte_string():
     assert chunk._text_sample_to_byte_string("test") == b"test"
     assert chunk._text_sample_to_byte_string(3) == b"3"
     assert chunk._text_sample_to_byte_string(3.5) == b"3.5"
-
-    with pytest.raises(ValueError) as e:
-        chunk._text_sample_to_byte_string([1, 2, 3])
-    assert e.match("Cannot save data of type 'list' in a text tensor")
+    assert chunk._text_sample_to_byte_string(None) == b""
+    assert chunk._text_sample_to_byte_string([]) == b""

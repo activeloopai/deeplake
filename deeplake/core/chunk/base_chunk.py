@@ -619,9 +619,7 @@ class BaseChunk(DeepLakeMemoryObject):
             try:
                 return str(sample.reshape(())).encode("utf-8")
             except AttributeError:  # None
-                raise ValueError(
-                    f"Cannot save data of type '{type(sample).__name__}' in a text tensor"
-                )
+                return b""
 
     def check_empty_before_read(self):
         if self.is_empty_tensor:
