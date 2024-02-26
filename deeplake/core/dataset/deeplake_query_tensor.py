@@ -78,20 +78,21 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     def text(self, fetch_chunks: bool = False):
         """Return text data. Only applicable for tensors with 'text' base htype."""
+        bs = self.indra_tensor.bytes()
         if self.ndim == 1:
-            return self.indra_tensor.bytes().decode()
-        return list(
-            self.indra_tensor[i].bytes().decode() for i in range(len(self.indra_tensor))
-        )
+            return bs.decode()
+        if isinstance(bs, bytes):
+            return [bs.decode()]
+        return list(b.decode() for b in bs)
 
     def dict(self, fetch_chunks: bool = False):
         """Return json data. Only applicable for tensors with 'json' base htype."""
+        bs = self.indra_tensor.bytes()
         if self.ndim == 1:
-            return json.loads(self.indra_tensor.bytes().decode())
-        return list(
-            json.loads(self.indra_tensor[i].bytes().decode())
-            for i in range(len(self.indra_tensor))
-        )
+            return json.loads(bs.decode())
+        if isinstance(bs, bytes):
+            return [json.loads(bs.decode())]
+        return list(json.loads(b.decode()) for b in self.indra_tensor.bytes())
 
     @property
     def dtype(self):
