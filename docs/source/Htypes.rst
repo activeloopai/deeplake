@@ -101,8 +101,9 @@ Video Htype
 
 :blue:`Limitations`
 -------------------
-- Visualization of videos in the Deep Lake App is limited by the video coded support for various browsers. `Chrome supports the codecs shown here <https://www.chromium.org/audio-video/>`_
-- :ref:`The Deep Lake Performant Dataloader <Dataloader>`does not support videos. Please use the OSS dataloaders: ``ds.pytorch(...)``
+- Visualization of videos in the Deep Lake App is limited by the video coded support for various browsers. 
+    - `Chrome supports the codecs shown here <https://www.chromium.org/audio-video/>`_.
+- :ref:`The Deep Lake Performant Dataloader <Dataloader>` does not support videos. Please use the `OSS Dataloader <Dataloader>`
 
 :blue:`Creating a video tensor`
 -------------------------------
