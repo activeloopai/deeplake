@@ -1,3 +1,4 @@
+import numbers
 from abc import abstractmethod
 import struct
 import numpy as np
@@ -605,6 +606,9 @@ class BaseChunk(DeepLakeMemoryObject):
         )
 
     def _text_sample_to_byte_string(self, sample):
+        if isinstance(sample, numbers.Number):
+            sample = str(sample)
+
         try:
             return str(sample.numpy().reshape(())).encode("utf-8")
         except AttributeError:
