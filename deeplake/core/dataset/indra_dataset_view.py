@@ -89,7 +89,7 @@ class IndraDatasetView(Dataset):
         return self.indra_ds.commits
 
     @property
-    def commit_id(self) -> str
+    def commit_id(self) -> str:
         return self.indra_ds.commit_id
 
     @property
