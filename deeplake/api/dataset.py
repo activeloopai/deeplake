@@ -654,7 +654,7 @@ class dataset:
             )
 
         if indra and read_only:
-            from indra import api
+            from indra import api  # type: ignore
 
             ids = api.load_from_storage(storage.core)
             return IndraDatasetView(indra_ds=ids)
