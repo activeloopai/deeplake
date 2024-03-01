@@ -14,6 +14,7 @@ from deeplake.auto.unstructured.yolo.yolo import YoloDataset
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
+from deeplake.core.dataset.indra_dataset_view import IndraDatasetView
 from deeplake.core.tensor import Tensor
 from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.util.connect_dataset import connect_dataset_entry
@@ -651,6 +652,11 @@ class dataset:
             raise DatasetHandlerError(
                 f"A Deep Lake dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use deeplake.empty()."
             )
+
+        if indra and read_only:
+            from indra import api
+            ids = api.load_from_storage(storage.core)
+            return IndraDatasetView(indra_ds=ids)
 
         dataset_kwargs: Dict[str, Union[None, str, bool, int, Dict]] = {
             "path": path,

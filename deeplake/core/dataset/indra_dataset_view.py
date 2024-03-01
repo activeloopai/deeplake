@@ -36,8 +36,8 @@ from deeplake.core.dataset.indra_tensor_view import IndraTensorView
 class IndraDatasetView(Dataset):
     def __init__(
         self,
-        deeplake_ds,
         indra_ds,
+        deeplake_ds=None,
         group_index="",
         enabled_tensors=None,
         index: Optional[Index] = None,
@@ -54,9 +54,6 @@ class IndraDatasetView(Dataset):
             enabled_tensors or deeplake_ds.enabled_tensors
             if deeplake_ds is not None
             else None
-        )
-        d["version_state"] = (
-            deeplake_ds.version_state if deeplake_ds is not None else {}
         )
         d["_index"] = (
             index or deeplake_ds.index
@@ -80,6 +77,22 @@ class IndraDatasetView(Dataset):
         return self.deeplake_ds.path if self.deeplake_ds is not None else ""
 
     @property
+    def version_state(self) -> Dict:
+        return self.indra_ds.version_state
+
+    @property
+    def branches(self):
+        return self.indra_ds.branches
+
+    @property
+    def commits(self) -> List[Dict]:
+        return self.indra_ds.commits
+
+    @property
+    def commit_id(self) -> str
+        return self.indra_ds.commit_id
+
+    @property
     def libdeeplake_dataset(self):
         return self.indra_ds
 
@@ -89,9 +102,11 @@ class IndraDatasetView(Dataset):
         )
 
     def checkout(self, address: str, create: bool = False):
-        raise InvalidOperationError(
-            "checkout", "checkout method cannot be called on a Dataset view."
-        )
+        if create:
+            raise InvalidOperationError(
+                "checkout", "Cannot create new branch on Dataset View."
+            )
+        self.indra_ds.checkout(address)
 
     def _get_tensor_from_root(self, fullpath):
         tensors = self.indra_ds.tensors
