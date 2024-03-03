@@ -105,7 +105,7 @@ class SearchIndra(SearchBasic):
     def _get_view(self, tql_query, runtime: Optional[Dict] = None):
         indra_dataset = self._get_indra_dataset()
         indra_view = indra_dataset.query(tql_query)
-        view = IndraDatasetView(deeplake_ds=self.deeplake_dataset, indra_ds=indra_view)
+        view = IndraDatasetView(indra_ds=indra_view)
         view._tql_query = tql_query
         return view
 
