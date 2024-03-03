@@ -23,7 +23,7 @@ def test_indexing(local_auth_ds_generator):
             deeplake_ds.label.append(int(100 * random.uniform(0.0, 1.0)))
 
     indra_ds = dataset_to_libdeeplake(deeplake_ds)
-    deeplake_indra_ds = IndraDatasetView(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
+    deeplake_indra_ds = IndraDatasetView(indra_ds=indra_ds)
 
     assert len(deeplake_indra_ds) == len(indra_ds)
 
@@ -70,7 +70,7 @@ def test_save_view(local_auth_ds_generator):
     deeplake_ds.commit("First")
 
     indra_ds = dataset_to_libdeeplake(deeplake_ds)
-    deeplake_indra_ds = IndraDatasetView(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
+    deeplake_indra_ds = IndraDatasetView(indra_ds=indra_ds)
     deeplake_indra_ds.save_view()
     assert (
         deeplake_indra_ds.base_storage["queries.json"]
@@ -108,7 +108,7 @@ def test_load_view(local_auth_ds_generator):
     deeplake_ds.commit("First")
 
     indra_ds = dataset_to_libdeeplake(deeplake_ds)
-    deeplake_indra_ds = IndraDatasetView(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
+    deeplake_indra_ds = IndraDatasetView(indra_ds=indra_ds)
 
     with pytest.raises(Exception):
         dataloader = deeplake_indra_ds.pytorch()
@@ -158,7 +158,7 @@ def test_query(local_auth_ds_generator):
             deeplake_ds.image.append(np.random.randint(0, 255, (100, 200, 3), np.uint8))
 
     indra_ds = dataset_to_libdeeplake(deeplake_ds)
-    deeplake_indra_ds = IndraDatasetView(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
+    deeplake_indra_ds = IndraDatasetView(indra_ds=indra_ds)
 
     view = deeplake_indra_ds.query("SELECT * GROUP BY label")
     assert len(view) == 10
@@ -193,7 +193,7 @@ def test_metadata(local_auth_ds_generator):
         )
 
     indra_ds = dataset_to_libdeeplake(deeplake_ds)
-    deeplake_indra_ds = IndraDatasetView(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
+    deeplake_indra_ds = IndraDatasetView(indra_ds=indra_ds)
     assert deeplake_indra_ds.label.htype == "generic"
     assert deeplake_indra_ds.label.dtype == np.int32
     assert deeplake_indra_ds.label.sample_compression == None
@@ -219,7 +219,7 @@ def test_accessing_data(local_auth_ds_generator):
             deeplake_ds.label.append(int(100 * random.uniform(0.0, 1.0)))
 
     indra_ds = dataset_to_libdeeplake(deeplake_ds)
-    deeplake_indra_ds = IndraDatasetView(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
+    deeplake_indra_ds = IndraDatasetView(indra_ds=indra_ds)
 
     assert np.all(
         np.isclose(deeplake_indra_ds.label.numpy(), deeplake_indra_ds["label"].numpy())

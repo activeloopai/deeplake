@@ -103,7 +103,7 @@ class IndraTensorView(tensor.Tensor):
         htype = self.indra_tensor.htype
         if self.indra_tensor.is_sequence:
             htype = f"sequence[{htype}]"
-        if self.deeplake_tensor.is_link:
+        if self.indra_tensor.is_link:
             htype = f"link[{htype}]"
         return htype
 

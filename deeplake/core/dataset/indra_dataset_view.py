@@ -66,6 +66,7 @@ class IndraDatasetView(Dataset):
         self._view_base = None
         self._read_only = True
         self._locked_out = False
+        self._query_string = None
 
     @property
     def read_only(self):
