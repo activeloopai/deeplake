@@ -244,11 +244,11 @@ def test_sequences_accessing_data(local_auth_ds_generator):
     assert len(deeplake_indra_ds) == 2
     assert deeplake_indra_ds.image.shape == (2, None, None, 10, 3)
     assert deeplake_indra_ds[0].image.shape == (101, 10, 10, 3)
-    assert deeplake_indra_ds[0, 0].image.shape == (10, 10, 3)
+    assert deeplake_indra_ds[0, 0].image.shape == (1, 10, 10, 3)
     assert len(deeplake_indra_ds[0].image.numpy()) == 101
     assert deeplake_indra_ds[1].image.shape == (99, None, 10, 3)
-    assert deeplake_indra_ds[1, 0].image.shape == (10, 10, 3)
-    assert deeplake_indra_ds[1, 98].image.shape == (20, 10, 3)
+    assert deeplake_indra_ds[1, 0].image.shape == (1, 10, 10, 3)
+    assert deeplake_indra_ds[1, 98].image.shape == (1, 20, 10, 3)
     assert len(deeplake_indra_ds[1].image.numpy()) == 99
     assert deeplake_indra_ds[1].image.numpy()[0].shape == (10, 10, 3)
     assert deeplake_indra_ds[1].image.numpy()[98].shape == (20, 10, 3)

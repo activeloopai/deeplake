@@ -53,7 +53,7 @@ def query(dataset, query_string: str):
         indexes = list(dsv.indexes)
         return dataset.no_view_dataset[indexes]
     else:
-        view = IndraDatasetView(deeplake_ds=dataset, indra_ds=dsv)
+        view = IndraDatasetView(indra_ds=dsv)
         view._tql_query = query_string
         if hasattr(dataset, "is_actually_cloud"):
             view.is_actually_cloud = dataset.is_actually_cloud
@@ -158,6 +158,6 @@ def universal_query(query_string: str, token: Optional[str]):
 
     api = import_indra_api()
     dsv = api.tql.query(query_string, token)
-    view = IndraDatasetView(deeplake_ds=None, indra_ds=dsv)
+    view = IndraDatasetView(indra_ds=dsv)
     view._tql_query = query_string
     return view

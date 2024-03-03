@@ -48,19 +48,24 @@ class IndraDatasetView(Dataset):
         d["deeplake_ds"] = deeplake_ds
         d["indra_ds"] = indra_ds
         d["group_index"] = (
-            group_index or deeplake_ds.group_index if deeplake_ds is not None else ""
+            group_index or deeplake_ds.group_index
+            if hasattr(deeplake_ds, "group_index")
+            else ""
         )
         d["enabled_tensors"] = (
             enabled_tensors or deeplake_ds.enabled_tensors
-            if deeplake_ds is not None
+            if hasattr(deeplake_ds, "enabled_tensors")
             else None
         )
         d["_index"] = (
             index or deeplake_ds.index
-            if deeplake_ds is not None
+            if hasattr(deeplake_ds, "index")
             else Index(item=slice(None))
         )
         self.__dict__.update(d)
+        self._view_base = None
+        self._read_only = True
+        self._locked_out = False
 
     @property
     def read_only(self):
@@ -78,7 +83,10 @@ class IndraDatasetView(Dataset):
 
     @property
     def version_state(self) -> Dict:
-        return self.indra_ds.version_state
+        try:
+            return self.indra_ds.version_state
+        except:
+            return dict()
 
     @property
     def branches(self):
@@ -210,12 +218,6 @@ class IndraDatasetView(Dataset):
                     ret = self[x]
                 return ret
             else:
-                if not is_iteration and isinstance(item, int):
-                    is_iteration = check_if_iteration(self._indexing_history, item)
-                    if is_iteration and SHOW_ITERATION_WARNING:
-                        warnings.warn(
-                            "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
-                        )
                 ret = IndraDatasetView(
                     deeplake_ds=self.deeplake_ds,
                     indra_ds=self.indra_ds[item],
@@ -408,4 +410,4 @@ class IndraDatasetView(Dataset):
             lengths = calculate_absolute_lengths(lengths, len(self))
 
         vs = self.indra_ds.random_split(lengths)
-        return [IndraDatasetView(self.deeplake_ds, v) for v in vs]
+        return [IndraDatasetView(deeplake_ds=self.deeplake_ds, indra_ds=v) for v in vs]
