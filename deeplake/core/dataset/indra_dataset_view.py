@@ -55,6 +55,7 @@ class IndraDatasetView(Dataset):
         self._query_string = None
         try:
             from deeplake.core.storage.indra import IndraProvider
+
             self.storage = IndraProvider(indra_ds.storage)
         except:
             pass
@@ -78,8 +79,8 @@ class IndraDatasetView(Dataset):
     def version_state(self) -> Dict:
         try:
             state = self.indra_ds.version_state
-            for k, v in state['full_tensors'].items():
-                state['full_tensors'][k] = IndraTensorView(v, index=self.index)
+            for k, v in state["full_tensors"].items():
+                state["full_tensors"][k] = IndraTensorView(v, index=self.index)
             return state
         except:
             return dict()
@@ -327,7 +328,7 @@ class IndraDatasetView(Dataset):
 
     def _tensors(
         self, include_hidden: bool = True, include_disabled=True
-    ) -> Dict[str, Tensor]:
+    ) -> Dict[str, IndraTensorView]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
         indra_tensors = self.indra_ds.tensors
         ret = {}

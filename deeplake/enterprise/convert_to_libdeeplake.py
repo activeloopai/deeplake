@@ -157,6 +157,7 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
     try_flushing(hub2_dataset)
     api = import_indra_api()
     from deeplake.core.storage.indra import IndraProvider
+
     path: str = hub2_dataset.path
 
     token = (
@@ -170,7 +171,9 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
     if hub2_dataset.libdeeplake_dataset is not None:
         libdeeplake_dataset = hub2_dataset.libdeeplake_dataset
     elif isinstance(hub2_dataset.storage.next_storage, IndraProvider):
-        libdeeplake_dataset = api.load_from_storage(hub2_dataset.storage.next_storage.core)
+        libdeeplake_dataset = api.load_from_storage(
+            hub2_dataset.storage.next_storage.core
+        )
     else:
         libdeeplake_dataset = None
         if path.startswith("gdrive://"):
