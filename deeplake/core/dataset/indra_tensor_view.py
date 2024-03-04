@@ -31,9 +31,7 @@ class IndraTensorView(tensor.Tensor):
         try:
             return getattr(self.indra_tensor, key)
         except AttributeError:
-            raise AttributeError(
-                f"'{self.__class__}' object has no attribute '{key}'"
-            )
+            raise AttributeError(f"'{self.__class__}' object has no attribute '{key}'")
 
     def __getitem__(
         self,
