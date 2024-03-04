@@ -55,9 +55,6 @@ class IndraProvider(StorageProvider):
         partial_bytes: int = 0,
     ):
         if partial_bytes != 0:
-            assert issubclass(expected_class, BaseChunk)
-            if path in self.lru_sizes:
-                return self[path]
             buff = self.get_bytes(path, 0, partial_bytes)
             obj = expected_class.frombuffer(buff, meta, partial=True)
             obj.data_bytes = PartialReader(self, path, header_offset=obj.header_bytes)
