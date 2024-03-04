@@ -3784,7 +3784,7 @@ class Dataset:
                             ) from e
                     else:
                         raise ReadOnlyModeError(
-                            "Cannot save view in read only dataset. Speicify a path to save the view in a different location."
+                            "Cannot save view in read only dataset. Specify a path to save the view in a different location."
                         )
                 else:
                     vds = self._save_view_in_subdir(

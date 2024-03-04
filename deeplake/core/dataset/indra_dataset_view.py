@@ -45,6 +45,7 @@ class IndraDatasetView(Dataset):
         d["indra_ds"] = indra_ds
         d["group_index"] = ""
         d["enabled_tensors"] = None
+        d["verbose"] = False
         d["_index"] = Index(item=slice(None))
         self.__dict__.update(d)
         self._view_base = None
@@ -76,7 +77,10 @@ class IndraDatasetView(Dataset):
     @property
     def version_state(self) -> Dict:
         try:
-            return self.indra_ds.version_state
+            state = self.indra_ds.version_state
+            for k, v in state['full_tensors'].items():
+                state['full_tensors'][k] = IndraTensorView(v, index=self.index)
+            return state
         except:
             return dict()
 
@@ -202,14 +206,14 @@ class IndraDatasetView(Dataset):
                 )
         else:
             raise InvalidKeyTypeError(item)
+        raise AttributeError("Dataset has no attribute - {item}")
 
     def __getattr__(self, key):
         try:
             ret = self.__getitem__(key)
         except AttributeError:
             ret = getattr(self.indra_ds, key)
-        if ret is not None:
-            ret._view_entry = self._view_entry
+        ret._view_entry = self._view_entry
         return ret
 
     def __len__(self):
@@ -297,6 +301,10 @@ class IndraDatasetView(Dataset):
     @property
     def no_view_dataset(self):
         return self
+
+    @property
+    def base_storage(self):
+        return self.storage
 
     @property
     def index(self):

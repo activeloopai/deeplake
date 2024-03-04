@@ -1,6 +1,8 @@
 from deeplake.core.storage.provider import StorageProvider
+from deeplake.core.partial_reader import PartialReader
+from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from indra.api import storage  # type: ignore
-from typing import Optional, Union
+from typing import Optional, Union, Dict
 
 
 class IndraProvider(StorageProvider):
@@ -43,6 +45,41 @@ class IndraProvider(StorageProvider):
             return bytes(self.core.get(path, s, e))
         except RuntimeError as e:
             raise KeyError(path)
+
+    def get_deeplake_object(
+        self,
+        path: str,
+        expected_class,
+        meta: Optional[Dict] = None,
+        url=False,
+        partial_bytes: int = 0,
+    ):
+        if partial_bytes != 0:
+            assert issubclass(expected_class, BaseChunk)
+            if path in self.lru_sizes:
+                return self[path]
+            buff = self.get_bytes(path, 0, partial_bytes)
+            obj = expected_class.frombuffer(buff, meta, partial=True)
+            obj.data_bytes = PartialReader(self, path, header_offset=obj.header_bytes)
+            return obj
+
+        item = self[path]
+        if isinstance(item, DeepLakeMemoryObject):
+            if type(item) != expected_class:
+                raise ValueError(
+                    f"'{path}' was expected to have the class '{expected_class.__name__}'. Instead, got: '{type(item)}'."
+                )
+            return item
+
+        if isinstance(item, (bytes, memoryview)):
+            obj = (
+                expected_class.frombuffer(item)
+                if meta is None
+                else expected_class.frombuffer(item, meta)
+            )
+            return obj
+
+        raise ValueError(f"Item at '{path}' got an invalid type: '{type(item)}'.")
 
     def get_object_size(self, path: str) -> int:
         return self.core.length(path)
