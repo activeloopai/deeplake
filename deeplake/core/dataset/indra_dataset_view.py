@@ -37,31 +37,15 @@ class IndraDatasetView(Dataset):
     def __init__(
         self,
         indra_ds,
-        deeplake_ds=None,
         group_index="",
         enabled_tensors=None,
         index: Optional[Index] = None,
     ):
-        if isinstance(deeplake_ds, IndraDatasetView):
-            deeplake_ds = deeplake_ds.deeplake_ds
         d: Dict[str, Any] = {}
-        d["deeplake_ds"] = deeplake_ds
         d["indra_ds"] = indra_ds
-        d["group_index"] = (
-            group_index or deeplake_ds.group_index
-            if hasattr(deeplake_ds, "group_index")
-            else ""
-        )
-        d["enabled_tensors"] = (
-            enabled_tensors or deeplake_ds.enabled_tensors
-            if hasattr(deeplake_ds, "enabled_tensors")
-            else None
-        )
-        d["_index"] = (
-            index or deeplake_ds.index
-            if hasattr(deeplake_ds, "index")
-            else Index(item=slice(None))
-        )
+        d["group_index"] = ""
+        d["enabled_tensors"] = None
+        d["_index"] = Index(item=slice(None))
         self.__dict__.update(d)
         self._view_base = None
         self._read_only = True
@@ -70,17 +54,15 @@ class IndraDatasetView(Dataset):
 
     @property
     def read_only(self):
-        if self.deeplake_ds is not None:
-            return self.deeplake_ds.read_only
         return True
 
     @property
     def meta(self):
-        return self.deeplake_ds.meta if self.deeplake_ds is not None else DatasetMeta()
+        return DatasetMeta()
 
     @property
     def path(self):
-        return self.deeplake_ds.path if self.deeplake_ds is not None else ""
+        return ""
 
     @property
     def version_state(self) -> Dict:
@@ -122,12 +104,8 @@ class IndraDatasetView(Dataset):
         for tensor in tensors:
             if tensor.name == fullpath:
                 deeplake_tensor = None
-                try:
-                    deeplake_tensor = self.deeplake_ds.__getattr__(fullpath)
-                except:
-                    pass
                 indra_tensor = tensor
-                return IndraTensorView(deeplake_tensor, indra_tensor, index=self.index)
+                return IndraTensorView(indra_tensor, index=self.index)
 
     def pytorch(
         self,
@@ -173,15 +151,6 @@ class IndraDatasetView(Dataset):
                 tensor = self._get_tensor_from_root(fullpath)
                 if tensor is not None:
                     return tensor
-            if self.deeplake_ds is not None and self.deeplake_ds._has_group_in_root(
-                fullpath
-            ):
-                ret = IndraDatasetView(
-                    deeplake_ds=self.deeplake_ds,
-                    indra_ds=self.indra_ds,
-                    index=self.index,
-                    group_index=posixpath.join(self.group_index, item),
-                )
             elif "/" in item:
                 splt = posixpath.split(item)
                 ret = self[splt[0]][splt[1]]
@@ -208,7 +177,6 @@ class IndraDatasetView(Dataset):
                     for x in item
                 ]
                 ret = IndraDatasetView(
-                    deeplake_ds=self.deeplake_ds,
                     indra_ds=self.indra_ds,
                     enabled_tensors=enabled_tensors,
                     index=self.index,
@@ -220,7 +188,6 @@ class IndraDatasetView(Dataset):
                 return ret
             else:
                 ret = IndraDatasetView(
-                    deeplake_ds=self.deeplake_ds,
                     indra_ds=self.indra_ds[item],
                     index=self.index[item],
                 )
@@ -234,13 +201,6 @@ class IndraDatasetView(Dataset):
     def __getattr__(self, key):
         try:
             return self.__getitem__(key)
-        except TensorDoesNotExistError as ke:
-            try:
-                return getattr(self.deeplake_ds, key)
-            except AttributeError:
-                raise AttributeError(
-                    f"'{self.__class__}' object has no attribute '{key}'"
-                ) from ke
         except AttributeError:
             return getattr(self.indra_ds, key)
 
@@ -346,11 +306,6 @@ class IndraDatasetView(Dataset):
     def _all_tensors_filtered(
         self, include_hidden: bool = True, include_disabled=True
     ) -> List[str]:
-        if self.deeplake_ds is not None:
-            return self.deeplake_ds._all_tensors_filtered(
-                include_hidden, include_disabled
-            )
-
         indra_tensors = self.indra_ds.tensors
         return list(t.name for t in indra_tensors)
 
@@ -358,24 +313,9 @@ class IndraDatasetView(Dataset):
         self, include_hidden: bool = True, include_disabled=True
     ) -> Dict[str, Tensor]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
-        original_tensors = (
-            self.deeplake_ds._tensors(include_hidden, include_disabled)
-            if self.deeplake_ds is not None
-            else {}
-        )
         indra_tensors = self.indra_ds.tensors
-        indra_keys = set(t.name for t in indra_tensors)
-        original_tensors = {
-            k: v for k, v in original_tensors.items() if k in indra_keys or v.hidden
-        }
-        original_keys = set(original_tensors.keys())
         for t in indra_tensors:
-            if t.name in original_keys:
-                original_tensors[t.name] = IndraTensorView(
-                    original_tensors[t.name], t, index=self.index
-                )
-            else:
-                original_tensors[t.name] = IndraTensorView(None, t, index=self.index)
+            original_tensors[t.name] = IndraTensorView(t, index=self.index)
         return original_tensors
 
     def __str__(self):
@@ -411,4 +351,4 @@ class IndraDatasetView(Dataset):
             lengths = calculate_absolute_lengths(lengths, len(self))
 
         vs = self.indra_ds.random_split(lengths)
-        return [IndraDatasetView(deeplake_ds=self.deeplake_ds, indra_ds=v) for v in vs]
+        return [IndraDatasetView(indra_ds=v) for v in vs]
