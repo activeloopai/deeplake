@@ -48,13 +48,22 @@ class IndraDatasetView(Dataset):
         d["_index"] = Index(item=slice(None))
         self.__dict__.update(d)
         self._view_base = None
+        self._view_entry = None
         self._read_only = True
         self._locked_out = False
         self._query_string = None
+        try:
+            from deeplake.core.storage.indra import IndraProvider
+            self.storage = IndraProvider(indra_ds.storage)
+        except:
+            pass
 
     @property
     def read_only(self):
-        return True
+        try:
+            return self.indra_ds.storage.read_only
+        except:
+            return True
 
     @property
     def meta(self):
@@ -153,7 +162,7 @@ class IndraDatasetView(Dataset):
                     return tensor
             elif "/" in item:
                 splt = posixpath.split(item)
-                ret = self[splt[0]][splt[1]]
+                return self[splt[0]][splt[1]]
             else:
                 raise TensorDoesNotExistError(item)
         elif isinstance(item, (int, slice, list, tuple, Index, type(Ellipsis))):
@@ -176,7 +185,7 @@ class IndraDatasetView(Dataset):
                     )
                     for x in item
                 ]
-                ret = IndraDatasetView(
+                return IndraDatasetView(
                     indra_ds=self.indra_ds,
                     enabled_tensors=enabled_tensors,
                     index=self.index,
@@ -187,22 +196,21 @@ class IndraDatasetView(Dataset):
                     ret = self[x]
                 return ret
             else:
-                ret = IndraDatasetView(
+                return IndraDatasetView(
                     indra_ds=self.indra_ds[item],
                     index=self.index[item],
                 )
         else:
             raise InvalidKeyTypeError(item)
 
-        if hasattr(self, "_view_entry"):
-            ret._view_entry = self._view_entry
-        return ret
-
     def __getattr__(self, key):
         try:
-            return self.__getitem__(key)
+            ret = self.__getitem__(key)
         except AttributeError:
-            return getattr(self.indra_ds, key)
+            ret = getattr(self.indra_ds, key)
+        if ret is not None:
+            ret._view_entry = self._view_entry
+        return ret
 
     def __len__(self):
         return len(self.indra_ds)
@@ -314,9 +322,10 @@ class IndraDatasetView(Dataset):
     ) -> Dict[str, Tensor]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
         indra_tensors = self.indra_ds.tensors
+        ret = {}
         for t in indra_tensors:
-            original_tensors[t.name] = IndraTensorView(t, index=self.index)
-        return original_tensors
+            ret[t.name] = IndraTensorView(t, index=self.index)
+        return ret
 
     def __str__(self):
         path_str = ""
