@@ -18,10 +18,15 @@ class IndraProvider(StorageProvider):
             self.core = storage.create(root, read_only, **kwargs)
         else:
             self.core = root
+        self.root = self.path
 
     @property
     def path(self):
         return self.core.path
+
+    @property
+    def original_path(self):
+        return self.core.original_path
 
     def copy(self):
         return IndraProvider(self.core)

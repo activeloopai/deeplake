@@ -104,6 +104,7 @@ class dataset:
         lock_enabled: Optional[bool] = True,
         lock_timeout: Optional[int] = 0,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
+        indra: bool = USE_INDRA,
     ):
         """Returns a :class:`~deeplake.core.dataset.Dataset` object referencing either a new or existing dataset.
 
@@ -176,6 +177,7 @@ class dataset:
             lock_timeout (int): Number of seconds to wait before throwing a LockException. If None, wait indefinitely
             lock_enabled (bool): If true, the dataset manages a write lock. NOTE: Only set to False if you are managing concurrent access externally
             index_params: Optional[Dict[str, Union[int, str]]] = None : The index parameters used while creating vector store is passed down to dataset.
+            indra (bool): Flag indicating whether indra api should be used to create the dataset. Defaults to false
 
         ..
             # noqa: DAR101
@@ -228,6 +230,7 @@ class dataset:
                 token=token,
                 memory_cache_size=memory_cache_size,
                 local_cache_size=local_cache_size,
+                indra=indra,
             )
 
             feature_report_path(path, "dataset", {"Overwrite": overwrite}, token=token)

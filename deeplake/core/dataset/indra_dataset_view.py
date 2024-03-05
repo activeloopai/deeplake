@@ -39,14 +39,12 @@ class IndraDatasetView(Dataset):
         indra_ds,
         group_index="",
         enabled_tensors=None,
-        index: Optional[Index] = None,
     ):
         d: Dict[str, Any] = {}
         d["indra_ds"] = indra_ds
         d["group_index"] = ""
         d["enabled_tensors"] = None
         d["verbose"] = False
-        d["_index"] = Index(item=slice(None))
         self.__dict__.update(d)
         self._view_base = None
         self._view_entry = None
@@ -73,14 +71,17 @@ class IndraDatasetView(Dataset):
 
     @property
     def path(self):
-        return ""
+        try:
+            return self.storage.original_path
+        except:
+            return ""
 
     @property
     def version_state(self) -> Dict:
         try:
             state = self.indra_ds.version_state
             for k, v in state["full_tensors"].items():
-                state["full_tensors"][k] = IndraTensorView(v, index=self.index)
+                state["full_tensors"][k] = IndraTensorView(v)
             return state
         except:
             return dict()
@@ -119,7 +120,7 @@ class IndraDatasetView(Dataset):
             if tensor.name == fullpath:
                 deeplake_tensor = None
                 indra_tensor = tensor
-                return IndraTensorView(indra_tensor, index=self.index)
+                return IndraTensorView(indra_tensor)
 
     def pytorch(
         self,
@@ -193,7 +194,6 @@ class IndraDatasetView(Dataset):
                 return IndraDatasetView(
                     indra_ds=self.indra_ds,
                     enabled_tensors=enabled_tensors,
-                    index=self.index,
                 )
             elif isinstance(item, tuple) and len(item) and isinstance(item[0], str):
                 ret = self
@@ -203,7 +203,6 @@ class IndraDatasetView(Dataset):
             else:
                 return IndraDatasetView(
                     indra_ds=self.indra_ds[item],
-                    index=self.index[item],
                 )
         else:
             raise InvalidKeyTypeError(item)
@@ -309,7 +308,7 @@ class IndraDatasetView(Dataset):
 
     @property
     def index(self):
-        return self._index
+        return Index(self.indra_ds.indexes)
 
     @property
     def sample_indices(self):
@@ -333,7 +332,7 @@ class IndraDatasetView(Dataset):
         indra_tensors = self.indra_ds.tensors
         ret = {}
         for t in indra_tensors:
-            ret[t.name] = IndraTensorView(t, index=self.index)
+            ret[t.name] = IndraTensorView(t)
         return ret
 
     def __str__(self):

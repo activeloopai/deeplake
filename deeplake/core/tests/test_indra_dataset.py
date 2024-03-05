@@ -116,7 +116,7 @@ def test_load_view(local_auth_ds_generator):
     query_str = "select * group by label"
     view = deeplake_ds.query(query_str)
     view_path = view.save_view()
-    view_id = view_path.split("/")[-1]
+    view_id = view_path.split("/")[-2]
     view = deeplake_ds.load_view(view_id)
 
     dataloader = view[:3].dataloader().pytorch()
@@ -130,7 +130,7 @@ def test_load_view(local_auth_ds_generator):
 
     view = deeplake_ds[0:50].query(query_str)
     view_path = view.save_view()
-    view_id = view_path.split("/")[-1]
+    view_id = view_path.split("/")[-2]
     view = deeplake_ds.load_view(view_id)
 
     dataloader = view[:3].dataloader().pytorch()

@@ -15,7 +15,6 @@ class IndraTensorView(tensor.Tensor):
     def __init__(
         self,
         indra_tensor,
-        index: Optional[Index] = None,
         is_iteration: bool = False,
     ):
         self.indra_tensor = indra_tensor
@@ -24,8 +23,6 @@ class IndraTensorView(tensor.Tensor):
         self.key = indra_tensor.name
 
         self.first_dim = None
-
-        self._index = index or Index(self.indra_tensor.index)
 
     def __getattr__(self, key):
         try:
@@ -44,11 +41,8 @@ class IndraTensorView(tensor.Tensor):
         if isinstance(item, tuple) or item is Ellipsis:
             item = replace_ellipsis_with_slices(item, self.ndim)
 
-        indra_tensor = self.indra_tensor[item]
-
         return IndraTensorView(
-            indra_tensor,
-            index=self.index[item],
+            self.indra_tensor[item],
             is_iteration=is_iteration,
         )
 
@@ -150,8 +144,6 @@ class IndraTensorView(tensor.Tensor):
 
     @property
     def index(self):
-        if self._index is not None:
-            return self._index
         return Index(self.indra_tensor.indexes)
 
     @property
