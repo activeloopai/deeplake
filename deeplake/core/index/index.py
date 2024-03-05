@@ -198,7 +198,8 @@ class IndexEntry:
 
     def subscriptable(self):
         """Returns whether an IndexEntry can be further subscripted."""
-        from indra import api
+        from indra import api  # type: ignore
+
         if isinstance(self.value, api.core.IndexMappingInt64):
             return self.value.subscriptable()
         return not isinstance(self.value, int)
