@@ -1127,3 +1127,8 @@ class IncorrectQueriesTypeError(Exception):
             "Please make sure, that queries is of type List[str]"
         )
         super().__init__(msg)
+
+
+class InvalidAuthContextError(Exception):
+    def __init__(self, message: str = "Authentication failed due to invalid or insufficient configuration."):
+        super().__init__(message)

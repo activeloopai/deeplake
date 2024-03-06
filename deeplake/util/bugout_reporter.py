@@ -163,11 +163,11 @@ def feature_report_path(
     if path.startswith(starts_with):
         parameters["Path"] = path
 
-    token = token or os.environ.get(DEEPLAKE_AUTH_TOKEN)
+    # token = token or os.environ.get(DEEPLAKE_AUTH_TOKEN)
 
-    if token is not None:
-        username = jwt.decode(token, options={"verify_signature": False})["id"]
-    set_username(username)
+    # if token is not None:
+    #     username = jwt.decode(token, options={"verify_signature": False})["id"]
+    # set_username(username)
 
     deeplake_reporter.feature_report(
         feature_name=feature_name,
