@@ -103,7 +103,7 @@ Video Htype
 -------------------
 - Visualization of videos in the Deep Lake App is limited by the video coded support for various browsers. 
     - `Chrome supports the codecs shown here <https://www.chromium.org/audio-video/>`_.
-- :ref:`The Deep Lake Performant Dataloader <Dataloader>` does not support videos. Please use the `OSS Dataloader <Dataloader>`
+- :ref:`The Deep Lake Performant Dataloader <Dataloader>` does not support videos.
 
 :blue:`Creating a video tensor`
 -------------------------------
@@ -738,6 +738,11 @@ Nifti Htype
 ~~~~~~~~~~~
 
 - :bluebold:`Sample dimensions:` ``(# height, # width, # slices)`` or ``(# height, # width, # slices, # time unit)`` in case of time-series data.
+
+:blue:`Limitations`
+-------------------
+- :ref:`The Deep Lake Performant Dataloader <Dataloader>` does not support Nifti data.
+
 
 :blue:`Creating a nifti tensor`
 -------------------------------
