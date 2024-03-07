@@ -1130,5 +1130,8 @@ class IncorrectQueriesTypeError(Exception):
 
 
 class InvalidAuthContextError(Exception):
-    def __init__(self, message: str = "Authentication failed due to invalid or insufficient configuration."):
+    def __init__(
+        self,
+        message: str = "Authentication failed due to invalid or insufficient configuration.",
+    ):
         super().__init__(message)

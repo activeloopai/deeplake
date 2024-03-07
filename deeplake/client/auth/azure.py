@@ -7,6 +7,7 @@ from deeplake.util.exceptions import InvalidAuthContextError
 
 ID_TOKEN_CACHE_MINUTES = 5
 
+
 class AzureAuthContext(AuthContext):
     def __init__(self):
         self.credential = DefaultAzureCredential()
@@ -19,23 +20,27 @@ class AzureAuthContext(AuthContext):
         return self.token
 
     def authenticate(self) -> None:
-        if self._last_auth_time is not None and datetime.now() - self._last_auth_time < timedelta(minutes=ID_TOKEN_CACHE_MINUTES):
+        if (
+            self._last_auth_time is not None
+            and datetime.now() - self._last_auth_time
+            < timedelta(minutes=ID_TOKEN_CACHE_MINUTES)
+        ):
             return
-        
+
         try:
-            response = self.credential.get_token("https://management.azure.com/.default")
+            response = self.credential.get_token(
+                "https://management.azure.com/.default"
+            )
             self.token = response.token
             self._last_auth_time = datetime.now()
         except ClientAuthenticationError as e:
             raise InvalidAuthContextError(
                 f"Failed to authenticate with Azure. Please check your credentials. \n {e.message}",
-               
             ) from e
         except Exception as e:
             raise InvalidAuthContextError(
                 "Failed to authenticate with Azure. An unexpected error occured."
             ) from e
-
 
     def get_provider_type(self) -> AuthProviderType:
         return AuthProviderType.AZURE

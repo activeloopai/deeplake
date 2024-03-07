@@ -158,7 +158,6 @@ class DeepLakeBackendClient:
 
         return HUB_REST_ENDPOINT
 
-
     def get_dataset_credentials(
         self,
         org_id: str,
@@ -214,12 +213,10 @@ class DeepLakeBackendClient:
                     raise NotLoggedInAgreementError from e
                 else:
                     try:
-                        jwt.decode(
-                            self.token, options={"verify_signature": False}
-                        )
+                        jwt.decode(self.token, options={"verify_signature": False})
                     except Exception:
                         raise InvalidTokenException
-                    
+
                     raise TokenPermissionError()
             raise
         full_url = response.get("path")

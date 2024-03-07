@@ -35,7 +35,7 @@ def test_initialize_auth_context():
 
 def test_azure_auth_context_exceptions():
     context = AzureAuthContext()
-    
+
     with pytest.raises(InvalidAuthContextError):
         context.authenticate()
 

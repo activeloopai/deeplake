@@ -7,9 +7,12 @@ from deeplake.client.config import DEEPLAKE_AUTH_PROVIDER
 
 
 def initialize_auth_context(*args, **kwargs) -> AuthContext:
-    if os.environ.get(DEEPLAKE_AUTH_PROVIDER, "").lower() == AuthProviderType.AZURE.value.lower():
+    if (
+        os.environ.get(DEEPLAKE_AUTH_PROVIDER, "").lower()
+        == AuthProviderType.AZURE.value.lower()
+    ):
         return AzureAuthContext()
-    
+
     return ActiveLoopAuthContext(*args, **kwargs)
 
 

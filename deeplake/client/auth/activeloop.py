@@ -4,6 +4,7 @@ from typing import Optional
 from deeplake.client.auth.auth_context import AuthContext, AuthProviderType
 from deeplake.client.config import DEEPLAKE_AUTH_TOKEN
 
+
 class ActiveLoopAuthContext(AuthContext):
     def __init__(self, token: Optional[str] = None):
         self.token = token

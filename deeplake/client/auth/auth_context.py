@@ -1,15 +1,17 @@
 from enum import Enum
 from abc import ABC, abstractmethod
 
+
 class AuthProviderType(Enum):
     ACTIVELOOP = "activeloop"
     AZURE = "azure"
+
 
 class AuthContext(ABC):
     def get_auth_headers(self) -> dict:
         return {
             "Authorization": f"Bearer {self.get_token()}",
-            "X-Activeloop-Provider-Type": self.get_provider_type().value
+            "X-Activeloop-Provider-Type": self.get_provider_type().value,
         }
 
     @abstractmethod
