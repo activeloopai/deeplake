@@ -28,6 +28,10 @@ class IndraProvider(StorageProvider):
     def original_path(self):
         return self.core.original_path
 
+    @property
+    def token(self):
+        return self.core.token
+
     def copy(self):
         return IndraProvider(self.core)
 

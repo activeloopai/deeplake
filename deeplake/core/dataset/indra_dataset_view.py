@@ -56,6 +56,7 @@ class IndraDatasetView(Dataset):
 
             self.storage = IndraProvider(indra_ds.storage)
             self._read_only = self.storage.read_only
+            self._token = self.storage.token
         except:
             pass
 
