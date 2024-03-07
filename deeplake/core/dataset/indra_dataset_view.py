@@ -55,15 +55,9 @@ class IndraDatasetView(Dataset):
             from deeplake.core.storage.indra import IndraProvider
 
             self.storage = IndraProvider(indra_ds.storage)
+            self._read_only = self.storage.read_only
         except:
             pass
-
-    @property
-    def read_only(self):
-        try:
-            return self.indra_ds.storage.read_only
-        except:
-            return True
 
     @property
     def meta(self):
@@ -113,6 +107,9 @@ class IndraDatasetView(Dataset):
                 "checkout", "Cannot create new branch on Dataset View."
             )
         self.indra_ds.checkout(address)
+
+    def flush(self):
+        pass
 
     def _get_tensor_from_root(self, fullpath):
         tensors = self.indra_ds.tensors

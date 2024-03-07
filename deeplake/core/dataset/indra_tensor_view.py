@@ -54,6 +54,8 @@ class IndraTensorView(tensor.Tensor):
             return r
         else:
             try:
+                if self.index.values[0].subscriptable():
+                    r = r[0]
                 return np.array(r)
             except ValueError:
                 raise DynamicTensorNumpyError(self.name, self.index, "shape")

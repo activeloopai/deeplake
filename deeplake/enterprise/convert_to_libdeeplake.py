@@ -65,15 +65,16 @@ def _get_indra_ds_from_azure_provider(
     sas_token = provider.get_sas_token()
     expiration = str(provider.expiration) if provider.expiration else None
 
-    return api.dataset(
+    storage = IndraProvider(
         path,
-        origin_path=provider.root,
+        read_only=provider.read_only,
         token=token,
         account_name=account_name,
         account_key=account_key,
         sas_token=sas_token,
         expiration=expiration,
     )
+    return _get_indra_ds_from_native_provider(storage)
 
 
 def _get_indra_ds_from_gcp_provider(
@@ -94,10 +95,11 @@ def _get_indra_ds_from_gcp_provider(
     scheme = creds.get("scheme", "")
     retry_limit_seconds = creds.get("retry_limit_seconds", "")
 
-    return api.dataset(
+    storage = IndraProvider(
         path,
-        origin_path=provider.root,
+        read_only=provider.read_only,
         token=token,
+        origin_path=provider.root,
         anon=anon,
         expiration=expiration,
         access_token=access_token,
@@ -106,6 +108,7 @@ def _get_indra_ds_from_gcp_provider(
         scheme=scheme,
         retry_limit_seconds=retry_limit_seconds,
     )
+    return _get_indra_ds_from_native_provider(storage)
 
 
 def _get_indra_ds_from_s3_provider(
@@ -121,10 +124,11 @@ def _get_indra_ds_from_s3_provider(
     creds_used = provider.creds_used
     if creds_used == "PLATFORM":
         provider._check_update_creds()
-        return api.dataset(
+        storage = IndraProvider(
             path,
-            origin_path=provider.root,
+            read_only=provider.read_only,
             token=token,
+            origin_path=provider.root,
             aws_access_key_id=provider.aws_access_key_id,
             aws_secret_access_key=provider.aws_secret_access_key,
             aws_session_token=provider.aws_session_token,
@@ -132,31 +136,35 @@ def _get_indra_ds_from_s3_provider(
             endpoint_url=provider.endpoint_url,
             expiration=str(provider.expiration),
         )
+        return _get_indra_ds_from_native_provider(storage)
     elif creds_used == "ENV":
-        return api.dataset(
+        storage = IndraProvider(
             path,
-            origin_path=provider.root,
+            read_only=provider.read_only,
             token=token,
+            origin_path=provider.root,
             profile_name=provider.profile_name,
         )
+        return _get_indra_ds_from_native_provider(storage)
     elif creds_used == "DICT":
-        return api.dataset(
+        storage = IndraProvider(
             path,
-            origin_path=provider.root,
+            read_only=provider.read_only,
             token=token,
+            origin_path=provider.root,
             aws_access_key_id=provider.aws_access_key_id,
             aws_secret_access_key=provider.aws_secret_access_key,
             aws_session_token=provider.aws_session_token,
             region_name=provider.aws_region,
             endpoint_url=provider.endpoint_url,
         )
+        return _get_indra_ds_from_native_provider(storage)
 
 
 def dataset_to_libdeeplake(hub2_dataset: Dataset):
     """Convert a hub 2.x dataset object to a libdeeplake dataset object."""
     try_flushing(hub2_dataset)
     api = import_indra_api()
-    from deeplake.core.storage.indra import IndraProvider
 
     path: str = hub2_dataset.path
 
@@ -171,9 +179,7 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
     if hub2_dataset.libdeeplake_dataset is not None:
         libdeeplake_dataset = hub2_dataset.libdeeplake_dataset
     elif isinstance(hub2_dataset.storage.next_storage, IndraProvider):
-        libdeeplake_dataset = api.load_from_storage(
-            hub2_dataset.storage.next_storage.core
-        )
+        libdeeplake_dataset = api.dataset(hub2_dataset.storage.next_storage.core)
     else:
         libdeeplake_dataset = None
         if path.startswith("gdrive://"):
@@ -226,7 +232,10 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
             org_id = (
                 org_id or jwt.decode(token, options={"verify_signature": False})["id"]
             )
-            libdeeplake_dataset = api.dataset(path, token=token, org_id=org_id)
+            storage = IndraProvider(
+                path, read_only=hub2_dataset.read_only, token=token, org_id=org_id
+            )
+            libdeeplake_dataset = api.dataset(storage.core)
 
         hub2_dataset.libdeeplake_dataset = libdeeplake_dataset
 
