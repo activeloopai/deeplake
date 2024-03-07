@@ -1679,6 +1679,14 @@ def test_auto_htype(memory_ds):
     assert ds.f.htype == "json"
 
 
+def test_datatype_conversions(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("uuid", dtype=np.int32)
+
+    with pytest.raises(SampleAppendError) as e:
+        ds.uuid.append("asdasd")
+
+
 @pytest.mark.slow
 @pytest.mark.parametrize(
     "args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}]

@@ -624,6 +624,7 @@ class S3Provider(StorageProvider):
         return url
 
     def get_object_size(self, path: str) -> int:
+        self._check_update_creds()
         path = "".join((self.path, path))
         obj = self.resource.Object(self.bucket, path)
         return obj.content_length
