@@ -33,6 +33,21 @@ class SampleCompressedChunk(BaseChunk):
                     continue
                 raise
 
+            if serialized_sample:
+                path = None
+                if isinstance(incoming_sample, Sample):
+                    path = incoming_sample.path
+
+                sample = Sample(
+                    buffer=serialized_sample,
+                    compression=compr,
+                    shape=shape,
+                    dtype=dtype,
+                    path=path,  # type: ignore
+                )
+                sample.htype = self.htype
+                incoming_samples[i] = sample
+
             if isinstance(serialized_sample, SampleTiles):
                 incoming_samples[i] = serialized_sample  # type: ignore
                 if self.is_empty:
@@ -52,20 +67,6 @@ class SampleCompressedChunk(BaseChunk):
                     )
                     num_samples += 1
                 else:
-                    if serialized_sample:
-                        path = None
-                        if isinstance(incoming_sample, Sample):
-                            path = incoming_sample.path
-
-                        sample = Sample(
-                            buffer=serialized_sample,
-                            compression=compr,
-                            shape=shape,
-                            dtype=dtype,
-                            path=path,  # type: ignore
-                        )
-                        sample.htype = self.htype
-                        incoming_samples[i] = sample
                     break
 
         for i in reversed(skipped):
