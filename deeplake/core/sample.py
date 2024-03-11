@@ -150,6 +150,9 @@ class Sample:
             return self._buffer
         return self.compressed_bytes(self.compression)
 
+    def __len__(self):
+        return self.shape[0]
+
     @property
     def is_text_like(self):
         return self.htype in {"text", "list", "json", "tag"}
