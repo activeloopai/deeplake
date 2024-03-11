@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 from abc import ABC, abstractmethod
 
 
@@ -15,7 +16,7 @@ class AuthContext(ABC):
         }
 
     @abstractmethod
-    def get_token(self) -> str:
+    def get_token(self) -> Optional[str]:
         pass
 
     @abstractmethod

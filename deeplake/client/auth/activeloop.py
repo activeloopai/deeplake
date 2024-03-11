@@ -9,7 +9,7 @@ class ActiveLoopAuthContext(AuthContext):
     def __init__(self, token: Optional[str] = None):
         self.token = token
 
-    def get_token(self) -> str:
+    def get_token(self) -> Optional[str]:
         if self.token is None:
             self.authenticate()
 
