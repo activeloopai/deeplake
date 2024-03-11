@@ -306,7 +306,10 @@ class IndraDatasetView(Dataset):
 
     @property
     def index(self):
-        return Index(self.indra_ds.indexes)
+        try:
+            return Index(self.indra_ds.indexes)
+        except:
+            return Index(slice(0, len(self)))
 
     @property
     def sample_indices(self):

@@ -146,7 +146,10 @@ class IndraTensorView(tensor.Tensor):
 
     @property
     def index(self):
-        return Index(self.indra_tensor.indexes)
+        try:
+            return Index(self.indra_tensor.indexes)
+        except:
+            return Index(slice(0, len(self)))
 
     @property
     def shape_interval(self):
