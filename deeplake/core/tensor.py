@@ -1687,11 +1687,6 @@ class Tensor:
         ts = getattr(ds, self.meta.name)
         from indra import api  # type: ignore
 
-        commit_id = self.version_state["commit_id"]
-        b = self.chunk_engine.base_storage[
-            get_tensor_vdb_index_key(self.key, commit_id, id)
-        ]
-
         try:
             return ts.load_vdb_index(id)
         except Exception as e:
