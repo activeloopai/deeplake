@@ -2,6 +2,8 @@ import json
 from typing import Dict, Optional, Union
 import uuid
 from flask import Flask, request, Response
+from flask_wtf import CSRFProtect
+
 from deeplake.core.link_creds import LinkCreds  # type: ignore
 from deeplake.core.storage import StorageProvider
 from deeplake.core.storage.s3 import S3Provider
@@ -20,6 +22,8 @@ from IPython.display import IFrame, display  # type: ignore
 
 _SERVER_THREAD: Optional[threading.Thread] = None
 _APP = Flask("dataset_visualizer")
+csrf = CSRFProtect()
+csrf.init_app(_APP)
 
 log = logging.getLogger("werkzeug")
 log.setLevel(logging.ERROR)
