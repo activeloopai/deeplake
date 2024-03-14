@@ -1690,7 +1690,7 @@ class Tensor:
         try:
             return ts.load_vdb_index(id)
         except Exception as e:
-            raise Exception(f"An error occurred while loading the VDB index: {e}")
+            raise ValueError(f"An error occurred while loading the VDB index {id}: {e}")
 
     def unload_vdb_index_cache(self):
         if self.meta.htype != "embedding":
