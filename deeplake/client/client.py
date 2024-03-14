@@ -27,6 +27,7 @@ from deeplake.client.config import (
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
     HUB_REST_ENDPOINT_DEV,
+    HUB_REST_ENDPOINT_TESTING,
     HUB_REST_ENDPOINT_STAGING,
     DEFAULT_REQUEST_TIMEOUT,
     GET_DATASET_CREDENTIALS_SUFFIX,
@@ -39,7 +40,6 @@ from deeplake.client.config import (
     CONNECT_DATASET_SUFFIX,
     REMOTE_QUERY_SUFFIX,
     ORG_PERMISSION_SUFFIX,
-    DEEPLAKE_AUTH_TOKEN,
 )
 from deeplake.client.log import logger
 from deeplake.client.auth import initialize_auth_context
@@ -153,6 +153,8 @@ class DeepLakeBackendClient:
             return HUB_REST_ENDPOINT_LOCAL
         if deeplake.client.config.USE_DEV_ENVIRONMENT:
             return HUB_REST_ENDPOINT_DEV
+        if deeplake.client.config.USE_TESTING_ENVIRONMENT:
+            return HUB_REST_ENDPOINT_TESTING 
         if deeplake.client.config.USE_STAGING_ENVIRONMENT:
             return HUB_REST_ENDPOINT_STAGING
 

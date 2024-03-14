@@ -7,9 +7,11 @@ REPORTING_CONFIG_FILE_PATH = os.path.expanduser("~/.activeloop/reporting_config.
 HUB_REST_ENDPOINT = "https://app.activeloop.ai"
 HUB_REST_ENDPOINT_STAGING = "https://app-staging.activeloop.dev"
 HUB_REST_ENDPOINT_DEV = "https://app-dev.activeloop.dev"
+HUB_REST_ENDPOINT_TESTING = "https://testing.activeloop.dev"
 HUB_REST_ENDPOINT_LOCAL = "http://localhost:7777"
 USE_LOCAL_HOST = False
 USE_DEV_ENVIRONMENT = False
+USE_TESTING_ENVIRONMENT = False
 USE_STAGING_ENVIRONMENT = False
 
 GET_DATASET_CREDENTIALS_SUFFIX = "/api/org/{}/ds/{}/creds"
