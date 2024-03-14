@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 
+import deeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DISTANCE_METRIC,
 )
@@ -12,6 +13,7 @@ from deeplake.core.dataset import Dataset
 from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.dataset_handlers.dataset_handler_base import DHBase
 from deeplake.core.vectorstore.deep_memory.deep_memory import (
+    DeepMemory,
     use_deep_memory,
 )
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
@@ -19,7 +21,7 @@ from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.util.bugout_reporter import feature_report_path
 
 
-class ClientSideDH(DHBase):
+class EmbeddedDH(DHBase):
     def __init__(
         self,
         path: Union[str, pathlib.Path],
@@ -58,6 +60,7 @@ class ClientSideDH(DHBase):
             creds=creds,
             org_id=org_id,
             logger=logger,
+            branch=branch,
             **kwargs,
         )
 
@@ -81,6 +84,15 @@ class ClientSideDH(DHBase):
         self.verbose = verbose
         self.tensor_params = tensor_params
         self.distance_metric_index = index_maintenance.index_operation_vectorstore(self)
+
+        self.deep_memory = DeepMemory(
+            dataset=self.dataset,
+            path=self.path,
+            token=self.token,
+            logger=self.logger,
+            embedding_function=self.embedding_function,
+            creds=self.creds,
+        )
 
     def add(
         self,
@@ -251,12 +263,12 @@ class ClientSideDH(DHBase):
 
     def delete(
         self,
-        row_ids: List[int],
-        ids: List[str],
-        filter: Union[Dict, Callable],
-        query: str,
-        exec_option: str,
-        delete_all: bool,
+        row_ids: Optional[List[int]] = None,
+        ids: Optional[List[str]] = None,
+        filter: Optional[Union[Dict, Callable]] = None,
+        query: Optional[str] = None,
+        exec_option: Optional[str] = None,
+        delete_all: bool = False,
     ) -> bool:
         feature_report_path(
             path=self.bugout_reporting_path,
@@ -309,10 +321,11 @@ class ClientSideDH(DHBase):
         embedding_function: Union[Callable, List[Callable]],
         embedding_source_tensor: Union[str, List[str]],
         embedding_tensor: Union[str, List[str]],
+        embedding_dict: Optional[dict[str, Union[list[float], list[float]]]] = None,
     ):
         feature_report_path(
             path=self.bugout_reporting_path,
-            feature_name="vs.delete",
+            feature_name="vs.update_embedding",
             parameters={
                 "ids": True if ids is not None else False,
                 "row_ids": True if row_ids is not None else False,
@@ -331,6 +344,18 @@ class ClientSideDH(DHBase):
 
         if filter and query:
             raise ValueError("Only one of filter and query can be specified.")
+
+        if embedding_dict is not None:
+            if embedding_dict and any(
+                [
+                    embedding_function,
+                    self.embedding_function,
+                ]
+            ):
+                raise ValueError(
+                    "Only one of embedding_dict and embedding_function/embedding_source_tensor/embedding_tensor can be specified."
+                )
+            return self.dataset[row_ids].update(embedding_dict)
 
         (
             embedding_function,
@@ -372,7 +397,7 @@ class ClientSideDH(DHBase):
         """
         self.dataset.commit(allow_empty=allow_empty)
 
-    def checkout(self, branch: str, create: bool) -> None:
+    def checkout(self, branch: str = "main", create: bool = False) -> None:
         """Checkout the Vector Store to a specific branch.
 
         Args:
@@ -388,6 +413,30 @@ class ClientSideDH(DHBase):
     def summary(self):
         """Prints a summary of the dataset"""
         return self.dataset.summary()
+
+    @staticmethod
+    def delete_by_path(
+        path: str,
+        token: Optional[str] = None,
+        force: bool = False,
+        creds: Optional[Union[Dict, str]] = None,
+    ) -> bool:
+        feature_report_path(
+            path,
+            "vs.delete_by_path",
+            parameters={
+                "path": path,
+                "token": token,
+                "force": force,
+                "creds": creds,
+            },
+            token=token,
+        )
+        try:
+            deeplake.delete(path, large_ok=True, token=token, force=force, creds=creds)
+            return True
+        except Exception as e:
+            raise e
 
     def __len__(self):
         """Length of the dataset"""

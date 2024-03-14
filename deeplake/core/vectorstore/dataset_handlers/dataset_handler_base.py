@@ -17,6 +17,15 @@ from deeplake.util.bugout_reporter import (
 from deeplake.util.path import get_path_type
 
 
+def get_bugout_reporting_path(path: str, dataset: Dataset) -> str:
+    if path:
+        return path
+    elif dataset:
+        return dataset.path
+    else:
+        raise ValueError("Either `path` or `dataset` should be provided.")
+
+
 class DHBase(ABC):
     """Base class for dataset handlers."""
 
@@ -38,6 +47,7 @@ class DHBase(ABC):
         creds: Union[Dict, str],
         org_id: str,
         logger: logging.Logger,
+        branch: str,
         **kwargs: Any,
     ):
         try:
@@ -49,24 +59,32 @@ class DHBase(ABC):
 
         self._exec_option = exec_option
 
-        self.path: Optional[str] = None
+        # self.path: Optional[str] = None
         self.dataset = dataset
         if dataset and path:
             raise ValueError(
                 "Only one of `dataset` or path should be provided to the dataset handler."
             )
-        elif not dataset and not path:
-            raise ValueError("Either `dataset` or path should be provided.")
+        elif not dataset and not path and not kwargs.get("serialized_vectorstore"):
+            raise ValueError(
+                "Either `dataset` or `path` or `serialized_vectorstore` should be provided."
+            )
         elif path:
             self.path = convert_pathlib_to_string_if_needed(path)
-        else:
+
+        elif dataset:
             self.dataset = dataset
             self.path = dataset.path
+
+        assert isinstance(self.path, str)
+
+        self.deserialized_vectorstore = utils.get_deserialized_vectorstore(self.path)
 
         self._token = token
         self.logger = logger
         self.org_id = org_id if get_path_type(self.path) == "local" else None
-        self.bugout_reporting_path = self.path or dataset.path
+        path = convert_pathlib_to_string_if_needed(path)
+        self.bugout_reporting_path = get_bugout_reporting_path(path, dataset)
 
         feature_report_path(
             self.bugout_reporting_path,
@@ -95,8 +113,14 @@ class DHBase(ABC):
         self.index_params = utils.parse_index_params(index_params)
         kwargs["index_params"] = self.index_params
         self.num_workers = num_workers
-        self.creds = creds or {}
+        self.creds = creds
         self.embedding_function = utils.create_embedding_function(embedding_function)
+        self.tensor_params = tensor_params
+        self.read_only = read_only
+        self.overwrite = overwrite
+        self.verbose = verbose
+        self.runtime = runtime
+        self.branch = branch
 
     @property
     def token(self):
@@ -153,12 +177,12 @@ class DHBase(ABC):
     @abstractmethod
     def delete(
         self,
-        row_ids: List[int],
-        ids: List[str],
-        filter: Union[Dict, Callable],
-        query: str,
-        exec_option: str,
-        delete_all: bool,
+        row_ids: Optional[List[int]] = None,
+        ids: Optional[List[str]] = None,
+        filter: Optional[Dict] = None,
+        query: Optional[str] = None,
+        exec_option: Optional[str] = None,
+        delete_all: bool = False,
     ) -> bool:
         pass
 
@@ -173,7 +197,18 @@ class DHBase(ABC):
         embedding_function: Union[Callable, List[Callable]],
         embedding_source_tensor: Union[str, List[str]],
         embedding_tensor: Union[str, List[str]],
+        embedding_dict: Optional[dict[str, Union[list[float], list[float]]]] = None,
     ):
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def delete_by_path(
+        path: str,
+        token: Optional[str] = None,
+        force: bool = False,
+        creds: Optional[Union[Dict, str]] = None,
+    ) -> bool:
         pass
 
     @abstractmethod
@@ -199,7 +234,7 @@ class DHBase(ABC):
         """
         raise NotImplementedError()
 
-    def checkout(self, branch: str, create: bool) -> None:
+    def checkout(self, branch: str = "main", create: bool = False) -> None:
         """Checkout the Vector Store to a specific branch.
 
         Args:

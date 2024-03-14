@@ -1,3 +1,4 @@
+import os
 import logging
 import pathlib
 import uuid
@@ -6,6 +7,7 @@ from pydantic import BaseModel, ValidationError
 from typing import Any, Dict, Optional, List, Union, Callable, Tuple
 from functools import wraps
 from time import time
+from tqdm import tqdm
 
 import numpy as np
 
@@ -25,6 +27,8 @@ from deeplake.constants import (
 from deeplake.util.storage import get_storage_and_cache_chain
 from deeplake.core.dataset import Dataset
 from deeplake.core.dataset.deeplake_cloud_dataset import DeepLakeCloudDataset
+from deeplake.core.vectorstore import utils
+from deeplake.core.vectorstore.embeddings.embedder import DeepLakeEmbedder
 from deeplake.client.client import DeepMemoryBackendClient
 from deeplake.client.utils import JobResponseStatusSchema
 from deeplake.util.bugout_reporter import (
@@ -120,7 +124,7 @@ class DeepMemory:
         self.token = token
         self.embedding_function = embedding_function
         self.client = self._get_dm_client()
-        self.creds = creds or {}
+        self.creds = creds
         self.logger = logger
 
     @access_control
@@ -178,9 +182,13 @@ class DeepMemory:
             raise ValueError(
                 "Embedding function should be specifed either during initialization or during training."
             )
-
-        if embedding_function is None and self.embedding_function is not None:
+        elif embedding_function is None and self.embedding_function is not None:
             embedding_function = self.embedding_function
+        elif embedding_function is not None:
+            embedding_function = utils.create_embedding_function(embedding_function)
+
+        assert embedding_function is not None
+        assert isinstance(embedding_function, DeepLakeEmbedder)
 
         runtime = None
         if get_path_type(corpus_path) == "hub":
@@ -196,13 +204,30 @@ class DeepMemory:
         )
 
         self.logger.info("Preparing training data for deepmemory:")
+
+        embedding = []
+
+        # TODO: after allowing to send embedding function to managed side, remove the following lines: 203-209
+        # internal batch size for embedding function
+        batch_size = 128
+        query_batches = [
+            queries[i : i + batch_size] for i in range(0, len(queries), 100)
+        ]
+
+        for _, query in tqdm(enumerate(query_batches), total=len(query_batches)):
+            embedded_docs = embedding_function.embed_documents(query)
+            for idx, embedded_doc in enumerate(embedded_docs):
+                if isinstance(embedded_doc, np.ndarray):
+                    embedded_docs[idx] = embedded_doc.tolist()
+
+            embedding.extend(embedded_docs)
+
         queries_vs.add(
             text=[query for query in queries],
             metadata=[
                 {"relevance": relevance_per_doc} for relevance_per_doc in relevance
             ],
-            embedding_data=[query for query in queries],
-            embedding_function=embedding_function,
+            embedding=embedding,
         )
 
         # do some rest_api calls to train the model
@@ -596,10 +621,15 @@ class DeepMemory:
         self.dataset.embedding.info["deepmemory"] = new_deepmemory
 
     def _get_dm_client(self):
+        # TODO: Review
+        if os.environ.get("SKIP_DEEPMEMORY_CHECK", False):
+            return None
+        
         path = self.path
         path_type = get_path_type(path)
 
         dm_client = DeepMemoryBackendClient(token=self.token)
+        
         user_profile = dm_client.get_user_profile()
 
         if path_type == "hub":

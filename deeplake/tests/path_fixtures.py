@@ -480,7 +480,7 @@ def corpus_query_relevances_copy(request, hub_cloud_dev_token):
 
     corpus = _get_storage_path(request, HUB_CLOUD)
     query_vs = VectorStore(
-        path=f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_queries",
+        path=f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_queries2",
         runtime={"tensor_db": True},
         token=hub_cloud_dev_token,
     )

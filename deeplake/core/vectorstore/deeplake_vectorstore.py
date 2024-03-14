@@ -14,6 +14,13 @@ from deeplake.constants import (
     TARGET_BYTE_SIZE,
 )
 from deeplake.util.bugout_reporter import feature_report_path
+from deeplake.util.path import convert_pathlib_to_string_if_needed
+from deeplake.core.vectorstore.dataset_handlers.managed_dataset_handler import (
+    ManagedDH,
+)
+from deeplake.core.vectorstore.dataset_handlers.embedded_dataset_handler import (
+    EmbeddedDH,
+)
 from deeplake.util.exceptions import DeepMemoryAccessError
 
 
@@ -135,14 +142,7 @@ class VectorStore:
             **kwargs,
         )
 
-        self.deep_memory = DeepMemory(
-            dataset=self.dataset_handler.dataset,
-            path=self.dataset_handler.path,
-            token=self.dataset_handler.token,
-            logger=logger,
-            embedding_function=embedding_function,
-            creds=self.dataset_handler.creds,
-        )
+        self.deep_memory = self.dataset_handler.deep_memory
 
     def add(
         self,
@@ -394,7 +394,8 @@ class VectorStore:
         exec_option: Optional[str] = None,
         embedding_function: Optional[Union[Callable, List[Callable]]] = None,
         embedding_source_tensor: Union[str, List[str]] = "text",
-        embedding_tensor: Optional[Union[str, List[str]]] = None,
+        embedding_tensor: Union[str, List[str]] = "embedding",
+        embedding_dict: Optional[Dict[str, Union[List[float], np.ndarray]]] = None,
     ):
         """Recompute existing embeddings of the VectorStore, that match either query, filter, ids or row_ids.
 
@@ -440,6 +441,7 @@ class VectorStore:
             embedding_function (Optional[Union[Callable, List[Callable]]], optional): function for converting `embedding_source_tensor` into embedding. Only valid if `embedding_source_tensor` is specified. Defaults to None.
             embedding_source_tensor (Union[str, List[str]], optional): Name of tensor with data that needs to be converted to embeddings. Defaults to `text`.
             embedding_tensor (Optional[Union[str, List[str]]], optional): Name of the tensor with embeddings. Defaults to None.
+            embedding_dict (Optional[Dict[str, Union[List[float], np.ndarray]]], optional): Dictionary of embeddings to replace the existing ones. Defaults to None.
         """
         self.dataset_handler.update_embedding(
             row_ids=row_ids,
@@ -450,6 +452,7 @@ class VectorStore:
             embedding_function=embedding_function,
             embedding_source_tensor=embedding_source_tensor,
             embedding_tensor=embedding_tensor,
+            embedding_dict=embedding_dict,
         )
 
     @staticmethod
@@ -458,6 +461,7 @@ class VectorStore:
         token: Optional[str] = None,
         force: bool = False,
         creds: Optional[Union[Dict, str]] = None,
+        runtime: Optional[Dict] = None,
     ) -> None:
         """Deleted the Vector Store at the specified path.
 
@@ -469,22 +473,27 @@ class VectorStore:
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
                 - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             force (bool): delete the path in a forced manner without rising an exception. Defaults to ``True``.
+            runtime (Dict, optional): dictionary representing runtime parameters for creating the Vector Store in Deep Lake's Managed Tensor Database.
 
         Danger:
             This method permanently deletes all of your data if the Vector Store exists! Be very careful when using this method.
         """
-        feature_report_path(
-            path,
-            "vs.delete_by_path",
-            parameters={
-                "path": path,
-                "token": token,
-                "force": force,
-                "creds": creds,
-            },
-            token=token,
-        )
-        deeplake.delete(path, large_ok=True, token=token, force=force, creds=creds)
+        path = convert_pathlib_to_string_if_needed(path)
+
+        if runtime and runtime.get("tensor_db"):
+            ManagedDH.delete_by_path(
+                path=path,
+                token=token,
+                force=force,
+                creds=creds,
+            )
+        else:
+            EmbeddedDH.delete_by_path(
+                path=path,
+                token=token,
+                force=force,
+                creds=creds,
+            )
 
     def commit(self, allow_empty: bool = True) -> None:
         """Commits the Vector Store.
@@ -517,8 +526,8 @@ class VectorStore:
         try:
             return self.dataset_handler.dataset
         except AttributeError:
-            raise AttributeError(
-                "Acessing the dataset is not available for managed Vector Store."
+            raise NotImplementedError(
+                "Acessing the dataset is not implemented for managed Vector Store yet."
             )
 
     def __len__(self):

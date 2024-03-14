@@ -1,9 +1,11 @@
 import functools
+import pickle
+import time
 import types
 import random
 import string
 from abc import ABC, abstractmethod
-from typing import Optional, List, Dict, Tuple
+from typing import Any, Optional, List, Dict, Tuple, Union
 
 import deeplake
 from deeplake.constants import MB, DEFAULT_VECTORSTORE_INDEX_PARAMS, TARGET_BYTE_SIZE
@@ -420,6 +422,27 @@ def parse_update_arguments(
     return (final_embedding_function, embedding_source_tensor, embedding_tensor)
 
 
+def construct_embedding_tensor_data(
+    embedding: Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]],
+    embedding_tensor: Union[str, List[str]],
+) -> Dict[str, Union[float, Any, list[float], np.ndarray[Any, Any]]]:
+    """Function for conctructing dictionary out of embedding and embedding_tensor
+    Args:
+        embedding (Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]]): embedding data
+        embedding_tensor (str): embedding tensor name
+    Returns:
+        Dictionary with embedding_tensor as keys and embedding as values
+    """
+    embedding_tensor_data = {}
+
+    if isinstance(embedding_tensor, list):
+        for idx, tensor in enumerate(embedding_tensor):
+            embedding_tensor_data[tensor] = embedding[idx]
+    else:
+        embedding_tensor_data[embedding_tensor] = embedding
+    return embedding_tensor_data
+
+
 def convert_embedding_source_tensor_to_embeddings(
     dataset,
     embedding_source_tensor,
@@ -634,3 +657,53 @@ def create_embedding_function(embedding_function):
             embedding_function=embedding_function,
         )
     return None
+
+
+def is_path_to_serialized_object(path: str):
+    if path.endswith(".pkl"):
+        return True
+    return False
+
+
+def get_deserialized_vectorstore(path: str):
+    if is_path_to_serialized_object(path):
+        return pickle.load(open(path, "rb"))
+    return None
+
+
+def create_and_populate_vs(
+    path,
+    token=None,
+    overwrite=True,
+    verbose=False,
+    exec_option="compute_engine",
+    index_params={"threshold": -1},
+    number_of_data=10,
+    embedding_dim=100,
+    runtime=None,
+):
+    from deeplake import VectorStore
+
+    if runtime is not None:
+        exec_option = "tensor_db"
+
+    # TODO: cache the vectostore object and reuse it in other tests (maybe with deepcopy)
+    vector_store = VectorStore(
+        path=path,
+        overwrite=overwrite,
+        verbose=verbose,
+        exec_option=exec_option,
+        index_params=index_params,
+        token=token,
+        runtime=runtime,
+    )
+
+    texts, embeddings, ids, metadatas, images = create_data(
+        number_of_data=number_of_data,
+        embedding_dim=embedding_dim,
+    )
+
+    # add data to the dataset:
+    metadatas[1:6] = [{"a": 1} for _ in range(5)]
+    vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
+    return vector_store

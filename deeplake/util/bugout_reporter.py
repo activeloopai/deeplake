@@ -160,7 +160,7 @@ def feature_report_path(
 
     path = convert_pathlib_to_string_if_needed(path)
 
-    if path.startswith(starts_with):
+    if path and path.startswith(starts_with):
         parameters["Path"] = path
 
     token = token or os.environ.get(DEEPLAKE_AUTH_TOKEN)

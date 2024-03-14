@@ -1,5 +1,6 @@
 # type: ignore
 import os
+import sys
 import uuid
 import json
 import posixpath
@@ -50,11 +51,13 @@ from deeplake.constants import (
     ENV_HUB_DEV_USERNAME,
     QUERY_MESSAGE_MAX_SIZE,
     _INDEX_OPERATION_MAPPING,
+    DEFAULT_VECTORSTORE_INDEX_PARAMS,
 )
 from deeplake.core.fast_forwarding import ffw_dataset_meta
 from deeplake.core.index import Index
 from deeplake.core.lock import lock_dataset, unlock_dataset, Lock
 from deeplake.core.meta.dataset_meta import DatasetMeta
+from deeplake.core.meta.tensor_meta import TensorMeta
 from deeplake.core.storage import (
     LRUCache,
     S3Provider,
@@ -63,6 +66,7 @@ from deeplake.core.storage import (
     LocalProvider,
     AzureProvider,
 )
+from deeplake.core.storage.lru_cache import _get_nbytes
 from deeplake.core.tensor import Tensor, create_tensor, delete_tensor
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
 from deeplake.core.version_control.dataset_diff import load_dataset_diff
@@ -149,6 +153,7 @@ from deeplake.util.version_control import (
     save_version_info,
     replace_head,
     reset_and_checkout,
+    _version_info_from_json,
 )
 from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
@@ -410,6 +415,7 @@ class Dataset:
             "path",
             "_read_only",
             "index",
+            "index_params",
             "group_index",
             "public",
             "storage",
@@ -450,6 +456,8 @@ class Dataset:
         state["_client"] = state["org_id"] = state["ds_name"] = None
         state["_temp_tensors"] = []
         state["libdeeplake_dataset"] = None
+        if "index_params" not in state:
+            state["index_params"] = DEFAULT_VECTORSTORE_INDEX_PARAMS
         state["_vc_info_updated"] = False
         state["_locked_out"] = False
         self.__dict__.update(state)
@@ -458,6 +466,104 @@ class Dataset:
         self.storage.clear_cache_without_flush()
         self._set_derived_attributes(verbose=False)
         self._indexing_history = []
+
+    @classmethod
+    def from_meta(
+        cls,
+        storage: LRUCache,
+        path: str,
+        commit_id: str,
+        dataset_meta: DatasetMeta,
+        version_control_info: Dict[str, Any],
+        link_creds: Optional[LinkCreds],
+        tensor_metas: Dict[str, TensorMeta],
+    ):
+        """Create a dataset object from metadata."""
+
+        def insert_in_cache(key, item):
+            if _get_nbytes(item) < storage.cache_size:
+                storage._insert_in_cache(key, item)
+
+        dataset = cls.__new__(cls)
+        state = {}
+        state["is_first_load"] = False
+        state["_info"] = None
+        state["_read_only_error"] = False
+        state["_initial_autoflush"] = []
+        state["_ds_diff"] = None
+        state["_view_base"] = None
+        state["_update_hooks"] = {}
+        state["_commit_hooks"] = {}
+        state["_checkout_hooks"] = {}
+        state["_client"] = state["org_id"] = state["ds_name"] = None
+        state["_temp_tensors"] = []
+        state["libdeeplake_dataset"] = None
+        state["index_params"] = DEFAULT_VECTORSTORE_INDEX_PARAMS
+        state["_vc_info_updated"] = False
+        state["_locked_out"] = False
+
+        state["path"] = convert_pathlib_to_string_if_needed(
+            path
+        ) or get_path_from_storage(storage)
+        state["version_state"] = {}
+        state["storage"] = storage
+        state["base_storage"] = get_base_storage(storage)
+        state["_read_only"] = state["base_storage"].read_only
+        state["is_iteration"] = False
+        state["index"] = Index()
+        state["group_index"] = ""
+        state["link_creds"] = None
+        state["_token"] = None
+        state["public"] = False  # FIXME
+        state["verbose"] = False
+        state["is_filtered_view"] = False
+        state["enabled_tensors"] = None
+        state["_view_id"] = str(uuid.uuid4())
+        state["_view_use_parent_commit"] = False
+        state["_parent_dataset"] = None
+        state["_pad_tensors"] = False
+        state["_locking_enabled"] = False
+        state["_lock_timeout"] = 0
+        state["_query_string"] = None
+
+        dataset.__dict__.update(state)
+
+        # load link creds
+        if link_creds:
+            link_creds_key = get_dataset_linked_creds_key()
+            insert_in_cache(link_creds_key, link_creds.tobytes())
+            dataset._load_link_creds()
+
+        # set version state
+        version_state = _version_info_from_json(version_control_info)
+        version_state["commit_id"] = commit_id
+        version_state["commit_node"] = version_state["commit_node_map"][commit_id]
+        version_state["branch"] = version_state["commit_node"].branch
+        version_state["meta"] = dataset_meta
+        storage.register_deeplake_object(get_dataset_meta_key(commit_id), dataset_meta)
+        dataset_meta.is_dirty = False
+
+        state["version_state"] = version_state
+
+        dataset.__dict__.update(state)
+
+        # load tensors
+        version_state["tensor_names"] = dataset_meta.tensor_names.copy()
+        version_state["full_tensors"] = {
+            key: Tensor(key, dataset) for key in version_state["tensor_names"]
+        }
+
+        # put metas in cache so that they are not fetched again
+        for key, meta in tensor_metas.items():
+            tensor_meta_key = get_tensor_meta_key(key, commit_id)
+            insert_in_cache(tensor_meta_key, meta)
+            storage.register_deeplake_object(tensor_meta_key, meta)
+            # given meta is already up-to-date
+            meta.is_dirty = False
+
+        dataset._first_load_init()
+
+        return dataset
 
     def _reload_version_state(self):
         version_state = self.version_state
@@ -2645,15 +2751,19 @@ class Dataset:
 
         self.storage.clear()
 
-    def summary(self, force: bool = False):
+    def summary(self, force: bool = False, return_as_string: bool = False):
         """Prints a summary of the dataset.
 
         Args:
             force (bool): Dataset views with more than 10000 samples might take a long time to summarize. If `force=True`,
                 the summary will be printed regardless. An error will be raised otherwise.
+            return_as_string (bool): If ``True``, the summary will be returned as a string instead of being printed.
 
         Raises:
             ValueError: If the dataset view might take a long time to summarize and `force=False`
+
+        Returns:
+            str: The summary of the dataset as a string if ``return_as_string`` is ``True``.
         """
 
         deeplake_reporter.feature_report(feature_name="summary", parameters={})
@@ -2668,6 +2778,9 @@ class Dataset:
             )
 
         pretty_print = summary_dataset(self)
+
+        if return_as_string:
+            return pretty_print
 
         print(self)
         print(pretty_print)
@@ -3139,6 +3252,18 @@ class Dataset:
                     num_chunks = enc.num_chunks
                     num_samples = tensor.meta.length
                     if extend:
+                        if deeplake.shutdown_event.is_set():
+                            for k in tensors_appended:
+                                tensor = tensors[k]
+                                tensor.pop(
+                                    list(
+                                        range(
+                                            tensor.num_samples - max_len,
+                                            tensor.num_samples,
+                                        )
+                                    )
+                                )
+                            sys.exit()
                         tensor._extend(v)
                         if extend_extra_nones:
                             tensor._extend([None] * extend_extra_nones)
@@ -3232,6 +3357,9 @@ class Dataset:
                 else:
                     indices = range(n)
                 for i in indices:
+                    if deeplake.shutdown_event.is_set():
+                        self.pop(new_row_ids[:i])
+                        sys.exit()
                     try:
                         self._append_or_extend(
                             {k: v[i] for k, v in samples.items()},
@@ -3293,6 +3421,61 @@ class Dataset:
             self, dml_type=_INDEX_OPERATION_MAPPING["ADD"], rowids=new_row_ids
         )
 
+    def _get_backup_samples(self, tensor_name, indices):
+        def get_sample_from_engine(
+            engine, idx, is_link, compression, dtype, decompress
+        ):
+            # tiled data will always be decompressed
+            decompress = decompress or engine._is_tiled_sample(idx)
+            if is_link:
+                creds_key = engine.creds_key(idx)
+                item = engine.get_path(idx)
+                return LinkedSample(item, creds_key)
+            item = engine.get_single_sample(idx, self.index, decompress=decompress)
+            shape = engine.read_shape_for_sample(idx)
+            return engine._get_sample_object(
+                item, shape, compression, dtype, decompress
+            )
+
+        tensor = self[tensor_name]
+        tensor_meta = tensor.meta
+        dtype = tensor_meta.dtype
+        sample_compression = tensor_meta.sample_compression
+        chunk_compression = tensor_meta.chunk_compression
+
+        compression = sample_compression or chunk_compression
+
+        engine = tensor.chunk_engine
+
+        decompress = chunk_compression is not None or engine.is_text_like
+
+        old_samples = []
+        for idx in indices:
+            if tensor_meta.is_sequence:
+                old_sample = []
+                for i in range(*engine.sequence_encoder[idx]):
+                    item = get_sample_from_engine(
+                        engine,
+                        i,
+                        tensor_meta.is_link,
+                        compression,
+                        dtype,
+                        decompress,
+                    )
+                    old_sample.append(item)
+            else:
+                old_sample = get_sample_from_engine(
+                    engine,
+                    idx,
+                    tensor_meta.is_link,
+                    compression,
+                    dtype,
+                    decompress,
+                )
+            old_samples.append(old_sample)
+
+        return old_samples
+
     def update(self, sample: Dict[str, Any]):
         """Update existing samples in the dataset with new values.
 
@@ -3315,91 +3498,30 @@ class Dataset:
                 "Cannot make partial updates to samples using `ds.update`. Use `ds.tensor[index] = value` instead."
             )
 
-        def get_sample_from_engine(
-            engine, idx, is_link, compression, dtype, decompress
-        ):
-            # tiled data will always be decompressed
-            decompress = decompress or engine._is_tiled_sample(idx)
-            if is_link:
-                creds_key = engine.creds_key(idx)
-                item = engine.get_path(idx)
-                return LinkedSample(item, creds_key)
-            item = engine.get_single_sample(idx, self.index, decompress=decompress)
-            shape = engine.read_shape_for_sample(idx)
-            return engine._get_sample_object(
-                item, shape, compression, dtype, decompress
-            )
-
         # remove update hooks from view base so that the view is not invalidated
         if self._view_base:
             saved_update_hooks = self._view_base._update_hooks
             self._view_base._update_hooks = {}
-        idx = self.index.values[0].value
+
         with self:
-            saved = defaultdict(list)
             try:
+                self._commit("Backup before update", None, False)
                 for k, v in sample.items():
-                    tensor_meta = self[k].meta
-                    dtype = tensor_meta.dtype
-                    sample_compression = tensor_meta.sample_compression
-                    chunk_compression = tensor_meta.chunk_compression
-
-                    compression = sample_compression or chunk_compression
-
-                    engine = self[k].chunk_engine
-
-                    decompress = chunk_compression is not None or engine.is_text_like
-
-                    for idx in self.index.values[0].indices(self[k].num_samples):
-                        if tensor_meta.is_sequence:
-                            old_sample = []
-                            for i in range(*engine.sequence_encoder[idx]):
-                                item = get_sample_from_engine(
-                                    engine,
-                                    i,
-                                    tensor_meta.is_link,
-                                    compression,
-                                    dtype,
-                                    decompress,
-                                )
-                                old_sample.append(item)
-                        else:
-                            old_sample = get_sample_from_engine(
-                                engine,
-                                idx,
-                                tensor_meta.is_link,
-                                compression,
-                                dtype,
-                                decompress,
-                            )
-
-                        saved[k].append(old_sample)
+                    if deeplake.shutdown_event.is_set():
+                        sys.exit()
                     self[k] = v
-                # Regenerate Index
-                index_maintenance.index_operation_dataset(
-                    self,
-                    dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
-                    rowids=list(self.index.values[0].indices(self.__len__(warn=False))),
-                )
-            except Exception as e:
-                for k, v in saved.items():
-                    # squeeze
-                    if len(v) == 1:
-                        v = v[0]
-                    try:
-                        self[k] = v
-                    except Exception as e2:
-                        raise Exception(
-                            "Error while attempting to rollback updates"
-                        ) from e2
+            # except BaseException to catch system exit as well
+            except BaseException as e:
+                self.reset(verbose=False)
+                raise e
+            finally:
+                # regenerate index in case of error or not
                 # in case of error, regenerate index again to avoid index corruption
                 index_maintenance.index_operation_dataset(
                     self,
                     dml_type=_INDEX_OPERATION_MAPPING["UPDATE"],
                     rowids=list(self.index.values[0].indices(self.__len__(warn=False))),
                 )
-                raise e
-            finally:
                 # restore update hooks
                 if self._view_base:
                     self._view_base._update_hooks = saved_update_hooks
@@ -4323,7 +4445,7 @@ class Dataset:
 
     @invalid_view_op
     @spinner
-    def reset(self, force: bool = False):
+    def reset(self, force: bool = False, verbose: bool = True):
         """Resets the uncommitted changes present in the branch.
 
         Note:
@@ -4336,10 +4458,10 @@ class Dataset:
         )
 
         storage, version_state = self.storage, self.version_state
-        if version_state["commit_node"].children:
+        if version_state["commit_node"].children and verbose:
             print("You are not at the head node of the branch, cannot reset.")
             return
-        if not self.has_head_changes and not force:
+        if not self.has_head_changes and not force and verbose:
             print("There are no uncommitted changes on this branch.")
             return
 
@@ -4670,8 +4792,14 @@ class Dataset:
     def _pop(self, index: List[int]):
         """Removes elements at the given indices."""
         with self:
-            for tensor in self.tensors.values():
-                tensor._pop(index)
+            self._commit("Backup before pop", None, False)
+            try:
+                for tensor in self.tensors.values():
+                    if deeplake.shutdown_event.is_set():
+                        sys.exit()
+                    tensor._pop(index)
+            except BaseException:
+                self.reset(verbose=False)
 
     @invalid_view_op
     def pop(self, index: Optional[int] = None):

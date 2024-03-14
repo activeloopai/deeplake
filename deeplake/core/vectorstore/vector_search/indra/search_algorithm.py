@@ -1,4 +1,6 @@
 import numpy as np
+import warnings
+import functools
 from abc import ABC, abstractmethod
 from typing import Union, Dict, List, Optional
 
@@ -6,6 +8,35 @@ from deeplake.core.vectorstore.vector_search.indra import query
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
+
+
+def deprecated_class(reason):
+    """
+    Decorator to mark classes as deprecated.
+
+    Args:
+        reason (str): The reason message for deprecation.
+
+    Returns:
+        The decorated class.
+    """
+
+    def decorator(cls):
+        @functools.wraps(cls)
+        def new_init(*args, **kwargs):
+            warnings.simplefilter("always", DeprecationWarning)  # turn off filter
+            warnings.warn(
+                f"{cls.__name__} is deprecated: {reason}",
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
+            warnings.simplefilter("default", DeprecationWarning)  # reset filter
+            return cls(*args, **kwargs)
+
+        cls.__init__ = new_init
+        return cls
+
+    return decorator
 
 
 class SearchBasic(ABC):
@@ -150,6 +181,10 @@ class SearchIndra(SearchBasic):
         return return_data
 
 
+@deprecated_class(
+    "This is the old way of accessing the managed db. "
+    "Rest api calls will be used instead."
+)
 class SearchManaged(SearchBasic):
     def _get_view(self, tql_query, runtime: Optional[Dict] = None):
         view, data = self.deeplake_dataset.query(
@@ -206,7 +241,9 @@ def search(
     """
     searcher: SearchBasic
     if runtime and runtime.get("db_engine", False):
-        searcher = SearchManaged(deeplake_dataset, org_id, token, runtime=runtime)
+        raise ValueError(
+            "Changing `exec_option` during search to `tensor_db` parameter is not supported. "
+        )
     else:
         searcher = SearchIndra(deeplake_dataset, org_id, token)
 
