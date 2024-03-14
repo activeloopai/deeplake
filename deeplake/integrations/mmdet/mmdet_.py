@@ -793,7 +793,9 @@ def load_ds_from_cfg(cfg: mmcv.utils.config.ConfigDict):
     if token is None:
         uname = creds.get("username")
         if uname is not None:
-            raise NotImplementedError("Username/Password based authentication from deeplake has been deprecated. Please specify a token in the config.") 
+            raise NotImplementedError(
+                "Username/Password based authentication from deeplake has been deprecated. Please specify a token in the config."
+            )
     ds_path = cfg.deeplake_path
     ds = dp.load(ds_path, token=token, read_only=True)
     deeplake_commit = cfg.get("deeplake_commit")

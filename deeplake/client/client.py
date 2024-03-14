@@ -154,7 +154,7 @@ class DeepLakeBackendClient:
         if deeplake.client.config.USE_DEV_ENVIRONMENT:
             return HUB_REST_ENDPOINT_DEV
         if deeplake.client.config.USE_TESTING_ENVIRONMENT:
-            return HUB_REST_ENDPOINT_TESTING 
+            return HUB_REST_ENDPOINT_TESTING
         if deeplake.client.config.USE_STAGING_ENVIRONMENT:
             return HUB_REST_ENDPOINT_STAGING
 
