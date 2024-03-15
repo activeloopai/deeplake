@@ -1,5 +1,6 @@
+import os
 from datetime import datetime, timedelta
-from azure.identity import DefaultAzureCredential
+from azure.identity import DefaultAzureCredential, ManagedIdentityCredential
 from azure.core.exceptions import ClientAuthenticationError
 
 from deeplake.client.auth.auth_context import AuthContext, AuthProviderType
@@ -10,9 +11,19 @@ ID_TOKEN_CACHE_MINUTES = 5
 
 class AzureAuthContext(AuthContext):
     def __init__(self):
-        self.credential = DefaultAzureCredential()
+        self.credential = self._get_azure_credential()
         self.token = None
         self._last_auth_time = None
+
+    def _get_azure_credential(self):
+        azure_keys = [i for i in os.environ if i.startswith("AZURE_")]
+        if "AZURE_CLIENT_ID" in azure_keys and len(azure_keys) == 1:
+            # Explicitly set client_id, to avoid any warnings coming from DefaultAzureCredential
+            return ManagedIdentityCredential(
+                client_id=os.environ.get("AZURE_CLIENT_ID")
+            )
+
+        return DefaultAzureCredential()
 
     def get_token(self) -> str:
         self.authenticate()
