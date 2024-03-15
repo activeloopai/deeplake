@@ -500,7 +500,7 @@ def get_compression(header=None, path=None):
             accept = Image.OPEN[fmt][1]
             if accept and accept(header):
                 return fmt.lower()
-        raise SampleDecompressionError()
+        raise SampleDecompressionError(path)
 
 
 def _verify_png(buf):

@@ -1978,21 +1978,6 @@ class dataset:
 
         Examples:
 
-
-                    >>> # Ingest local data in COCO format to a Deep Lake dataset stored in Deep Lake storage.
-            >>> ds = deeplake.ingest_coco(
-            >>>     "<path/to/images/directory>",
-            >>>     ["path/to/annotation/file1.json", "path/to/annotation/file2.json"],
-            >>>     dest="hub://org_id/dataset",
-            >>>     key_to_tensor_mapping={"category_id": "labels", "bbox": "boxes"},
-            >>>     file_to_group_mapping={"file1.json": "group1", "file2.json": "group2"},
-            >>>     ignore_keys=["area", "image_id", "id"],
-            >>>     num_workers=4,
-            >>> )
-            >>> # Ingest data from your cloud into another Deep Lake dataset in your cloud, and connect that dataset to the Deep Lake backend.
-
-
-
             >>> # Ingest data from a DataFrame into a Deep Lake dataset stored in Deep Lake storage.
             >>> ds = deeplake.ingest_dataframe(
             >>>     df,

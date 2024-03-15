@@ -83,6 +83,8 @@ def extend_info(samples, link_creds=None, progressbar=False):
                 sample = sample.copy()
             meta = sample.meta
             meta["modified"] = False
+        if isinstance(sample, deeplake.Tensor):
+            meta = sample.sample_info
         metas.append(meta)
     return metas
 

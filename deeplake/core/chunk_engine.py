@@ -63,7 +63,10 @@ from deeplake.core.index.index import Index, IndexEntry
 from deeplake.core.meta.encode.chunk_id import CHUNK_ID_COLUMN, ChunkIdEncoder
 from deeplake.core.meta.encode.sequence import SequenceEncoder
 from deeplake.core.meta.encode.pad import PadEncoder
-from deeplake.core.meta.tensor_meta import TensorMeta
+from deeplake.core.meta.tensor_meta import (
+    TensorMeta,
+    _validate_required_htype_overwrites,
+)
 from deeplake.core.storage.lru_cache import LRUCache
 from deeplake.util.casting import get_dtype, get_htype
 from deeplake.core.sample import Sample
@@ -703,7 +706,17 @@ class ChunkEngine:
         tensor_meta = self.tensor_meta
         all_empty = all(sample is None for sample in samples)
         if tensor_meta.htype is None and not all_empty:
-            tensor_meta.set_htype(get_htype(samples))
+            htype = get_htype(samples)
+            if tensor_meta.dtype is not None:
+                _validate_required_htype_overwrites(
+                    htype,
+                    {
+                        "sample_compression": tensor_meta.sample_compression,
+                        "chunk_compression": tensor_meta.chunk_compression,
+                        "dtype": tensor_meta.dtype,
+                    },
+                )
+            tensor_meta.set_htype(htype)
         if tensor_meta.dtype is None and not all_empty:
             if tensor_meta.is_link:
                 try:
