@@ -148,13 +148,13 @@ def test_load_view(local_auth_ds_generator):
     view_id = view_path.split("/")[-2]
     view = deeplake_ds.load_view(view_id, optimize=True)
 
-
     dataloader = view.dataloader().pytorch()
-    count = 0 
+    count = 0
     for i, batch in enumerate(dataloader):
         assert batch["label"][0] > 0
         count += 1
     assert count == 90
+
 
 @requires_libdeeplake
 def test_query(local_auth_ds_generator):
