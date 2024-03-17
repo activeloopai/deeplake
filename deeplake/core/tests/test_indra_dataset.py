@@ -142,6 +142,19 @@ def test_load_view(local_auth_ds_generator):
     assert iss == [0, 1, 2]
     assert np.all(indra_ds.image.numpy() == deeplake_indra_ds.image.numpy())
 
+    query_str = "select label where label > 0"
+    view = deeplake_ds.query(query_str)
+    view_path = view.save_view()
+    view_id = view_path.split("/")[-2]
+    view = deeplake_ds.load_view(view_id, optimize=True)
+
+
+    dataloader = view.dataloader().pytorch()
+    count = 0 
+    for i, batch in enumerate(dataloader):
+        assert batch["label"][0] > 0
+        count += 1
+    assert count == 90
 
 @requires_libdeeplake
 def test_query(local_auth_ds_generator):
