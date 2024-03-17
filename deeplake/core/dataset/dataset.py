@@ -4601,23 +4601,25 @@ class Dataset:
         progressbar=True,
     ):
         tql_query = info.get("tql_query")
-        if tql_query is not None:
-            raise Exception("Optimizing nonlinear query views is not supported")
-
         vds = self._sub_ds(".queries/" + path, verbose=False)
         view = vds._get_view(not external)
         new_path = path + "_OPTIMIZED"
-        optimized = self._sub_ds(".queries/" + new_path, empty=True, verbose=False)
-        view._copy(
-            optimized,
-            tensors=tensors,
-            overwrite=True,
-            unlink=unlink,
-            create_vds_index_tensor=True,
-            num_workers=num_workers,
-            scheduler=scheduler,
-            progressbar=progressbar,
-        )
+        if tql_query is not None:
+            view = view.query(tql_query)
+            view.indra_ds.materialize(new_path, tensors, True)
+            optimized = self._sub_ds(".queries/" + new_path, empty=False, verbose=False)
+        else:
+            optimized = self._sub_ds(".queries/" + new_path, empty=True, verbose=False)
+            view._copy(
+                optimized,
+                tensors=tensors,
+                overwrite=True,
+                unlink=unlink,
+                create_vds_index_tensor=True,
+                num_workers=num_workers,
+                scheduler=scheduler,
+                progressbar=progressbar,
+            )
         optimized.info.update(vds.info.__getstate__())
         return (vds, optimized)
 

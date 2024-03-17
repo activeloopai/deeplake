@@ -74,7 +74,7 @@ class ViewEntry:
         if self.virtual:
             ds = ds._get_view(inherit_creds=not self._external)
 
-        if not self.tql_query is None:
+        if self.virtual and not self.tql_query is None:
             query_str = self.tql_query
             ds = ds.query(query_str)
 
