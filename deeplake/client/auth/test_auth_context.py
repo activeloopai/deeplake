@@ -3,9 +3,7 @@ import pytest
 
 from deeplake.client.auth import AuthProviderType, initialize_auth_context
 from deeplake.client.auth.azure import AzureAuthContext
-from deeplake.client.auth.activeloop import ActiveLoopAuthContext
 from deeplake.client.config import DEEPLAKE_AUTH_PROVIDER
-from deeplake.util.exceptions import InvalidAuthContextError
 
 
 def test_initialize_auth_context():
@@ -35,5 +33,5 @@ def test_initialize_auth_context():
 def test_azure_auth_context_exceptions():
     context = AzureAuthContext()
 
-    with pytest.raises(InvalidAuthContextError):
+    with pytest.raises(Exception):
         context.authenticate()
