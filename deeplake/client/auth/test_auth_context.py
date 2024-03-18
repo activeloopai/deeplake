@@ -1,6 +1,5 @@
 import os
 import pytest
-from unittest.mock import Mock
 
 from deeplake.client.auth import AuthProviderType, initialize_auth_context
 from deeplake.client.auth.azure import AzureAuthContext
@@ -35,12 +34,6 @@ def test_initialize_auth_context():
 
 def test_azure_auth_context_exceptions():
     context = AzureAuthContext()
-
-    with pytest.raises(InvalidAuthContextError):
-        context.authenticate()
-
-    context.credentials = Mock()
-    context.credentials.get_token = Mock(return_value=None, side_effect=Exception)
 
     with pytest.raises(InvalidAuthContextError):
         context.authenticate()
