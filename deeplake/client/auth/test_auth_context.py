@@ -31,7 +31,15 @@ def test_initialize_auth_context():
 
 
 def test_azure_auth_context_exceptions():
+    azure_envs = [i for i in os.environ if i.startswith("AZURE_")]
+    values = {i: os.environ[i] for i in azure_envs}
     context = AzureAuthContext()
+
+    for key in azure_envs:
+        del os.environ[key]
 
     with pytest.raises(Exception):
         context.authenticate()
+
+    for key, value in values.items():
+        os.environ[key] = value
