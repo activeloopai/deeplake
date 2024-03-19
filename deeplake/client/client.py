@@ -27,9 +27,8 @@ from deeplake.client.config import (
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
     HUB_REST_ENDPOINT_DEV,
-    GET_TOKEN_SUFFIX,
+    HUB_REST_ENDPOINT_TESTING,
     HUB_REST_ENDPOINT_STAGING,
-    REGISTER_USER_SUFFIX,
     DEFAULT_REQUEST_TIMEOUT,
     GET_DATASET_CREDENTIALS_SUFFIX,
     CREATE_DATASET_SUFFIX,
@@ -41,9 +40,9 @@ from deeplake.client.config import (
     CONNECT_DATASET_SUFFIX,
     REMOTE_QUERY_SUFFIX,
     ORG_PERMISSION_SUFFIX,
-    DEEPLAKE_AUTH_TOKEN,
 )
 from deeplake.client.log import logger
+from deeplake.client.auth import initialize_auth_context
 import jwt  # should add it to requirements.txt
 
 # for these codes, we will retry requests upto 3 times
@@ -61,20 +60,13 @@ class DeepLakeBackendClient:
         )
 
         self.version = deeplake.__version__
-        self.auth_header = None
-        self.token = (
-            token
-            or os.environ.get(DEEPLAKE_AUTH_TOKEN)
-            or "PUBLIC_TOKEN_" + ("_" * 150)
-        )
-        self.auth_header = f"Bearer {self.token}"
+        self.auth_context = initialize_auth_context(token=token)
 
         # remove public token, otherwise env var will be ignored
         # we can remove this after a while
         orgs = self.get_user_organizations()
         if orgs == ["public"]:
             self.token = token or self.get_token()
-            self.auth_header = f"Bearer {self.token}"
         else:
             username = self.get_user_profile()["name"]
             if get_reporting_config().get("username") != username:
@@ -82,7 +74,7 @@ class DeepLakeBackendClient:
                 set_username(username)
 
     def get_token(self):
-        return self.token
+        return self.auth_context.get_token()
 
     def request(
         self,
@@ -131,7 +123,7 @@ class DeepLakeBackendClient:
         request_url = f"{endpoint}/{relative_url}"
         headers = headers or {}
         headers["hub-cli-version"] = self.version
-        headers["Authorization"] = self.auth_header
+        headers = {**headers, **self.auth_context.get_auth_headers()}
 
         # clearer error than `ServerUnderMaintenence`
         if json is not None and "password" in json and json["password"] is None:
@@ -161,47 +153,12 @@ class DeepLakeBackendClient:
             return HUB_REST_ENDPOINT_LOCAL
         if deeplake.client.config.USE_DEV_ENVIRONMENT:
             return HUB_REST_ENDPOINT_DEV
+        if deeplake.client.config.USE_TESTING_ENVIRONMENT:
+            return HUB_REST_ENDPOINT_TESTING
         if deeplake.client.config.USE_STAGING_ENVIRONMENT:
             return HUB_REST_ENDPOINT_STAGING
 
         return HUB_REST_ENDPOINT
-
-    def request_auth_token(self, username: str, password: str):
-        """Sends a request to backend to retrieve auth token.
-
-        Args:
-            username (str): The Activeloop username to request token for.
-            password (str): The password of the account.
-
-        Returns:
-            string: The auth token corresponding to the accound.
-
-        Raises:
-            UserNotLoggedInException: if user is not authorised
-            LoginException: If there is an issue retrieving the auth token.
-
-        """
-        json = {"username": username, "password": password}
-        response = self.request("POST", GET_TOKEN_SUFFIX, json=json)
-
-        try:
-            token_dict = response.json()
-            token = token_dict["token"]
-        except Exception:
-            raise LoginException()
-        return token
-
-    def send_register_request(self, username: str, email: str, password: str):
-        """Sends a request to backend to register a new user.
-
-        Args:
-            username (str): The Activeloop username to create account for.
-            email (str): The email id to link with the Activeloop account.
-            password (str): The new password of the account. Should be atleast 6 characters long.
-        """
-
-        json = {"username": username, "email": email, "password": password}
-        self.request("POST", REGISTER_USER_SUFFIX, json=json)
 
     def get_dataset_credentials(
         self,
@@ -248,7 +205,6 @@ class DeepLakeBackendClient:
             ).json()
         except Exception as e:
             if isinstance(e, AuthorizationException):
-                authorization_exception_prompt = "You don't have permission"
                 response_data = e.response.json()
                 code = response_data.get("code")
                 if code == 1:
@@ -259,18 +215,10 @@ class DeepLakeBackendClient:
                     raise NotLoggedInAgreementError from e
                 else:
                     try:
-                        decoded_token = jwt.decode(
-                            self.token, options={"verify_signature": False}
-                        )
+                        jwt.decode(self.token, options={"verify_signature": False})
                     except Exception:
                         raise InvalidTokenException
 
-                    if (
-                        authorization_exception_prompt.lower()
-                        in response_data["description"].lower()
-                        and decoded_token["id"] == "public"
-                    ):
-                        raise UserNotLoggedInException()
                     raise TokenPermissionError()
             raise
         full_url = response.get("path")
