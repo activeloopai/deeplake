@@ -30,6 +30,9 @@ def test_initialize_auth_context():
     del os.environ[DEEPLAKE_AUTH_PROVIDER]
 
 
+@pytest.mark.skip(
+    reason="This test requires not having Azure credentials and fails in the CI environment."
+)
 def test_azure_auth_context_exceptions():
     azure_envs = [i for i in os.environ if i.startswith("AZURE_")]
     values = {i: os.environ[i] for i in azure_envs}
