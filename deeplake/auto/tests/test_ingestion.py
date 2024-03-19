@@ -306,7 +306,7 @@ def test_dataframe_files(memory_ds: Dataset, dataframe_ingestion_data):
 
 def test_dataframe_array(memory_ds: Dataset):
     data = {
-        "AA": ["Alice", "Bob", "Charlie", None],
+        "AA": ["Alice", "Bob", np.nan, None],
         "BB": [
             np.array([3, 22, 1, 3]),
             np.array([1, 22, 10, 1]),
