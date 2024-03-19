@@ -8,8 +8,6 @@ from typing import Dict, List, Any, Union, Optional
 
 from deeplake.client.config import (
     REPORTING_CONFIG_FILE_PATH,
-    TOKEN_FILE_PATH,
-    DEEPLAKE_AUTH_TOKEN,
 )
 from deeplake.util.exceptions import (
     AuthenticationException,
