@@ -1,7 +1,5 @@
 import os
 from datetime import datetime, timedelta
-from azure.identity import DefaultAzureCredential, ManagedIdentityCredential
-from azure.core.exceptions import ClientAuthenticationError
 
 from deeplake.client.auth.auth_context import AuthContext, AuthProviderType
 from deeplake.util.exceptions import InvalidAuthContextError
@@ -11,6 +9,14 @@ ID_TOKEN_CACHE_MINUTES = 5
 
 class AzureAuthContext(AuthContext):
     def __init__(self):
+        try:
+            from azure.identity import DefaultAzureCredential, ManagedIdentityCredential
+            from azure.core.exceptions import ClientAuthenticationError
+        except ImportError:
+            raise ImportError(
+                "Azure packages not installed. Run `pip install deeplake[azure]`."
+            )
+
         self.credential = self._get_azure_credential()
         self.token = None
         self._last_auth_time = None
