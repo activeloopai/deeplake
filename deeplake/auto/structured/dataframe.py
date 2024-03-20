@@ -36,6 +36,8 @@ class DataFrame(StructuredDataset):
         if not isinstance(self.source, pd.DataFrame):
             raise Exception("Source is not a pandas dataframe object.")
 
+        self.source = self.source.replace({np.nan: None})
+
         self.creds = creds
         self.creds_key = creds_key
         self._initialize_params(column_params)
