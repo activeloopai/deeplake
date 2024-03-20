@@ -149,6 +149,58 @@ def test_index_maintenance_append(local_auth_ds_generator):
 
 
 @requires_libdeeplake
+def test_load_nonexistent_vdb_index(local_auth_ds_generator):
+    ds = local_auth_ds_generator()
+    with ds:
+        ds.create_tensor(
+            "embeddings",
+            dtype=np.float32,
+            htype="embedding",
+            sample_compression=None,
+        )
+        with pytest.raises(ValueError):
+            ds.embeddings.load_vdb_index("nonexistent_index")
+
+
+@requires_libdeeplake
+def test_load_vdb_index_on_empty_dataset(local_auth_ds_generator):
+    ds = local_auth_ds_generator()
+    with ds:
+        ds.create_tensor(
+            "embeddings",
+            dtype=np.float32,
+            htype="embedding",
+            sample_compression=None,
+        )
+        with pytest.raises(ValueError):
+            ds.embeddings.load_vdb_index("hnsw_3")
+
+
+@requires_libdeeplake
+def test_load_vdb_index_rejects_path_parameter(local_auth_ds_generator):
+    ds = local_auth_ds_generator()
+    with ds:
+        ds.create_tensor(
+            "embeddings",
+            dtype=np.float32,
+            htype="embedding",
+            sample_compression=None,
+        )
+        with pytest.raises(TypeError):
+            ds.embeddings.load_vdb_index("hnsw_test", path="/invalid/path")
+
+        try:
+            ds.embeddings.load_vdb_index("hnsw_test", path="/invalid/path")
+            assert (
+                False
+            ), "TypeError not raised when 'path' parameter was incorrectly provided."
+        except TypeError as e:
+            assert "unexpected keyword argument 'path'" in str(
+                e
+            ), "Error raised, but not for the expected 'path' parameter issue."
+
+
+@requires_libdeeplake
 def test_index_maintenance_update(local_auth_ds_generator):
     ds = local_auth_ds_generator()
     with ds:

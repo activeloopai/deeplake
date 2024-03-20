@@ -296,6 +296,7 @@ class AzureProvider(StorageProvider):
         return blob_client, blob_service_client
 
     def get_presigned_url(self, path: str, full: bool = False) -> str:
+        from azure.core.credentials import AzureSasCredential  # type: ignore
         from azure.storage.blob import BlobSasPermissions, generate_blob_sas  # type: ignore
 
         self._check_update_creds()
@@ -328,18 +329,22 @@ class AzureProvider(StorageProvider):
                 org_id, ds_name = self.tag.split("/")  # type: ignore
                 url = client.get_presigned_url(org_id, ds_name, path)
             else:
-                user_delegation_key = blob_service_client.get_user_delegation_key(
-                    datetime.now(timezone.utc),
-                    datetime.now(timezone.utc) + timedelta(hours=1),
-                )
-                sas_token = generate_blob_sas(
-                    account_name,
-                    container_name,
-                    blob_path,
-                    user_delegation_key=user_delegation_key,
-                    permission=BlobSasPermissions(read=True),
-                    expiry=datetime.now(timezone.utc) + timedelta(hours=1),
-                )
+                if not isinstance(self.credential, AzureSasCredential):
+                    user_delegation_key = blob_service_client.get_user_delegation_key(
+                        datetime.now(timezone.utc),
+                        datetime.now(timezone.utc) + timedelta(hours=1),
+                    )
+                    sas_token = generate_blob_sas(
+                        account_name,
+                        container_name,
+                        blob_path,
+                        user_delegation_key=user_delegation_key,
+                        permission=BlobSasPermissions(read=True),
+                        expiry=datetime.now(timezone.utc) + timedelta(hours=1),
+                    )
+                else:
+                    sas_token = self.credential.signature
+
                 url = f"{account_url}/{container_name}/{blob_path}?{sas_token}"
             self._presigned_urls[path] = (url, time.time())
 

@@ -203,7 +203,6 @@ from mmdet.datasets.pipelines import Compose  # type: ignore
 from mmcv.parallel import collate  # type: ignore
 from functools import partial
 from deeplake.integrations.pytorch.dataset import TorchDataset
-from deeplake.client.client import DeepLakeBackendClient
 from deeplake.core.ipc import _get_free_port
 from mmdet.core import BitmapMasks  # type: ignore
 import deeplake as dp
@@ -794,9 +793,9 @@ def load_ds_from_cfg(cfg: mmcv.utils.config.ConfigDict):
     if token is None:
         uname = creds.get("username")
         if uname is not None:
-            pword = creds["password"]
-            client = DeepLakeBackendClient()
-            token = client.request_auth_token(username=uname, password=pword)
+            raise NotImplementedError(
+                "Username/Password based authentication from deeplake has been deprecated. Please specify a token in the config."
+            )
     ds_path = cfg.deeplake_path
     ds = dp.load(ds_path, token=token, read_only=True)
     deeplake_commit = cfg.get("deeplake_commit")

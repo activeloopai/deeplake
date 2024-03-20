@@ -11,7 +11,6 @@ from deeplake.auto.unstructured.kaggle import download_kaggle_dataset
 from deeplake.auto.unstructured.image_classification import ImageClassification
 from deeplake.auto.unstructured.coco.coco import CocoDataset
 from deeplake.auto.unstructured.yolo.yolo import YoloDataset
-from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.tensor import Tensor
@@ -1978,21 +1977,6 @@ class dataset:
         """Convert pandas dataframe to a Deep Lake Dataset. The contents of the dataframe can be parsed literally, or can be treated as links to local or cloud files.
 
         Examples:
-
-
-                    >>> # Ingest local data in COCO format to a Deep Lake dataset stored in Deep Lake storage.
-            >>> ds = deeplake.ingest_coco(
-            >>>     "<path/to/images/directory>",
-            >>>     ["path/to/annotation/file1.json", "path/to/annotation/file2.json"],
-            >>>     dest="hub://org_id/dataset",
-            >>>     key_to_tensor_mapping={"category_id": "labels", "bbox": "boxes"},
-            >>>     file_to_group_mapping={"file1.json": "group1", "file2.json": "group2"},
-            >>>     ignore_keys=["area", "image_id", "id"],
-            >>>     num_workers=4,
-            >>> )
-            >>> # Ingest data from your cloud into another Deep Lake dataset in your cloud, and connect that dataset to the Deep Lake backend.
-
-
 
             >>> # Ingest data from a DataFrame into a Deep Lake dataset stored in Deep Lake storage.
             >>> ds = deeplake.ingest_dataframe(
