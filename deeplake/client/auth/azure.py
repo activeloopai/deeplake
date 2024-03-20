@@ -22,6 +22,8 @@ class AzureAuthContext(AuthContext):
         self._last_auth_time = None
 
     def _get_azure_credential(self):
+        from azure.identity import DefaultAzureCredential, ManagedIdentityCredential
+
         azure_keys = [i for i in os.environ if i.startswith("AZURE_")]
         if "AZURE_CLIENT_ID" in azure_keys and len(azure_keys) == 1:
             # Explicitly set client_id, to avoid any warnings coming from DefaultAzureCredential
@@ -43,6 +45,8 @@ class AzureAuthContext(AuthContext):
             < timedelta(minutes=ID_TOKEN_CACHE_MINUTES)
         ):
             return
+
+        from azure.core.exceptions import ClientAuthenticationError
 
         try:
             response = self.credential.get_token(
