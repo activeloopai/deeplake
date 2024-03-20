@@ -113,6 +113,8 @@ class DeepLakeDataLoader(DataLoader):
         _ignore_errors=False,
         _verbose=False,
         _offset=None,
+        _pin_memory=False,
+        _pin_memory_device="",
         **kwargs,
     ):
         import_indra_loader()
@@ -139,6 +141,8 @@ class DeepLakeDataLoader(DataLoader):
         self._ignore_errors = _ignore_errors
         self._verbose = _verbose
         self._offset = _offset
+        self._pin_memory=_pin_memory
+        self._pin_memory_device=_pin_memory_device,
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -481,6 +485,8 @@ class DeepLakeDataLoader(DataLoader):
         return_index: bool = True,
         decode_method: Optional[Dict[str, str]] = None,
         persistent_workers: bool = False,
+        pin_memory: bool = False,
+        pin_memory_device: str = ""
     ):
         """Returns a :class:`DeepLakeDataLoader` object.
 
@@ -550,6 +556,8 @@ class DeepLakeDataLoader(DataLoader):
         all_vars["_mode"] = mode
         all_vars["_persistent_workers"] = persistent_workers
         all_vars["_dataloader"] = None
+        all_vars["_pin_memory"] = pin_memory
+        all_vars["_pin_memory_device"] = pin_memory_device
         if distributed:
             all_vars["_world_size"] = torch.distributed.get_world_size()
         return self.__class__(**all_vars)
@@ -736,8 +744,7 @@ class DeepLakeDataLoader(DataLoader):
 
     def __get_indra_dataloader(
         self,
-        dataset,
-        indra_dataset,
+        deeplake_dataset,
         tensors: Optional[List[str]] = None,
         raw_tensors: Optional[List[str]] = None,
         pil_compressed_tensors: Optional[List[str]] = None,
@@ -774,9 +781,10 @@ class DeepLakeDataLoader(DataLoader):
         loader_meta = LoaderMetaInfo(
             context=self.multiprocessing_context,
             distributed=self._distributed,
+            mode = self._mode,
             upcast=self._mode == "pytorch"
             and self.__is_upcast_needed(
-                dataset, tensors
+                deeplake_dataset, tensors
             ),  # upcast to handle unsupported dtypes,
             return_index=self._return_index,
             verbose=self._verbose,
@@ -785,10 +793,12 @@ class DeepLakeDataLoader(DataLoader):
             offset=self._offset,
             primary_tensor=self._primary_tensor_name,
             worker_init_fn=self.worker_init_fn,
+            pin_memory=self.pin_memory,
+            pin_memory_device=self.pin_memory_device,
         )
 
         return INDRA_LOADER(  # type: ignore [misc]
-            indra_dataset,
+            deeplake_dataset=deeplake_dataset,
             batch_size=self._batch_size,
             num_threads=num_threads,
             shuffle=self._shuffle,
@@ -839,14 +849,8 @@ class DeepLakeDataLoader(DataLoader):
                     pil_compressed_tensors=pil_compressed_tensors,
                 )
             else:
-                if not hasattr(self, "_indra_dataset"):
-                    indra_dataset = dataset_to_libdeeplake(dataset)
-                else:
-                    indra_dataset = self._indra_dataset
-
                 self._dataloader = self.__get_indra_dataloader(
                     dataset,
-                    indra_dataset,
                     tensors=tensors,
                     raw_tensors=raw_tensors,
                     pil_compressed_tensors=pil_compressed_tensors,
@@ -884,7 +888,6 @@ class DeepLakeDataLoader(DataLoader):
 
     def __del__(self):
         self.close()
-
 
 def dataloader(
     dataset, ignore_errors: bool = False, verbose: bool = False
