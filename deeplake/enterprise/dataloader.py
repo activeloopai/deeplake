@@ -141,8 +141,8 @@ class DeepLakeDataLoader(DataLoader):
         self._ignore_errors = _ignore_errors
         self._verbose = _verbose
         self._offset = _offset
-        self._pin_memory=_pin_memory
-        self._pin_memory_device=_pin_memory_device,
+        self._pin_memory = _pin_memory
+        self._pin_memory_device = (_pin_memory_device,)
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -486,7 +486,7 @@ class DeepLakeDataLoader(DataLoader):
         decode_method: Optional[Dict[str, str]] = None,
         persistent_workers: bool = False,
         pin_memory: bool = False,
-        pin_memory_device: str = ""
+        pin_memory_device: str = "",
     ):
         """Returns a :class:`DeepLakeDataLoader` object.
 
@@ -781,7 +781,7 @@ class DeepLakeDataLoader(DataLoader):
         loader_meta = LoaderMetaInfo(
             context=self.multiprocessing_context,
             distributed=self._distributed,
-            mode = self._mode,
+            mode=self._mode,
             upcast=self._mode == "pytorch"
             and self.__is_upcast_needed(
                 deeplake_dataset, tensors
@@ -791,7 +791,6 @@ class DeepLakeDataLoader(DataLoader):
             ignore_errors=self._ignore_errors,
             prefetch_factor=self._prefetch_factor,
             offset=self._offset,
-            primary_tensor=self._primary_tensor_name,
             worker_init_fn=self.worker_init_fn,
             pin_memory=self.pin_memory,
             pin_memory_device=self.pin_memory_device,
@@ -888,6 +887,7 @@ class DeepLakeDataLoader(DataLoader):
 
     def __del__(self):
         self.close()
+
 
 def dataloader(
     dataset, ignore_errors: bool = False, verbose: bool = False
