@@ -97,24 +97,24 @@ pip3 install deeplake
 Using Deep Lake as a Vector Store for building LLM applications:
 ### - [Vector Store Quickstart](https://docs.activeloop.ai/quickstart)
 ### - [Vector Store Getting Started Guide](https://docs.activeloop.ai/getting-started/vector-store)
-### - [Using Deep Lake with LangChain](https://docs.activeloop.ai/tutorials/vector-store/deep-lake-vector-store-in-langchain)
-### - [Image Similarity Search with Deep Lake](https://docs.activeloop.ai/tutorials/vector-store/image-similarity-search)
+### - [Using Deep Lake with LangChain](https://docs.activeloop.ai/example-code/tutorials/vector-store/deep-lake-vector-store-in-langchain)
+### - [Image Similarity Search with Deep Lake](https://docs.activeloop.ai/example-code/tutorials/vector-store/image-similarity-search)
 
 
 ### Deep Learning Applications
 Using Deep Lake for managing data while training Deep Learning models:
 ### - [Deep Learning Quickstart](https://docs.activeloop.ai/quickstart-dl)
 ### - [Deep Learning Getting Started Guide](https://docs.activeloop.ai/getting-started/deep-learning)
-### - [Tutorials for Training Models](https://docs.activeloop.ai/tutorials/deep-learning/training-models)
-### - [Tutorials for Creating Deep Learning Datasets](https://docs.activeloop.ai/tutorials/deep-learning/creating-datasets)
-### - [Deep Learning Playbooks](https://docs.activeloop.ai/playbooks/evaluating-model-performance)
+### - [Tutorials for Training Models](https://docs.activeloop.ai/example-code/tutorials/deep-learning/training-models)
+### - [Tutorials for Creating Deep Learning Datasets](https://docs.activeloop.ai/example-code/tutorials/deep-learning/creating-datasets)
+### - [Deep Learning Playbooks](https://docs.activeloop.ai/example-code/playbooks)
 
 ## ⚙️ Integrations
 
 Deep Lake offers integrations with other tools in order to streamline your deep learning workflows. Current integrations include:
 
 * **Model Training**
-  * Stream data while training thousands of pre-built models using [MMDetection](https://github.com/open-mmlab/mmdetection), a popular open-source object detection toolbox based on PyTorch. Learn more in [this tutorial](https://docs.activeloop.ai/tutorials/training-models/training-models-using-mmdetection).
+  * Stream data while training thousands of pre-built models using [MMDetection](https://github.com/open-mmlab/mmdetection), a popular open-source object detection toolbox based on PyTorch. Learn more in [this tutorial](https://docs.activeloop.ai/example-code/tutorials/deep-learning/training-models/training-models-using-mmdetection).
   
 * **Experiment Tracking**
   * Track experiments and achieve full model reproducibility using Deep Lake and [Weights & Biases](https://wandb.ai/). Our integration automatically pushes dataset-related information (uri, commit hash, view id) to your W&B runs. Further details are available [in our model-reproducibility playbook](https://docs.activeloop.ai/playbooks/training-reproducibility-with-wandb).
