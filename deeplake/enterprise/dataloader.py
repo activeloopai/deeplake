@@ -486,7 +486,7 @@ class DeepLakeDataLoader(DataLoader):
         decode_method: Optional[Dict[str, str]] = None,
         persistent_workers: bool = False,
         pin_memory: bool = False,
-        pin_memory_device: str = "",
+        pin_memory_device: Optional[str] = "",
     ):
         """Returns a :class:`DeepLakeDataLoader` object.
 
@@ -500,6 +500,8 @@ class DeepLakeDataLoader(DataLoader):
             distributed (bool): Used for DDP training. Distributes different sections of the dataset to different ranks. Defaults to ``False``.
             return_index (bool): Used to idnetify where loader needs to retur sample index or not. Defaults to ``True``.
             persistent_workers (bool): If ``True``, the data loader will not shutdown the worker processes after a dataset has been consumed once. Defaults to ``False``.
+            pin_memory (bool): If ``True``, the data loader will copy Tensors into device/CUDA pinned memory before returning them. Defaults to ``False``.
+            pin_memory_device (str, optional): the data loader will copy Tensors into device pinned memory before returning them if pin_memory is set to true.
             decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to ``None``.
 
 
@@ -557,7 +559,7 @@ class DeepLakeDataLoader(DataLoader):
         all_vars["_persistent_workers"] = persistent_workers
         all_vars["_dataloader"] = None
         all_vars["_pin_memory"] = pin_memory
-        all_vars["_pin_memory_device"] = pin_memory_device
+        all_vars["_pin_memory_device"] = pin_memory_device or ""
         if distributed:
             all_vars["_world_size"] = torch.distributed.get_world_size()
         return self.__class__(**all_vars)

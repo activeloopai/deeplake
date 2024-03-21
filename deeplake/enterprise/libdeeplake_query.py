@@ -50,16 +50,12 @@ def query(dataset, query_string: str):
     from deeplake.enterprise.convert_to_libdeeplake import INDRA_API
 
     try:
-        is_gt = len(dsv.indexes) < INDRA_DATASET_SAMPLES_THRESHOLD  # type: ignore
+        is_gt = len(dsv.indexes) < INDRA_DATASET_SAMPLES_THRESHOLD
     except:
         is_gt = False
         pass
 
-    if (
-        not isinstance(dataset, DeepLakeQueryDataset)
-        and INDRA_API.tql.parse(query_string).is_filter
-        and is_gt
-    ):
+    if not isinstance(dataset, DeepLakeQueryDataset) and INDRA_API.tql.parse(query_string).is_filter and is_gt:  # type: ignore
         indexes = list(dsv.indexes)
         return dataset.no_view_dataset[indexes]
     else:
