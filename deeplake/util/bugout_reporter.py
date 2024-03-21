@@ -164,9 +164,12 @@ def feature_report_path(
         parameters["Path"] = path
 
     token = token or os.environ.get(DEEPLAKE_AUTH_TOKEN)
-
     if token is not None:
-        username = jwt.decode(token, options={"verify_signature": False})["id"]
+        try:
+            username = jwt.decode(token, options={"verify_signature": False})["id"]
+        except Exception:
+            username = "public"
+
     set_username(username)
 
     deeplake_reporter.feature_report(
