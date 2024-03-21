@@ -1509,6 +1509,7 @@ class dataset:
         num_workers: int = 0,
         token: Optional[str] = None,
         connect_kwargs: Optional[Dict] = None,
+        indra: bool = USE_INDRA,
         **dataset_kwargs,
     ) -> Dataset:
         """Ingest images and annotations in COCO format to a Deep Lake Dataset. The source data can be stored locally or in the cloud.
@@ -1600,7 +1601,12 @@ class dataset:
         structure = unstructured.prepare_structure(inspect_limit)
 
         ds = deeplake.empty(
-            dest, creds=dest_creds, verbose=False, token=token, **dataset_kwargs
+            dest,
+            creds=dest_creds,
+            verbose=False,
+            token=token,
+            indra=indra,
+            **dataset_kwargs,
         )
         if connect_kwargs is not None:
             connect_kwargs["token"] = token or connect_kwargs.get("token")
@@ -1631,6 +1637,7 @@ class dataset:
         num_workers: int = 0,
         token: Optional[str] = None,
         connect_kwargs: Optional[Dict] = None,
+        indra: bool = USE_INDRA,
         **dataset_kwargs,
     ) -> Dataset:
         """Ingest images and annotations (bounding boxes or polygons) in YOLO format to a Deep Lake Dataset. The source data can be stored locally or in the cloud.
@@ -1726,7 +1733,12 @@ class dataset:
         structure = unstructured.prepare_structure()
 
         ds = deeplake.empty(
-            dest, creds=dest_creds, verbose=False, token=token, **dataset_kwargs
+            dest,
+            creds=dest_creds,
+            verbose=False,
+            token=token,
+            indra=indra,
+            **dataset_kwargs,
         )
         if connect_kwargs is not None:
             connect_kwargs["token"] = token or connect_kwargs.get("token")
@@ -1857,6 +1869,7 @@ class dataset:
                     dest_creds=dest_creds,
                     progressbar=progressbar,
                     token=token,
+                    indra=indra,
                     **dataset_kwargs,
                 )
                 return ds
@@ -1879,7 +1892,12 @@ class dataset:
             unstructured = ImageClassification(source=src)
 
             ds = deeplake.empty(
-                dest, creds=dest_creds, token=token, verbose=False, **dataset_kwargs
+                dest,
+                creds=dest_creds,
+                token=token,
+                verbose=False,
+                indra=indra,
+                **dataset_kwargs,
             )
             if connect_kwargs is not None:
                 connect_kwargs["token"] = token or connect_kwargs.get("token")
@@ -1974,6 +1992,7 @@ class dataset:
             progressbar=progressbar,
             summary=summary,
             shuffle=shuffle,
+            indra=indra,
             **dataset_kwargs,
         )
 
@@ -2064,7 +2083,12 @@ class dataset:
 
         dest = convert_pathlib_to_string_if_needed(dest)
         ds = deeplake.empty(
-            dest, creds=dest_creds, token=token, verbose=False, **dataset_kwargs
+            dest,
+            creds=dest_creds,
+            token=token,
+            verbose=False,
+            indra=indra,
+            **dataset_kwargs,
         )
         if connect_kwargs is not None:
             connect_kwargs["token"] = token or connect_kwargs.get("token")
