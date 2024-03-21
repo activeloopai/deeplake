@@ -49,7 +49,7 @@ def hub_cloud_dev_token(hub_cloud_dev_credentials):
 
     assert (
         token is not None
-    ), f"Deep Lake dev token was not found in the environment variable '{ENV_HUB_DEV_USERNAME}'. This is necessary for testing deeplake cloud datasets."
+    ), f"Deep Lake dev token was not found in the environment variable '{ENV_HUB_DEV_TOKEN}'. This is necessary for testing deeplake cloud datasets."
 
     return token
 
