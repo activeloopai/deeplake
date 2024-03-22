@@ -779,7 +779,7 @@ class DeepLakeDataLoader(DataLoader):
             pil_compressed_tensors=pil_compressed_tensors or [],
             json_tensors=json_tensors or [],
             list_tensors=list_tensors or [],
-            medical_tensors = medical_tensors or []
+            medical_tensors=medical_tensors or [],
         )
 
         loader_meta = LoaderMetaInfo(
@@ -816,14 +816,40 @@ class DeepLakeDataLoader(DataLoader):
             info=info,
         )
 
+    def _fill_sample_info_tensors(
+        self,
+        dataset,
+        sample_info_tensors,
+        json_tensors,
+        list_tensors,
+    ):
+        for tensor_name in sample_info_tensors:
+            tensor = dataset._get_tensor_from_root(tensor_name)
+            if len(tensor) == 0:
+                raise EmptyTensorError(
+                    f" the dataset has an empty tensor {tensor_name}, pytorch dataloader can't be created."
+                    f" Please either populate the tensor or pass tensors argument to .pytorch that excludes this"
+                    f" tensor."
+                )
+            meta = tensor.meta
+            if meta.htype == "json":
+                json_tensors.append(tensor_name)
+            elif meta.htype == "list":
+                list_tensors.append(tensor_name)
+            elif meta.htype == "tag":
+                list_tensors.append(tensor_name)
+
     def __iter__(self):
         if self._dataloader is None:
             dataset = self._orig_dataset
             tensors = self._tensors or map_tensor_keys(dataset, None)
 
-            jpeg_png_compressed_tensors, json_tensors, list_tensors, medical_tensors = check_tensors(
-                dataset, tensors
-            )
+            (
+                jpeg_png_compressed_tensors,
+                json_tensors,
+                list_tensors,
+                medical_tensors,
+            ) = check_tensors(dataset, tensors)
             (
                 raw_tensors,
                 pil_compressed_tensors,
@@ -842,6 +868,10 @@ class DeepLakeDataLoader(DataLoader):
             sample_info_tensors, tensor_info_tensors = find_additional_tensors_and_info(
                 dataset, data_tensors
             )
+            self._fill_sample_info_tensors(
+                dataset, sample_info_tensors, json_tensors, list_tensors
+            )
+
             tensors.extend(sample_info_tensors)
             htype_dict, ndim_dict, tensor_info_dict = get_htype_ndim_tensor_info_dicts(
                 dataset, data_tensors, tensor_info_tensors
