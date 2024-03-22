@@ -856,7 +856,7 @@ def _open_video(file: Union[str, bytes, memoryview]):
         )
 
     if isinstance(file, str):
-        container = av.open(
+        container: Union[av.InputContainer, av.OutputContainer] = av.open(
             file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
         )
     else:
@@ -941,7 +941,7 @@ def _decompress_video(
     seekable = True
     try:
         container.seek(seek_target, stream=vstream)
-    except av.error.PermissionError:
+    except av.error.FFmpegError:
         seekable = False
         container, vstream = _open_video(file)  # try again but this time don't seek
         warning(
@@ -985,7 +985,7 @@ def _read_timestamps(
 
     stamps = []
     if vstream.duration is None:
-        time_base = 1 / av.time_base
+        time_base = 1 / av.time_base  # type: ignore
     else:
         time_base = vstream.time_base.numerator / vstream.time_base.denominator
 
@@ -1000,7 +1000,7 @@ def _read_timestamps(
     seekable = True
     try:
         container.seek(seek_target, stream=vstream)
-    except av.error.PermissionError:
+    except av.error.FFmpegError:
         seekable = False
         container, vstream = _open_video(file)  # try again but this time don't seek
         warning(
@@ -1040,7 +1040,7 @@ def _open_audio(file: Union[str, bytes, memoryview]):
         )
 
     if isinstance(file, str):
-        container = av.open(
+        container: Union[av.InputContainer, av.OutputContainer] = av.open(
             file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
         )
     else:
@@ -1097,7 +1097,7 @@ def _read_audio_meta(
         meta["time_base"] = astream.time_base.numerator / astream.time_base.denominator
     else:
         meta["duration"] = container.duration
-        meta["time_base"] = 1 / av.time_base
+        meta["time_base"] = 1 / av.time_base  # type: ignore
     meta["sample_rate"] = astream.sample_rate
     meta["duration"] = astream.duration or container.duration
     meta["frame_size"] = astream.frame_size
