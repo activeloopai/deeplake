@@ -2089,19 +2089,29 @@ class dataset:
         structured = DataFrame(src, column_params, src_creds, creds_key)
 
         dest = convert_pathlib_to_string_if_needed(dest)
-        ds = deeplake.empty(
-            dest,
-            creds=dest_creds,
-            token=token,
-            verbose=False,
-            indra=indra,
-            **dataset_kwargs,
-        )
+        if indra:
+            from indra import api
+
+            ds = api.dataset_writer(
+                dest, creds=dest_creds, token=token, **dataset_kwargs
+            )
+        else:
+            ds = deeplake.empty(
+                dest,
+                creds=dest_creds,
+                token=token,
+                verbose=False,
+                **dataset_kwargs,
+            )
         if connect_kwargs is not None:
             connect_kwargs["token"] = token or connect_kwargs.get("token")
             ds.connect(**connect_kwargs)
 
         structured.fill_dataset(ds, progressbar)  # type: ignore
+
+        if indra:
+            ids = api.load_from_storage(ds.storage)
+            return IndraDatasetView(indra_ds=ids)
 
         return ds  # type: ignore
 

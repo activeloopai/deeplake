@@ -231,7 +231,7 @@ def test_csv(memory_ds: Dataset, dataframe_ingestion_data: dict):
     assert ds[tensors_names[2]].htype == "text"
     assert ds[tensors_names[2]].dtype == str
     np.testing.assert_array_equal(
-        ds[tensors_names[2]].numpy().reshape(-1), df[df_keys[2]].values
+        np.array(ds[tensors_names[2]].numpy()).reshape(-1), df[df_keys[2]].values
     )
 
 
@@ -273,7 +273,7 @@ def test_dataframe_basic(
     assert ds[df_keys[2]].htype == "text"
     assert ds[df_keys[2]].dtype == str
     np.testing.assert_array_equal(
-        ds[df_keys[2]].numpy().reshape(-1), df[df_keys[2]].values
+        np.array(ds[df_keys[2]].numpy()).reshape(-1), df[df_keys[2]].values
     )
 
 
