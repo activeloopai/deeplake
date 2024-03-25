@@ -146,7 +146,7 @@ def _get_indra_ds_from_s3_provider(
         )
 
 
-def dataset_to_libdeeplake(hub2_dataset: Dataset):
+def dataset_to_libdeeplake(hub2_dataset: Dataset, ignore_cache: bool = False):
     """Convert a hub 2.x dataset object to a libdeeplake dataset object."""
     try_flushing(hub2_dataset)
     api = import_indra_api()
@@ -160,7 +160,7 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
     )
     if token is None or token == "":
         raise EmptyTokenException
-    if hub2_dataset.libdeeplake_dataset is None:
+    if hub2_dataset.libdeeplake_dataset is None or ignore_cache:
         libdeeplake_dataset = None
         if path.startswith("gdrive://"):
             raise ValueError("Gdrive datasets are not supported for libdeeplake")

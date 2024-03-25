@@ -463,6 +463,7 @@ class GCSProvider(StorageProvider):
             self.read_only,
             self.db_engine,
             self.repository,
+            self.expiration,
         )
 
     def __setstate__(self, state):
@@ -473,6 +474,7 @@ class GCSProvider(StorageProvider):
         self.read_only = state[4]
         self.db_engine = state[5]
         self.repository = state[6]
+        self.expiration = state[7]
         self._initialize_provider()
 
     def get_presigned_url(self, key, full=False):
