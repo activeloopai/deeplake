@@ -180,6 +180,8 @@ class ShuffleBuffer:
                 num_pixels = num_pixels * 1
             num_bytes = num_pixels * 1  # change according to dtype of tensor later
             return num_bytes
+        elif isinstance(sample, np.integer) or isinstance(sample, np.floating):
+            return np.dtype(type(sample)).itemsize
         raise ValueError(
             f"Expected input of type bytes, dict, Sequence, torch.Tensor, np.ndarray or PIL image, got: {type(sample)}"
         )
