@@ -292,9 +292,9 @@ class Dataset:
             else None
         )
         self._first_load_init()
-        self._initial_autoflush: List[bool] = (
-            []
-        )  # This is a stack to support nested with contexts
+        self._initial_autoflush: List[
+            bool
+        ] = []  # This is a stack to support nested with contexts
         self._indexing_history: List[int] = []
 
         if not self.read_only:
@@ -3514,6 +3514,7 @@ class Dataset:
         unlink=True,
     ):
         """Writes the indices of this view to a vds."""
+        tql_query = getattr(self, "_tql_query", None)
         vds._allow_view_updates = True
         try:
             with vds:
@@ -3524,23 +3525,27 @@ class Dataset:
                         num_workers=num_workers,
                         scheduler=scheduler,
                         unlink=unlink,
-                        create_vds_index_tensor=True,
+                        create_vds_index_tensor=True
+                        if tql_query is None
+                        or self.index.values[0].value != slice(None)
+                        else False,
                         ignore_errors=ignore_errors,
                     )
                 else:
-                    vds.create_tensor(
-                        "VDS_INDEX",
-                        dtype="uint64",
-                        create_shape_tensor=False,
-                        create_id_tensor=False,
-                        create_sample_info_tensor=False,
-                    ).extend(
-                        np.array(
-                            tuple(self.index.values[0].indices(self.num_samples)),
+                    if tql_query is None or self.index.values[0].value != slice(None):
+                        vds.create_tensor(
+                            "VDS_INDEX",
                             dtype="uint64",
-                        ),
-                        progressbar=True,
-                    )
+                            create_shape_tensor=False,
+                            create_id_tensor=False,
+                            create_sample_info_tensor=False,
+                        ).extend(
+                            np.array(
+                                tuple(self.index.values[0].indices(self.num_samples)),
+                                dtype="uint64",
+                            ),
+                            progressbar=True,
+                        )
                     info["first-index-subscriptable"] = self.index.subscriptable_at(0)
                     if len(self.index) > 1:
                         info["sub-sample-index"] = Index(
@@ -3848,14 +3853,20 @@ class Dataset:
         ds.version_state = ds.version_state.copy()
         ds._checkout(commit_id, verbose=False)
         first_index_subscriptable = self.info.get("first-index-subscriptable", True)
-        if first_index_subscriptable:
-            index_entries = [IndexEntry(self.VDS_INDEX.numpy().reshape(-1).tolist())]
+        if hasattr(self, "VDS_INDEX"):
+            if first_index_subscriptable:
+                index_entries = [
+                    IndexEntry(self.VDS_INDEX.numpy().reshape(-1).tolist())
+                ]
+            else:
+                index_entries = [IndexEntry(int(self.VDS_INDEX.numpy()))]
+            sub_sample_index = self.info.get("sub-sample-index")
+            if sub_sample_index:
+                index_entries += Index.from_json(sub_sample_index).values
+            ret = ds[Index(index_entries)]
         else:
-            index_entries = [IndexEntry(int(self.VDS_INDEX.numpy()))]
-        sub_sample_index = self.info.get("sub-sample-index")
-        if sub_sample_index:
-            index_entries += Index.from_json(sub_sample_index).values
-        ret = ds[Index(index_entries)]
+            ret = ds[Index(item=slice(None))]
+
         ret._vds = self
         return ret
 

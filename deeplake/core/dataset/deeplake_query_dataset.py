@@ -83,6 +83,10 @@ class DeepLakeQueryDataset(Dataset):
     def libdeeplake_dataset(self):
         return self.indra_ds
 
+    @libdeeplake_dataset.setter
+    def libdeeplake_dataset(self, new_indra_ds):
+        self.indra_ds = new_indra_ds
+
     def merge(self, *args, **kwargs):
         raise InvalidOperationError(
             "merge", "merge method cannot be called on a Dataset view."
@@ -213,6 +217,9 @@ class DeepLakeQueryDataset(Dataset):
 
         if hasattr(self, "_view_entry"):
             ret._view_entry = self._view_entry
+
+        if hasattr(self, "_tql_query"):
+            ret._tql_query = self._tql_query
         return ret
 
     def __getattr__(self, key):
