@@ -12,6 +12,7 @@ from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     MAX_BYTES_PER_MINUTE,
     TARGET_BYTE_SIZE,
+    USE_INDRA,
 )
 from deeplake.util.bugout_reporter import feature_report_path
 from deeplake.util.exceptions import DeepMemoryAccessError
@@ -41,6 +42,7 @@ class VectorStore:
         org_id: Optional[str] = None,
         logger: logging.Logger = logger,
         branch: str = "main",
+        indra: bool = USE_INDRA,
         **kwargs: Any,
     ) -> None:
         """Creates an empty VectorStore or loads an existing one if it exists at the specified ``path``.
@@ -103,6 +105,7 @@ class VectorStore:
                 - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             runtime (Dict, optional): Parameters for creating the Vector Store in Deep Lake's Managed Tensor Database. Not applicable when loading an existing Vector Store. To create a Vector Store in the Managed Tensor Database, set `runtime = {"tensor_db": True}`.
             branch (str): Branch name to use for the Vector Store. Defaults to "main".
+            indra (bool): Flag indicating whether indra api should be used to create the underlying dataset. Defaults to false
             **kwargs (dict): Additional keyword arguments.
 
         ..

@@ -13,6 +13,7 @@ from deeplake.auto.unstructured.coco.coco import CocoDataset
 from deeplake.auto.unstructured.yolo.yolo import YoloDataset
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
+from deeplake.core.dataset.indra_dataset_view import IndraDatasetView
 from deeplake.core.tensor import Tensor
 from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.util.connect_dataset import connect_dataset_entry
@@ -43,6 +44,7 @@ from deeplake.constants import (
     DEFAULT_READONLY,
     DATASET_META_FILENAME,
     DATASET_LOCK_FILENAME,
+    USE_INDRA,
 )
 from deeplake.util.access_method import (
     check_access_method,
@@ -101,6 +103,7 @@ class dataset:
         lock_enabled: Optional[bool] = True,
         lock_timeout: Optional[int] = 0,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
+        indra: bool = USE_INDRA,
     ):
         """Returns a :class:`~deeplake.core.dataset.Dataset` object referencing either a new or existing dataset.
 
@@ -173,6 +176,7 @@ class dataset:
             lock_timeout (int): Number of seconds to wait before throwing a LockException. If None, wait indefinitely
             lock_enabled (bool): If true, the dataset manages a write lock. NOTE: Only set to False if you are managing concurrent access externally
             index_params: Optional[Dict[str, Union[int, str]]] = None : The index parameters used while creating vector store is passed down to dataset.
+            indra (bool): Flag indicating whether indra api should be used to create the dataset. Defaults to false
 
         ..
             # noqa: DAR101
@@ -225,6 +229,7 @@ class dataset:
                 token=token,
                 memory_cache_size=memory_cache_size,
                 local_cache_size=local_cache_size,
+                indra=indra,
             )
 
             feature_report_path(path, "dataset", {"Overwrite": overwrite}, token=token)
@@ -378,6 +383,7 @@ class dataset:
         lock_timeout: Optional[int] = 0,
         verbose: bool = True,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
+        indra: bool = USE_INDRA,
     ) -> Dataset:
         """Creates an empty dataset
 
@@ -402,6 +408,7 @@ class dataset:
             lock_timeout (int): Number of seconds to wait before throwing a LockException. If None, wait indefinitely
             lock_enabled (bool): If true, the dataset manages a write lock. NOTE: Only set to False if you are managing concurrent access externally.
             index_params: Optional[Dict[str, Union[int, str]]]: Index parameters used while creating vector store, passed down to dataset.
+            indra (bool): Flag indicating whether indra api should be used to create the dataset. Defaults to false
 
         Returns:
             Dataset: Dataset created using the arguments provided.
@@ -441,6 +448,7 @@ class dataset:
                 token=token,
                 memory_cache_size=memory_cache_size,
                 local_cache_size=local_cache_size,
+                indra=indra,
             )
 
             feature_report_path(
@@ -508,6 +516,7 @@ class dataset:
         access_method: str = "stream",
         unlink: bool = False,
         reset: bool = False,
+        indra: bool = USE_INDRA,
         check_integrity: Optional[bool] = None,
         lock_timeout: Optional[int] = 0,
         lock_enabled: Optional[bool] = True,
@@ -578,6 +587,7 @@ class dataset:
                           setting ``reset=True`` will reset HEAD changes and load the previous version.
             check_integrity (bool, Optional): Performs an integrity check by default (None) if the dataset has 20 or fewer tensors.
                                               Set to ``True`` to force integrity check, ``False`` to skip integrity check.
+            indra (bool): Flag indicating whether indra api should be used to create the dataset. Defaults to false
 
         ..
             # noqa: DAR101
@@ -624,6 +634,7 @@ class dataset:
                 token=token,
                 memory_cache_size=memory_cache_size,
                 local_cache_size=local_cache_size,
+                indra=indra,
             )
             feature_report_path(
                 path,
@@ -643,6 +654,12 @@ class dataset:
             raise DatasetHandlerError(
                 f"A Deep Lake dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use deeplake.empty()."
             )
+
+        if indra and read_only:
+            from indra import api  # type: ignore
+
+            ids = api.load_from_storage(storage.core)
+            return IndraDatasetView(indra_ds=ids)
 
         dataset_kwargs: Dict[str, Union[None, str, bool, int, Dict]] = {
             "path": path,
@@ -812,10 +829,10 @@ class dataset:
 
         feature_report_path(old_path, "rename", {}, token=token)
 
-        ds = deeplake.load(old_path, verbose=False, token=token, creds=creds)
-        ds.rename(new_path)
+        deeplake.deepcopy(old_path, new_path, verbose=False, token=token, creds=creds)
+        deeplake.delete(old_path, token=token, creds=creds)
 
-        return ds  # type: ignore
+        return deeplake.load(new_path, verbose=False, token=token, creds=creds)
 
     @staticmethod
     @spinner
@@ -1491,6 +1508,7 @@ class dataset:
         num_workers: int = 0,
         token: Optional[str] = None,
         connect_kwargs: Optional[Dict] = None,
+        indra: bool = USE_INDRA,
         **dataset_kwargs,
     ) -> Dataset:
         """Ingest images and annotations in COCO format to a Deep Lake Dataset. The source data can be stored locally or in the cloud.
@@ -1544,6 +1562,7 @@ class dataset:
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
             token (Optional[str]): The token to use for accessing the dataset and/or connecting it to Deep Lake.
             connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :meth:`Dataset.connect <deeplake.core.dataset.Dataset.connect>`.
+            indra (bool): Flag indicating whether indra api should be used to create the dataset. Defaults to false
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
         Returns:
@@ -1582,7 +1601,12 @@ class dataset:
         structure = unstructured.prepare_structure(inspect_limit)
 
         ds = deeplake.empty(
-            dest, creds=dest_creds, verbose=False, token=token, **dataset_kwargs
+            dest,
+            creds=dest_creds,
+            verbose=False,
+            token=token,
+            indra=indra,
+            **dataset_kwargs,
         )
         if connect_kwargs is not None:
             connect_kwargs["token"] = token or connect_kwargs.get("token")
@@ -1613,6 +1637,7 @@ class dataset:
         num_workers: int = 0,
         token: Optional[str] = None,
         connect_kwargs: Optional[Dict] = None,
+        indra: bool = USE_INDRA,
         **dataset_kwargs,
     ) -> Dataset:
         """Ingest images and annotations (bounding boxes or polygons) in YOLO format to a Deep Lake Dataset. The source data can be stored locally or in the cloud.
@@ -1661,6 +1686,7 @@ class dataset:
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
             token (Optional[str]): The token to use for accessing the dataset and/or connecting it to Deep Lake.
             connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :meth:`Dataset.connect <deeplake.core.dataset.Dataset.connect>`.
+            indra (bool): Flag indicating whether indra api should be used to create the dataset. Defaults to false
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
         Returns:
@@ -1708,7 +1734,12 @@ class dataset:
         structure = unstructured.prepare_structure()
 
         ds = deeplake.empty(
-            dest, creds=dest_creds, verbose=False, token=token, **dataset_kwargs
+            dest,
+            creds=dest_creds,
+            verbose=False,
+            token=token,
+            indra=indra,
+            **dataset_kwargs,
         )
         if connect_kwargs is not None:
             connect_kwargs["token"] = token or connect_kwargs.get("token")
@@ -1738,6 +1769,7 @@ class dataset:
         shuffle: bool = True,
         token: Optional[str] = None,
         connect_kwargs: Optional[Dict] = None,
+        indra: bool = USE_INDRA,
         **dataset_kwargs,
     ) -> Dataset:
         """Ingest a dataset of images from a local folder to a Deep Lake Dataset. Images should be stored in subfolders by class name.
@@ -1758,6 +1790,7 @@ class dataset:
             shuffle (bool): Shuffles the input data prior to ingestion. Since data arranged in folders by class is highly non-random, shuffling is important in order to produce optimal results when training. Defaults to ``True``.
             token (Optional[str]): The token to use for accessing the dataset.
             connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :meth:`Dataset.connect <deeplake.core.dataset.Dataset.connect>`.
+            indra (bool): Flag indicating whether indra api should be used to create the dataset. Defaults to false
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function see :func:`deeplake.empty`.
 
         Returns:
@@ -1839,6 +1872,7 @@ class dataset:
                     dest_creds=dest_creds,
                     progressbar=progressbar,
                     token=token,
+                    indra=indra,
                     **dataset_kwargs,
                 )
                 return ds
@@ -1861,7 +1895,12 @@ class dataset:
             unstructured = ImageClassification(source=src)
 
             ds = deeplake.empty(
-                dest, creds=dest_creds, token=token, verbose=False, **dataset_kwargs
+                dest,
+                creds=dest_creds,
+                token=token,
+                verbose=False,
+                indra=indra,
+                **dataset_kwargs,
             )
             if connect_kwargs is not None:
                 connect_kwargs["token"] = token or connect_kwargs.get("token")
@@ -1892,6 +1931,7 @@ class dataset:
         progressbar: bool = True,
         summary: bool = True,
         shuffle: bool = True,
+        indra: bool = USE_INDRA,
         **dataset_kwargs,
     ) -> Dataset:
         """Download and ingest a kaggle dataset and store it as a structured dataset to destination.
@@ -1911,6 +1951,7 @@ class dataset:
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             summary (bool): Generates ingestion summary. Set to ``True`` by default.
             shuffle (bool): Shuffles the input data prior to ingestion. Since data arranged in folders by class is highly non-random, shuffling is important in order to produce optimal results when training. Defaults to ``True``.
+            indra (bool): Flag indicating whether indra api should be used to create the dataset. Defaults to false
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.dataset`.
 
         Returns:
@@ -1956,6 +1997,7 @@ class dataset:
             progressbar=progressbar,
             summary=summary,
             shuffle=shuffle,
+            indra=indra,
             **dataset_kwargs,
         )
 
@@ -1972,6 +2014,7 @@ class dataset:
         progressbar: bool = True,
         token: Optional[str] = None,
         connect_kwargs: Optional[Dict] = None,
+        indra: bool = USE_INDRA,
         **dataset_kwargs,
     ):
         """Convert pandas dataframe to a Deep Lake Dataset. The contents of the dataframe can be parsed literally, or can be treated as links to local or cloud files.
@@ -2021,6 +2064,7 @@ class dataset:
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             token (Optional[str]): The token to use for accessing the dataset.
             connect_kwargs (Optional[Dict]): A dictionary containing arguments to be passed to the dataset connect method. See :meth:`Dataset.connect`.
+            indra (bool): Flag indicating whether indra api should be used to create the dataset. Defaults to false
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
         Returns:
@@ -2045,14 +2089,29 @@ class dataset:
         structured = DataFrame(src, column_params, src_creds, creds_key)
 
         dest = convert_pathlib_to_string_if_needed(dest)
-        ds = deeplake.empty(
-            dest, creds=dest_creds, token=token, verbose=False, **dataset_kwargs
-        )
+        if indra:
+            from indra import api
+
+            ds = api.dataset_writer(
+                dest, creds=dest_creds, token=token, **dataset_kwargs
+            )
+        else:
+            ds = deeplake.empty(
+                dest,
+                creds=dest_creds,
+                token=token,
+                verbose=False,
+                **dataset_kwargs,
+            )
         if connect_kwargs is not None:
             connect_kwargs["token"] = token or connect_kwargs.get("token")
             ds.connect(**connect_kwargs)
 
         structured.fill_dataset(ds, progressbar)  # type: ignore
+
+        if indra:
+            ids = api.load_from_storage(ds.storage)
+            return IndraDatasetView(indra_ds=ids)
 
         return ds  # type: ignore
 
