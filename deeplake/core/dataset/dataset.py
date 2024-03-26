@@ -292,9 +292,9 @@ class Dataset:
             else None
         )
         self._first_load_init()
-        self._initial_autoflush: List[
-            bool
-        ] = []  # This is a stack to support nested with contexts
+        self._initial_autoflush: List[bool] = (
+            []
+        )  # This is a stack to support nested with contexts
         self._indexing_history: List[int] = []
 
         if not self.read_only:
@@ -3525,10 +3525,12 @@ class Dataset:
                         num_workers=num_workers,
                         scheduler=scheduler,
                         unlink=unlink,
-                        create_vds_index_tensor=True
-                        if tql_query is None
-                        or self.index.values[0].value != slice(None)
-                        else False,
+                        create_vds_index_tensor=(
+                            True
+                            if tql_query is None
+                            or self.index.values[0].value != slice(None)
+                            else False
+                        ),
                         ignore_errors=ignore_errors,
                     )
                 else:

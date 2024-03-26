@@ -100,8 +100,7 @@ class Schedule:
 
 class Scheduler(ABC):
     @abstractmethod
-    def schedule(self, jobs: List[IOBlock]) -> List[Schedule]:
-        ...
+    def schedule(self, jobs: List[IOBlock]) -> List[Schedule]: ...
 
 
 class SingleThreadScheduler(Scheduler):
