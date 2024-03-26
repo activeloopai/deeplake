@@ -100,7 +100,8 @@ class Schedule:
 
 class Scheduler(ABC):
     @abstractmethod
-    def schedule(self, jobs: List[IOBlock]) -> List[Schedule]: ...
+    def schedule(self, jobs: List[IOBlock]) -> List[Schedule]:
+        ...
 
 
 class SingleThreadScheduler(Scheduler):
@@ -293,9 +294,12 @@ class SampleStreaming(Streaming):
         self.tensors = tensors
         self.pad_tensors = pad_tensors
         self.decode_method = decode_method
-        jpeg_png_compressed_tensors, json_tensors, list_tensors, medical_tensors = check_tensors(
-            self.dataset, tensors, verbose
-        )
+        (
+            jpeg_png_compressed_tensors,
+            json_tensors,
+            list_tensors,
+            medical_tensors,
+        ) = check_tensors(self.dataset, tensors, verbose)
         (
             raw_tensors,
             pil_compressed_tensors,

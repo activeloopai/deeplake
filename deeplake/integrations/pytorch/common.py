@@ -94,7 +94,7 @@ def check_tensors(dataset, tensors, verbose=True):
     tag_tensors = []
     medical_tensors = []
     supported_image_compressions = {"png", "jpeg"}
-    supported_medical_compressions = {'nii', 'nii.gz', 'dcm'}
+    supported_medical_compressions = {"nii", "nii.gz", "dcm"}
     for tensor_name in tensors:
         tensor = dataset._get_tensor_from_root(tensor_name)
         if len(tensor) == 0:
@@ -186,7 +186,14 @@ def validate_decode_method(
             pil_compressed_tensors.append(tensor_name)
         elif decode_method == "data":
             data_tensors.append(tensor_name)
-    return raw_tensors, pil_compressed_tensors, json_tensors, list_tensors, data_tensors, medical_tensors
+    return (
+        raw_tensors,
+        pil_compressed_tensors,
+        json_tensors,
+        list_tensors,
+        data_tensors,
+        medical_tensors,
+    )
 
 
 def find_additional_tensors_and_info(dataset, data_tensors):
