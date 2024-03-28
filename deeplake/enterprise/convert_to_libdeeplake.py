@@ -146,7 +146,7 @@ def _get_indra_ds_from_s3_provider(
         )
 
 
-def dataset_to_libdeeplake(hub2_dataset: Dataset):
+def dataset_to_libdeeplake(hub2_dataset: Dataset, ignore_cache: bool = False):
     """Convert a hub 2.x dataset object to a libdeeplake dataset object."""
     try_flushing(hub2_dataset)
     api = import_indra_api()
@@ -158,9 +158,11 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
         and hub2_dataset.client
         else hub2_dataset.token
     )
+
     if token is None or token == "":
         raise EmptyTokenException
-    if hub2_dataset.libdeeplake_dataset is None:
+
+    if hub2_dataset.libdeeplake_dataset is None or ignore_cache:
         libdeeplake_dataset = None
         if path.startswith("gdrive://"):
             raise ValueError("Gdrive datasets are not supported for libdeeplake")
@@ -210,7 +212,8 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
             )
             libdeeplake_dataset = api.dataset(path, token=token, org_id=org_id)
 
-        hub2_dataset.libdeeplake_dataset = libdeeplake_dataset
+        if not ignore_cache:
+            hub2_dataset.libdeeplake_dataset = libdeeplake_dataset
     else:
         libdeeplake_dataset = hub2_dataset.libdeeplake_dataset
 
@@ -220,9 +223,28 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
     )
     commit_id = hub2_dataset.pending_commit_id
     libdeeplake_dataset.checkout(commit_id)
-    slice_ = hub2_dataset.index.values[0].value
-    if slice_ != slice(None):
-        if isinstance(slice_, tuple):
-            slice_ = list(slice_)
-        libdeeplake_dataset = libdeeplake_dataset[slice_]
+
+    tql_query = getattr(hub2_dataset, "_tql_query", None)
+    if ignore_cache and tql_query is not None:
+        orig_ds_slice = hub2_dataset.deeplake_ds.index.values[0].value
+        ds_slice = hub2_dataset.index.values[0].value
+        if orig_ds_slice != slice(None):
+            if isinstance(orig_ds_slice, tuple):
+                orig_ds_slice = list(orig_ds_slice)
+            libdeeplake_dataset = libdeeplake_dataset[orig_ds_slice]
+
+        libdeeplake_dataset = libdeeplake_dataset.query(tql_query)
+
+        if ds_slice != slice(None):
+            if isinstance(ds_slice, tuple):
+                ds_slice = list(ds_slice)
+            if orig_ds_slice != ds_slice:
+                libdeeplake_dataset = libdeeplake_dataset[ds_slice]
+    else:
+        slice_ = hub2_dataset.index.values[0].value
+        if slice_ != slice(None):
+            if isinstance(slice_, tuple):
+                slice_ = list(slice_)
+            libdeeplake_dataset = libdeeplake_dataset[slice_]
+
     return libdeeplake_dataset
