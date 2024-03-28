@@ -15,6 +15,9 @@ class ActiveLoopAuthContext(AuthContext):
 
         return self.token
 
+    def is_public_user(self) -> bool:
+        return self.get_token().startswith("PUBLIC_TOKEN_")
+
     def authenticate(self) -> None:
         self.token = (
             self.token

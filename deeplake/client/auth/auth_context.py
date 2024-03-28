@@ -19,6 +19,11 @@ class AuthContext(ABC):
     def get_token(self) -> Optional[str]:
         pass
 
+    # Return True if the user has no authentication token
+    @abstractmethod
+    def is_public_user(self) -> bool:
+        pass
+
     @abstractmethod
     def authenticate(self) -> None:
         """
