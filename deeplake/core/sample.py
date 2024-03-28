@@ -351,9 +351,14 @@ class Sample:
                 buffer = bytes(self._buffer)
                 self._array = bytes_to_text(buffer, self.htype)
             else:
-                self._array = np.frombuffer(self._buffer, dtype=self.dtype).reshape(
-                    self.shape
-                )
+                try:
+                    self._array = np.frombuffer(self._buffer, dtype=self.dtype).reshape(
+                        self.shape
+                    )
+                except Exception as e:
+                    raise e.__class__(
+                        f"Failed to decompress buffer of length {len(self._buffer)} into {self.shape} {self.dtype} array"
+                    ) from e
 
         else:
             compressed = self.buffer
