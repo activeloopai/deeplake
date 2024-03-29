@@ -79,7 +79,7 @@ def filter_dataset(
     ):
         # Looks like user did not call the @deeplake.compute decorated function before passing it to filter
         # because the signature matches the "inner" function in deeplake/core/transform/transform.py
-        filter_function = filter_function()
+        filter_function = filter_function()  # type: ignore
 
     tm = time()
 
