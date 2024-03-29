@@ -120,7 +120,7 @@ def sync_labels(
                 target_tensor.meta._disable_temp_transform = True
                 target_tensor.meta.is_dirty = True
 
-                logger.info("Synchronizing class labels...")
+                logger.info(f"Synchronizing class labels for tensor '{tensor}'...")
                 class_label_sync(label_tensor=tensor, hash_idx_map=hash_idx_map).eval(
                     ds[temp_tensor],
                     ds,
