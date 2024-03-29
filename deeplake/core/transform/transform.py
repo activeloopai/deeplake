@@ -640,6 +640,7 @@ def compute(
     - ``TransformError``: All other exceptions raised if there are problems while running the pipeline.
     """
 
+    # Note: the name and signature of this method is checked for in deeplake/core/query/filter.py:filter_dataset()
     def inner(*args, **kwargs):
         return ComputeFunction(fn, args, kwargs, name)
 
