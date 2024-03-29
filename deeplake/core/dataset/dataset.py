@@ -3514,7 +3514,6 @@ class Dataset:
         unlink=True,
     ):
         """Writes the indices of this view to a vds."""
-        tql_query = getattr(self, "_tql_query", None)
         vds._allow_view_updates = True
         try:
             with vds:
@@ -3525,29 +3524,23 @@ class Dataset:
                         num_workers=num_workers,
                         scheduler=scheduler,
                         unlink=unlink,
-                        create_vds_index_tensor=(
-                            True
-                            if tql_query is None
-                            or self.index.values[0].value != slice(None)
-                            else False
-                        ),
+                        create_vds_index_tensor=True,
                         ignore_errors=ignore_errors,
                     )
                 else:
-                    if tql_query is None or self.index.values[0].value != slice(None):
-                        vds.create_tensor(
-                            "VDS_INDEX",
+                    vds.create_tensor(
+                        "VDS_INDEX",
+                        dtype="uint64",
+                        create_shape_tensor=False,
+                        create_id_tensor=False,
+                        create_sample_info_tensor=False,
+                    ).extend(
+                        np.array(
+                            tuple(self.index.values[0].indices(self.num_samples)),
                             dtype="uint64",
-                            create_shape_tensor=False,
-                            create_id_tensor=False,
-                            create_sample_info_tensor=False,
-                        ).extend(
-                            np.array(
-                                tuple(self.index.values[0].indices(self.num_samples)),
-                                dtype="uint64",
-                            ),
-                            progressbar=True,
-                        )
+                        ),
+                        progressbar=True,
+                    )
                     info["first-index-subscriptable"] = self.index.subscriptable_at(0)
                     if len(self.index) > 1:
                         info["sub-sample-index"] = Index(
@@ -3855,19 +3848,16 @@ class Dataset:
         ds.version_state = ds.version_state.copy()
         ds._checkout(commit_id, verbose=False)
         first_index_subscriptable = self.info.get("first-index-subscriptable", True)
-        if hasattr(self, "VDS_INDEX"):
-            if first_index_subscriptable:
-                index_entries = [
-                    IndexEntry(self.VDS_INDEX.numpy().reshape(-1).tolist())
-                ]
-            else:
-                index_entries = [IndexEntry(int(self.VDS_INDEX.numpy()))]
-            sub_sample_index = self.info.get("sub-sample-index")
-            if sub_sample_index:
-                index_entries += Index.from_json(sub_sample_index).values
-            ret = ds[Index(index_entries)]
+        if first_index_subscriptable:
+            index_entries = [
+                IndexEntry(self.VDS_INDEX.numpy().reshape(-1).tolist())
+            ]
         else:
-            ret = ds[Index(item=slice(None))]
+            index_entries = [IndexEntry(int(self.VDS_INDEX.numpy()))]
+        sub_sample_index = self.info.get("sub-sample-index")
+        if sub_sample_index:
+            index_entries += Index.from_json(sub_sample_index).values
+        ret = ds[Index(index_entries)]
 
         ret._vds = self
         return ret
