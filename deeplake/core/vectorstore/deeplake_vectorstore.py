@@ -144,6 +144,8 @@ class VectorStore:
                 embedding_function=embedding_function,
                 creds=self.dataset_handler.creds,
             )
+        else:
+            self.deep_memory = False
 
     def add(
         self,
