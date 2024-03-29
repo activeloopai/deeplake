@@ -357,7 +357,7 @@ class Sample:
                     )
                 except Exception as e:
                     raise e.__class__(
-                        f"Failed to decompress buffer of length {len(self._buffer)} into {self.shape} {self.dtype} array"
+                        f"Failed to decompress buffer of length {len(self._buffer)} into {self.shape} {self.dtype} array (path={self.path})"
                     ) from e
 
         else:
