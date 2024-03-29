@@ -135,14 +135,15 @@ class VectorStore:
             **kwargs,
         )
 
-        self.deep_memory = DeepMemory(
-            dataset=self.dataset_handler.dataset,
-            path=self.dataset_handler.path,
-            token=self.dataset_handler.token,
-            logger=logger,
-            embedding_function=embedding_function,
-            creds=self.dataset_handler.creds,
-        )
+        if kwargs.get("deep_memory", None) is None or kwargs.get("deep_memory", False):
+            self.deep_memory = DeepMemory(
+                dataset=self.dataset_handler.dataset,
+                path=self.dataset_handler.path,
+                token=self.dataset_handler.token,
+                logger=logger,
+                embedding_function=embedding_function,
+                creds=self.dataset_handler.creds,
+            )
 
     def add(
         self,
