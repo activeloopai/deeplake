@@ -41,6 +41,7 @@ class VectorStore:
         org_id: Optional[str] = None,
         logger: logging.Logger = logger,
         branch: str = "main",
+        deep_memory_load: bool = True,
         **kwargs: Any,
     ) -> None:
         """Creates an empty VectorStore or loads an existing one if it exists at the specified ``path``.
@@ -113,8 +114,6 @@ class VectorStore:
         """
 
         kwargs.pop("num_workers", None)
-        use_deep_memory = kwargs.get("deep_memory", None) is None or kwargs.get("deep_memory", False)
-        kwargs.pop("deep_memory", None)
 
         self.dataset_handler = get_dataset_handler(
             path=path,
@@ -137,7 +136,7 @@ class VectorStore:
             **kwargs,
         )
 
-        if use_deep_memory:
+        if deep_memory_load:
             self.deep_memory = DeepMemory(
                 dataset=self.dataset_handler.dataset,
                 path=self.dataset_handler.path,
