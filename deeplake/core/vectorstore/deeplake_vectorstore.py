@@ -113,6 +113,8 @@ class VectorStore:
         """
 
         kwargs.pop("num_workers", None)
+        use_deep_memory = kwargs.get("deep_memory", None) is None or kwargs.get("deep_memory", False)
+        kwargs.pop("deep_memory", None)
 
         self.dataset_handler = get_dataset_handler(
             path=path,
@@ -135,7 +137,7 @@ class VectorStore:
             **kwargs,
         )
 
-        if kwargs.get("deep_memory", None) is None or kwargs.get("deep_memory", False):
+        if use_deep_memory:
             self.deep_memory = DeepMemory(
                 dataset=self.dataset_handler.dataset,
                 path=self.dataset_handler.path,
