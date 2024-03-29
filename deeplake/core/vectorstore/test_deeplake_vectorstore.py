@@ -2902,6 +2902,7 @@ def returning_tql_for_exec_option_python_should_throw_exception(local_path):
         db.search(embedding=query_embedding, return_tql=True)
 
 
+@requires_libdeeplake
 def test_returning_tql_for_exec_option_compute_engine_should_return_correct_tql(
     local_path,
     hub_cloud_dev_token,

@@ -3849,9 +3849,7 @@ class Dataset:
         ds._checkout(commit_id, verbose=False)
         first_index_subscriptable = self.info.get("first-index-subscriptable", True)
         if first_index_subscriptable:
-            index_entries = [
-                IndexEntry(self.VDS_INDEX.numpy().reshape(-1).tolist())
-            ]
+            index_entries = [IndexEntry(self.VDS_INDEX.numpy().reshape(-1).tolist())]
         else:
             index_entries = [IndexEntry(int(self.VDS_INDEX.numpy()))]
         sub_sample_index = self.info.get("sub-sample-index")
