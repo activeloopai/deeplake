@@ -4,7 +4,6 @@ from typing import Callable, List, Optional
 from itertools import repeat
 from deeplake.core.compute.provider import ComputeProvider, get_progress_bar
 from deeplake.core.storage.memory import MemoryProvider
-from deeplake.core.tensor import Tensor
 from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.compute import get_compute_provider
 from deeplake.util.path import relpath
@@ -327,23 +326,16 @@ class Pipeline:
                         suggest=suggest,
                     ) from e
                 finally:
-                    try:
-                        reload_and_rechunk(
-                            overwrite,
-                            original_data_in,
-                            target_ds,
-                            initial_autoflush,
-                            pad_data_in,
-                            initial_padding_state,
-                            kwargs,
-                            completed,
-                        )
-                    except Exception as e:
-                        if isinstance(data_in, Tensor):
-                            raise e.__class__(
-                                f"Error reloading/rechunking tensor {data_in.key}"
-                            ) from e
-                        raise e
+                    reload_and_rechunk(
+                        overwrite,
+                        original_data_in,
+                        target_ds,
+                        initial_autoflush,
+                        pad_data_in,
+                        initial_padding_state,
+                        kwargs,
+                        completed,
+                    )
         finally:
             close_states(compute_provider, pbar, pqueue)
 

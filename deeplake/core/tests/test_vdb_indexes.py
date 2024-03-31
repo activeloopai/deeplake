@@ -236,6 +236,7 @@ def test_index_maintenance_update(local_auth_ds_generator):
         ds.embeddings.unload_vdb_index_cache()
 
 
+@pytest.mark.slow
 @requires_libdeeplake
 def test_index_maintenance_delete(local_auth_ds_generator):
     ds = local_auth_ds_generator()
