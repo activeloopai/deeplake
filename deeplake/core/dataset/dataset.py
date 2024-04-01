@@ -3856,7 +3856,6 @@ class Dataset:
         if sub_sample_index:
             index_entries += Index.from_json(sub_sample_index).values
         ret = ds[Index(index_entries)]
-
         ret._vds = self
         return ret
 

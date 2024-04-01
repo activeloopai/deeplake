@@ -1,7 +1,6 @@
 from typing import Callable, Dict, List, Optional, Union
 import deeplake
 
-# from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 from deeplake.enterprise.dummy_dataloader import DummyDataloader  # type: ignore
 from deeplake.util.scheduling import create_fetching_schedule, find_primary_tensor
 from deeplake.core.seed import DeeplakeRandom
@@ -116,7 +115,6 @@ class DeepLakeDataLoader(DataLoader):
         _verbose=False,
         _offset=None,
         _pin_memory=False,
-        _pin_memory_device="",
         **kwargs,
     ):
         import_indra_loader()
@@ -144,7 +142,6 @@ class DeepLakeDataLoader(DataLoader):
         self._verbose = _verbose
         self._offset = _offset
         self._pin_memory = _pin_memory
-        self._pin_memory_device = (_pin_memory_device,)
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -488,7 +485,6 @@ class DeepLakeDataLoader(DataLoader):
         decode_method: Optional[Dict[str, str]] = None,
         persistent_workers: bool = False,
         pin_memory: bool = False,
-        pin_memory_device: Optional[str] = "",
     ):
         """Returns a :class:`DeepLakeDataLoader` object.
 
@@ -503,7 +499,6 @@ class DeepLakeDataLoader(DataLoader):
             return_index (bool): Used to idnetify where loader needs to retur sample index or not. Defaults to ``True``.
             persistent_workers (bool): If ``True``, the data loader will not shutdown the worker processes after a dataset has been consumed once. Defaults to ``False``.
             pin_memory (bool): If ``True``, the data loader will copy Tensors into device/CUDA pinned memory before returning them. Defaults to ``False``.
-            pin_memory_device (str, optional): the data loader will copy Tensors into device pinned memory before returning them if pin_memory is set to true.
             decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to ``None``.
 
 
@@ -561,7 +556,6 @@ class DeepLakeDataLoader(DataLoader):
         all_vars["_persistent_workers"] = persistent_workers
         all_vars["_dataloader"] = None
         all_vars["_pin_memory"] = pin_memory
-        all_vars["_pin_memory_device"] = pin_memory_device or ""
         if distributed:
             all_vars["_world_size"] = torch.distributed.get_world_size()
         return self.__class__(**all_vars)
@@ -799,7 +793,6 @@ class DeepLakeDataLoader(DataLoader):
             offset=self._offset,
             worker_init_fn=self.worker_init_fn,
             pin_memory=self.pin_memory,
-            pin_memory_device=self.pin_memory_device,
         )
 
         return INDRA_LOADER(  # type: ignore [misc]
