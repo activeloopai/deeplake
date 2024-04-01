@@ -127,6 +127,7 @@ def test_view_from_different_commit(local_ds):
         assert view3.is_optimized
 
 
+@pytest.mark.slow
 def test_save_view_ignore_errors(local_ds):
     with local_ds as ds:
         ds.create_tensor(
