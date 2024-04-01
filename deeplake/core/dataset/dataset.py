@@ -2294,8 +2294,8 @@ class Dataset:
             >>>
             >>>
             >>> dataset_append().eval(
-            >>>                 ds,
-            >>>                 ds_2,
+            >>>                 ds_in,
+            >>>                 ds_out,
             >>>                 num_workers = 2
             >>>            )
         """
