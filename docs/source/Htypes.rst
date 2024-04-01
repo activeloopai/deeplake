@@ -10,11 +10,9 @@ Htypes
 
 Htype is the class of a tensor: image, bounding box, generic tensor, etc.
 
-The htype of a tensor can be specified at its creation
+It is highly recommended to specify the htype during tensor creation. For numeric tensors, if htype is not specified, it defaults to "generic".
 
 >>> ds.create_tensor("my_tensor", htype="...")
-
-If not specified, the tensor's htype defaults to "generic".
 
 Specifying an htype allows for strict settings and error handling, and it is critical for increasing the performance of Deep Lake datasets containing rich data such as images and videos.
 

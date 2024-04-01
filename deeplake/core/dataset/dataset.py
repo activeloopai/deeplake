@@ -2278,10 +2278,26 @@ class Dataset:
 
 
         Example:
-            Following filters are identical and return dataset view where all the samples have label equals to 2.
+            Return dataset view where all the samples have label equals to 2:
 
             >>> dataset.filter(lambda sample: sample.labels.numpy() == 2)
-            >>> dataset.filter('labels == 2')
+
+
+            Append one dataset onto another (only works if their structure is identical):
+
+            >>> @deeplake.compute
+            >>> def dataset_append(sample_in, sample_out):
+            >>>
+            >>>     sample_out.append(sample_in.tensors)
+            >>>
+            >>>     return sample_out
+            >>>
+            >>>
+            >>> dataset_append().eval(
+            >>>                 ds,
+            >>>                 ds_2,
+            >>>                 num_workers = 2
+            >>>            )
         """
         from deeplake.core.query import filter_dataset, query_dataset
 
