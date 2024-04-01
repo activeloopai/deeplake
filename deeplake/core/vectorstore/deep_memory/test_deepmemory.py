@@ -669,6 +669,7 @@ def test_not_supported_training_args(corpus_query_relevances_copy, hub_cloud_dev
         )
 
 
+@pytest.mark.slow
 def test_deepmemory_v2_set_model_should_set_model_for_all_subsequent_loads(
     local_dmv2_dataset,
     hub_cloud_dev_token,
