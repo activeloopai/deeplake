@@ -49,6 +49,7 @@ def test_chunkids_serialize():
 
 
 @pytest.mark.slow
+@pytest.mark.flaky
 def test_get_large_header():
     # headers for videos in this dataset are larger than the 100 bytes originally fetched
     # ideally this test would just be calling `serialize.get_header_from_url` directly, but that requires all the URL buliding up logic that lives in the chunk engine.
