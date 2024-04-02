@@ -106,7 +106,6 @@ class DeepLakeDataLoader(DataLoader):
         _return_index=None,
         _primary_tensor_name=None,
         _buffer_size=None,
-        _orig_dataset=None,
         _decode_method=None,
         _persistent_workers=None,
         _dataloader=None,
@@ -119,7 +118,6 @@ class DeepLakeDataLoader(DataLoader):
     ):
         import_indra_loader()
         self.dataset = dataset
-        self._orig_dataset = _orig_dataset or dataset
         self._batch_size = _batch_size
         self._shuffle = _shuffle
         self._num_threads = _num_threads
@@ -282,9 +280,9 @@ class DeepLakeDataLoader(DataLoader):
 
     def __len__(self):
         len_ds = (
-            len(self._orig_dataset[self._tensors])
+            len(self.dataset[self._tensors])
             if self._tensors is not None
-            else len(self._orig_dataset)
+            else len(self.dataset)
         )
         round_fn = math.floor if self._drop_last else math.ceil
         return round_fn(len_ds / ((self.batch_size) * self._world_size))
@@ -836,7 +834,7 @@ class DeepLakeDataLoader(DataLoader):
 
     def __iter__(self):
         if self._dataloader is None:
-            dataset = self._orig_dataset
+            dataset = self.dataset
             tensors = self._tensors or map_tensor_keys(dataset, None)
 
             (
@@ -892,7 +890,7 @@ class DeepLakeDataLoader(DataLoader):
                     tensor_info_dict=tensor_info_dict,
                 )
 
-        dataset_read(self._orig_dataset)
+        dataset_read(self.dataset)
 
         if self._iterator is not None:
             self._iterator = iter(self._dataloader)
