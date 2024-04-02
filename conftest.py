@@ -19,6 +19,9 @@ import deeplake.client.config
 
 deeplake.client.config.USE_STAGING_ENVIRONMENT = True
 
+from indra import api
+api.backend.set_endpoint("https://app-staging.activeloop.dev")
+
 from deeplake.constants import *
 from deeplake.tests.common import SESSION_ID
 
