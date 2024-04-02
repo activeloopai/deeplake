@@ -909,7 +909,7 @@ def dataloader(
 
 
         >>> import deeplake
-        >>> from deeplake.enterprise import dataloader
+        >>> from deeplake.enterprise.dataloader import dataloader
         >>>
         >>> ds_train = deeplake.load('hub://activeloop/fashion-mnist-train')
         >>> train_loader = dataloader(ds_train).numpy()

@@ -2242,7 +2242,7 @@ class Dataset:
             ...     pass
 
         """
-        from deeplake.enterprise import dataloader
+        from deeplake.enterprise.dataloader import dataloader
 
         deeplake_reporter.feature_report(feature_name="dataloader", parameters={})
 
