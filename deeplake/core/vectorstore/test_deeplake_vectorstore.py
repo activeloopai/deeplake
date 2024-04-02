@@ -2696,6 +2696,7 @@ def test_uuid_fix(local_path):
     )
 
 
+@pytest.mark.slow
 def test_read_only():
     db = VectorStore("hub://davitbun/twitter-algorithm")
     assert db.dataset_handler.dataset.read_only == True

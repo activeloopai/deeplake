@@ -2,6 +2,7 @@ import pytest
 import deeplake
 
 
+@pytest.mark.flaky
 @pytest.mark.slow
 def test_mnist():
     ds = deeplake.load("hub://activeloop/mnist-test")
