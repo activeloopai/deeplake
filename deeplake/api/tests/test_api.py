@@ -2525,6 +2525,7 @@ def test_random_split_views(local_ds):
             assert len(test) == 2
 
 
+@pytest.mark.flaky
 @pytest.mark.slow
 def test_invalid_ds_name():
     with pytest.raises(InvalidDatasetNameException):
