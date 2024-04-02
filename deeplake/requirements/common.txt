@@ -1,5 +1,5 @@
 numpy
-pillow
+pillow~=10.2.0
 boto3
 click
 google-cloud-storage~=1.42.0
