@@ -71,6 +71,16 @@ def filter_dataset(
 ) -> deeplake.Dataset:
     index_map: List[int]
 
+    if (
+        hasattr(filter_function, "__name__")
+        and filter_function.__name__ == "inner"
+        and list(inspect.signature(filter_function).parameters.keys())
+        == ["args", "kwargs"]
+    ):
+        # Looks like user did not call the @deeplake.compute decorated function before passing it to filter
+        # because the signature matches the "inner" function in deeplake/core/transform/transform.py
+        filter_function = filter_function()  # type: ignore
+
     tm = time()
 
     query_text = _filter_function_to_query_text(filter_function)

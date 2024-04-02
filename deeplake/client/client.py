@@ -349,6 +349,9 @@ class DeepLakeBackendClient:
         Returns:
             list: user/organization names
         """
+        if self.auth_context.is_public_user():
+            return ["public"]
+
         response = self.request(
             "GET", GET_USER_PROFILE, endpoint=self.endpoint()
         ).json()

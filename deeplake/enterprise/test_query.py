@@ -46,6 +46,7 @@ def test_query_on_local_datasets(local_ds, hub_cloud_dev_token):
     assert len(dsv) == 20
 
 
+@pytest.mark.slow
 @requires_libdeeplake
 def test_default_query_message(hub_cloud_ds_generator):
     with hub_cloud_ds_generator() as ds:

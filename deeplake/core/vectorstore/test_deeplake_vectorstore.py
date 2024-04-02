@@ -2696,6 +2696,7 @@ def test_uuid_fix(local_path):
     )
 
 
+@pytest.mark.slow
 def test_read_only():
     db = VectorStore("hub://davitbun/twitter-algorithm")
     assert db.dataset_handler.dataset.read_only == True
@@ -2706,6 +2707,7 @@ def test_delete_by_path_wrong_path():
         VectorStore.delete_by_path("some_path")
 
 
+@pytest.mark.slow
 @requires_libdeeplake
 def test_exec_option_with_auth(local_path, hub_cloud_path, hub_cloud_dev_token):
     db = VectorStore(path=local_path)
@@ -2902,6 +2904,7 @@ def returning_tql_for_exec_option_python_should_throw_exception(local_path):
         db.search(embedding=query_embedding, return_tql=True)
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_returning_tql_for_exec_option_compute_engine_should_return_correct_tql(
     local_path,
     hub_cloud_dev_token,

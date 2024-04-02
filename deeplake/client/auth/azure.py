@@ -33,6 +33,9 @@ class AzureAuthContext(AuthContext):
 
         return DefaultAzureCredential()
 
+    def is_public_user(self) -> bool:
+        return False
+
     def get_token(self) -> str:
         self.authenticate()
 
