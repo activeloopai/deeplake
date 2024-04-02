@@ -219,14 +219,14 @@ class IndraDatasetView(Dataset):
 
     @deeplake_reporter.record_call
     def dataloader(self, ignore_errors: bool = False, verbose: bool = False):
-        """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object.
+        """Returns a :class:`~deeplake.enterprise.dataloader.DeepLakeDataLoader` object.
 
         Args:
             ignore_errors (bool): If ``True``, the data loader will ignore errors appeared during data iteration otherwise it will collect the statistics and report appeared errors. Default value is ``False``
             verbose (bool): If ``True``, the data loader will dump verbose logs of it's steps. Default value is ``False``
 
         Returns:
-            ~deeplake.enterprise.DeepLakeDataLoader: A :class:`deeplake.enterprise.DeepLakeDataLoader` object.
+            ~deeplake.enterprise.dataloader.DeepLakeDataLoader: A :class:`deeplake.enterprise.dataloader.DeepLakeDataLoader` object.
         
         Examples:
 
@@ -286,7 +286,7 @@ class IndraDatasetView(Dataset):
         - Users of our Community plan can create dataloaders on Activeloop datasets ("hub://activeloop/..." datasets).
         - To run queries on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
         """
-        from deeplake.enterprise import DeepLakeDataLoader
+        from deeplake.enterprise.dataloader import DeepLakeDataLoader
 
         dataloader = DeepLakeDataLoader(
             self,
