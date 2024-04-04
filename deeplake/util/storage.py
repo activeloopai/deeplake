@@ -28,6 +28,7 @@ def storage_provider_from_path(
     token: Optional[str] = None,
     is_hub_path: bool = False,
     db_engine: bool = False,
+    indra: bool = False,
 ):
     """Construct a StorageProvider given a path.
 
@@ -39,6 +40,7 @@ def storage_provider_from_path(
         token (str): token for authentication into activeloop.
         is_hub_path (bool): Whether the path points to a Deep Lake dataset.
         db_engine (bool): Whether to use Activeloop DB Engine. Only applicable for hub:// paths.
+        indra (bool): If true creates indra storage provider.
 
     Returns:
         If given a path starting with s3:// returns the S3Provider.
@@ -53,8 +55,15 @@ def storage_provider_from_path(
     """
     if creds is None:
         creds = {}
-    if path.startswith("hub://"):
-        storage: StorageProvider = storage_provider_from_hub_path(
+
+    if indra:
+        from deeplake.core.storage.indra import IndraProvider
+
+        storage: StorageProvider = IndraProvider(
+            path, read_only=read_only, token=token, creds=creds
+        )
+    elif path.startswith("hub://"):
+        storage = storage_provider_from_hub_path(
             path, read_only, db_engine=db_engine, token=token, creds=creds
         )
     else:
@@ -125,7 +134,7 @@ def get_dataset_credentials(
     mode: Optional[str],
     db_engine: bool,
 ):
-    # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
+    # this will give the proper url(s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
     try:
         url, final_creds, mode, expiration, repo = client.get_dataset_credentials(
             org_id, ds_name, mode=mode, db_engine={"enabled": db_engine}
@@ -144,6 +153,7 @@ def storage_provider_from_hub_path(
     db_engine: bool = False,
     token: Optional[str] = None,
     creds: Optional[Union[dict, str]] = None,
+    indra: bool = False,
 ):
     path, org_id, ds_name, subdir = process_hub_path(path)
     client = DeepLakeBackendClient(token=token)
@@ -187,7 +197,12 @@ def storage_provider_from_hub_path(
         print(msg)
 
     storage = storage_provider_from_path(
-        path=url, creds=final_creds, read_only=read_only, is_hub_path=True, token=token
+        path=url,
+        creds=final_creds,
+        read_only=read_only,
+        is_hub_path=True,
+        token=token,
+        indra=indra,
     )
     storage.creds_used = creds_used
     if creds_used == "PLATFORM":
@@ -204,6 +219,7 @@ def get_storage_and_cache_chain(
     memory_cache_size,
     local_cache_size,
     db_engine=False,
+    indra=False,
 ):
     """
     Returns storage provider and cache chain for a given path, according to arguments passed.
@@ -217,6 +233,7 @@ def get_storage_and_cache_chain(
         memory_cache_size (int): The size of the in-memory cache to use.
         local_cache_size (int): The size of the local cache to use.
         db_engine (bool): Whether to use Activeloop DB Engine, only applicable for hub:// paths.
+        indra (bool): If true creates indra storage provider.
 
     Returns:
         A tuple of the storage provider and the storage chain.
@@ -228,6 +245,7 @@ def get_storage_and_cache_chain(
         creds=creds,
         read_only=read_only,
         token=token,
+        indra=indra,
     )
     memory_cache_size_bytes = memory_cache_size * MB
     local_cache_size_bytes = local_cache_size * MB

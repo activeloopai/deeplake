@@ -30,54 +30,68 @@ from deeplake.core.dataset import Dataset
 
 import warnings
 
-from deeplake.core.dataset.deeplake_query_tensor import DeepLakeQueryTensor
+from deeplake.core.dataset.indra_tensor_view import IndraTensorView
 
 
-class DeepLakeQueryDataset(Dataset):
+class IndraDatasetView(Dataset):
     def __init__(
         self,
-        deeplake_ds,
         indra_ds,
         group_index="",
         enabled_tensors=None,
-        index: Optional[Index] = None,
     ):
-        if isinstance(deeplake_ds, DeepLakeQueryDataset):
-            deeplake_ds = deeplake_ds.deeplake_ds
         d: Dict[str, Any] = {}
-        d["deeplake_ds"] = deeplake_ds
         d["indra_ds"] = indra_ds
-        d["group_index"] = (
-            group_index or deeplake_ds.group_index if deeplake_ds is not None else ""
-        )
-        d["enabled_tensors"] = (
-            enabled_tensors or deeplake_ds.enabled_tensors
-            if deeplake_ds is not None
-            else None
-        )
-        d["version_state"] = (
-            deeplake_ds.version_state if deeplake_ds is not None else {}
-        )
-        d["_index"] = (
-            index or deeplake_ds.index
-            if deeplake_ds is not None
-            else Index(item=slice(None))
-        )
+        d["group_index"] = ""
+        d["enabled_tensors"] = None
+        d["verbose"] = False
         self.__dict__.update(d)
+        self._view_base = None
+        self._view_entry = None
+        self._read_only = True
+        self._locked_out = False
+        self._query_string = None
+        try:
+            from deeplake.core.storage.indra import IndraProvider
 
-    @property
-    def read_only(self):
-        if self.deeplake_ds is not None:
-            return self.deeplake_ds.read_only
-        return True
+            self.storage = IndraProvider(indra_ds.storage)
+            self._read_only = self.storage.read_only
+            self._token = self.storage.token
+        except:
+            pass
 
     @property
     def meta(self):
-        return self.deeplake_ds.meta if self.deeplake_ds is not None else DatasetMeta()
+        return DatasetMeta()
 
     @property
     def path(self):
-        return self.deeplake_ds.path if self.deeplake_ds is not None else ""
+        try:
+            return self.storage.original_path
+        except:
+            return ""
+
+    @property
+    def version_state(self) -> Dict:
+        try:
+            state = self.indra_ds.version_state
+            for k, v in state["full_tensors"].items():
+                state["full_tensors"][k] = IndraTensorView(v)
+            return state
+        except:
+            return dict()
+
+    @property
+    def branches(self):
+        return self.indra_ds.branches
+
+    @property
+    def commits(self) -> List[Dict]:
+        return self.indra_ds.commits
+
+    @property
+    def commit_id(self) -> str:
+        return self.indra_ds.commit_id
 
     @property
     def libdeeplake_dataset(self):
@@ -89,23 +103,21 @@ class DeepLakeQueryDataset(Dataset):
         )
 
     def checkout(self, address: str, create: bool = False):
-        raise InvalidOperationError(
-            "checkout", "checkout method cannot be called on a Dataset view."
-        )
+        if create:
+            raise InvalidOperationError(
+                "checkout", "Cannot create new branch on Dataset View."
+            )
+        self.indra_ds.checkout(address)
+
+    def flush(self):
+        pass
 
     def _get_tensor_from_root(self, fullpath):
         tensors = self.indra_ds.tensors
         for tensor in tensors:
             if tensor.name == fullpath:
-                deeplake_tensor = None
-                try:
-                    deeplake_tensor = self.deeplake_ds.__getattr__(fullpath)
-                except:
-                    pass
                 indra_tensor = tensor
-                return DeepLakeQueryTensor(
-                    deeplake_tensor, indra_tensor, index=self.index
-                )
+                return IndraTensorView(indra_tensor)
 
     def pytorch(
         self,
@@ -151,18 +163,9 @@ class DeepLakeQueryDataset(Dataset):
                 tensor = self._get_tensor_from_root(fullpath)
                 if tensor is not None:
                     return tensor
-            if self.deeplake_ds is not None and self.deeplake_ds._has_group_in_root(
-                fullpath
-            ):
-                ret = DeepLakeQueryDataset(
-                    deeplake_ds=self.deeplake_ds,
-                    indra_ds=self.indra_ds,
-                    index=self.index,
-                    group_index=posixpath.join(self.group_index, item),
-                )
             elif "/" in item:
                 splt = posixpath.split(item)
-                ret = self[splt[0]][splt[1]]
+                return self[splt[0]][splt[1]]
             else:
                 raise TensorDoesNotExistError(item)
         elif isinstance(item, (int, slice, list, tuple, Index, type(Ellipsis))):
@@ -185,11 +188,9 @@ class DeepLakeQueryDataset(Dataset):
                     )
                     for x in item
                 ]
-                ret = DeepLakeQueryDataset(
-                    deeplake_ds=self.deeplake_ds,
+                return IndraDatasetView(
                     indra_ds=self.indra_ds,
                     enabled_tensors=enabled_tensors,
-                    index=self.index,
                 )
             elif isinstance(item, tuple) and len(item) and isinstance(item[0], str):
                 ret = self
@@ -197,36 +198,20 @@ class DeepLakeQueryDataset(Dataset):
                     ret = self[x]
                 return ret
             else:
-                if not is_iteration and isinstance(item, int):
-                    is_iteration = check_if_iteration(self._indexing_history, item)
-                    if is_iteration and SHOW_ITERATION_WARNING:
-                        warnings.warn(
-                            "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
-                        )
-                ret = DeepLakeQueryDataset(
-                    deeplake_ds=self.deeplake_ds,
+                return IndraDatasetView(
                     indra_ds=self.indra_ds[item],
-                    index=self.index[item],
                 )
         else:
             raise InvalidKeyTypeError(item)
-
-        if hasattr(self, "_view_entry"):
-            ret._view_entry = self._view_entry
-        return ret
+        raise AttributeError("Dataset has no attribute - {item}")
 
     def __getattr__(self, key):
         try:
-            return self.__getitem__(key)
-        except TensorDoesNotExistError as ke:
-            try:
-                return getattr(self.deeplake_ds, key)
-            except AttributeError:
-                raise AttributeError(
-                    f"'{self.__class__}' object has no attribute '{key}'"
-                ) from ke
+            ret = self.__getitem__(key)
         except AttributeError:
-            return getattr(self.indra_ds, key)
+            ret = getattr(self.indra_ds, key)
+        ret._view_entry = self._view_entry
+        return ret
 
     def __len__(self):
         return len(self.indra_ds)
@@ -315,8 +300,15 @@ class DeepLakeQueryDataset(Dataset):
         return self
 
     @property
+    def base_storage(self):
+        return self.storage
+
+    @property
     def index(self):
-        return self._index
+        try:
+            return Index(self.indra_ds.indexes)
+        except:
+            return Index(slice(0, len(self)))
 
     @property
     def sample_indices(self):
@@ -330,39 +322,18 @@ class DeepLakeQueryDataset(Dataset):
     def _all_tensors_filtered(
         self, include_hidden: bool = True, include_disabled=True
     ) -> List[str]:
-        if self.deeplake_ds is not None:
-            return self.deeplake_ds._all_tensors_filtered(
-                include_hidden, include_disabled
-            )
-
         indra_tensors = self.indra_ds.tensors
         return list(t.name for t in indra_tensors)
 
     def _tensors(
         self, include_hidden: bool = True, include_disabled=True
-    ) -> Dict[str, Tensor]:
+    ) -> Dict[str, IndraTensorView]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
-        original_tensors = (
-            self.deeplake_ds._tensors(include_hidden, include_disabled)
-            if self.deeplake_ds is not None
-            else {}
-        )
         indra_tensors = self.indra_ds.tensors
-        indra_keys = set(t.name for t in indra_tensors)
-        original_tensors = {
-            k: v for k, v in original_tensors.items() if k in indra_keys or v.hidden
-        }
-        original_keys = set(original_tensors.keys())
+        ret = {}
         for t in indra_tensors:
-            if t.name in original_keys:
-                original_tensors[t.name] = DeepLakeQueryTensor(
-                    original_tensors[t.name], t, index=self.index
-                )
-            else:
-                original_tensors[t.name] = DeepLakeQueryTensor(
-                    None, t, index=self.index
-                )
-        return original_tensors
+            ret[t.name] = IndraTensorView(t)
+        return ret
 
     def __str__(self):
         path_str = ""
@@ -397,4 +368,4 @@ class DeepLakeQueryDataset(Dataset):
             lengths = calculate_absolute_lengths(lengths, len(self))
 
         vs = self.indra_ds.random_split(lengths)
-        return [DeepLakeQueryDataset(self.deeplake_ds, v) for v in vs]
+        return [IndraDatasetView(indra_ds=v) for v in vs]
