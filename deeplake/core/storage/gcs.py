@@ -248,6 +248,7 @@ class GCSProvider(StorageProvider):
         Raises:
             ModuleNotFoundError: If google cloud packages aren't installed.
         """
+        super().__init__()
 
         try:
             import google.cloud.storage  # type: ignore
@@ -323,9 +324,10 @@ class GCSProvider(StorageProvider):
     def _get_path_from_key(self, key):
         return posixpath.join(self.path, key)
 
-    def _all_keys(self):
+    def _all_keys_impl(self, refresh: bool = False):
         self._blob_objects = self.client_bucket.list_blobs(prefix=self.path)
-        return {posixpath.relpath(obj.name, self.path) for obj in self._blob_objects}
+        all = {posixpath.relpath(obj.name, self.path) for obj in self._blob_objects}
+        return [f for f in all if not f.endswith("/")]
 
     def _set_hub_creds_info(
         self,
@@ -349,7 +351,7 @@ class GCSProvider(StorageProvider):
         self.db_engine = db_engine
         self.repository = repository
 
-    def clear(self, prefix=""):
+    def _clear_impl(self, prefix=""):
         """Remove all keys with given prefix below root - empties out mapping.
 
         Warning:
@@ -384,11 +386,11 @@ class GCSProvider(StorageProvider):
         if not self.path.endswith("/"):
             self.path += "/"
 
-    def __getitem__(self, key):
+    def _getitem_impl(self, key):
         """Retrieve data."""
-        return self.get_bytes(key)
+        return self._get_bytes_impl(key)
 
-    def get_bytes(
+    def _get_bytes_impl(
         self,
         path: str,
         start_byte: Optional[int] = None,
@@ -418,7 +420,7 @@ class GCSProvider(StorageProvider):
         except self.missing_exceptions:
             raise KeyError(path)
 
-    def __setitem__(self, key, value):
+    def _setitem_impl(self, key: str, value: bytes):
         """Store value in key."""
         self.check_readonly()
         blob = self.client_bucket.blob(self._get_path_from_key(key))
@@ -428,15 +430,7 @@ class GCSProvider(StorageProvider):
             value = bytes(value)
         blob.upload_from_string(value, retry=self.retry)
 
-    def __iter__(self):
-        """Iterating over the structure."""
-        yield from [f for f in self._all_keys() if not f.endswith("/")]
-
-    def __len__(self):
-        """Returns length of the structure."""
-        return len(self._all_keys())
-
-    def __delitem__(self, key):
+    def _delitem_impl(self, key):
         """Remove key."""
         self.check_readonly()
         blob = self.client_bucket.blob(self._get_path_from_key(key))
@@ -445,7 +439,7 @@ class GCSProvider(StorageProvider):
         except self.missing_exceptions:
             raise KeyError(key)
 
-    def __contains__(self, key):
+    def _contains_impl(self, key):
         """Checks if key exists in mapping."""
         from google.cloud import storage  # type: ignore
 
@@ -463,6 +457,7 @@ class GCSProvider(StorageProvider):
             self.read_only,
             self.db_engine,
             self.repository,
+            self._temp_data,
         )
 
     def __setstate__(self, state):
@@ -473,6 +468,7 @@ class GCSProvider(StorageProvider):
         self.read_only = state[4]
         self.db_engine = state[5]
         self.repository = state[6]
+        self._temp_data = state[7]
         self._initialize_provider()
 
     def get_presigned_url(self, key, full=False):

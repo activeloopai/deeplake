@@ -29,6 +29,7 @@ class LocalProvider(StorageProvider):
         Raises:
             FileAtPathException: If the root is a file instead of a directory.
         """
+        super().__init__()
         if os.path.isfile(root):
             raise FileAtPathException(root)
         self.root = root
@@ -48,25 +49,7 @@ class LocalProvider(StorageProvider):
         sd.read_only = read_only
         return sd
 
-    def __getitem__(self, path: str):
-        """Gets the object present at the path within the given byte range.
-
-        Example:
-
-            >>> local_provider = LocalProvider("/home/ubuntu/Documents/")
-            >>> my_data = local_provider["abc.txt"]
-
-        Args:
-            path (str): The path relative to the root of the provider.
-
-        Returns:
-            bytes: The bytes of the object present at the path.
-
-        Raises:
-            KeyError: If an object is not found at the path.
-            DirectoryAtPathException: If a directory is found at the path.
-            Exception: Any other exception encountered while trying to fetch the object.
-        """
+    def _getitem_impl(self, path: str):
         try:
             full_path = self._check_is_file(path)
             with open(full_path, "rb") as file:
@@ -76,24 +59,7 @@ class LocalProvider(StorageProvider):
         except FileNotFoundError:
             raise KeyError(path)
 
-    def __setitem__(self, path: str, value: bytes):
-        """Sets the object present at the path with the value
-
-        Example:
-
-            >>> local_provider = LocalProvider("/home/ubuntu/Documents/")
-            >>> local_provider["abc.txt"] = b"abcd"
-
-        Args:
-            path (str): the path relative to the root of the provider.
-            value (bytes): the value to be assigned at the path.
-
-        Raises:
-            Exception: If unable to set item due to directory at path or permission or space issues.
-            FileAtPathException: If the directory to the path is a file instead of a directory.
-            ReadOnlyError: If the provider is in read-only mode.
-        """
-        self.check_readonly()
+    def _setitem_impl(self, path: str, value: bytes):
         full_path = self._check_is_file(path)
         directory = os.path.dirname(full_path)
         if os.path.isfile(directory):
@@ -105,24 +71,7 @@ class LocalProvider(StorageProvider):
         if self.files is not None:
             self.files.add(path)
 
-    def __delitem__(self, path: str):
-        """Delete the object present at the path.
-
-        Example:
-
-            >>> local_provider = LocalProvider("/home/ubuntu/Documents/")
-            >>> del local_provider["abc.txt"]
-
-        Args:
-            path (str): the path to the object relative to the root of the provider.
-
-        Raises:
-            KeyError: If an object is not found at the path.
-            DirectoryAtPathException: If a directory is found at the path.
-            Exception: Any other exception encountered while trying to fetch the object.
-            ReadOnlyError: If the provider is in read-only mode.
-        """
-        self.check_readonly()
+    def _delitem_impl(self, path: str):
         try:
             full_path = self._check_is_file(path)
             os.remove(full_path)
@@ -133,42 +82,7 @@ class LocalProvider(StorageProvider):
         except FileNotFoundError:
             raise KeyError
 
-    def __iter__(self):
-        """Generator function that iterates over the keys of the provider.
-
-        Example:
-
-            >>> local_provider = LocalProvider("/home/ubuntu/Documents/")
-            >>> for my_data in local_provider:
-            ...    pass
-
-        Yields:
-            str: the path of the object that it is iterating over, relative to the root of the provider.
-        """
-        yield from self._all_keys()
-
-    def __len__(self):
-        """Returns the number of files present inside the root of the provider.
-
-        Example:
-
-            >>> local_provider = LocalProvider("/home/ubuntu/Documents/")
-            >>> len(local_provider)
-
-        Returns:
-            int: the number of files present inside the root.
-        """
-        return len(self._all_keys())
-
-    def _all_keys(self, refresh: bool = False) -> Set[str]:
-        """Lists all the objects present at the root of the Provider.
-
-        Args:
-            refresh (bool): refresh keys
-
-        Returns:
-            set: set of all the objects found at the root of the Provider.
-        """
+    def _all_keys_impl(self, refresh: bool = False) -> Set[str]:
         if self.files is None or refresh:
             full_path = os.path.expanduser(self.root)
             key_set = set()
@@ -195,6 +109,10 @@ class LocalProvider(StorageProvider):
         Raises:
             DirectoryAtPathException: If a directory is found at the path.
         """
+
+        if self._is_temp(path):
+            return path
+
         full_path = posixpath.join(self.root, path)
         full_path = os.path.expanduser(full_path)
         full_path = str(pathlib.Path(full_path))
@@ -202,9 +120,8 @@ class LocalProvider(StorageProvider):
             raise DirectoryAtPathException
         return full_path
 
-    def clear(self, prefix=""):
+    def _clear_impl(self, prefix=""):
         """Deletes ALL data with keys having given prefix on the local machine (under self.root). Exercise caution!"""
-        self.check_readonly()
         full_path = os.path.expanduser(self.root)
         if prefix and self.files:
             self.files = set(file for file in self.files if not file.startswith(prefix))
@@ -221,15 +138,16 @@ class LocalProvider(StorageProvider):
         os.rename(self.root, path)
         self.root = path
 
-    def __contains__(self, key) -> bool:
+    def _contains_impl(self, key) -> bool:
         full_path = self._check_is_file(key)
         return os.path.exists(full_path)
 
     def __getstate__(self):
-        return self.root
+        return {"root": self.root, "_temp_data": self._temp_data}
 
     def __setstate__(self, state):
-        self.__init__(state)
+        self.__init__(state["root"])
+        self._temp_data = state.get("_temp_data", {})
 
     def get_presigned_url(self, key: str) -> str:
         return os.path.join(self.root, key)
@@ -237,7 +155,7 @@ class LocalProvider(StorageProvider):
     def get_object_size(self, key: str) -> int:
         return os.stat(os.path.join(self.root, key)).st_size
 
-    def get_bytes(
+    def _get_bytes_impl(
         self,
         path: str,
         start_byte: Optional[int] = None,

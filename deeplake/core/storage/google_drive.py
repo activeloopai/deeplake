@@ -106,6 +106,7 @@ class GDriveProvider(StorageProvider):
             - Due to limits on requests per 100 seconds on google drive api, continuous requests such as uploading many small files can be slow.
             - Users can request to increse their quotas on their google cloud platform.
         """
+        super().__init__()
         try:
             import googleapiclient  # type: ignore
             from google.auth.transport.requests import Request  # type: ignore
@@ -279,7 +280,7 @@ class GDriveProvider(StorageProvider):
         file.seek(0)
         return file.read()
 
-    def __getitem__(self, path):
+    def _getitem_impl(self, path):
         id = self._get_id(path)
         if not id:
             raise KeyError(path)
@@ -307,7 +308,7 @@ class GDriveProvider(StorageProvider):
         lock_hash = "." + hash_inputs(self.root_id, path)
         os.remove(lock_hash)
 
-    def __setitem__(self, path, content):
+    def _setitem_impl(self, path, content):
         self.check_readonly()
         id = self._get_id(path)
         if not id:
@@ -330,7 +331,7 @@ class GDriveProvider(StorageProvider):
         self._write_to_file(id, content)
         return
 
-    def __delitem__(self, path):
+    def _delitem_impl(self, path):
         self.check_readonly()
         id = self._pop_id(path)
         if not id:
@@ -344,6 +345,7 @@ class GDriveProvider(StorageProvider):
             self.client_id,
             self.client_secret,
             self.refresh_token,
+            self._temp_data,
         )
 
     def __setstate__(self, state):
@@ -352,19 +354,14 @@ class GDriveProvider(StorageProvider):
         self.client_id = state[2]
         self.client_secret = state[3]
         self.refresh_token = state[4]
+        self._temp_data = state[5]
         self._init_from_state()
 
-    def _all_keys(self):
+    def _all_keys_impl(self, refresh: bool = False):
         keys = set(self.gid.path_id_map.keys())
         return keys
 
-    def __iter__(self):
-        yield from self._all_keys()
-
-    def __len__(self):
-        return len(self._all_keys())
-
-    def clear(self, prefix=""):
+    def _clear_impl(self, prefix=""):
         self.check_readonly()
         for key in self._all_keys():
             if key.startswith(prefix):

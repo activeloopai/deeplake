@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import MutableMapping
-from typing import Optional, Set, Sequence, Dict
+from typing import Optional, Set, Sequence, Dict, final
 
 from deeplake.constants import BYTE_PADDING
 from deeplake.util.assert_byte_indexes import assert_byte_indexes
@@ -35,8 +35,39 @@ class StorageProvider(ABC, MutableMapping):
     To add a new provider using Provider, create a subclass and implement all 5 abstract methods below.
     """
 
-    @abstractmethod
+    def __init__(self):
+        self._temp_data: dict[str, bytes] = {}
+
+    def _is_temp(self, key: str) -> bool:
+        """Check if the key is a temporary key and shouldn't be persisted to storage"""
+        return key.startswith("__temp")
+
+    @final
     def __getitem__(self, path: str):
+        """Gets the object present at the path within the given byte range.
+
+        Example:
+
+            >>> my_data = my_provider["abc.txt"]
+
+        Args:
+            path (str): The path relative to the root of the provider.
+
+        Returns:
+            bytes: The bytes of the object present at the path.
+
+        Raises:
+            KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
+        """
+        if self._is_temp(path):
+            return self._temp_data[path]
+
+        return self._getitem_impl(path)
+
+    @abstractmethod
+    def _getitem_impl(self, path: str):
         """Gets the object present at the path within the given byte range.
 
         Args:
@@ -49,6 +80,7 @@ class StorageProvider(ABC, MutableMapping):
             KeyError: If an object is not found at the path.
         """
 
+    @final
     def get_bytes(
         self,
         path: str,
@@ -69,11 +101,46 @@ class StorageProvider(ABC, MutableMapping):
             InvalidBytesRequestedError: If `start_byte` > `end_byte` or `start_byte` < 0 or `end_byte` < 0.
             KeyError: If an object is not found at the path.
         """
+        if self._is_temp(path):
+            return self._temp_data[path]
+
+        return self._get_bytes_impl(path, start_byte, end_byte)
+
+    def _get_bytes_impl(
+        self,
+        path: str,
+        start_byte: Optional[int] = None,
+        end_byte: Optional[int] = None,
+    ):
         assert_byte_indexes(start_byte, end_byte)
         return self[path][start_byte:end_byte]
 
-    @abstractmethod
     def __setitem__(self, path: str, value: bytes):
+        """Sets the object present at the path with the value
+
+        Example:
+
+            >>> my_provider["abc.txt"] = b"abcd"
+
+        Args:
+            path (str): the path relative to the root of the provider.
+            value (bytes): the value to be assigned at the path.
+
+        Raises:
+            Exception: If unable to set item due to directory at path or permission or space issues.
+            FileAtPathException: If the directory to the path is a file instead of a directory.
+            ReadOnlyError: If the provider is in read-only mode.
+        """
+        # print(f"Setitem: {path} in {self}")
+        self.check_readonly()
+        if self._is_temp(path):
+            self._temp_data[path] = value
+            return
+
+        self._setitem_impl(path, value)
+
+    @abstractmethod
+    def _setitem_impl(self, path: str, value: bytes):
         """Sets the object present at the path with the value
 
         Args:
@@ -119,40 +186,83 @@ class StorageProvider(ABC, MutableMapping):
                 value = value.rjust(end_byte, BYTE_PADDING)
             self[path] = value
 
-    @abstractmethod
+    @final
+    def __contains__(self, key) -> bool:
+        if self._is_temp(key):
+            return key in self._temp_data
+
+        return self._contains_impl(key)
+
+    def _contains_impl(self, key) -> bool:
+        """Check if the key exists in the provider."""
+        return key in self._all_keys_impl()
+
+    @final
     def __iter__(self):
         """Generator function that iterates over the keys of the provider.
+
+        Example:
+
+            >>> for my_data in my_provider:
+            ...    pass
 
         Yields:
             str: the path of the object that it is iterating over, relative to the root of the provider.
         """
+        yield from self._all_keys()
 
     @abstractmethod
-    def _all_keys(self) -> Set[str]:
-        """Generator function that iterates over the keys of the provider.
+    def _all_keys_impl(self, refresh: bool = False) -> Set[str]:
+        pass
+
+    @final
+    def _all_keys(self, refresh: bool = False) -> Set[str]:
+        """Lists all the objects present at the root of the Provider.
+
+        Args:
+            refresh (bool): refresh keys
 
         Returns:
-            set: set of all keys present at the root of the provider.
+            set: set of all the objects found at the root of the Provider.
         """
+        return set.union(set(self._all_keys_impl(refresh)), set(self._temp_data.keys()))
 
-    @abstractmethod
+    @final
     def __delitem__(self, path: str):
         """Delete the object present at the path.
+
+        Example:
+
+            >>> del my_provider["abc.txt"]
 
         Args:
             path (str): the path to the object relative to the root of the provider.
 
         Raises:
             KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
+            ReadOnlyError: If the provider is in read-only mode.
         """
+        self.check_readonly()
+
+        if self._is_temp(path):
+            del self._temp_data[path]
+            return
+        self._delitem_impl(path)
 
     @abstractmethod
+    def _delitem_impl(self, path: str):
+        """Delete the object present at the path."""
+
+    @final
     def __len__(self):
         """Returns the number of files present inside the root of the provider.
 
         Returns:
             int: the number of files present inside the root.
         """
+        return len(self._all_keys()) + len(self._temp_data)
 
     def enable_readonly(self):
         """Enables read-only mode for the provider."""
@@ -180,8 +290,22 @@ class StorageProvider(ABC, MutableMapping):
         if self.autoflush:
             self.flush()
 
-    @abstractmethod
+    @final
     def clear(self, prefix=""):
+        """Delete the contents of the provider."""
+        self.check_readonly()
+
+        if prefix:
+            self._temp_data = {
+                k: v for k, v in self._temp_data.items() if not k.startswith(prefix)
+            }
+        else:
+            self._temp_data = {}
+
+        self._clear_impl(prefix)
+
+    @abstractmethod
+    def _clear_impl(self, prefix=""):
         """Delete the contents of the provider."""
 
     def delete_multiple(self, paths: Sequence[str]):
