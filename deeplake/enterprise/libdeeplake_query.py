@@ -1,5 +1,5 @@
 from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
-from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
+from deeplake.core.dataset.indra_dataset_view import IndraDatasetView
 from typing import Optional, Union
 from deeplake.constants import INDRA_DATASET_SAMPLES_THRESHOLD
 
@@ -35,7 +35,7 @@ def query(dataset, query_string: str):
         >>> ds_train = deeplake.load('hub://activeloop/coco-train')
         >>> query_ds_train = query(ds_train, "(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
     """
-    if isinstance(dataset, DeepLakeQueryDataset):
+    if isinstance(dataset, IndraDatasetView):
         ds = dataset.indra_ds
     elif dataset.libdeeplake_dataset is not None:
         ds = dataset.libdeeplake_dataset
@@ -49,11 +49,11 @@ def query(dataset, query_string: str):
     dsv = ds.query(query_string)
     from deeplake.enterprise.convert_to_libdeeplake import INDRA_API
 
-    if not isinstance(dataset, DeepLakeQueryDataset) and INDRA_API.tql.parse(query_string).is_filter and len(dsv.indexes) < INDRA_DATASET_SAMPLES_THRESHOLD:  # type: ignore
+    if not isinstance(dataset, IndraDatasetView) and INDRA_API.tql.parse(query_string).is_filter and len(dsv.indexes) < INDRA_DATASET_SAMPLES_THRESHOLD:  # type: ignore
         indexes = list(dsv.indexes)
         return dataset.no_view_dataset[indexes]
     else:
-        view = DeepLakeQueryDataset(deeplake_ds=dataset, indra_ds=dsv)
+        view = IndraDatasetView(indra_ds=dsv)
         view._tql_query = query_string
         if hasattr(dataset, "is_actually_cloud"):
             view.is_actually_cloud = dataset.is_actually_cloud
@@ -158,6 +158,6 @@ def universal_query(query_string: str, token: Optional[str]):
 
     api = import_indra_api()
     dsv = api.tql.query(query_string, token)
-    view = DeepLakeQueryDataset(deeplake_ds=None, indra_ds=dsv)
+    view = IndraDatasetView(indra_ds=dsv)
     view._tql_query = query_string
     return view

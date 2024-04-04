@@ -11,38 +11,24 @@ from deeplake.util.pretty_print import summary_tensor
 import json
 
 
-class DeepLakeQueryTensor(tensor.Tensor):
+class IndraTensorView(tensor.Tensor):
     def __init__(
         self,
-        deeplake_tensor,
         indra_tensor,
-        index: Optional[Index] = None,
         is_iteration: bool = False,
     ):
-        self.deeplake_tensor = deeplake_tensor
         self.indra_tensor = indra_tensor
         self.is_iteration = is_iteration
 
-        self.key = (
-            deeplake_tensor.key
-            if hasattr(deeplake_tensor, "key")
-            else indra_tensor.name
-        )
+        self.key = indra_tensor.name
 
         self.first_dim = None
 
-        self._index = index or Index(self.indra_tensor.index)
-
     def __getattr__(self, key):
         try:
-            return getattr(self.deeplake_tensor, key)
+            return getattr(self.indra_tensor, key)
         except AttributeError:
-            try:
-                return getattr(self.indra_tensor, key)
-            except AttributeError:
-                raise AttributeError(
-                    f"'{self.__class__}' object has no attribute '{key}'"
-                )
+            raise AttributeError(f"'{self.__class__}' object has no attribute '{key}'")
 
     def __getitem__(
         self,
@@ -55,12 +41,8 @@ class DeepLakeQueryTensor(tensor.Tensor):
         if isinstance(item, tuple) or item is Ellipsis:
             item = replace_ellipsis_with_slices(item, self.ndim)
 
-        indra_tensor = self.indra_tensor[item]
-
-        return DeepLakeQueryTensor(
-            self.deeplake_tensor,
-            indra_tensor,
-            index=self.index[item],
+        return IndraTensorView(
+            self.indra_tensor[item],
             is_iteration=is_iteration,
         )
 
@@ -72,6 +54,8 @@ class DeepLakeQueryTensor(tensor.Tensor):
             return r
         else:
             try:
+                if self.index.values[0].subscriptable():
+                    r = r[0]
                 return np.array(r)
             except ValueError:
                 raise DynamicTensorNumpyError(self.name, self.index, "shape")
@@ -103,7 +87,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
         htype = self.indra_tensor.htype
         if self.indra_tensor.is_sequence:
             htype = f"sequence[{htype}]"
-        if self.deeplake_tensor.is_link:
+        if self.indra_tensor.is_link:
             htype = f"link[{htype}]"
         return htype
 
@@ -162,9 +146,10 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def index(self):
-        if self._index is not None:
-            return self._index
-        return Index(self.indra_tensor.indexes)
+        try:
+            return Index(self.indra_tensor.indexes)
+        except:
+            return Index(slice(0, len(self)))
 
     @property
     def shape_interval(self):
@@ -186,16 +171,14 @@ class DeepLakeQueryTensor(tensor.Tensor):
     @property
     def meta(self):
         """Metadata of the tensor."""
-        if self.deeplake_tensor is None:
-            return TensorMeta(
-                htype=self.indra_tensor.htype,
-                dtype=self.indra_tensor.dtype,
-                sample_compression=self.indra_tensor.sample_compression,
-                chunk_compression=None,
-                is_sequence=self.indra_tensor.is_sequence,
-                is_link=False,
-            )
-        return self.deeplake_tensor.chunk_engine.tensor_meta
+        return TensorMeta(
+            htype=self.indra_tensor.htype,
+            dtype=self.indra_tensor.dtype,
+            sample_compression=self.indra_tensor.sample_compression,
+            chunk_compression=None,
+            is_sequence=self.indra_tensor.is_sequence,
+            is_link=False,
+        )
 
     @property
     def base_htype(self):
