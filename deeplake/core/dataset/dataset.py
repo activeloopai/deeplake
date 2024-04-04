@@ -295,6 +295,7 @@ class Dataset:
         self._initial_autoflush: List[bool] = (
             []
         )  # This is a stack to support nested with contexts
+
         self._indexing_history: List[int] = []
 
         if not self.read_only:
@@ -4608,7 +4609,6 @@ class Dataset:
         self,
         info,
         path: str,
-        new_path: str,
         tensors: Optional[List[str]] = None,
         external=False,
         unlink=True,
@@ -4637,7 +4637,7 @@ class Dataset:
                 progressbar=progressbar,
             )
         optimized.info.update(vds.info.__getstate__())
-        return (vds, optimized)
+        return (vds, optimized, new_path)
 
     def _optimize_saved_view(
         self,
@@ -4665,11 +4665,9 @@ class Dataset:
                         # Already optimized
                         return info
                     path = info.get("path", info["id"])
-                    new_path = path + "_OPTIMIZED"
-                    old, new = self._optimize_and_copy_view(
+                    old, new, new_path = self._optimize_and_copy_view(
                         info,
                         path,
-                        new_path,
                         tensors=tensors,
                         unlink=unlink,
                         num_workers=num_workers,

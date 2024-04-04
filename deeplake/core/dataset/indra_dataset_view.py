@@ -116,7 +116,6 @@ class IndraDatasetView(Dataset):
         tensors = self.indra_ds.tensors
         for tensor in tensors:
             if tensor.name == fullpath:
-                deeplake_tensor = None
                 indra_tensor = tensor
                 return IndraTensorView(indra_tensor)
 
