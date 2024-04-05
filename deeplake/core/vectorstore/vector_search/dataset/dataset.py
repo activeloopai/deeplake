@@ -38,16 +38,7 @@ def create_or_load_dataset(
     branch="main",
     **kwargs,
 ):
-    try:
-        from indra import api  # type: ignore
-
-        _INDRA_INSTALLED = True  # pragma: no cover
-    except ImportError:  # pragma: no cover
-        _INDRA_INSTALLED = False  # pragma: no cover
-
-    utils.check_indra_installation(
-        exec_option=exec_option, indra_installed=_INDRA_INSTALLED
-    )
+    utils.check_indra_installation(exec_option=exec_option)
 
     if not overwrite and dataset_exists(dataset_path, token, creds, **kwargs):
         if tensor_params is not None and tensor_params != DEFAULT_VECTORSTORE_TENSORS:
