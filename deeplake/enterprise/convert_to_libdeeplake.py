@@ -4,7 +4,6 @@ from deeplake.constants import MB
 from deeplake.core.storage.gcs import GCSProvider
 from deeplake.enterprise.util import raise_indra_installation_error  # type: ignore
 from deeplake.core.storage import S3Provider
-from deeplake.core.storage.indra import IndraProvider
 from deeplake.core.storage.azure import AzureProvider
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.exceptions import EmptyTokenException
@@ -46,11 +45,6 @@ def import_indra_api():
 INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
 
 
-def _get_indra_ds_from_native_provider(provider: IndraProvider):
-    api = import_indra_api()
-    return api.dataset(provider.core)
-
-
 def _get_indra_ds_from_azure_provider(
     path: str,
     token: str,
@@ -65,16 +59,15 @@ def _get_indra_ds_from_azure_provider(
     sas_token = provider.get_sas_token()
     expiration = str(provider.expiration) if provider.expiration else None
 
-    storage = IndraProvider(
+    return api.dataset(
         path,
-        read_only=provider.read_only,
+        origin_path=provider.root,
         token=token,
         account_name=account_name,
         account_key=account_key,
         sas_token=sas_token,
         expiration=expiration,
     )
-    return _get_indra_ds_from_native_provider(storage)
 
 
 def _get_indra_ds_from_gcp_provider(
@@ -95,11 +88,10 @@ def _get_indra_ds_from_gcp_provider(
     scheme = creds.get("scheme", "")
     retry_limit_seconds = creds.get("retry_limit_seconds", "")
 
-    storage = IndraProvider(
+    return api.dataset(
         path,
-        read_only=provider.read_only,
-        token=token,
         origin_path=provider.root,
+        token=token,
         anon=anon,
         expiration=expiration,
         access_token=access_token,
@@ -108,7 +100,6 @@ def _get_indra_ds_from_gcp_provider(
         scheme=scheme,
         retry_limit_seconds=retry_limit_seconds,
     )
-    return _get_indra_ds_from_native_provider(storage)
 
 
 def _get_indra_ds_from_s3_provider(
@@ -124,11 +115,10 @@ def _get_indra_ds_from_s3_provider(
     creds_used = provider.creds_used
     if creds_used == "PLATFORM":
         provider._check_update_creds()
-        storage = IndraProvider(
+        return api.dataset(
             path,
-            read_only=provider.read_only,
-            token=token,
             origin_path=provider.root,
+            token=token,
             aws_access_key_id=provider.aws_access_key_id,
             aws_secret_access_key=provider.aws_secret_access_key,
             aws_session_token=provider.aws_session_token,
@@ -136,36 +126,30 @@ def _get_indra_ds_from_s3_provider(
             endpoint_url=provider.endpoint_url,
             expiration=str(provider.expiration),
         )
-        return _get_indra_ds_from_native_provider(storage)
     elif creds_used == "ENV":
-        storage = IndraProvider(
+        return api.dataset(
             path,
-            read_only=provider.read_only,
-            token=token,
             origin_path=provider.root,
+            token=token,
             profile_name=provider.profile_name,
         )
-        return _get_indra_ds_from_native_provider(storage)
     elif creds_used == "DICT":
-        storage = IndraProvider(
+        return api.dataset(
             path,
-            read_only=provider.read_only,
-            token=token,
             origin_path=provider.root,
+            token=token,
             aws_access_key_id=provider.aws_access_key_id,
             aws_secret_access_key=provider.aws_secret_access_key,
             aws_session_token=provider.aws_session_token,
             region_name=provider.aws_region,
             endpoint_url=provider.endpoint_url,
         )
-        return _get_indra_ds_from_native_provider(storage)
 
 
 def dataset_to_libdeeplake(hub2_dataset: Dataset):
     """Convert a hub 2.x dataset object to a libdeeplake dataset object."""
     try_flushing(hub2_dataset)
     api = import_indra_api()
-
     path: str = hub2_dataset.path
 
     token = (
@@ -176,11 +160,7 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
     )
     if token is None or token == "":
         raise EmptyTokenException
-    if hub2_dataset.libdeeplake_dataset is not None:
-        libdeeplake_dataset = hub2_dataset.libdeeplake_dataset
-    elif isinstance(hub2_dataset.storage.next_storage, IndraProvider):
-        libdeeplake_dataset = api.dataset(hub2_dataset.storage.next_storage.core)
-    else:
+    if hub2_dataset.libdeeplake_dataset is None:
         libdeeplake_dataset = None
         if path.startswith("gdrive://"):
             raise ValueError("Gdrive datasets are not supported for libdeeplake")
@@ -201,10 +181,6 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
             elif isinstance(provider, AzureProvider):
                 libdeeplake_dataset = _get_indra_ds_from_azure_provider(
                     path=path, token=token, provider=provider
-                )
-            elif isinstance(provider, IndraProvider):
-                libdeeplake_dataset = _get_indra_ds_from_native_provider(
-                    provider=provider
                 )
             else:
                 raise ValueError("Unknown storage provider for hub:// dataset")
@@ -232,18 +208,16 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
             org_id = (
                 org_id or jwt.decode(token, options={"verify_signature": False})["id"]
             )
-            storage = IndraProvider(
-                path, read_only=hub2_dataset.read_only, token=token, org_id=org_id
-            )
-            libdeeplake_dataset = api.dataset(storage.core)
+            libdeeplake_dataset = api.dataset(path, token=token, org_id=org_id)
 
         hub2_dataset.libdeeplake_dataset = libdeeplake_dataset
+    else:
+        libdeeplake_dataset = hub2_dataset.libdeeplake_dataset
 
     assert libdeeplake_dataset is not None
-    if hasattr(hub2_dataset.storage, "cache_size"):
-        libdeeplake_dataset._max_cache_size = max(
-            hub2_dataset.storage.cache_size, libdeeplake_dataset._max_cache_size
-        )
+    libdeeplake_dataset._max_cache_size = max(
+        hub2_dataset.storage.cache_size, libdeeplake_dataset._max_cache_size
+    )
     commit_id = hub2_dataset.pending_commit_id
     libdeeplake_dataset.checkout(commit_id)
     slice_ = hub2_dataset.index.values[0].value

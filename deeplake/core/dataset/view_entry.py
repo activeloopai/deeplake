@@ -74,7 +74,7 @@ class ViewEntry:
         if self.virtual:
             ds = ds._get_view(inherit_creds=not self._external)
 
-        if self.virtual and not self.tql_query is None:
+        if not self.tql_query is None:
             query_str = self.tql_query
             ds = ds.query(query_str)
 
@@ -120,6 +120,8 @@ class ViewEntry:
             Exception: When query view cannot be optimized.
 
         """
+        if not self.tql_query is None:
+            raise Exception("Optimizing nonlinear query views is not supported")
         self.info = self._ds._optimize_saved_view(
             self.info["id"],
             tensors=tensors,
