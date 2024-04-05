@@ -43,9 +43,6 @@ def import_indra_api():
         return api
 
 
-INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
-
-
 def _get_indra_ds_from_native_provider(provider: IndraProvider):
     api = import_indra_api()
     return api.dataset(provider.core)

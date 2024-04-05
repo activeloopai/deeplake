@@ -7,6 +7,7 @@ from typing import Optional, List, Dict, Tuple
 
 import deeplake
 from deeplake.constants import MB, DEFAULT_VECTORSTORE_INDEX_PARAMS, TARGET_BYTE_SIZE
+from deeplake.enterprise.util import INDRA_INSTALLED
 from deeplake.util.exceptions import TensorDoesNotExistError
 from deeplake.util.warnings import always_warn
 from deeplake.core.dataset import DeepLakeCloudDataset, Dataset
@@ -41,9 +42,8 @@ class ExecOptionBase(ABC):
 
 
 class ExecOptionCloudDataset(ExecOptionBase):
-    def __init__(self, dataset, indra_installed, username, path_type):
+    def __init__(self, dataset, username, path_type):
         self.dataset = dataset
-        self.indra_installed = indra_installed
         self.client = dataset.client
         self.token = self.dataset.token
         self.username = username
@@ -59,20 +59,15 @@ class ExecOptionCloudDataset(ExecOptionBase):
             return "tensor_db"
         # option 2: dataset is created in a linked storage or locally,
         # indra is installed user/org has access to indra
-        elif (
-            self.path_type == "hub"
-            and self.indra_installed
-            and self.username != "public"
-        ):
+        elif self.path_type == "hub" and INDRA_INSTALLED and self.username != "public":
             return "compute_engine"
         else:
             return "python"
 
 
 class ExecOptionLocalDataset(ExecOptionBase):
-    def __init__(self, dataset, indra_installed, username):
+    def __init__(self, dataset, username):
         self.dataset = dataset
-        self.indra_installed = indra_installed
         self.token = self.dataset.token
         self.username = username
 
@@ -83,21 +78,21 @@ class ExecOptionLocalDataset(ExecOptionBase):
         if "mem://" in self.dataset.path:
             return "python"
 
-        if self.indra_installed and self.username != "public":
+        if INDRA_INSTALLED and self.username != "public":
             return "compute_engine"
         return "python"
 
 
-def exec_option_factory(dataset, indra_installed, username):
+def exec_option_factory(dataset, username):
     path_type = get_path_type(dataset.path)
     if path_type == "local":
-        return ExecOptionLocalDataset(dataset, indra_installed, username)
-    return ExecOptionCloudDataset(dataset, indra_installed, username, path_type)
+        return ExecOptionLocalDataset(dataset, username)
+    return ExecOptionCloudDataset(dataset, username, path_type)
 
 
-def parse_exec_option(dataset, exec_option, indra_installed, username):
+def parse_exec_option(dataset, exec_option, username):
     if exec_option is None or exec_option == "auto":
-        exec_option = exec_option_factory(dataset, indra_installed, username)
+        exec_option = exec_option_factory(dataset, username)
         return exec_option.get_exec_option()
     return exec_option
 
@@ -136,8 +131,8 @@ def parse_return_tensors(dataset, return_tensors, embedding_tensor, return_view)
     return return_tensors
 
 
-def check_indra_installation(exec_option, indra_installed):
-    if exec_option == "compute_engine" and not indra_installed:
+def check_indra_installation(exec_option):
+    if exec_option == "compute_engine" and not INDRA_INSTALLED:
         from deeplake.enterprise.util import raise_indra_installation_error
 
         raise raise_indra_installation_error(

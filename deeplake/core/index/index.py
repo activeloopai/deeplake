@@ -198,13 +198,14 @@ class IndexEntry:
 
     def subscriptable(self):
         """Returns whether an IndexEntry can be further subscripted."""
-        try:
+
+        from deeplake.enterprise.util import INDRA_INSTALLED
+
+        if INDRA_INSTALLED:
             from indra import api  # type: ignore
 
             if isinstance(self.value, api.core.IndexMappingInt64):
                 return self.value.subscriptable()
-        except ImportError:
-            pass
 
         return not isinstance(self.value, int)
 

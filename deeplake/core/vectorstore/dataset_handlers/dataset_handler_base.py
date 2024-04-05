@@ -40,13 +40,6 @@ class DHBase(ABC):
         logger: logging.Logger,
         **kwargs: Any,
     ):
-        try:
-            from indra import api  # type: ignore
-
-            self.indra_installed = True
-        except Exception:  # pragma: no cover
-            self.indra_installed = False  # pragma: no cover
-
         self._exec_option = exec_option
 
         self.path: Optional[str] = None
@@ -104,9 +97,7 @@ class DHBase(ABC):
 
     @property
     def exec_option(self) -> str:
-        return utils.parse_exec_option(
-            self.dataset, self._exec_option, self.indra_installed, self.username
-        )
+        return utils.parse_exec_option(self.dataset, self._exec_option, self.username)
 
     @property
     def username(self) -> str:
