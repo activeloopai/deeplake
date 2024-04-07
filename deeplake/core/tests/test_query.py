@@ -1,6 +1,6 @@
 import deeplake
 from deeplake.tests.common import requires_libdeeplake
-from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
+from deeplake.core.dataset.indra_dataset_view import IndraDatasetView
 from deeplake.client.client import DeepLakeBackendClient
 import pytest
 import numpy as np
