@@ -8,7 +8,8 @@
 Deep Lake API Reference
 =======================
 
-Deep Lake is an open-source database for AI.
+Deep Lake is an open-source database for AI. This page contains the Deep Lake API reference, mostly focusing on codebase documentation.
+For tutorials, code examples, and high-level information, please check out the `Deep Lake Docs <https://docs.activeloop.ai/>`_.
 
 .. toctree::
    :maxdepth: 2
