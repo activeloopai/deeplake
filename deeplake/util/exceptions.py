@@ -860,6 +860,17 @@ class ManagedCredentialsNotFoundError(Exception):
         )
 
 
+class MacOSEnvironmentError(Exception):
+    def __init__(self):
+        message = (
+            "When using the multiprocessing mode 'fork' on MacOS, "
+            "you need to execute the following commands in the terminal:\n"
+            "export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES\n"
+            "export NO_PROXY=*"
+        )
+        super().__init__(message)
+
+
 class UnableToReadFromUrlError(Exception):
     def __init__(self, url, status_code):
         super().__init__(f"Unable to read from url {url}. Status code: {status_code}")
