@@ -96,14 +96,11 @@ class IndraProvider(StorageProvider):
     def _delitem_impl(self, path):
         return self.core.remove(path)
 
-    def _all_keys_impl(self):
+    def _all_keys_impl(self, refresh: bool = False):
         return self.core.list("")
 
     def _len_impl(self):
         return len(self.core.list(""))
-
-    def __iter__(self):
-        return iter(self.core.list(""))
 
     def _clear_impl(self, prefix=""):
         self.core.clear(prefix)
