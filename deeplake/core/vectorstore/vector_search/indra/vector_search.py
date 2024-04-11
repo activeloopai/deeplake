@@ -22,13 +22,6 @@ def vector_search(
     org_id,
     return_tql,
 ) -> Union[Dict, DeepLakeDataset]:
-    try:
-        from indra import api  # type: ignore
-
-        _INDRA_INSTALLED = True  # pragma: no cover
-    except ImportError:  # pragma: no cover
-        _INDRA_INSTALLED = False  # pragma: no cover
-
     runtime = utils.get_runtime_from_exec_option(exec_option)
 
     if callable(filter):
@@ -36,7 +29,7 @@ def vector_search(
             f"UDF filter functions are not supported with the current `exec_option`={exec_option}. "
         )
 
-    utils.check_indra_installation(exec_option, indra_installed=_INDRA_INSTALLED)
+    utils.check_indra_installation(exec_option)
 
     view, tql_filter = filter_utils.attribute_based_filtering_tql(
         view=dataset,

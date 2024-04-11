@@ -1,7 +1,6 @@
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.core.partial_reader import PartialReader
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
-from indra.api import storage  # type: ignore
 from typing import Optional, Union, Dict
 
 
@@ -10,10 +9,12 @@ class IndraProvider(StorageProvider):
 
     def __init__(
         self,
-        root: Union[str, storage.provider],
+        root,  # Union[str, storage.provider],
         read_only: Optional[bool] = False,
         **kwargs,
     ):
+        from indra.api import storage  # type: ignore
+
         if isinstance(root, str):
             self.core = storage.create(root, read_only, **kwargs)
         else:
