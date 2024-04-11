@@ -192,6 +192,8 @@ class AzureProvider(StorageProvider):
         }
 
     def __getstate__(self):
+        super()._getstate_prepare()
+
         return {
             "root": self.root,
             "creds": self.creds,

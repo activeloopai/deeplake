@@ -44,11 +44,24 @@ class DatasetMeta(Meta):
         self.is_dirty = True
 
     def __getstate__(self) -> Dict[str, Any]:
+        # d = super().__getstate__()
+        # d["tensors"] = self.tensors.copy()
+        # d["groups"] = self.groups.copy()
+        # d["tensor_names"] = self.tensor_names.copy()
+        # d["hidden_tensors"] = self.hidden_tensors.copy()
+        # d["default_index"] = self.default_index.copy()
+        # d["allow_delete"] = self._allow_delete
+        # return d
+
         d = super().__getstate__()
-        d["tensors"] = self.tensors.copy()
+        d["tensors"] = list(filter(lambda x: (not x.startswith("__temp")), self.tensors))
         d["groups"] = self.groups.copy()
-        d["tensor_names"] = self.tensor_names.copy()
-        d["hidden_tensors"] = self.hidden_tensors.copy()
+
+        d["tensor_names"] = {
+            k: v for k, v in self.tensor_names.items() if not k.startswith("__temp")
+        }
+
+        d["hidden_tensors"] = list(filter(lambda x: (not x.startswith("__temp")), self.hidden_tensors))
         d["default_index"] = self.default_index.copy()
         d["allow_delete"] = self._allow_delete
         return d
@@ -56,6 +69,22 @@ class DatasetMeta(Meta):
     def __setstate__(self, d):
         if "allow_delete" in d:
             d["_allow_delete"] = d.pop("allow_delete")
+        #
+        # if "hidden_tensors" in d:
+        #     d["hidden_tensors"] = list(
+        #         filter(lambda x: (not x.startswith("__temp")), d["hidden_tensors"])
+        #     )
+        #
+        # if "tensors" in d:
+        #     d["tensors"] = list(
+        #         filter(lambda x: (not x.startswith("__temp")), d["tensors"])
+        #     )
+        #
+        # if "tensor_names" in d:
+        #     d["tensor_names"] = {
+        #         k: v for k, v in d["tensor_names"].items() if not k.startswith("__temp")
+        #     }
+
         self.__dict__.update(d)
 
     def add_tensor(self, name, key, hidden=False):

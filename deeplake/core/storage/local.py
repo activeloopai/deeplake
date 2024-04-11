@@ -143,6 +143,8 @@ class LocalProvider(StorageProvider):
         return os.path.exists(full_path)
 
     def __getstate__(self):
+        super()._getstate_prepare()
+
         return {"root": self.root, "_temp_data": self._temp_data}
 
     def __setstate__(self, state):

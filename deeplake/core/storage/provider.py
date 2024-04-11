@@ -40,7 +40,7 @@ class StorageProvider(ABC, MutableMapping):
 
     def _is_temp(self, key: str) -> bool:
         """Check if the key is a temporary key and shouldn't be persisted to storage"""
-        return key.startswith("__temp")
+        return key.startswith("__temp") and not "/chunks/" in key
 
     @final
     def __getitem__(self, path: str):
@@ -114,6 +114,11 @@ class StorageProvider(ABC, MutableMapping):
     ):
         assert_byte_indexes(start_byte, end_byte)
         return self[path][start_byte:end_byte]
+
+    def _getstate_prepare(self):
+        for k in self._temp_data.keys():
+            if isinstance(self._temp_data[k], memoryview):
+                self._temp_data[k] = self._temp_data[k].tobytes()
 
     def __setitem__(self, path: str, value: bytes):
         """Sets the object present at the path with the value

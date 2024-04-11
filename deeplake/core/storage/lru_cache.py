@@ -469,6 +469,8 @@ class LRUCache(StorageProvider):
     def __getstate__(self) -> Dict[str, Any]:
         """Returns the state of the cache, for pickling"""
 
+        super()._getstate_prepare()
+
         # flushes the cache before pickling
         self._flush_if_not_read_only()
 

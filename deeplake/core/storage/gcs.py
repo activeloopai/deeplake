@@ -449,6 +449,8 @@ class GCSProvider(StorageProvider):
         return stats
 
     def __getstate__(self):
+        super()._getstate_prepare()
+
         return (
             self.root,
             self.token,

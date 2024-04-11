@@ -339,6 +339,8 @@ class GDriveProvider(StorageProvider):
         self._delete_file(id)
 
     def __getstate__(self):
+        super()._getstate_prepare()
+
         return (
             self.root,
             self.root_id,

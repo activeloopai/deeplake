@@ -45,6 +45,8 @@ class MemoryProvider(StorageProvider):
             self.dict = {}
 
     def __getstate__(self) -> dict:
+        super()._getstate_prepare()
+
         """Does NOT save the in memory data in state."""
         return {"root": self.root, "_temp_data": self._temp_data}
 

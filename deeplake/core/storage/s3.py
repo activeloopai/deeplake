@@ -449,6 +449,8 @@ class S3Provider(StorageProvider):
         }
 
     def __getstate__(self):
+        super()._getstate_prepare()
+
         return {key: getattr(self, key) for key in self._state_keys()}
 
     def __setstate__(self, state):
