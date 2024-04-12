@@ -150,7 +150,8 @@ class AzureProvider(StorageProvider):
         self.check_readonly()
         self._check_update_creds()
         blobs = [
-            posixpath.join(self.root_folder, key) for key in self._all_keys_impl(prefix=prefix)
+            posixpath.join(self.root_folder, key)
+            for key in self._all_keys_impl(prefix=prefix)
         ]
         # delete_blobs can only delete 256 blobs at a time
         batches = [blobs[i : i + 256] for i in range(0, len(blobs), 256)]

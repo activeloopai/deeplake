@@ -54,14 +54,18 @@ class DatasetMeta(Meta):
         # return d
 
         d = super().__getstate__()
-        d["tensors"] = list(filter(lambda x: (not x.startswith("__temp")), self.tensors))
+        d["tensors"] = list(
+            filter(lambda x: (not x.startswith("__temp")), self.tensors)
+        )
         d["groups"] = self.groups.copy()
 
         d["tensor_names"] = {
             k: v for k, v in self.tensor_names.items() if not k.startswith("__temp")
         }
 
-        d["hidden_tensors"] = list(filter(lambda x: (not x.startswith("__temp")), self.hidden_tensors))
+        d["hidden_tensors"] = list(
+            filter(lambda x: (not x.startswith("__temp")), self.hidden_tensors)
+        )
         d["default_index"] = self.default_index.copy()
         d["allow_delete"] = self._allow_delete
         return d

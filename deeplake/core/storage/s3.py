@@ -169,11 +169,6 @@ class S3Provider(StorageProvider):
             )
 
     def _setitem_impl(self, path, content):
-        """
-        Raises:
-            S3SetError: Any S3 error encountered while setting the value at the path.
-            ReadOnlyError: If the provider is in read-only mode.
-        """
         self._check_update_creds()
         path = "".join((self.path, path))
         content = bytes(memoryview(content))
@@ -207,11 +202,6 @@ class S3Provider(StorageProvider):
         return resp["Body"].read()
 
     def _getitem_impl(self, path):
-        """
-        Raises:
-            KeyError: If an object is not found at the path.
-            S3GetError: Any other error other than KeyError while retrieving the object.
-        """
         return self._get_bytes_impl(path)
 
     def _get_bytes(
@@ -341,14 +331,6 @@ class S3Provider(StorageProvider):
                 yield content["Key"]
 
     def _all_keys_impl(self, refresh: bool = False):
-        """Helper function that lists all the objects present at the root of the S3Provider.
-
-        Returns:
-            set: set of all the objects found at the root of the S3Provider.
-
-        Raises:
-            S3ListError: Any S3 error encountered while listing the objects.
-        """
         self._check_update_creds()
 
         len_path = len(self.path.split("/")) - 1
@@ -445,7 +427,7 @@ class S3Provider(StorageProvider):
             "read_only",
             "profile_name",
             "creds_used",
-            "_temp_data"
+            "_temp_data",
         }
 
     def __getstate__(self):

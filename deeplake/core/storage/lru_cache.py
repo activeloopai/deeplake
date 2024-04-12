@@ -391,7 +391,6 @@ class LRUCache(StorageProvider):
         """
         return len(self._all_keys())
 
-
     def _forward(self, path):
         """Forward the value at a given path to the next storage, and un-marks its key."""
         if self.next_storage is not None:
@@ -447,11 +446,6 @@ class LRUCache(StorageProvider):
         self.update_used_cache_for_path(path, _get_nbytes(value))
 
     def _all_keys_impl(self, refresh: bool = False):
-        """Helper function that lists all the objects present in the cache and the underlying storage.
-
-        Returns:
-            set: set of all the objects found in the cache and the underlying storage.
-        """
         key_set = set()
         if self.next_storage is not None:
             key_set = self.next_storage._all_keys()  # type: ignore
