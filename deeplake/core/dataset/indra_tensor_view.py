@@ -152,14 +152,14 @@ class IndraTensorView(tensor.Tensor):
             return Index(slice(0, len(self)))
 
     @property
-    def sample_info(self) -> Union[None, Dict, List[Dict]]:
+    def sample_info(self):
         try:
             r = self.indra_tensor.sample_info
             if not self.index.values[0].subscriptable():
                 r = r[0]
             return r
         except:
-            pass
+            return None
 
     @property
     def shape_interval(self):
