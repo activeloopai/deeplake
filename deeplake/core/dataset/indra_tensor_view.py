@@ -1,6 +1,6 @@
 import deeplake.util.shape_interval as shape_interval
 from deeplake.core import tensor
-from typing import List, Union, Optional
+from typing import Dict, List, Union, Optional
 from deeplake.core.index import Index
 from deeplake.core.tensor import Any
 import numpy as np
@@ -150,6 +150,16 @@ class IndraTensorView(tensor.Tensor):
             return Index(self.indra_tensor.indexes)
         except:
             return Index(slice(0, len(self)))
+
+    @property
+    def sample_info(self) -> Union[None, Dict, List[Dict]]:
+        try:
+            r = self.indra_tensor.sample_info
+            if not self.index.values[0].subscriptable():
+                r = r[0]
+            return r
+        except:
+            pass
 
     @property
     def shape_interval(self):

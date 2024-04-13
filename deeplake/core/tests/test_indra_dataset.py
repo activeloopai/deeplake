@@ -172,6 +172,7 @@ def test_query(local_auth_ds_generator):
 
     indra_ds = dataset_to_libdeeplake(deeplake_ds)
     deeplake_indra_ds = IndraDatasetView(indra_ds=indra_ds)
+    assert deeplake_indra_ds.image.sample_info == deeplake_ds.image.sample_info
 
     view = deeplake_indra_ds.query("SELECT * GROUP BY label")
     assert len(view) == 10
