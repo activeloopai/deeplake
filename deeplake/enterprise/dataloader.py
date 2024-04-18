@@ -4,7 +4,7 @@ import deeplake
 from deeplake.enterprise.dummy_dataloader import DummyDataloader  # type: ignore
 from deeplake.util.scheduling import create_fetching_schedule, find_primary_tensor
 from deeplake.core.seed import DeeplakeRandom
-from deeplake.util.exceptions import EmptyTensorError
+from deeplake.util.exceptions import EmptyTensorError, MacOSEnvironmentError
 from deeplake.enterprise.util import (
     handle_mode,
     raise_indra_installation_error,
@@ -23,6 +23,8 @@ from deeplake.integrations.pytorch.common import (
 from deeplake.util.dataset import map_tensor_keys
 from functools import partial
 import importlib
+import os
+import sys
 
 try:
     from torch.utils.data.dataloader import DataLoader, _InfiniteConstantSampler
@@ -886,10 +888,22 @@ class DeepLakeDataLoader(DataLoader):
 
         dataset_read(self.dataset)
 
+        self._check_environment()
         if self._iterator is not None:
             self._iterator = iter(self._dataloader)
 
         return self
+
+    def _check_environment(self):
+        if sys.platform == "darwin":
+            import multiprocessing as mp
+
+            if mp.get_start_method() == "fork":
+                env_vars = os.environ
+                no_proxy = env_vars.get("NO_PROXY", "")
+                init_check = env_vars.get("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "")
+                if no_proxy != "*" or init_check != "YES":
+                    raise MacOSEnvironmentError
 
     def __setattr__(self, attr, val):
         if (
