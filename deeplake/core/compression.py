@@ -781,13 +781,14 @@ def _read_dicom_shape_and_dtype(
     dcm = dcmread(f)
     nchannels = dcm[0x0028, 0x0002].value
     numOfFrames = dcm.get('NumberOfFrames', -1)
-    if numOfFrames != -1:
-        shape = (int(numOfFrames), dcm.Rows, dcm.Columns, nchannels)
-    else:
-        shape = (dcm.Rows, dcm.Columns, nchannels)
+    
     isfloat = "FloatPixelData" in dcm or "DoubleFloatPixelData" in dcm
     dtype = pixel_dtype(dcm, isfloat).str
-    return shape, dtype
+
+    if numOfFrames != -1:
+        return (int(numOfFrames), dcm.Rows, dcm.Columns, nchannels), dtype
+    else:
+        return (dcm.Rows, dcm.Columns, nchannels), dtype
 
 
 def _decompress_dicom(f: Union[str, bytes, BinaryIO]):
