@@ -10,6 +10,7 @@ from time import time
 import numpy as np
 
 import deeplake
+from deeplake.enterprise.util import INDRA_INSTALLED
 from deeplake.util.exceptions import (
     DeepMemoryAccessError,
     IncorrectRelevanceTypeError,
@@ -459,13 +460,6 @@ class DeepMemory:
             },
             token=self.token,
         )
-
-        try:
-            from indra import api  # type: ignore
-
-            INDRA_INSTALLED = True
-        except Exception:
-            INDRA_INSTALLED = False
 
         if not INDRA_INSTALLED:
             raise ImportError(

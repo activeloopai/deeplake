@@ -2,10 +2,11 @@ import numpy as np
 from abc import ABC, abstractmethod
 from typing import Union, Dict, List, Optional
 
+from deeplake.enterprise.util import INDRA_INSTALLED
 from deeplake.core.vectorstore.vector_search.indra import query
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.dataset import Dataset as DeepLakeDataset
-from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
+from deeplake.core.dataset.indra_dataset_view import IndraDatasetView
 
 
 class SearchBasic(ABC):
@@ -105,21 +106,11 @@ class SearchIndra(SearchBasic):
     def _get_view(self, tql_query, runtime: Optional[Dict] = None):
         indra_dataset = self._get_indra_dataset()
         indra_view = indra_dataset.query(tql_query)
-        view = DeepLakeQueryDataset(
-            deeplake_ds=self.deeplake_dataset, indra_ds=indra_view
-        )
+        view = IndraDatasetView(indra_ds=indra_view)
         view._tql_query = tql_query
         return view
 
     def _get_indra_dataset(self):
-        try:
-            from indra import api  # type: ignore
-
-            INDRA_INSTALLED = True
-        except ImportError:
-            INDRA_INSTALLED = False
-        pass
-
         if not INDRA_INSTALLED:
             from deeplake.enterprise.util import raise_indra_installation_error
 

@@ -295,6 +295,7 @@ class Dataset:
         self._initial_autoflush: List[bool] = (
             []
         )  # This is a stack to support nested with contexts
+
         self._indexing_history: List[int] = []
 
         if not self.read_only:
@@ -2242,7 +2243,7 @@ class Dataset:
             ...     pass
 
         """
-        from deeplake.enterprise import dataloader
+        from deeplake.enterprise.dataloader import dataloader
 
         deeplake_reporter.feature_report(feature_name="dataloader", parameters={})
 
@@ -2278,10 +2279,26 @@ class Dataset:
 
 
         Example:
-            Following filters are identical and return dataset view where all the samples have label equals to 2.
+            Return dataset view where all the samples have label equals to 2:
 
             >>> dataset.filter(lambda sample: sample.labels.numpy() == 2)
-            >>> dataset.filter('labels == 2')
+
+
+            Append one dataset onto another (only works if their structure is identical):
+
+            >>> @deeplake.compute
+            >>> def dataset_append(sample_in, sample_out):
+            >>>
+            >>>     sample_out.append(sample_in.tensors)
+            >>>
+            >>>     return sample_out
+            >>>
+            >>>
+            >>> dataset_append().eval(
+            >>>                 ds_in,
+            >>>                 ds_out,
+            >>>                 num_workers = 2
+            >>>            )
         """
         from deeplake.core.query import filter_dataset, query_dataset
 
@@ -3784,7 +3801,7 @@ class Dataset:
                             ) from e
                     else:
                         raise ReadOnlyModeError(
-                            "Cannot save view in read only dataset. Speicify a path to save the view in a different location."
+                            "Cannot save view in read only dataset. Specify a path to save the view in a different location."
                         )
                 else:
                     vds = self._save_view_in_subdir(
@@ -4588,6 +4605,40 @@ class Dataset:
     def __contains__(self, tensor: str):
         return tensor in self.tensors
 
+    def _optimize_and_copy_view(
+        self,
+        info,
+        path: str,
+        tensors: Optional[List[str]] = None,
+        external=False,
+        unlink=True,
+        num_workers=0,
+        scheduler="threaded",
+        progressbar=True,
+    ):
+        tql_query = info.get("tql_query")
+        vds = self._sub_ds(".queries/" + path, verbose=False)
+        view = vds._get_view(not external)
+        new_path = path + "_OPTIMIZED"
+        if tql_query is not None:
+            view = view.query(tql_query)
+            view.indra_ds.materialize(new_path, tensors, True)
+            optimized = self._sub_ds(".queries/" + new_path, empty=False, verbose=False)
+        else:
+            optimized = self._sub_ds(".queries/" + new_path, empty=True, verbose=False)
+            view._copy(
+                optimized,
+                tensors=tensors,
+                overwrite=True,
+                unlink=unlink,
+                create_vds_index_tensor=True,
+                num_workers=num_workers,
+                scheduler=scheduler,
+                progressbar=progressbar,
+            )
+        optimized.info.update(vds.info.__getstate__())
+        return (vds, optimized, new_path)
+
     def _optimize_saved_view(
         self,
         id: str,
@@ -4614,32 +4665,24 @@ class Dataset:
                         # Already optimized
                         return info
                     path = info.get("path", info["id"])
-                    vds = self._sub_ds(".queries/" + path, verbose=False)
-                    view = vds._get_view(not external)
-                    new_path = path + "_OPTIMIZED"
-                    optimized = self._sub_ds(
-                        ".queries/" + new_path, empty=True, verbose=False
-                    )
-                    view._copy(
-                        optimized,
+                    old, new, new_path = self._optimize_and_copy_view(
+                        info,
+                        path,
                         tensors=tensors,
-                        overwrite=True,
                         unlink=unlink,
-                        create_vds_index_tensor=True,
                         num_workers=num_workers,
                         scheduler=scheduler,
                         progressbar=progressbar,
                     )
-                    optimized.info.update(vds.info.__getstate__())
-                    optimized.info["virtual-datasource"] = False
-                    optimized.info["path"] = new_path
-                    optimized.flush()
+                    new.info["virtual-datasource"] = False
+                    new.info["path"] = new_path
+                    new.flush()
                     info["virtual-datasource"] = False
                     info["path"] = new_path
                     self._write_queries_json(qjson)
-                vds.base_storage.disable_readonly()
+                old.base_storage.disable_readonly()
                 try:
-                    vds.base_storage.clear()
+                    old.base_storage.clear()
                 except Exception as e:
                     warnings.warn(
                         f"Error while deleting old view after writing optimized version: {e}"

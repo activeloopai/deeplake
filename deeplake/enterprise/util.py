@@ -1,3 +1,4 @@
+import importlib
 from typing import Optional
 from deeplake.integrations.pytorch.common import collate_fn as pytorch_collate_fn
 from deeplake.integrations.tf.common import collate_fn as tf_collate_fn
@@ -5,6 +6,8 @@ from deeplake.util.iterable_ordered_dict import IterableOrderedDict
 from deeplake.core.storage import GCSProvider, GDriveProvider, MemoryProvider
 
 import os
+
+INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
 
 
 def raise_indra_installation_error(indra_import_error: Optional[Exception] = None):

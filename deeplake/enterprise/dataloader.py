@@ -346,11 +346,6 @@ class DeepLakeDataLoader(DataLoader):
         all_vars = self.__dict__.copy()
         all_vars["_shuffle"] = shuffle
         all_vars["_buffer_size"] = buffer_size
-        if shuffle:
-            schedule = create_fetching_schedule(self.dataset, self._primary_tensor_name)
-            if schedule is not None:
-                ds = self.dataset.no_view_dataset  # type: ignore
-                all_vars["dataset"] = ds[schedule]
         all_vars["_dataloader"] = None
         return self.__class__(**all_vars)
 
@@ -775,7 +770,6 @@ class DeepLakeDataLoader(DataLoader):
             list_tensors=list_tensors or [],
             medical_tensors=medical_tensors or [],
         )
-
         loader_meta = LoaderMetaInfo(
             context=self.multiprocessing_context,
             distributed=self._distributed,
@@ -942,7 +936,7 @@ def dataloader(
 
 
         >>> import deeplake
-        >>> from deeplake.enterprise import dataloader
+        >>> from deeplake.enterprise.dataloader import dataloader
         >>>
         >>> ds_train = deeplake.load('hub://activeloop/fashion-mnist-train')
         >>> train_loader = dataloader(ds_train).numpy()
