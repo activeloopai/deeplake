@@ -86,11 +86,9 @@ def _check_indra_and_read_only_flags(indra: bool, read_only: Optional[bool]):
         return
     if read_only == True:
         return
-    if read_only is None:
-        raise ValueError(
-            "'indra = True' is only available for read_only datasets. Please also specify 'read_only = True'."
-        )
-    raise ValueError("'indra = True' is only available for read_only datasets.")
+    raise ValueError(
+        "'indra = True' is only available for read_only datasets. Please also specify 'read_only = True'."
+    )
 
 
 class dataset:
