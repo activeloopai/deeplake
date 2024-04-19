@@ -229,6 +229,9 @@ class TensorMeta(Meta):
         if self.htype == "embedding" and not hasattr(self, "vdb_indexes"):
             self.vdb_indexes = []
             self._required_meta_keys += ("vdb_indexes",)
+        if self.htype == "text" and not hasattr(self, "vdb_indexes"):
+            self.vdb_indexes = []
+            self._required_meta_keys += ("vdb_indexes",)
 
     @property
     def nbytes(self):

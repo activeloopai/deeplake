@@ -678,6 +678,7 @@ def recall_at_k(
     return avg_recalls, queries_data
 
 
+
 def get_view(
     metric: str,
     query_emb: Union[List[float], np.ndarray],
