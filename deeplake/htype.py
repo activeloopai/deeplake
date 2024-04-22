@@ -64,7 +64,11 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.CLASS_LABEL: {
         "dtype": "uint32",
         "class_names": [],
-        "_info": ["class_names"],  # class_names should be stored in info, not meta
+        "allow_new_labels": True,
+        "_info": [
+            "class_names",
+            "allow_new_labels",
+        ],  # class_names should be stored in info, not meta
         "_disable_temp_transform": False,
     },
     htype.BBOX: {"dtype": "float32", "coords": {}, "_info": ["coords"]},

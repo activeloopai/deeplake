@@ -789,6 +789,13 @@ class ChunkEngine:
         class_names = tensor_info.class_names
         labels, additions = convert_to_idx(samples, class_names)
         if additions:
+            if (
+                "allow_new_labels" in tensor_info
+                and tensor_info["allow_new_labels"] is False
+            ):
+                raise ValueError(
+                    f"New label(s) [{','.join([i[0] for i in additions])}] are not allowed for tensor {tensor_name}. Allowed labels are: [{','.join(tensor_info.class_names)}]"
+                )
             for new in additions:
                 class_names.append(new[0])
                 logger.info(

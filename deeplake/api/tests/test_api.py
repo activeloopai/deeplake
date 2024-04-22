@@ -1988,6 +1988,31 @@ def test_partial_read_then_write(s3_ds_generator):
         ds.xyz[1] = 20 * np.ones((1000, 1000))
 
 
+def test_allow_new_labels(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("dynamic_labels", htype="class_label")
+        ds.create_tensor(
+            "fixed_labels",
+            htype="class_label",
+            class_names=["a", "b", "c"],
+            allow_new_labels=False,
+        )
+
+        ds.dynamic_labels.append("a")
+        ds.dynamic_labels.append("a")
+        ds.fixed_labels.append("a")
+        ds.fixed_labels.append("b")
+        assert ds.dynamic_labels.info["class_names"] == ["a"]
+        assert ds.fixed_labels.info["class_names"] == ["a", "b", "c"]
+
+        with pytest.raises(SampleAppendError):
+            ds.fixed_labels.append("new_one")
+
+        ds.fixed_labels.info.update(allow_new_labels=False)
+        with pytest.raises(SampleAppendError):
+            ds.fixed_labels.append("new_one")
+
+
 def test_exist_ok(local_ds):
     with local_ds as ds:
         ds.create_tensor("abc")
