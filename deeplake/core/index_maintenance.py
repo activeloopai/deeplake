@@ -56,9 +56,9 @@ def validate_text_tensor(tensor):
     valid_names = ["text"]
 
     return (
-        tensor.htype == "text"
-        or tensor.meta.name in valid_names
-        or tensor.key in valid_names
+        tensor.meta.name in valid_names and
+        tensor.htype == "text" and
+        tensor.key in valid_names
     )
 
 
@@ -293,6 +293,9 @@ def index_operation_vectorstore(self):
 
 
 def index_operation_dataset(self, dml_type, rowids):
+    if self.index_params is None:
+        return
+
     bm25 = self.index_params.get("bm25", False)
     txt_tensor = None
     if bm25:
