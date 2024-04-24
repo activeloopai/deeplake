@@ -28,6 +28,7 @@ from botocore.exceptions import (
     ConnectionClosedError,
     EndpointConnectionError,
     IncompleteReadError,
+    SSLError,
 )
 from concurrent import futures
 from concurrent.futures import ThreadPoolExecutor
@@ -39,6 +40,7 @@ CONNECTION_ERRORS = (
     ConnectionClosedError,
     EndpointConnectionError,
     IncompleteReadError,
+    SSLError,
 )
 
 try:
