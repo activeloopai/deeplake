@@ -66,6 +66,7 @@ def _get_indra_ds_from_azure_provider(
     storage = IndraProvider(
         path,
         read_only=provider.read_only,
+        origin_path=provider.root,
         token=token,
         account_name=account_name,
         account_key=account_key,
