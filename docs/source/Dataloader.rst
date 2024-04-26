@@ -17,7 +17,7 @@ See the ``dataloader`` method on how to create dataloaders from your datasets:
 DeepLakeDataLoader
 ~~~~~~~~~~~~~~~~~~
 
-.. currentmodule:: deeplake.enterprise
+.. currentmodule:: deeplake.enterprise.dataloader
 
 .. autoclass:: DeepLakeDataLoader()
     :members:

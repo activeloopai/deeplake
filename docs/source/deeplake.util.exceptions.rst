@@ -296,9 +296,6 @@ deeplake.util.exceptions
 .. autoclass:: AgreementNotAcceptedError
     :show-inheritance:
     
-.. autoclass:: NotLoggedInError
-    :show-inheritance:
-    
 .. autoclass:: RenameError
     :show-inheritance:
     
