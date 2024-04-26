@@ -2183,14 +2183,14 @@ class Dataset:
         return dataloader
 
     def dataloader(self, ignore_errors: bool = False, verbose: bool = False):
-        """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object.
+        """Returns a :class:`~deeplake.enterprise.dataloader.DeepLakeDataLoader` object.
 
         Args:
             ignore_errors (bool): If ``True``, the data loader will ignore errors appeared during data iteration otherwise it will collect the statistics and report appeared errors. Default value is ``False``
             verbose (bool): If ``True``, the data loader will dump verbose logs of it's steps. Default value is ``False``
 
         Returns:
-            ~deeplake.enterprise.DeepLakeDataLoader: A :class:`deeplake.enterprise.DeepLakeDataLoader` object.
+            ~deeplake.enterprise.dataloader.DeepLakeDataLoader: A :class:`deeplake.enterprise.dataloader.DeepLakeDataLoader` object.
         
         Examples:
 
