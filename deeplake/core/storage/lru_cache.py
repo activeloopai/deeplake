@@ -4,6 +4,7 @@ from deeplake.core.partial_reader import PartialReader
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from deeplake.core.chunk.base_chunk import BaseChunk
 from typing import Any, Dict, Optional, Union
+import psutil
 
 from deeplake.core.storage.provider import StorageProvider
 import time
@@ -415,7 +416,10 @@ class LRUCache(StorageProvider):
         Args:
             extra_size (int): the space that needs is required in bytes.
         """
-        while self.cache_used > 0 and extra_size + self.cache_used > self.cache_size:
+        while self.cache_used > 0 and (
+            extra_size + self.cache_used > self.cache_size
+            or psutil.virtual_memory().percent > 95
+        ):
             self._pop_from_cache()
 
     def _pop_from_cache(self):
