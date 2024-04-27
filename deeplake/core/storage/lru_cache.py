@@ -418,7 +418,7 @@ class LRUCache(StorageProvider):
         """
         while self.cache_used > 0 and (
             extra_size + self.cache_used > self.cache_size
-            or psutil.virtual_memory().percent > 95
+            or psutil.virtual_memory().percent > 90
         ):
             self._pop_from_cache()
 
