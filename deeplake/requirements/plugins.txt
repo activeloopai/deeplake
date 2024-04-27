@@ -10,3 +10,4 @@ mmcv-full==1.7.1; platform_system == "Linux" and python_version >= "3.7"
 mmdet==2.28.1; platform_system == "Linux" and python_version >= "3.7"
 mmengine
 pandas
+types-psutil
