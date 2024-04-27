@@ -1,4 +1,9 @@
 import json
+import ssl
+import time
+from unittest.mock import patch
+
+from deeplake.core import S3Provider
 from deeplake.tests.path_fixtures import gcs_creds
 from deeplake.tests.common import is_opt_true
 from deeplake.tests.storage_fixtures import (
@@ -229,3 +234,22 @@ def test_azure_empty_blob(azure_storage):
         azure_storage.get_object_from_full_url(f"{azure_storage.root}/empty_blob")
         == b""
     )
+
+
+@pytest.mark.slow
+def test_s3_backoff():
+    runs = 0
+    s3 = S3Provider("s3://mock")
+
+    def fake_set_items(items: dict):
+        nonlocal runs
+        runs = runs + 1
+
+        raise ssl.SSLError
+
+    start = time.time()
+    with patch("deeplake.core.storage.s3.S3Provider._set_items", wraps=fake_set_items):
+        with pytest.raises(Exception):
+            s3.set_items({"test": "test"})
+        assert runs == 4
+    assert 3 < time.time() - start < 5
