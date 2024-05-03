@@ -2157,7 +2157,7 @@ class ChunkEngine:
             return None, chunk_info
         cache_used_percent = lambda: self.cache.cache_used / self.cache.cache_size
         while cache_used_percent() > 0.9:
-            time.sleep(0.1)
+            self.cache._pop_from_cache()
         base_storage = storages.get(threading.get_ident())
         if base_storage is None:
             if isinstance(self.base_storage, MemoryProvider):
