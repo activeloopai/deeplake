@@ -993,8 +993,15 @@ class GetChunkError(Exception):
         chunk_key: Optional[str],
         global_index: Optional[int] = None,
         tensor_name: Optional[str] = None,
+        cause: Optional[Exception] = None,
     ):
         self.chunk_key = chunk_key
+
+        if isinstance(cause, GetChunkError):
+            cause = cause.root_cause
+
+        self.root_cause = cause
+
         message = "Unable to get chunk"
         if chunk_key is not None:
             message += f" '{chunk_key}'"
@@ -1003,6 +1010,14 @@ class GetChunkError(Exception):
         if tensor_name is not None:
             message += f" in tensor {tensor_name}"
         message += "."
+
+        if cause is not None:
+            cause_message = str(cause)
+            if isinstance(cause, KeyError):
+                cause_message = f" The file {cause} does not exist."
+
+            message += f" Root Cause: {cause_message}"
+
         super().__init__(message)
 
 
