@@ -995,12 +995,11 @@ class GetChunkError(Exception):
         tensor_name: Optional[str] = None,
         cause: Optional[Exception] = None,
     ):
+        self.root_cause = cause
         self.chunk_key = chunk_key
 
         if isinstance(cause, GetChunkError):
-            cause = cause.root_cause
-
-        self.root_cause = cause
+            self.root_cause = cause.root_cause
 
         message = "Unable to get chunk"
         if chunk_key is not None:
