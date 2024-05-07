@@ -1013,7 +1013,7 @@ class GetChunkError(Exception):
         if cause is not None:
             cause_message = str(cause)
             if isinstance(cause, KeyError):
-                cause_message = f" The file {cause} does not exist."
+                cause_message = f"The file {cause} does not exist."
 
             message += f" Root Cause: {cause_message}"
 
