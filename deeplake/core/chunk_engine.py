@@ -603,7 +603,7 @@ class ChunkEngine:
                 chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
             return chunk
         except Exception as e:
-            raise GetChunkError(chunk_key) from e
+            raise GetChunkError(chunk_key, cause=e) from e
 
     def get_video_chunk(self, chunk_id, copy: bool = False):
         """Returns video chunks. Chunk will contain presigned url to the video instead of data if the chunk is large."""
@@ -2298,7 +2298,7 @@ class ChunkEngine:
                 else:
                     sample = self.get_single_sample(idx, index, pad_tensor=pad_tensor)
             except GetChunkError as e:
-                raise GetChunkError(e.chunk_key, idx, self.name) from e
+                raise GetChunkError(e.chunk_key, idx, self.name, e) from e
             except ReadSampleFromChunkError as e:
                 raise ReadSampleFromChunkError(e.chunk_key, idx, self.name) from e
             check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
@@ -2396,7 +2396,7 @@ class ChunkEngine:
                         )
                     except GetChunkError as e:
                         raise GetChunkError(
-                            e.chunk_key, global_sample_index, self.name
+                            e.chunk_key, global_sample_index, self.name, e
                         ) from e
                     except ReadSampleFromChunkError as e:
                         raise ReadSampleFromChunkError(
