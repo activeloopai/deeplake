@@ -1,3 +1,4 @@
+import sys
 from typing import Union, List, Tuple, Iterable, Optional
 from collections.abc import Iterable
 import numpy as np
@@ -199,9 +200,7 @@ class IndexEntry:
     def subscriptable(self):
         """Returns whether an IndexEntry can be further subscripted."""
 
-        from deeplake.enterprise.util import INDRA_INSTALLED
-
-        if INDRA_INSTALLED:
+        if "indra" in sys.modules:
             from indra import api  # type: ignore
 
             if isinstance(self.value, api.core.IndexMappingInt64):
