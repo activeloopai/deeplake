@@ -7,6 +7,7 @@ from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.core.version_control.commit_chunk_map import CommitChunkMap
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.chunk.base_chunk import InputSample
+import json
 import numpy as np
 from typing import Dict, List, Sequence, Union, Optional, Tuple, Any, Callable
 from functools import reduce, partial
@@ -1595,6 +1596,41 @@ class Tensor:
         else:
             raise AssertionError(f"Invalid operation_kind: {operation_kind}")
 
+    def deserialize_partitions(self, serialized_data):
+        from io import BytesIO
+        stream = BytesIO(serialized_data)
+
+        # Read number of partitions
+        num_partitions = int.from_bytes(stream.read(8), 'little')  # Assuming size_t is 8 bytes
+
+        partition_info = []
+        for _ in range(num_partitions):
+            # Read partition name length and name
+            name_length = int.from_bytes(stream.read(8), 'little')
+            name = stream.read(name_length).decode('utf-8')
+
+            # Read start and end indices
+            start = int.from_bytes(stream.read(8), 'little')
+            end = int.from_bytes(stream.read(8), 'little')
+
+            partition_info.append({
+                'name': name,
+                'start': start,
+                'end': end
+            })
+
+        # Extract the actual data for each partition
+        partitions_data = []
+        while True:
+            size_data = stream.read(8)
+            if not size_data:
+                break
+            size = int.from_bytes(size_data, 'little')
+            partition_blob = stream.read(size)
+            partitions_data.append(partition_blob)
+
+        return partition_info, partitions_data
+
     def create_vdb_index(
         self,
         id: str,
@@ -1634,7 +1670,19 @@ class Tensor:
                 )
             b = index.serialize()
             commit_id = self.version_state["commit_id"]
-            self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
+            # Check if the index is partitioned
+            if additional_params and "partitions" in additional_params and additional_params["partitions"] > 1:
+                metadata , partitions_data = self.deserialize_partitions(b)
+                partition_key = get_tensor_vdb_index_key(self.key, commit_id, f"{id}_partition_metadata")
+                metadata_json = json.dumps(metadata)
+                metadata_bytes = metadata_json.encode('utf-8')
+                self.storage[partition_key] = metadata_bytes
+                for i, data in enumerate(partitions_data):
+                    partition_key = get_tensor_vdb_index_key(self.key, commit_id, f"{id}_part_{i}")
+                    self.storage[partition_key] = data
+            else:
+                self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
+
             self.invalidate_libdeeplake_dataset()
         except:
             self.meta.remove_vdb_index(id=id)

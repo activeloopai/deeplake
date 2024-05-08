@@ -134,9 +134,9 @@ def get_index_metric(metric):
 
 
 def normalize_additional_params(params: dict) -> dict:
-    mapping = {"efconstruction": "efConstruction", "m": "M"}
+    mapping = {"efconstruction": "efConstruction", "m": "M", "partitions": "partitions"}
 
-    allowed_keys = ["efConstruction", "m"]
+    allowed_keys = ["efConstruction", "m", "partitions"]
 
     # New dictionary to store the result with desired key format
     result_dict = {}
