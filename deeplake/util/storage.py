@@ -84,6 +84,7 @@ def storage_provider_from_path(
             session_token = creds.get("aws_session_token")
             endpoint_url = creds.get("endpoint_url")
             region = creds.get("aws_region") or creds.get("region")
+            config = creds.get("config", None) or deeplake.config["s3"]
             profile = creds.get("profile_name")
             storage = S3Provider(
                 path,
@@ -94,6 +95,7 @@ def storage_provider_from_path(
                 region,
                 profile_name=profile,
                 token=token,
+                config=config,
             )
             storage.creds_used = creds_used
         else:

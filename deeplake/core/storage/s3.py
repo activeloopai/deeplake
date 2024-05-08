@@ -6,7 +6,7 @@ import boto3
 import botocore  # type: ignore
 import posixpath
 import ssl
-from typing import Dict, Optional, Tuple, Type
+from typing import Dict, Optional, Tuple, Type, Any
 from datetime import datetime, timezone
 from botocore.session import ComponentLocator
 from deeplake.client.client import DeepLakeBackendClient
@@ -96,6 +96,7 @@ class S3Provider(StorageProvider):
         aws_region: Optional[str] = None,
         profile_name: Optional[str] = None,
         token: Optional[str] = None,
+        config: Optional[Dict[str, Any]] = None,
         **kwargs,
     ):
         """Initializes the S3Provider
@@ -132,7 +133,7 @@ class S3Provider(StorageProvider):
         self.tag: Optional[str] = None
         self.token: Optional[str] = token
         self.loaded_creds_from_environment = False
-        self.client_config = deeplake.config["s3"]
+        self.client_config = config
         self.start_time = time.time()
         self.profile_name = profile_name
         self._initialize_s3_parameters()
