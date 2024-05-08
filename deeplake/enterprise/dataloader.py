@@ -819,9 +819,7 @@ class DeepLakeDataLoader(DataLoader):
             meta = tensor.meta
             if meta.htype == "json":
                 json_tensors.append(tensor_name)
-            elif meta.htype == "list":
-                list_tensors.append(tensor_name)
-            elif meta.htype == "tag":
+            elif meta.htype in ["list", "tag"]:
                 list_tensors.append(tensor_name)
 
     def __iter__(self):
