@@ -528,5 +528,7 @@ class GCSProvider(StorageProvider):
 
     def get_creds(self):
         d = self.scoped_credentials.get_token_info()
-        d["expiration"] = self.expiration or ""
+        d["expiration"] = (
+            self.expiration if hasattr(self, "expiration") and self.expiration else ""
+        )
         return d
