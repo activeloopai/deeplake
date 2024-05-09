@@ -236,17 +236,16 @@ class S3Provider(StorageProvider):
     def _get_bytes(
         self, path, start_byte: Optional[int] = None, end_byte: Optional[int] = None
     ):
+        range_kwarg = {}
         if start_byte is not None and end_byte is not None:
             if start_byte == end_byte:
                 return b""
-            range = f"bytes={start_byte}-{end_byte - 1}"
+            range_kwarg["Range"] = f"bytes={start_byte}-{end_byte - 1}"
         elif start_byte is not None:
-            range = f"bytes={start_byte}-"
+            range_kwarg["Range"] = f"bytes={start_byte}-"
         elif end_byte is not None:
-            range = f"bytes=0-{end_byte - 1}"
-        else:
-            range = ""
-        resp = self.client.get_object(Bucket=self.bucket, Key=path, Range=range)
+            range_kwarg["Range"] = f"bytes=0-{end_byte - 1}"
+        resp = self.client.get_object(Bucket=self.bucket, Key=path, **range_kwarg)
         return resp["Body"].read()
 
     def get_bytes(
