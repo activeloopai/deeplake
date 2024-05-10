@@ -391,12 +391,20 @@ class Dataset:
     @property
     def max_len(self):
         """Return the maximum length of the tensor."""
-        return max([len(tensor) for tensor in self.tensors.values()])
+        return (
+            max([len(tensor) for tensor in self.tensors.values()])
+            if self.tensors
+            else 0
+        )
 
     @property
     def min_len(self):
         """Return the minimum length of the tensor."""
-        return min([len(tensor) for tensor in self.tensors.values()])
+        return (
+            min([len(tensor) for tensor in self.tensors.values()])
+            if self.tensors
+            else 0
+        )
 
     def __getstate__(self) -> Dict[str, Any]:
         """Returns a dict that can be pickled and used to restore this dataset.
