@@ -1120,7 +1120,8 @@ class dataset:
         progressbar=True,
         **kwargs,
     ):
-        """Copies dataset at ``src`` to ``dest``. Version control history is not included.
+        """Copies dataset at ``src`` to ``dest``. Version control history is not included, and this operation copies data from the latest commit on the main branch.
+        For fast copying, we recommend using ``deepake.deepcopy()`` instead.
 
         Args:
             src (str, Dataset, pathlib.Path): The Dataset or the path to the dataset to be copied.
@@ -1206,7 +1207,7 @@ class dataset:
         verbose: bool = True,
         **kwargs,
     ):
-        """Copies dataset at ``src`` to ``dest`` including version control history.
+        """Copies dataset at ``src`` to ``dest`` including version control history. This is the fastest method for copying datasets.
 
         Args:
             src (str, pathlib.Path, Dataset): The Dataset or the path to the dataset to be copied.

@@ -668,32 +668,34 @@ class Dataset:
         tiling_threshold: Optional[int] = None,
         **kwargs,
     ):
-        """Creates a new tensor in the dataset.
+        """Creates a new tensor in the Deep Lake dataset. Specifying htype is highly recommended for complex data such as images, video, dicom, text, json, etc.
+        Specifying htype is not necessary for simple numeric date such as arrays and scalars.
 
         Examples:
-            >>> # create dataset
-            >>> ds = deeplake.dataset("path/to/dataset")
+            >>> # Create dataset
+            >>> ds = deeplake.empty("path/to/dataset")
 
-            >>> # create tensors
-            >>> ds.create_tensor("images", htype="image", sample_compression="jpg")
-            >>> ds.create_tensor("videos", htype="video", sample_compression="mp4")
-            >>> ds.create_tensor("data")
-            >>> ds.create_tensor("point_clouds", htype="point_cloud")
-
-            >>> # append data
-            >>> ds.images.append(np.ones((400, 400, 3), dtype='uint8'))
-            >>> ds.videos.append(deeplake.read("videos/sample_video.mp4"))
-            >>> ds.data.append(np.zeros((100, 100, 2)))
+            >>> # Create tensors
+            >>> with ds:
+            >>>     ds.create_tensor("images", htype="image", sample_compression="jpg")
+            >>>     ds.create_tensor("videos", htype="video", sample_compression="mp4")
+            >>>     ds.create_tensor("data")
+            >>>     ds.create_tensor("point_clouds", htype="point_cloud")
+            >>>
+            >>>     # Append data
+            >>>     ds.images.append(np.ones((400, 400, 3), dtype='uint8'))
+            >>>     ds.videos.append(deeplake.read("videos/sample_video.mp4"))
+            >>>     ds.data.append(np.zeros((100, 100, 2)))
 
         Args:
             name (str): The name of the tensor to be created.
             htype (str):
-                - The class of data for the tensor.
-                - The defaults for other parameters are determined in terms of this value.
+                - The class of data for the tensor. Specifying ``htype`` is highly recommended for complex data such as images, video, dicom, text, json, etc. Specifying htype is not necessary for simple numeric date such as arrays and scalars.
+                - The defaults for other parameters are determined in terms of this value, thus improving error checking and visualization.
                 - For example, ``htype="image"`` would have ``dtype`` default to ``uint8``.
                 - These defaults can be overridden by explicitly passing any of the other parameters to this function.
                 - May also modify the defaults for other parameters.
-            dtype (str): Optionally override this tensor's ``dtype``. All subsequent samples are required to have this ``dtype``.
+            dtype (str): Optionally override this tensor's ``dtype``. All subsequent samples are required to have this ``dtype``. Specifying ``dtype`` is typically not necessary unless you are dealing with mixed numerical data in a single tensor (column).
             sample_compression (str): All samples will be compressed in the provided format. If ``None``, samples are uncompressed. For ``link[]`` tensors, ``sample_compression`` is used only for optimizing dataset views.
             chunk_compression (str): All chunks will be compressed in the provided format. If ``None``, chunks are uncompressed. For ``link[]`` tensors, ``chunk_compression`` is used only for optimizing dataset views.
             hidden (bool): If ``True``, the tensor will be hidden from ds.tensors but can still be accessed via ``ds[tensor_name]``.
@@ -1178,7 +1180,7 @@ class Dataset:
     def create_tensor_like(
         self, name: str, source: "Tensor", unlink: bool = False
     ) -> "Tensor":
-        """Copies the ``source`` tensor's meta information and creates a new tensor with it. No samples are copied, only the meta/info for the tensor is.
+        """Creates a tensor with the same properties as ``source``. No samples or data copied, other than the tensor meta/info.
 
         Examples:
             >>> ds.create_tensor_like("cats", ds["images"])
@@ -2093,7 +2095,7 @@ class Dataset:
         *args,
         **kwargs,
     ):
-        """Converts the dataset into a pytorch Dataloader.
+        """Creates a dataset PyTorch Dataloader from the Deep Lake dataset. During iteration, the data from all tensors will be streamed on-the-fly from the storage location.
 
         Args:
             *args: Additional args to be passed to torch_dataset
@@ -2976,7 +2978,8 @@ class Dataset:
         return self[fullname]
 
     def create_group(self, name: str, exist_ok=False) -> "Dataset":
-        """Creates a tensor group. Intermediate groups in the path are also created.
+        """Creates a tensor group, which is a collection of tensors that can be reference together.
+        Groups are recommended for use-cases with many tensors in order to organize and reference data more easily.
 
         Args:
             name: The name of the group to create.
@@ -2992,11 +2995,17 @@ class Dataset:
         Examples:
 
             >>> ds.create_group("images")
-            >>> ds['images'].create_tensor("cats")
+            >>> ds.images.create_tensor("left_camera", htype = "image", "sample_compression" = "jpeg")
+            >>> ds.images.create_tensor("center_camera", htype = "image", "sample_compression" = "jpeg")
+            >>> ds.images.create_tensor("right_camera", htype = "image", "sample_compression" = "jpeg")
 
-            >>> ds.create_groups("images/jpg/cats")
-            >>> ds["images"].create_tensor("png")
-            >>> ds["images/jpg"].create_group("dogs")
+            >>> # Data from a tensors in groups is referenced using:
+            >>> ds.images.right_camera[0].numpy()
+            >>> # OR
+            >>> ds["images/right_camera"].numpy()
+
+            >>> # "/" Notation can also be used to create groups with ``create_tensor``
+            >>> ds.create_tensor("images/right_camera", htype = "image", "sample_compression" = "jpeg")
         """
 
         deeplake_reporter.feature_report(
@@ -3103,15 +3112,6 @@ class Dataset:
             NotImplementedError: If an error occurs while writing tiles.
             Exception: Error while attempting to rollback appends.
             SampleAppendingError: Error that occurs when someone tries to append a tensor value directly to the dataset without specifying tensor name.
-
-        Examples:
-
-            >>> ds = deeplake.empty("../test/test_ds")
-            >>> ds.create_tensor('data')
-            Tensor(key='data')
-            >>> ds.create_tensor('labels')
-            Tensor(key='labels')
-            >>> ds.append({"data": [1, 2, 3, 4], "labels":[0, 1, 2, 3]})
 
         """
         tensors = self.tensors
@@ -3221,6 +3221,18 @@ class Dataset:
             NotImplementedError: If an error occurs while writing tiles.
             SampleExtendError: If the extend failed while appending a sample.
             Exception: Error while attempting to rollback appends.
+
+        Examples:
+
+            >>> ds = deeplake.empty("../test/test_ds")
+
+            >>> with ds:
+            >>>     ds.create_tensor('data')
+            >>>     ds.create_tensor('labels')
+
+            >>>     # This operation will append 4 samples (rows) to the Deep Lake dataset
+            >>>     ds.extend({"data": [1, 2, 3, 4], "labels":["table", "chair", "desk", "table"]})
+
         """
         extend = False
         if isinstance(samples, Dataset):
@@ -3283,7 +3295,7 @@ class Dataset:
         skip_ok: bool = False,
         append_empty: bool = False,
     ):
-        """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
+        """Append samples to multiple tensors at once.
 
         Args:
             sample (dict): Dictionary with tensor names as keys and samples as values.
@@ -3301,11 +3313,13 @@ class Dataset:
         Examples:
 
             >>> ds = deeplake.empty("../test/test_ds")
-            >>> ds.create_tensor('data')
-            Tensor(key='data')
-            >>> ds.create_tensor('labels')
-            Tensor(key='labels')
-            >>> ds.append({"data": [1, 2, 3, 4], "labels":[0, 1, 2, 3]})
+            >>>
+            >>> with ds:
+            >>>     ds.create_tensor('data')
+            >>>     ds.create_tensor('labels')
+            >>>
+            >>>     # This operation will append 1 sample (row) to the Deep Lake dataset
+            >>>     ds.append({"data": 1, "labels": "table"})
 
         """
         new_row_ids = [self.__len__(warn=False)]
@@ -4300,12 +4314,12 @@ class Dataset:
         progressbar=True,
         public: bool = False,
     ):
-        """Copies this dataset or dataset view to ``dest``. Version control history is not included.
+        """Copies this dataset or dataset view to ``dest``. Version control history is not included, and this operation copies data from the latest commit on the main branch.
 
         Args:
             dest (str, pathlib.Path): Destination dataset or path to copy to. If a Dataset instance is provided, it is expected to be empty.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
-            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
+            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub://... paths.
             overwrite (bool): If ``True`` and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
             token (str, Optional): token used to for fetching credentials to `dest`.
@@ -4398,21 +4412,25 @@ class Dataset:
         ds_name: Optional[str] = None,
         token: Optional[str] = None,
     ):
-        """Connect a Deep Lake cloud dataset through a deeplake path.
+        """Connect a Deep Lake dataset stored in your cloud to the Deep Lake App.
 
         Examples:
-            >>> # create/load an s3 dataset
-            >>> s3_ds = deeplake.dataset("s3://bucket/dataset")
-            >>> ds = s3_ds.connect(dest_path="hub://my_org/dataset", creds_key="my_managed_credentials_key", token="my_activeloop_token)
-            >>> # or
-            >>> ds = s3_ds.connect(org_id="my_org", creds_key="my_managed_credentials_key", token="my_activeloop_token")
+            >>> # Load an s3 dataset
+            >>> s3_ds = deeplake.load("s3://bucket/dataset")
+            >>>
+            >>> # Specify the org_id and managed creds_key, and the dataset name is inferred from the currently storage location path
+            >>> ds = s3_ds.connect(org_id="my_org_id", creds_key="managed_creds_key")
+            >>>
+            >>> # Or if you want to explicitly specify the full path, which contains the org_id
+            >>> ds = s3_ds.connect(dest_path="hub://my_org/dataset", creds_key="managed_creds_key")
+
 
         Args:
             creds_key (str): The managed credentials to be used for accessing the source path.
-            dest_path (str, optional): The full path to where the connected Deep Lake dataset will reside. Can be:
-                a Deep Lake path like ``hub://organization/dataset``
-            org_id (str, optional): The organization to where the connected Deep Lake dataset will be added.
-            ds_name (str, optional): The name of the connected Deep Lake dataset. Will be infered from ``dest_path`` or ``src_path`` if not provided.
+            dest_path (str, optional): The full path to which the connected Deep Lake dataset will reside. Can be:
+                a Deep Lake path like ``hub://<org_id>/<dataset_name>``
+            org_id (str, optional): The organization to which the connected Deep Lake dataset will be added. The dataset name will be the same as parent folder for the dataset in the cloud storage location.
+            ds_name (str, optional): The name of the connected Deep Lake dataset. Will be infered from ``dest_path`` or storage location path if not provided.
             token (str, optional): Activeloop token used to fetch the managed credentials.
 
         Raises:
