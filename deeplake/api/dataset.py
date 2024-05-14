@@ -1,5 +1,6 @@
 import json
 import os
+import re
 
 import deeplake
 import pathlib
@@ -830,18 +831,22 @@ class dataset:
         Raises:
             DatasetHandlerError: If a Dataset does not exist at the given path or if new path is to a different directory.
         """
+
         old_path = convert_pathlib_to_string_if_needed(old_path)
         new_path = convert_pathlib_to_string_if_needed(new_path)
+
+        if ":" in old_path and ":" not in new_path:
+            new_path = old_path.rsplit("/", 1)[0] + "/" + new_path
 
         if creds is None:
             creds = {}
 
         feature_report_path(old_path, "rename", {}, token=token)
 
-        deeplake.deepcopy(old_path, new_path, verbose=False, token=token, creds=creds)
-        deeplake.delete(old_path, token=token, creds=creds)
+        ds = deeplake.load(old_path, verbose=False, token=token, creds=creds)
+        ds.rename(new_path)
 
-        return deeplake.load(new_path, verbose=False, token=token, creds=creds)
+        return ds
 
     @staticmethod
     @spinner
