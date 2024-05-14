@@ -812,7 +812,7 @@ class dataset:
         """Renames dataset at ``old_path`` to ``new_path``.
 
         Examples:
-
+            >>> deeplake.rename("hub://username/image_ds", "new_ds")
             >>> deeplake.rename("hub://username/image_ds", "hub://username/new_ds")
             >>> deeplake.rename("s3://mybucket/my_ds", "s3://mybucket/renamed_ds")
 
