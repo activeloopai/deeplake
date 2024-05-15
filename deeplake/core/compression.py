@@ -43,6 +43,8 @@ else:
     _NATIVE_INT32 = ">i4"
     _NATIVE_FLOAT32 = ">f4"
 
+HEADER_MAX_BYTES = 132
+
 DIMS_RE = re.compile(rb" ([0-9]+)x([0-9]+)")
 FPS_RE = re.compile(rb" ([0-9]+) fps,")
 DURATION_RE = re.compile(rb"Duration: ([0-9:.]+),")
@@ -489,11 +491,34 @@ def get_compression(header=None, path=None):
             ".nii",
             ".nii.gz",
         ]
-        path = str(path).lower()
+        path = str(path).lower().partition("?")[0].partition("#")[0].partition(";")[0]
         for fmt in file_formats:
             if path.endswith(fmt):
                 return fmt[1:]
     if header:
+        if (
+            header[4:12] == b'\x66\x74\x79\x70\x4D\x53\x4E\x56'
+            or header[4:12] == b'\x66\x74\x79\x70\x69\x73\x6F\x6D'
+        ):
+            return "mp4"
+        if header[0:4] == b"\x1A\x45\xDF\xA3":
+            return "mkv"
+        if (
+            header[0:2] == b"\xff\xfb"
+            or header[0:2] == b"\xff\xf3"
+            or header[0:2] == b"\xff\xf2"
+        ):
+            return "mp3"
+        if header[0:2] == b"\x66\x4c\x61\x43":
+            return "flac"
+        if header[0:4] == b"\x52\x49\x46\x46" and header[8:12] == b"\x57\x41\x56\x45":
+            return "wav"
+        if header[0:4] == b"\x52\x49\x46\x46" and header[8:12] == b"\x41\x56\x49\x20":
+            return "avi"
+        if header[128:132] == b"\x44\x49\x43\x4D":
+            return "dcm"
+        if header[0:4] == b"\x6e\x2b\x31\x00":
+            return "nii"
         if not Image.OPEN:
             Image.init()
         for fmt in Image.OPEN:
@@ -651,10 +676,10 @@ def read_meta_from_compressed_file(
     try:
         if compression is None:
             if hasattr(f, "read"):
-                compression = get_compression(f.read(32), path)
+                compression = get_compression(f.read(HEADER_MAX_BYTES), path)
                 f.seek(0)
             else:
-                compression = get_compression(f[:32], path)  # type: ignore
+                compression = get_compression(f[:HEADER_MAX_BYTES], path)  # type: ignore
         if compression == "jpeg":
             try:
                 shape, typestr = _read_jpeg_shape(f), "|u1"
