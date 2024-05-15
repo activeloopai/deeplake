@@ -372,7 +372,7 @@ class Dataset:
         return self._client
 
     def __len__(self, warn: bool = True):
-        """Returns the length of the smallest tensor."""
+        """Returns the length (number of rows) of the shortest tensor in the dataset."""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
         pad_tensors = self._pad_tensors
         if (
@@ -390,7 +390,7 @@ class Dataset:
 
     @property
     def max_len(self):
-        """Return the maximum length of the tensor."""
+        """Returns the length (number of rows) of the longest tensor in the dataset."""
         return (
             max([len(tensor) for tensor in self.tensors.values()])
             if self.tensors
@@ -399,7 +399,7 @@ class Dataset:
 
     @property
     def min_len(self):
-        """Return the minimum length of the tensor."""
+        """Returns the length (number of rows) of the shortest tensor in the dataset."""
         return (
             min([len(tensor) for tensor in self.tensors.values()])
             if self.tensors
@@ -668,7 +668,7 @@ class Dataset:
         tiling_threshold: Optional[int] = None,
         **kwargs,
     ):
-        """Creates a new tensor in the Deep Lake dataset. Specifying htype is highly recommended for complex data such as images, video, dicom, text, json, etc.
+        """Creates a new tensor in the Deep Lake dataset. Specifying the tensor's htype is highly recommended for complex data such as images, video, dicom, text, json, etc.
         Specifying htype is not necessary for simple numeric date such as arrays and scalars.
 
         Examples:
@@ -2566,10 +2566,10 @@ class Dataset:
 
     @spinner
     def flush(self):
-        """Necessary operation after writes if caches are being used.
-        Writes all the dirty data from the cache layers (if any) to the underlying storage.
-        Here dirty data corresponds to data that has been changed/assigned and but hasn't yet been sent to the
-        underlying storage.
+        """
+        Writes all the data that has been changed/assigned from the cache layers (if any) to the underlying storage.
+
+        NOTE: The high-level APIs flush the cache automatically and users generally do not have explicitly run the ``flush`` command.
         """
         self._flush_vc_info()
         self.storage.flush()
@@ -2584,11 +2584,13 @@ class Dataset:
 
     def clear_cache(self):
         """
-        - Flushes (see :func:`Dataset.flush`) the contents of the cache layers (if any) and then deletes contents of all the layers of it.
-        - This doesn't delete data from the actual storage.
-        - This is useful if you have multiple datasets with memory caches open, taking up too much RAM.
-        - Also useful when local cache is no longer needed for certain datasets and is taking up storage space.
+        Flushes (see :func:`Dataset.flush`) the contents of the cache layers (if any) and then deletes contents of all the layers of it.
+        This doesn't delete data from the actual storage.
+        This is useful if you have multiple datasets with memory caches open, taking up too much RAM, or when local cache is no longer needed for certain datasets and is taking up storage space.
+
+        NOTE: The high-level APIs clear the cache automatically and users generally do not have explicitly run the ``clear_cache`` command.
         """
+
         if hasattr(self.storage, "clear_cache"):
             self.storage.clear_cache()
 
@@ -2630,7 +2632,7 @@ class Dataset:
 
     @invalid_view_op
     def delete(self, large_ok=False):
-        """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
+        """Deletes the entire dataset from the underlying storage and cache layers (if any).
         This is an **IRREVERSIBLE** operation. Data once deleted can not be recovered.
 
         Args:
@@ -2674,10 +2676,10 @@ class Dataset:
         self.storage.clear()
 
     def summary(self, force: bool = False):
-        """Prints a summary of the dataset.
+        """Prints a summary of the dataset, including the tensor names and their lengths, shapes, htypes, dtypes, compressions, and other relevant information.
 
         Args:
-            force (bool): Dataset views with more than 10000 samples might take a long time to summarize. If `force=True`,
+            force (bool): Dataset views with more than 10000 samples might take several seconds of minutes to summarize. If `force=True`,
                 the summary will be printed regardless. An error will be raised otherwise.
 
         Raises:
@@ -3205,10 +3207,10 @@ class Dataset:
         ignore_errors: bool = False,
         progressbar: bool = False,
     ):
-        """Appends multiple rows of samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
+        """Appends multiple samples (rows) to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
         Args:
-            samples (Dict[str, Any]): Dictionary with tensor names as keys and samples as values.
+            samples (Dict[str, Any]): Dictionary with tensor names as keys and data as values. The values can be a sequence (i.e. a list) or a single numpy array (the first axis in the array is treated as the row axis).
             skip_ok (bool): Skip tensors not in ``samples`` if set to True.
             append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
             ignore_errors (bool): Skip samples that cause errors while extending, if set to ``True``.
@@ -3295,7 +3297,7 @@ class Dataset:
         skip_ok: bool = False,
         append_empty: bool = False,
     ):
-        """Append samples to multiple tensors at once.
+        """Append a single sample (row) to multiple tensors at once.
 
         Args:
             sample (dict): Dictionary with tensor names as keys and samples as values.
@@ -3313,11 +3315,11 @@ class Dataset:
         Examples:
 
             >>> ds = deeplake.empty("../test/test_ds")
-            >>>
+
             >>> with ds:
             >>>     ds.create_tensor('data')
             >>>     ds.create_tensor('labels')
-            >>>
+
             >>>     # This operation will append 1 sample (row) to the Deep Lake dataset
             >>>     ds.append({"data": 1, "labels": "table"})
 

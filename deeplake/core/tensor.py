@@ -326,8 +326,7 @@ class Tensor:
         progressbar: bool = False,
         ignore_errors: bool = False,
     ):
-        """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
-        or a sequence of :func:`deeplake.read` outputs, which can be used to load files. See examples down below.
+        """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence (i.e. a list) or a single numpy array (the first axis in the array is treated as the row axis).
 
         Example:
             Numpy input:
@@ -429,8 +428,7 @@ class Tensor:
 
     @invalid_view_op
     def append(self, sample: InputSample):
-        """Appends a single sample to the end of the tensor. Can be an array, scalar value, or the return value from :func:`deeplake.read`,
-        which can be used to load files. See examples down below.
+        """Appends a single sample (row) to the end of the tensor.
 
         Examples:
             Numpy input:
