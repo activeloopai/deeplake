@@ -11,7 +11,6 @@ from deeplake.auto.unstructured.kaggle import download_kaggle_dataset
 from deeplake.auto.unstructured.image_classification import ImageClassification
 from deeplake.auto.unstructured.coco.coco import CocoDataset
 from deeplake.auto.unstructured.yolo.yolo import YoloDataset
-from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.dataset.indra_dataset_view import IndraDatasetView
@@ -449,16 +448,6 @@ class dataset:
         if creds is None:
             creds = {}
 
-        if "creds_key" in creds:
-            client = DeepLakeBackendClient(token)
-            creds_key = creds["creds_key"]
-
-            if "org_id" not in creds:
-                raise ValueError("org_id is required when using creds_key")
-            org_id = creds["org_id"]
-
-            creds = client.get_managed_creds(org_id, creds_key)
-
         try:
             storage, cache_chain = get_storage_and_cache_chain(
                 path=path,
@@ -822,7 +811,7 @@ class dataset:
         """Renames dataset at ``old_path`` to ``new_path``.
 
         Examples:
-            >>> deeplake.rename("hub://username/image_ds", "new_ds")
+
             >>> deeplake.rename("hub://username/image_ds", "hub://username/new_ds")
             >>> deeplake.rename("s3://mybucket/my_ds", "s3://mybucket/renamed_ds")
 
