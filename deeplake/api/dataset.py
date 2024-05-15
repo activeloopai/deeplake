@@ -804,19 +804,19 @@ class dataset:
 
     @staticmethod
     def rename(
-        old_path: Union[str, pathlib.Path],
+        path: Union[str, pathlib.Path],
         new_name: Union[str, pathlib.Path],
         creds: Optional[Union[dict, str]] = None,
         token: Optional[str] = None,
     ) -> Dataset:
-        """Renames dataset at ``old_path`` to ``new_name``.
+        """Renames dataset at ``path`` to ``new_name``.
 
         Examples:
             >>> deeplake.rename("hub://username/image_ds", "new_ds")
             >>> deeplake.rename("s3://mybucket/my_ds", "s3://mybucket/renamed_ds")
 
         Args:
-            old_path (str, pathlib.Path): The path to the dataset to be renamed.
+            path (str, pathlib.Path): The path to the dataset to be renamed.
             new_name (str, pathlib.Path): New name of the dataset.
             creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
@@ -831,18 +831,18 @@ class dataset:
             DatasetHandlerError: If a Dataset does not exist at the given path or if new path is to a different directory.
         """
 
-        old_path = convert_pathlib_to_string_if_needed(old_path)
+        path = convert_pathlib_to_string_if_needed(path)
         new_name = convert_pathlib_to_string_if_needed(new_name)
 
-        if ":" in old_path and ":" not in new_name:
-            new_name = old_path.rsplit("/", 1)[0] + "/" + new_name
+        if ":" in path and ":" not in new_name:
+            new_name = path.rsplit("/", 1)[0] + "/" + new_name
 
         if creds is None:
             creds = {}
 
-        feature_report_path(old_path, "rename", {}, token=token)
+        feature_report_path(path, "rename", {}, token=token)
 
-        ds = deeplake.load(old_path, verbose=False, token=token, creds=creds)
+        ds = deeplake.load(path, verbose=False, token=token, creds=creds)
         ds.rename(new_name)
 
         return ds
