@@ -497,8 +497,8 @@ def get_compression(header=None, path=None):
                 return fmt[1:]
     if header:
         if (
-            header[4:12] == b'\x66\x74\x79\x70\x4D\x53\x4E\x56'
-            or header[4:12] == b'\x66\x74\x79\x70\x69\x73\x6F\x6D'
+            header[4:12] == b"\x66\x74\x79\x70\x4D\x53\x4E\x56"
+            or header[4:12] == b"\x66\x74\x79\x70\x69\x73\x6F\x6D"
         ):
             return "mp4"
         if header[0:4] == b"\x1A\x45\xDF\xA3":
