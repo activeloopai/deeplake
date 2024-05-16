@@ -2095,13 +2095,16 @@ class Dataset:
         *args,
         **kwargs,
     ):
-        """Creates a dataset PyTorch Dataloader from the Deep Lake dataset. During iteration, the data from all tensors will be streamed on-the-fly from the storage location.
+        """Creates a PyTorch Dataloader from the Deep Lake dataset. During iteration, the data from all tensors will be streamed on-the-fly from the storage location.
+        Understanding the parameters below is critical for achieving fast streaming for your use-case
 
         Args:
             *args: Additional args to be passed to torch_dataset
             **kwargs: Additional kwargs to be passed to torch_dataset
             transform (Callable, Optional): Transformation function to be applied to each sample.
-            tensors (List, Optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if ``tensors=["image", "label"]``, your training script should expect each batch will be provided as a tuple of (image, label).
+            tensors (List, Optional): List of tensors to load. If ``None``, all tensors are loaded. Defaults to ``None``.
+                For datasets with many tensors, its extremely important to stream only the data that is needed for training the model, in order to avoid bottlenecks associated with streaming unused data.
+                For example, if you have a dataset that has ``image``, ``label``, and ``metadata`` tensors, if ``tensors=["image", "label"]``, the Data Loader will only stream the ``image`` and ``label`` tensors.
             num_workers (int): The number of workers to use for fetching data in parallel.
             batch_size (int): Number of samples per batch to load. Default value is 1.
             drop_last (bool): Set to True to drop the last incomplete batch, if the dataset size is not divisible by the batch size.
