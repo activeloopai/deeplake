@@ -3032,6 +3032,7 @@ def test_append_non_uint8_to_image(local_ds):
     assert ds.images.dtype.name == "int16"
 
 
+@pytest.mark.slow
 def test_create_and_load_with_managed_credentials(
     hub_cloud_path: str, hub_cloud_dev_token
 ):

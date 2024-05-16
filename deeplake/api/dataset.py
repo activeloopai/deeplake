@@ -92,7 +92,7 @@ def _check_indra_and_read_only_flags(indra: bool, read_only: Optional[bool]):
     )
 
 
-def _fetch_creds_from_key(creds: dict, org_id: str, token: str):
+def _fetch_creds_from_key(creds: dict, org_id: str, token: str) -> Optional[str]:
     if "creds_key" in creds:
         if len(creds) != 1:
             raise ValueError("Other creds values are not allowed with creds_key")
@@ -101,10 +101,14 @@ def _fetch_creds_from_key(creds: dict, org_id: str, token: str):
         creds_key = creds["creds_key"]
 
         if not org_id:
-            raise ValueError("org_id is required when using creds_key")
+            raise ValueError("Please specify org_id when using creds_key")
 
         creds.update(client.get_managed_creds(org_id, creds_key))
         del creds["creds_key"]
+
+        return creds_key
+
+    return None
 
 
 class dataset:
@@ -243,7 +247,7 @@ class dataset:
         if creds is None:
             creds = {}
 
-        _fetch_creds_from_key(creds, org_id, token)
+        dataset_creds_key = _fetch_creds_from_key(creds, org_id, token)
 
         db_engine = parse_runtime_parameters(path, runtime)["tensor_db"]
 
@@ -299,6 +303,9 @@ class dataset:
             "lock_timeout": lock_timeout,
             "lock_enabled": lock_enabled,
             "index_params": index_params,
+            "dataset_creds_key": dataset_creds_key,
+            "dataset_creds_key_org_id": org_id,
+            "dataset_creds_key_token": token,
         }
 
         if access_method == "stream":
@@ -469,7 +476,7 @@ class dataset:
         if creds is None:
             creds = {}
 
-        _fetch_creds_from_key(creds, org_id, token)
+        dataset_creds_key = _fetch_creds_from_key(creds, org_id, token)
 
         try:
             storage, cache_chain = get_storage_and_cache_chain(
@@ -529,6 +536,9 @@ class dataset:
             "lock_timeout": lock_timeout,
             "lock_enabled": lock_enabled,
             "index_params": index_params,
+            "dataset_creds_key": dataset_creds_key,
+            "dataset_creds_key_org_id": org_id,
+            "dataset_creds_key_token": token,
         }
         ret = dataset._load(dataset_kwargs, create=True)
         return ret
@@ -656,7 +666,7 @@ class dataset:
         if creds is None:
             creds = {}
 
-        _fetch_creds_from_key(creds, org_id, token)
+        dataset_creds_key = _fetch_creds_from_key(creds, org_id, token)
 
         try:
             storage, cache_chain = get_storage_and_cache_chain(
@@ -702,6 +712,9 @@ class dataset:
             "lock_timeout": lock_timeout,
             "lock_enabled": lock_enabled,
             "index_params": index_params,
+            "dataset_creds_key": dataset_creds_key,
+            "dataset_creds_key_org_id": org_id,
+            "dataset_creds_key_token": token,
         }
 
         if access_method == "stream":
