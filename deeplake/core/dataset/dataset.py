@@ -23,6 +23,8 @@ from deeplake.core.sample import Sample
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
+from deeplake.util.storage import get_dataset_credentials
+from deeplake.util.tag import process_hub_path
 from deeplake.util.version_control import (
     save_version_info,
     integrity_check,
@@ -4403,7 +4405,7 @@ class Dataset:
         Examples:
             >>> # create/load an s3 dataset
             >>> s3_ds = deeplake.dataset("s3://bucket/dataset")
-            >>> ds = s3_ds.connect(dest_path="hub://my_org/dataset", creds_key="my_managed_credentials_key", token="my_activeloop_token)
+            >>> ds = s3_ds.connect(dest_path="hub://my_org/dataset", creds_key="my_managed_credentials_key", token="my_activeloop_token")
             >>> # or
             >>> ds = s3_ds.connect(org_id="my_org", creds_key="my_managed_credentials_key", token="my_activeloop_token")
 
