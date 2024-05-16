@@ -834,8 +834,12 @@ class dataset:
         path = convert_pathlib_to_string_if_needed(path)
         new_name = convert_pathlib_to_string_if_needed(new_name)
 
-        if ":" in path and ":" not in new_name:
+        if ":" in path and ":" not in new_name:  # a cloud path with just the new_name given
             new_name = path.rsplit("/", 1)[0] + "/" + new_name
+        elif ":" not in path and "/" not in new_name:  # a local path with just the new_name given
+            new_name = path.rsplit("/", 1)[0] + "/" + new_name
+
+
 
         if creds is None:
             creds = {}

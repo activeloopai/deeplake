@@ -980,7 +980,17 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
     ds = deeplake.load(new_path, token=hub_token)
     assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
 
-    deeplake.delete(new_path, token=hub_token)
+    full_final_path = "_".join([path, "renamed2"])
+    final_path = str(full_final_path).rsplit("/", 1)[1]
+
+    ds = deeplake.rename(new_path, final_path, token=hub_token)
+    assert ds.path.replace("./", "") == str(full_final_path).replace("./", "")
+    assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
+
+    ds = deeplake.load(full_final_path, token=hub_token)
+    assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
+
+    deeplake.delete(full_final_path, token=hub_token)
 
 
 @pytest.mark.parametrize(
