@@ -484,13 +484,15 @@ class DeepLakeDataLoader(DataLoader):
         decode_method: Optional[Dict[str, str]] = None,
         persistent_workers: bool = False,
     ):
-        """Returns a :class:`DeepLakeDataLoader` object.
-
+        """Creates a PyTorch Dataloader on top of the ``DeepLakeDataLoader`` from the Deep Lake dataset. During iteration, the data from all tensors will be streamed on-the-fly from the storage location.
+        Understanding the parameters below is critical for achieving fast streaming for your use-case
 
         Args:
             num_workers (int): Number of workers to use for transforming and processing the data. Defaults to 0.
             collate_fn (Callable, Optional): merges a list of samples to form a mini-batch of Tensor(s).
-            tensors (List[str], Optional): List of tensors to load. If None, all tensors are loaded. Defaults to ``None``.
+            tensors (List, Optional): List of tensors to load. If ``None``, all tensors are loaded. Defaults to ``None``.
+                For datasets with many tensors, its extremely important to stream only the data that is needed for training the model, in order to avoid bottlenecks associated with streaming unused data.
+                For example, if you have a dataset that has ``image``, ``label``, and ``metadata`` tensors, if ``tensors=["image", "label"]``, the Data Loader will only stream the ``image`` and ``label`` tensors.
             num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If ``None``, the number of threads is automatically determined. Defaults to ``None``.
             prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 2.
             distributed (bool): Used for DDP training. Distributes different sections of the dataset to different ranks. Defaults to ``False``.
