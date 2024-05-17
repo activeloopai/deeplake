@@ -149,6 +149,7 @@ def _get_indra_ds_from_s3_provider(
             read_only=provider.read_only,
             token=token,
             origin_path=provider.root,
+            profile_name=provider.profile_name,
             aws_access_key_id=provider.aws_access_key_id,
             aws_secret_access_key=provider.aws_secret_access_key,
             aws_session_token=provider.aws_session_token,

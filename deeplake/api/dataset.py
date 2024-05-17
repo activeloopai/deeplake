@@ -396,7 +396,7 @@ class dataset:
         verbose: bool = True,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
     ) -> Dataset:
-        """Creates an empty dataset
+        """Creates an empty Deep Lake dataset.
 
         Args:
             path (str, pathlib.Path): - The full path to the dataset. It can be:
@@ -531,7 +531,7 @@ class dataset:
         lock_enabled: Optional[bool] = True,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
     ) -> Dataset:
-        """Loads an existing dataset
+        """Loads an existing Deep Lake dataset
 
         Examples:
 
@@ -1128,7 +1128,8 @@ class dataset:
         progressbar=True,
         **kwargs,
     ):
-        """Copies dataset at ``src`` to ``dest``. Version control history is not included.
+        """Copies dataset at ``src`` to ``dest``. Version control history is not included, and this operation copies data from the latest commit on the main branch.
+        For fast copying, we recommend using ``deepake.deepcopy()`` instead.
 
         Args:
             src (str, Dataset, pathlib.Path): The Dataset or the path to the dataset to be copied.
@@ -1214,7 +1215,7 @@ class dataset:
         verbose: bool = True,
         **kwargs,
     ):
-        """Copies dataset at ``src`` to ``dest`` including version control history.
+        """Copies dataset at ``src`` to ``dest`` including version control history. This is the fastest method for copying datasets.
 
         Args:
             src (str, pathlib.Path, Dataset): The Dataset or the path to the dataset to be copied.
@@ -1460,9 +1461,9 @@ class dataset:
 
         Examples:
             >>> # Connect an s3 dataset
-            >>> ds = deeplake.connect(src_path="s3://bucket/dataset", dest_path="hub://my_org/dataset", creds_key="my_managed_credentials_key", token="my_activeloop_token")
+            >>> ds = deeplake.connect(src_path="s3://bucket/dataset", dest_path="hub://my_org/dataset", creds_key="my_managed_credentials_key")
             >>> # or
-            >>> ds = deeplake.connect(src_path="s3://bucket/dataset", org_id="my_org", creds_key="my_managed_credentials_key", token="my_activeloop_token")
+            >>> ds = deeplake.connect(src_path="s3://bucket/dataset", org_id="my_org", creds_key="my_managed_credentials_key")
 
         Args:
             src_path (str): Cloud path to the source dataset. Can be:
@@ -1661,9 +1662,9 @@ class dataset:
             >>>     "path/to/data/directory",
             >>>     dest="hub://org_id/dataset",
             >>>     allow_no_annotation=True,
-            >>>     token="my_activeloop_token",
             >>>     num_workers=4,
             >>> )
+
             >>> # Ingest data from your cloud into another Deep Lake dataset in your cloud, and connect that dataset to the Deep Lake backend.
             >>> ds = deeplake.ingest_yolo(
             >>>     "s3://bucket/data_directory",

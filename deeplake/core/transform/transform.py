@@ -34,19 +34,18 @@ from deeplake.util.exceptions import (
     HubComposeEmptyListError,
     HubComposeIncompatibleFunction,
     TransformError,
-    SampleAppendError,
 )
 from deeplake.hooks import dataset_written, dataset_read
 from deeplake.util.version_control import auto_checkout
 from deeplake.util.class_label import sync_labels
 from deeplake.constants import DEFAULT_TRANSFORM_SAMPLE_CACHE_SIZE
 
-import posixpath
-
 
 class ComputeFunction:
     def __init__(self, func, args, kwargs, name: Optional[str] = None):
-        """Creates a ComputeFunction object that can be evaluated using .eval or used as a part of a Pipeline."""
+        """Creates a ComputeFunction object that can be evaluated using ``.eval()`` or used as a part of a Pipeline.
+        Compute Functions are evaluated in parallel, where the input data iterable is devided between the workers for processing.
+        """
         self.func = func
         self.args = args
         self.kwargs = kwargs
@@ -68,37 +67,58 @@ class ComputeFunction:
         ignore_errors: bool = False,
         **kwargs,
     ):
-        """Evaluates the ComputeFunction on data_in to produce an output dataset ds_out.
+        """
+        Evaluates the ComputeFunction on ``data_in`` to produce an output dataset ``ds_out``. The purpose of compute functions is to process the input data in parallel,
+        which is useful when rapidly ingesting data to a Deep Lake dataset. Compute Functions can also be executed in-place, where it modifies the input dataset (see ``ds_out`` parameters below) instead of writing to a new dataset.
 
         Args:
-            data_in: Input passed to the transform to generate output dataset. Should support \__getitem__ and \__len__. Can be a Deep Lake dataset.
-            ds_out (Dataset, optional): The dataset object to which the transform will get written. If this is not provided, data_in will be overwritten if it is a Deep Lake dataset, otherwise error will be raised.
-                It should have all keys being generated in output already present as tensors. It's initial state should be either:-
+            data_in: Input passed to the transform to generate output dataset. Should support ``__getitem__`` and ``__len__`` operations. Can be a Deep Lake dataset.
+            ds_out (Dataset, optional): The dataset object to which the transform will get written. If this is not provided, the ComputeFunction will operate in-place, which means that data will be written to tensors in ``data_in`` .
+                All tensors modified in the ComputeFunction should already be defined in ``ds_out``. It's initial state should be either:
                 - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
                 - All tensors are populated and have same length. In this case new samples are appended to the dataset.
             num_workers (int): The number of workers to use for performing the transform. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
-                Defaults to 'threaded'.
+            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: ``serial``, ``threaded``, and ``processed``.
+                Defaults to ``threaded``.
             progressbar (bool): Displays a progress bar if True (default).
-            skip_ok (bool): If True, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
+            skip_ok (bool): If ``True``, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
                 This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
-            check_lengths (bool): If True, checks whether ds_out has tensors of same lengths initially.
-            pad_data_in (bool): NOTE: This is only applicable if data_in is a Deep Lake dataset. If True, pads tensors of data_in to match the length of the largest tensor in data_in.
+            check_lengths (bool): If ``True``, checks whether ds_out has tensors of same lengths initially.
+            pad_data_in (bool): NOTE: This is only applicable if ``data_in`` is a Deep Lake dataset. If True, pads tensors of data_in to match the length of the largest tensor in data_in.
                 Defaults to False.
             read_only_ok (bool): If ``True`` and output dataset is same as input dataset, the read-only check is skipped. This can be used to read data in parallel without making changes to underlying dataset.
                 Defaults to False.
             cache_size (int): Cache size to be used by transform per worker.
-            checkpoint_interval (int): If > 0, the transform will be checkpointed with a commit every ``checkpoint_interval`` input samples to avoid restarting full transform due to intermitten failures. If the transform is interrupted, the intermediate data is deleted and the dataset is reset to the last commit.
-                If <= 0, no checkpointing is done. Checkpoint interval should be a multiple of num_workers if num_workers > 0. Defaults to 0.
+            checkpoint_interval (int): If > 0, the ComputeFunction will be checkpointed with a commit every ``checkpoint_interval`` input samples to avoid restarting full transform due to intermitten failures. If the transform is interrupted, the intermediate data is deleted and the dataset is reset to the last commit.
+                If <= 0, no checkpointing is done. Checkpoint interval should be a multiple of num_workers if ``num_workers`` > 0. Defaults to 0.
             ignore_errors (bool): If ``True``, input samples that causes transform to fail will be skipped and the errors will be ignored **if possible**.
             **kwargs: Additional arguments.
 
         Raises:
-            InvalidInputDataError: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as data_in will also raise this.
+            InvalidInputDataError: If ``data_in`` passed to transform is invalid. It should support ``__getitem__`` and ``__len__`` operations. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as data_in will also raise this.
             InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as ds_out will also raise this.
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
-            UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+            UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: ``serial``, ``threaded``, and ``processed``.
+            TransformError: All other exceptions raised if there are problems while running the ComputeFunction.
             ValueError: If ``num_workers`` > 0 and ``checkpoint_interval`` is not a multiple of ``num_workers`` or if ``checkpoint_interval`` > 0 and ds_out is None.
+            AllSamplesSkippedError: If all samples are skipped during execution of the Pipeline.
+
+        Example:
+            # Suppose we have a list of dictionaries that we want to upload in parallel to a Deep Lake dataset.
+            data_in = [{"label": "cat", "score": 0.9}, {"label": "dog", "score": 0.8}]
+
+            # First, we define a function that takes a single element of the `data_in` list and uploads it to a Deep Lake dataset
+            @deeplake.compute
+            def data_upload(data_dict_in, sample_out, score_multiplier):
+                label = data_dict_in["label"]
+                score = data_dict_in["score"] * score_multiplier
+                sample_out.append({"label": label, "score": score})
+
+            # To evaluate the function, static parameters (if any) are specified to the function input, and the input data iterable and output dataset are specified to `.eval(...)`
+            data_upload(score_multiplier).eval(data_in, ds_out, scheduler="threaded", num_workers=4)
+
+        Note:
+            ``pad_data_in`` is only applicable if ``data_in`` is a Deep Lake dataset.
         """
 
         pipeline = Pipeline([self])
@@ -124,7 +144,7 @@ class ComputeFunction:
 
 class Pipeline:
     def __init__(self, functions: List[ComputeFunction]):
-        """Takes a list of functions decorated using :func:`deeplake.compute` and creates a pipeline that can be evaluated using .eval"""
+        """Takes a list of functions decorated using :func:`deeplake.compute` and creates a pipeline that can be evaluated using ``.eval()``"""
         self.functions = functions
 
     def __len__(self):
@@ -147,16 +167,18 @@ class Pipeline:
         verbose: bool = True,
         **kwargs,
     ):
-        """Evaluates the pipeline on ``data_in`` to produce an output dataset ``ds_out``.
+        """
+        Evaluates the Pipeline of ComputeFunctions on ``data_in`` to produce an output dataset ``ds_out``. The purpose of compute functions is to process the input data in parallel,
+        which is useful when rapidly ingesting data to a Deep Lake dataset. Pipelines can also be executed in-place, where it modifies the input dataset (see ``ds_out`` parameters below) instead of writing to a new dataset.
 
         Args:
-            data_in: Input passed to the transform to generate output dataset. Should support \__getitem__ and \__len__. Can be a Deep Lake dataset.
-            ds_out (Dataset, optional): - The dataset object to which the transform will get written. If this is not provided, ``data_in`` will be overwritten if it is a Deep Lake dataset, otherwise error will be raised.
-                - It should have all keys being generated in output already present as tensors. It's initial state should be either:
-                - **Empty**, i.e., all tensors have no samples. In this case all samples are added to the dataset.
-                - **All tensors are populated and have same length.** In this case new samples are appended to the dataset.
+            data_in: Input passed to the transform to generate output dataset. Should support ``__getitem__`` and ``__len__`` operations. Can be a Deep Lake dataset.
+            ds_out (Dataset, optional): The dataset object to which the transform will get written. If this is not provided, the ComputeFunction will operate in-place, which means that data will be written to tensors in ``data_in`` .
+                All tensors modified in the ComputeFunction should already be defined in ``ds_out``. It's initial state should be either:
+                - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
+                - All tensors are populated and have same length. In this case new samples are appended to the dataset.
             num_workers (int): The number of workers to use for performing the transform. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: ``serial``, ``threaded``, and ``processed``.
                 Defaults to 'threaded'.
             progressbar (bool): Displays a progress bar if ``True`` (default).
             skip_ok (bool): If ``True``, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
@@ -167,38 +189,49 @@ class Pipeline:
             read_only_ok (bool): If ``True`` and output dataset is same as input dataset, the read-only check is skipped.
                 Defaults to False.
             cache_size (int): Cache size to be used by transform per worker.
-            checkpoint_interval (int): If > 0, the transform will be checkpointed with a commit every ``checkpoint_interval`` input samples to avoid restarting full transform due to intermitten failures. If the transform is interrupted, the intermediate data is deleted and the dataset is reset to the last commit.
-                If <= 0, no checkpointing is done. Checkpoint interval should be a multiple of num_workers if num_workers > 0. Defaults to 0.
+            checkpoint_interval (int): If > 0, the ComputeFunction will be checkpointed with a commit every ``checkpoint_interval`` input samples to avoid restarting full transform due to intermitten failures. If the transform is interrupted, the intermediate data is deleted and the dataset is reset to the last commit.
+                If <= 0, no checkpointing is done. Checkpoint interval should be a multiple of num_workers if ``num_workers`` > 0. Defaults to 0.
             ignore_errors (bool): If ``True``, input samples that causes transform to fail will be skipped and the errors will be ignored **if possible**.
             verbose (bool): If ``True``, prints additional information about the transform.
             **kwargs: Additional arguments.
 
         Raises:
-            InvalidInputDataError: If ``data_in`` passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as ``data_in`` will also raise this.
+            InvalidInputDataError: If ``data_in`` passed to transform is invalid. It should support ``__getitem__`` and ``__len__`` operations. Using scheduler other than ``threaded`` with deeplake dataset having base storage as memory as ``data_in`` will also raise this.
             InvalidOutputDatasetError: If all the tensors of ``ds_out`` passed to transform don't have the same length. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as ``ds_out`` will also raise this.
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
-            UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+            UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: ``serial``, ``threaded``, and ``processed``.
             TransformError: All other exceptions raised if there are problems while running the pipeline.
             ValueError: If ``num_workers`` > 0 and ``checkpoint_interval`` is not a multiple of ``num_workers`` or if ``checkpoint_interval`` > 0 and ds_out is None.
-
+            AllSamplesSkippedError: If all samples are skipped during execution of the Pipeline.
+            ModuleNotInstalledException: If the module ``ray`` is not installed and the scheduler is set to ``ray``.
 
         # noqa: DAR401
 
-        Example::
+        Example:
+
+            # Suppose we have a series of operations that we want to perform in parallel on images using reusable pipelines.
+            # We use the pipeline to ingest the transfomed data from one dataset to another dataset.
+
+            # First, we define the ComputeFunctions that will be used in the pipeline
+            @deeplake.compute
+            def flip_vertical(sample_in, sample_out):
+                sample_out.append({'labels': sample_in.labels.numpy(),
+                                    'images': np.flip(sample_in.images.numpy(), axis = 0)})
 
             @deeplake.compute
-            def my_fn(sample_in: Any, samples_out, my_arg0, my_arg1=0):
-                samples_out.my_tensor.append(my_arg0 * my_arg1)
+            def resize(sample_in, sample_out, new_size):
+                sample_out.append({"labels": sample_in.labels.numpy(),
+                                    "images": np.array(Image.fromarray(sample_in.images.numpy()).resize(new_size))})
 
-            # This transform can be used using the eval method in one of these 2 ways:-
+            # Append the label and image to the output sample
+            sample_out.labels.append(sample_in.labels.numpy())
+            sample_out.images.append(np.array(Image.fromarray(sample_in.images.numpy()).resize(new_size)))
 
-            # Directly evaluating the method
-            # here arg0 and arg1 correspond to the 3rd and 4th argument in my_fn
-            my_fn(arg0, arg1).eval(data_in, ds_out, scheduler="threaded", num_workers=5)
+            # We can define the pipeline using:
+            pipeline = deeplake.compose([flip_vertical(), resize(new_size = (64,64))])
 
-            # As a part of a Transform pipeline containing other functions
-            pipeline = deeplake.compose([my_fn(a, b), another_function(x=2)])
-            pipeline.eval(data_in, ds_out, scheduler="processed", num_workers=2)
+            # Finally, we can evaluate the pipeline using:
+            pipeline.eval(ds_in, ds_out, num_workers = 4)
 
         Note:
             ``pad_data_in`` is only applicable if ``data_in`` is a Deep Lake dataset.
