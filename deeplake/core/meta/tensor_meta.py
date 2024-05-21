@@ -99,6 +99,16 @@ class TensorMeta(Meta):
             index_ids.append(index["id"])
         return index_ids
 
+    def update_vdb_partition(self, id: str, partition: str):
+        if not self.contains_vdb_index(id):
+            raise ValueError(f"Tensor meta has no vdb index with name '{id}'.")
+        for index in self.vdb_indexes:
+            if id == index["id"]:
+                additional_param = index["additional_params"]
+                additional_param["partitions"] = partition
+                self.is_dirty = True
+                return
+
     def add_vdb_index(self, id: str, type: str, distance: str, **kwargs):
         if self.contains_vdb_index(id):
             raise ValueError(f"Tensor meta already has a vdb index with name '{id}'.")

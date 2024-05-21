@@ -180,7 +180,7 @@ def check_vdb_indexes(dataset):
     return False
 
 
-def _incr_maintenance_vdb_indexes(tensor, indexes, index_operation):
+def _incr_maintenance_vdb_indexes(tensor, indexes, index_operation, is_partitioned = False):
     try:
         is_embedding = tensor.htype == "embedding"
         has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
@@ -194,6 +194,7 @@ def _incr_maintenance_vdb_indexes(tensor, indexes, index_operation):
                 tensor.update_vdb_index(
                     operation_kind=index_operation,
                     row_ids=indexes,
+                    is_partitioned = is_partitioned,
                 )
     except Exception as e:
         raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
@@ -248,6 +249,11 @@ def index_operation_dataset(self, dml_type, rowids):
     if index_operation_type == INDEX_OP_TYPE.NOOP:
         return
 
+    distance_str = self.index_params.get("distance_metric", "COS")
+    additional_params_dict = self.index_params.get("additional_params", None)
+    distance = get_index_metric(distance_str.upper())
+
+
     if (
         index_operation_type == INDEX_OP_TYPE.CREATE_INDEX
         or index_operation_type == INDEX_OP_TYPE.REGENERATE_INDEX
@@ -261,9 +267,6 @@ def index_operation_dataset(self, dml_type, rowids):
                 raise Exception(
                     f"An error occurred while regenerating VDB indexes: {e}"
                 )
-        distance_str = self.index_params.get("distance_metric", "COS")
-        additional_params_dict = self.index_params.get("additional_params", None)
-        distance = get_index_metric(distance_str.upper())
         if additional_params_dict and len(additional_params_dict) > 0:
             param_dict = normalize_additional_params(additional_params_dict)
             emb_tensor.create_vdb_index(
@@ -272,6 +275,11 @@ def index_operation_dataset(self, dml_type, rowids):
         else:
             emb_tensor.create_vdb_index("hnsw_1", distance=distance)
     elif index_operation_type == INDEX_OP_TYPE.INCREMENTAL_INDEX:
-        _incr_maintenance_vdb_indexes(emb_tensor, rowids, dml_type)
+        if additional_params_dict and len(additional_params_dict) > 0:
+            param_dict = normalize_additional_params(additional_params_dict)
+            if param_dict.get("partitions", 1) > 1:
+                _incr_maintenance_vdb_indexes(emb_tensor, rowids, dml_type, is_partitioned = True)
+            else:
+                _incr_maintenance_vdb_indexes(emb_tensor, rowids, dml_type)
     else:
         raise Exception("Unknown index operation")
