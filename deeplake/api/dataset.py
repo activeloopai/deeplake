@@ -1,6 +1,5 @@
 import json
 import os
-import re
 
 import deeplake
 import pathlib
@@ -806,7 +805,7 @@ class dataset:
     @staticmethod
     def rename(
         path: Union[str, pathlib.Path],
-        new_name: Union[str, pathlib.Path],
+        new_name: str,
         token: Optional[str] = None,
     ) -> Dataset:
         """Renames managed dataset at ``path`` to ``new_name``.
