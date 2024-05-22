@@ -3043,7 +3043,7 @@ class Dataset:
             tensors (str, List[str], Optional): Name/names of the tensors to rechunk.
                 If None, all tensors in the dataset are rechunked.
             num_workers (int): The number of workers to use for rechunking. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-            scheduler (str): The scheduler to be used for rechunking. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+            scheduler (str): The scheduler to be used for rechunking. Supported values include: 'serial', 'threaded', and 'processed'.
                 Defaults to 'threaded'.
             progressbar (bool): Displays a progress bar If ``True`` (default).
         """
@@ -3702,7 +3702,7 @@ class Dataset:
                 - You can also choose to optimize the saved view later by calling its :meth:`ViewEntry.optimize` method.
             tensors (List, optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             num_workers (int): Number of workers to be used for optimization process. Applicable only if ``optimize=True``. Defaults to 0.
-            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Only applicable if ``optimize=True``. Defaults to 'threaded'.
+            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', and 'processed'. Only applicable if ``optimize=True``. Defaults to 'threaded'.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
             ignore_errors (bool): Skip samples that cause errors while saving views. Only applicable if ``optimize=True``. Defaults to ``False``.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for :func:`deeplake.dataset()`)
@@ -3772,7 +3772,7 @@ class Dataset:
             optimize (bool): Whether the view should be optimized by copying the required data. Default False.
             tensors (Optional, List[str]): Tensors to be copied if `optimize` is True. By default all tensors are copied.
             num_workers (int): Number of workers to be used if `optimize` is True.
-            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', and 'processed'.
                 Only applicable if ``optimize=True``. Defaults to 'threaded'.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
             _ret_ds (bool): If ``True``, the VDS is retured as such without converting it to a view. If ``False``, the VDS path is returned.
@@ -3989,7 +3989,7 @@ class Dataset:
                 take some time, depending on the size of the data.
             tensors (Optional, List[str]): Tensors to be copied if `optimize` is True. By default all tensors are copied.
             num_workers (int): Number of workers to be used for the optimization process. Only applicable if `optimize=True`. Defaults to 0.
-            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', and 'processed'.
                 Only applicable if `optimize=True`. Defaults to 'threaded'.
             progressbar (bool): Whether to use progressbar for optimization. Only applicable if `optimize=True`. Defaults to True.
 
@@ -4329,7 +4329,7 @@ class Dataset:
             creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
             token (str, Optional): token used to for fetching credentials to `dest`.
             num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-            scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+            scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', and 'processed'.
                 Defaults to 'threaded'.
             progressbar (bool): Displays a progress bar If ``True`` (default).
             public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to False.
