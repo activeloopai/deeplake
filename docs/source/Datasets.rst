@@ -10,7 +10,6 @@ Creating Datasets
     :toctree:
     :nosignatures:
 
-    deeplake.dataset
     deeplake.empty
     deeplake.like
     deeplake.ingest_classification
@@ -19,6 +18,8 @@ Creating Datasets
     deeplake.ingest_kaggle
     deeplake.ingest_dataframe
     deeplake.ingest_huggingface
+    deeplake.dataset
+
 
 Loading Datasets
 ~~~~~~~~~~~~~~~~
