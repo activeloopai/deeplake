@@ -1582,6 +1582,17 @@ class Tensor:
 
         return partition_info, partitions_data, incr_info
 
+    def is_partitioned_vdb_index(self):
+        vdb_indexes = self.get_vdb_indexes()
+        if len(vdb_indexes) == 0:
+            return False
+        for vdb_index in vdb_indexes:
+            if (vdb_index["additional_params"] is not None and
+                    "partitions" in vdb_index["additional_params"] and
+                    vdb_index["additional_params"]["partitions"] > 1):
+                return True
+        return False
+
     def update_vdb_index(
         self,
         operation_kind: int,
@@ -1750,7 +1761,19 @@ class Tensor:
             raise Exception(f"Only supported for embedding tensors.")
         commit_id = self.version_state["commit_id"]
         self.unload_vdb_index_cache()
-        self.storage.pop(get_tensor_vdb_index_key(self.key, commit_id, id))
+        if self.is_partitioned_vdb_index():
+            metadata_file = self.storage[
+                get_tensor_vdb_index_key(self.key, self.version_state["commit_id"], f"{id}_partition_metadata")]
+            metadata = json.loads(metadata_file.decode('utf-8'))
+            for part in metadata:
+                partition_key = get_tensor_vdb_index_key(self.key, self.version_state["commit_id"],
+                                                         f"{id}_{part['name']}")
+                self.storage.pop(partition_key)
+            self.storage.pop(
+                get_tensor_vdb_index_key(self.key, self.version_state["commit_id"], f"{id}_partition_metadata"))
+        else:
+            self.storage.pop(get_tensor_vdb_index_key(self.key, commit_id, id))
+
         self.meta.remove_vdb_index(id=id)
         self.invalidate_libdeeplake_dataset()
         self.storage.flush()
