@@ -140,28 +140,28 @@ class dataset:
 
         Examples:
 
-            >>> ds = deeplake.dataset("hub://username/dataset")
-            >>> ds = deeplake.dataset("s3://mybucket/my_dataset")
-            >>> ds = deeplake.dataset("./datasets/my_dataset", overwrite=True)
+            >>> ds = deeplake.dataset("hub://org_id/dataset") # Initialize dataset managed by Deep Lake.
+            >>> ds = deeplake.dataset("s3://mybucket/my_dataset", creds = {"aws_access_key_id": ..., ...}) # Initialize dataset stored in your cloud using your own credentials.
+            >>> ds = deeplake.dataset("./datasets/my_dataset", overwrite=True) # Overwrite the dataset currently at the path
 
             Loading to a specfic version:
 
-            >>> ds = deeplake.dataset("hub://username/dataset@new_branch")
-            >>> ds = deeplake.dataset("hub://username/dataset@3e49cded62b6b335c74ff07e97f8451a37aca7b2)
+            >>> ds = deeplake.dataset("hub://org_id/dataset@new_branch")
+            >>> ds = deeplake.dataset("hub://org_id/dataset@3e49cded62b6b335c74ff07e97f8451a37aca7b2)
 
             >>> my_commit_id = "3e49cded62b6b335c74ff07e97f8451a37aca7b2"
-            >>> ds = deeplake.dataset(f"hub://username/dataset@{my_commit_id}")
+            >>> ds = deeplake.dataset(f"hub://org_id/dataset@{my_commit_id}")
 
         Args:
             path (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
                 - Loading to a specific version:
 
                     - You can also specify a ``commit_id`` or ``branch`` to load the dataset to that version directly by using the ``@`` symbol.
-                    - The path will then be of the form ``hub://username/dataset@{branch}`` or ``hub://username/dataset@{commit_id}``.
+                    - The path will then be of the form ``hub://org_id/dataset@{branch}`` or ``hub://org_id/dataset@{commit_id}``.
                     - See examples above.
             runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
             read_only (bool, optional): Opens dataset in read only mode if this is passed as ``True``. Defaults to ``False``.
@@ -427,6 +427,13 @@ class dataset:
     ) -> Dataset:
         """Creates an empty Deep Lake dataset.
 
+        Examples:
+
+            >>> ds = deeplake.empty("hub://org_id/dataset") # Create dataset in the default storage for your organization.
+            >>> ds = deeplake.empty("s3://mybucket/my_dataset", creds = {"aws_access_key_id": ..., ...}) # Create dataset stored in your cloud using your own credentials.
+            >>> ds = deeplake.empty("s3://mybucket/my_dataset", creds = {"creds_key": "managed_creds_key"}, org_id = "my_org_id") # Create dataset stored in your cloud using Deep Lake managed credentials.
+            >>> ds = deeplake.empty("./datasets/my_dataset", overwrite=True) # Overwrite the dataset currently at the path
+
         Args:
             path (str, pathlib.Path): - The full path to the dataset. It can be:
                 - a Deep Lake cloud path of the form ``hub://org_id/dataset_name``. Requires registration with Deep Lake.
@@ -564,32 +571,32 @@ class dataset:
         lock_enabled: Optional[bool] = True,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
     ) -> Dataset:
-        """Loads an existing Deep Lake dataset
+        """Loads an existing Deep Lake dataset.
 
         Examples:
 
-            >>> ds = deeplake.load("hub://username/dataset")
-            >>> ds = deeplake.load("s3://mybucket/my_dataset")
-            >>> ds = deeplake.load("./datasets/my_dataset", overwrite=True)
+            >>> ds = deeplake.load("hub://org_id/dataset") # Load dataset managed by Deep Lake.
+            >>> ds = deeplake.load("s3://mybucket/my_dataset", creds = {"aws_access_key_id": ..., ...}) # Load dataset stored in your cloud using your own credentials.
+            >>> ds = deeplake.load("s3://mybucket/my_dataset", creds = {"creds_key": "managed_creds_key"}, org_id = "my_org_id") # Load dataset stored in your cloud using Deep Lake managed credentials.
 
             Loading to a specfic version:
 
-            >>> ds = deeplake.load("hub://username/dataset@new_branch")
-            >>> ds = deeplake.load("hub://username/dataset@3e49cded62b6b335c74ff07e97f8451a37aca7b2)
+            >>> ds = deeplake.load("hub://org_id/dataset@new_branch")
+            >>> ds = deeplake.load("hub://org_id/dataset@3e49cded62b6b335c74ff07e97f8451a37aca7b2)
 
             >>> my_commit_id = "3e49cded62b6b335c74ff07e97f8451a37aca7b2"
-            >>> ds = deeplake.load(f"hub://username/dataset@{my_commit_id}")
+            >>> ds = deeplake.load(f"hub://org_id/dataset@{my_commit_id}")
 
         Args:
             path (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
                 - Loading to a specific version:
 
                         - You can also specify a ``commit_id`` or ``branch`` to load the dataset to that version directly by using the ``@`` symbol.
-                        - The path will then be of the form ``hub://username/dataset@{branch}`` or ``hub://username/dataset@{commit_id}``.
+                        - The path will then be of the form ``hub://org_id/dataset@{branch}`` or ``hub://org_id/dataset@{commit_id}``.
                         - See examples above.
             read_only (bool, optional): Opens dataset in read only mode if this is passed as ``True``. Defaults to ``False``.
                 Datasets stored on Deep Lake cloud that your account does not have write access to will automatically open in read mode.
@@ -847,7 +854,6 @@ class dataset:
         """Renames managed dataset at ``path`` to ``new_name``.
 
         Examples:
-            >>> deeplake.rename("hub://username/image_ds", "new_ds")
             >>> deeplake.rename("hub://org_id/image_ds", "new_ds") ## New dataset path is `hub://org_id/new_ds`
 
         Args:
@@ -1977,7 +1983,7 @@ class dataset:
             tag (str): Kaggle dataset tag. Example: ``"coloradokb/dandelionimages"`` points to https://www.kaggle.com/coloradokb/dandelionimages
             src (str, pathlib.Path): Local path to where the raw kaggle dataset will be downlaoded to.
             dest (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
@@ -2090,7 +2096,7 @@ class dataset:
             src (pd.DataFrame): The pandas dataframe to be converted.
             dest (str, pathlib.Path):
                 - A Dataset or The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.

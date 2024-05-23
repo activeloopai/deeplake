@@ -4413,15 +4413,21 @@ class Dataset:
         ds_name: Optional[str] = None,
         token: Optional[str] = None,
     ):
-        """Connect a Deep Lake dataset stored in your cloud to the Deep Lake App.
+        """Connect a Deep Lake dataset stored in your cloud to the Deep Lake App. This enabables you to visualize the dataset in the Deep Lake App and have access to the full Deep Lake feature set.
 
         Examples:
-            >>> # Load an s3 dataset
-            >>> s3_ds = deeplake.load("s3://bucket/dataset", creds={"creds_key": "managed_creds_key"}, org_id="my_org_id")
-            >>> ds = s3_ds.connect()
-            >>>
-            >>> # Or if you want to explicitly specify the full path, which contains the org_id
-            >>> ds = s3_ds.connect(dest_path="hub://my_org/dataset")
+            >>> # Load (or create) a could dataset using Deep Lake Managed Credentials from your org
+            >>> ds = deeplake.load("s3://bucket/dataset", creds={"creds_key": "managed_creds_key"}, org_id="my_org_id")
+
+            >>> # Connect the dataset to the Deep Lake App using the same managed credentials and organization as above
+            >>> ds.connect()
+
+            >>> # Or specify an alternative path and/or managed credentials to connect the dataset
+            >>> ds.connect(dest_path="hub://my_org/dataset", creds_key = "different_creds_key")
+
+            >>> # You can opt not to use Deep Lake Managed Credentials to load/create the dataset, but you must use Managed Credentials to connect the dataset to Deep Lake
+            >>> ds = deeplake.load("s3://bucket/dataset", creds = {"aws_access_key_id": ..., ...})
+            >>> ds.connect(org_id="my_org_id", creds_key = "managed_creds_key")
 
 
         Args:
