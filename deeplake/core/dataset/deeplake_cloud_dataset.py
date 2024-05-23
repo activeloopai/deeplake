@@ -245,16 +245,20 @@ class DeepLakeCloudDataset(Dataset):
             return
         self.client.delete_dataset_entry(self.org_id, self.ds_name)
 
-    def rename(self, path):
+    def rename(self, new_name: str):
         self.storage.check_readonly()
-        path = path.rstrip("/")
-        root, new_name = posixpath.split(path)
-        if root != posixpath.split(self.path)[0]:
-            raise RenameError
+
+        if "/" in new_name:
+            root, _ = posixpath.split(new_name)
+            if root != posixpath.split(self.path)[0]:
+                raise RenameError
+
+        new_path = self.path.rsplit("/", 1)[0] + "/" + new_name
+
         self.client.rename_dataset_entry(self.org_id, self.ds_name, new_name)
 
         self.ds_name = new_name
-        self.path = path
+        self.path = new_path
 
     def __getstate__(self) -> Dict[str, Any]:
         self._set_org_and_name()

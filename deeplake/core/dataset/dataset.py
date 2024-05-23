@@ -2609,29 +2609,14 @@ class Dataset:
         return size
 
     @invalid_view_op
-    def rename(self, path: Union[str, pathlib.Path]):
+    def rename(self, path: str):
         """Renames the dataset to `path`.
 
-        Example:
-
-            >>> ds = deeplake.load("hub://username/dataset")
-            >>> ds.rename("hub://username/renamed_dataset")
-
-        Args:
-            path (str, pathlib.Path): New path to the dataset.
-
         Raises:
-            RenameError: If ``path`` points to a different directory.
+            RenameError: If this dataset is not a managed dataset
         """
 
-        deeplake_reporter.feature_report(feature_name="rename", parameters={})
-
-        path = convert_pathlib_to_string_if_needed(path)
-        path = path.rstrip("/")
-        if posixpath.split(path)[0] != posixpath.split(self.path)[0]:
-            raise RenameError
-        self.base_storage.rename(path)
-        self.path = path
+        raise RenameError("Rename is not available for non-managed datasets")
 
     @invalid_view_op
     def delete(self, large_ok=False):
