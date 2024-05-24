@@ -2620,8 +2620,11 @@ class Dataset:
         return size
 
     @invalid_view_op
-    def rename(self, path: str):
-        """Renames the dataset to `path`.
+    def rename(self, new_name: str):
+        """Renames the dataset to `new_name`.
+
+        Args:
+            new_name (str): New name for the dataset.
 
         Raises:
             RenameError: If this dataset is not a managed dataset
@@ -4442,6 +4445,7 @@ class Dataset:
             InvalidSourcePathError: If the dataset's path is not a valid s3, gcs or azure path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
             TokenPermissionError: If the user does not have permission to create a dataset in the specified organization.
+            ValueError: If the dataset was not loaded with a creds_key and one is not provided.
         """
         if creds_key is None:
             creds_key = self.dataset_creds_key
