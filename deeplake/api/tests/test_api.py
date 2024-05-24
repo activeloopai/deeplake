@@ -2997,3 +2997,43 @@ def test_append_non_uint8_to_image(local_ds):
         ds.images.append(np.zeros((40, 40, 1), dtype=np.uint8))
 
     assert ds.images.dtype.name == "int16"
+
+
+@pytest.mark.slow
+def test_create_and_load_with_managed_credentials(
+    hub_cloud_path: str, hub_cloud_dev_token
+):
+    old_environ = dict(os.environ)
+    del os.environ["AWS_ACCESS_KEY_ID"]
+    del os.environ["AWS_SECRET_ACCESS_KEY"]
+    del os.environ["AWS_SESSION_TOKEN"]
+
+    try:
+        dir_name = hub_cloud_path.rsplit("/", 1)[1]
+        ds = deeplake.empty(
+            f"s3://deeplake-tests/{dir_name}",
+            creds={"creds_key": "aws_creds"},
+            org_id="testingacc2",
+            token=hub_cloud_dev_token,
+        )
+        ds.create_tensor("id", htype="text")
+
+        assert ds.path == f"s3://deeplake-tests/{dir_name}"
+
+        ds = deeplake.load(
+            f"s3://deeplake-tests/{dir_name}",
+            creds={"creds_key": "aws_creds"},
+            org_id="testingacc2",
+            token=hub_cloud_dev_token,
+        )
+        assert "id" in ds.tensors
+
+        deeplake.delete(
+            f"s3://deeplake-tests/{dir_name}",
+            creds={"creds_key": "aws_creds"},
+            org_id="testingacc2",
+            token=hub_cloud_dev_token,
+        )
+    finally:
+        os.environ.clear()
+        os.environ.update(old_environ)
