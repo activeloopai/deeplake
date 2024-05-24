@@ -309,10 +309,12 @@ class dataset:
             "lock_timeout": lock_timeout,
             "lock_enabled": lock_enabled,
             "index_params": index_params,
-            "dataset_creds_key": dataset_creds_key,
-            "dataset_creds_key_org_id": org_id,
-            "dataset_creds_key_token": token,
         }
+
+        if dataset_creds_key:
+            dataset_kwargs["dataset_creds_key"] = dataset_creds_key
+            dataset_kwargs["dataset_creds_key_org_id"] = org_id
+            dataset_kwargs["dataset_creds_key_token"] = token
 
         if access_method == "stream":
             dataset_kwargs.update(
@@ -725,10 +727,12 @@ class dataset:
             "lock_timeout": lock_timeout,
             "lock_enabled": lock_enabled,
             "index_params": index_params,
-            "dataset_creds_key": dataset_creds_key,
-            "dataset_creds_key_org_id": org_id,
-            "dataset_creds_key_token": token,
         }
+
+        if dataset_creds_key:
+            dataset_kwargs["dataset_creds_key"] = dataset_creds_key
+            dataset_kwargs["dataset_creds_key_org_id"] = org_id
+            dataset_kwargs["dataset_creds_key_token"] = token
 
         if access_method == "stream":
             dataset_kwargs.update(
