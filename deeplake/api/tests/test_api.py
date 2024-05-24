@@ -3004,9 +3004,9 @@ def test_create_and_load_with_managed_credentials(
     hub_cloud_path: str, hub_cloud_dev_token
 ):
     old_environ = dict(os.environ)
-    del os.environ["AWS_ACCESS_KEY_ID"]
-    del os.environ["AWS_SECRET_ACCESS_KEY"]
-    del os.environ["AWS_SESSION_TOKEN"]
+    os.environ.pop("AWS_ACCESS_KEY_ID", None)
+    os.environ.pop("AWS_SECRET_ACCESS_KEY", None)
+    os.environ.pop("AWS_SESSION_TOKEN", None)
 
     try:
         dir_name = hub_cloud_path.rsplit("/", 1)[1]
