@@ -94,9 +94,9 @@ def test_connect_user_not_in_org(s3_ds_generator, hub_cloud_dev_token):
 # @pytest.mark.slow
 def test_connect_from_managed_credentials(hub_cloud_path: str, hub_cloud_dev_token):
     old_environ = dict(os.environ)
-    os.environ.pop("AWS_ACCESS_KEY_ID")
-    os.environ.pop("AWS_SECRET_ACCESS_KEY")
-    os.environ.pop("AWS_SESSION_TOKEN")
+    os.environ.pop("AWS_ACCESS_KEY_ID", None)
+    os.environ.pop("AWS_SECRET_ACCESS_KEY", None)
+    os.environ.pop("AWS_SESSION_TOKEN", None)
 
     try:
         dir_name = hub_cloud_path.rsplit("/", 1)[1]
