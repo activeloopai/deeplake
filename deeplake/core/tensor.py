@@ -1663,7 +1663,7 @@ class Tensor:
 
                         incr_data_map = {info['name']: data for info, data in zip(incr_info, partitions_data)}
                         for info in incr_info:
-                            partition_key = get_tensor_vdb_index_key(self.key, commit_id, f"{id}_part_{info['name']}")
+                            partition_key = get_tensor_vdb_index_key(self.key, commit_id, f"{id}_{info['name']}")
                             self.storage[partition_key] = incr_data_map[info['name']]
                     else:
                         self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
@@ -1688,7 +1688,7 @@ class Tensor:
 
                         incr_data_map = {info['name']: data for info, data in zip(incr_info, partitions_data)}
                         for info in incr_info:
-                            partition_key = get_tensor_vdb_index_key(self.key, commit_id, f"{id}_part_{info['name']}")
+                            partition_key = get_tensor_vdb_index_key(self.key, commit_id, f"{id}_{info['name']}")
                             self.storage[partition_key] = incr_data_map[info['name']]
                     else:
                         self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
