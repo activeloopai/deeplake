@@ -804,7 +804,7 @@ class dataset:
 
     @staticmethod
     def rename(
-        path: Union[str, pathlib.Path],
+        path: str,
         new_name: str,
         token: Optional[str] = None,
     ) -> Dataset:
