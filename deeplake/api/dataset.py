@@ -93,7 +93,9 @@ def _check_indra_and_read_only_flags(indra: bool, read_only: Optional[bool]):
     )
 
 
-def _fetch_creds_from_key(creds: Union[dict, str], org_id: Optional[str], token: Optional[str]) -> Optional[str]:
+def _fetch_creds_from_key(
+    creds: Union[dict, str], org_id: Optional[str], token: Optional[str]
+) -> Optional[str]:
     if not isinstance(creds, dict):
         return None
 
