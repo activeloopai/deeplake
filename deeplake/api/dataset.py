@@ -93,7 +93,10 @@ def _check_indra_and_read_only_flags(indra: bool, read_only: Optional[bool]):
     )
 
 
-def _fetch_creds_from_key(creds: dict, org_id: str, token: str) -> Optional[str]:
+def _fetch_creds_from_key(creds: Union[dict, str], org_id: Optional[str], token: Optional[str]) -> Optional[str]:
+    if not isinstance(creds, dict):
+        return None
+
     if "creds_key" in creds:
         if len(creds) != 1:
             raise ValueError("Other creds values are not allowed with creds_key")
