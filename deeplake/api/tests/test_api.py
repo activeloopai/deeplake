@@ -2774,13 +2774,13 @@ def test_slice_shape_interval(memory_ds):
 
 
 def test_non_local_org_id():
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidTokenException):
         ds = deeplake.dataset("hub://test/test_dataset", org_id="test")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidTokenException):
         ds = deeplake.empty("hub://test/test_dataset", org_id="test")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidTokenException):
         ds = deeplake.load("hub://test/test_dataset", org_id="test")
 
     with pytest.raises(ValueError):
