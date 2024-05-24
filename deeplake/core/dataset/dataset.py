@@ -23,6 +23,8 @@ from deeplake.core.sample import Sample
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
+from deeplake.util.storage import get_dataset_credentials
+from deeplake.util.tag import process_hub_path
 from deeplake.util.version_control import (
     save_version_info,
     integrity_check,
@@ -195,6 +197,9 @@ class Dataset:
         view_base: Optional["Dataset"] = None,
         libdeeplake_dataset=None,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
+        dataset_creds_key: Optional[str] = None,
+        dataset_creds_key_org_id: Optional[str] = None,
+        dataset_creds_key_token: Optional[str] = None,
         **kwargs,
     ):
         """Initializes a new or existing dataset.
@@ -222,6 +227,9 @@ class Dataset:
             view_base (Optional["Dataset"]): Base dataset of this view.
             libdeeplake_dataset : The libdeeplake dataset object corresponding to this dataset.
             index_params: (Dict[str, Union[int, str]] Optional) VDB index parameter. Defaults to ``None.``
+            dataset_creds_key: (str, Optional) The key to use for fetching dataset credentials. Defaults to ``None``.
+            dataset_creds_key_org_id: (str, Optional) If dataset_creds_key is set, the org_id the key lives in
+            dataset_creds_key_token: (str, Optional) If dataset_creds_key is set, the token used to access the credentials
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
@@ -273,6 +281,9 @@ class Dataset:
         d["_temp_tensors"] = []
         d["_vc_info_updated"] = True
         d["_query_string"] = None
+        d["dataset_creds_key"] = dataset_creds_key
+        d["dataset_creds_key_org_id"] = dataset_creds_key_org_id
+        d["dataset_creds_key_token"] = dataset_creds_key_token
         dct = self.__dict__
         dct.update(d)
 
@@ -4396,27 +4407,31 @@ class Dataset:
 
     def connect(
         self,
-        creds_key: str,
+        creds_key: Optional[str] = None,
         dest_path: Optional[str] = None,
         org_id: Optional[str] = None,
         ds_name: Optional[str] = None,
         token: Optional[str] = None,
     ):
-        """Connect a Deep Lake dataset stored in your cloud to the Deep Lake App.
+        """Connect a Deep Lake dataset stored in your cloud to the Deep Lake App. This enabables you to visualize the dataset in the Deep Lake App and have access to the full Deep Lake feature set.
 
         Examples:
-            >>> # Load an s3 dataset
-            >>> s3_ds = deeplake.load("s3://bucket/dataset")
-            >>>
-            >>> # Specify the org_id and managed creds_key, and the dataset name is inferred from the currently storage location path
-            >>> ds = s3_ds.connect(org_id="my_org_id", creds_key="managed_creds_key")
-            >>>
-            >>> # Or if you want to explicitly specify the full path, which contains the org_id
-            >>> ds = s3_ds.connect(dest_path="hub://my_org/dataset", creds_key="managed_creds_key")
+            >>> # Load (or create) a could dataset using Deep Lake Managed Credentials from your org
+            >>> ds = deeplake.load("s3://bucket/dataset", creds={"creds_key": "managed_creds_key"}, org_id="my_org_id")
+
+            >>> # Connect the dataset to the Deep Lake App using the same managed credentials and organization as above
+            >>> ds.connect()
+
+            >>> # Or specify an alternative path and/or managed credentials to connect the dataset
+            >>> ds.connect(dest_path="hub://my_org/dataset", creds_key = "different_creds_key")
+
+            >>> # You can opt not to use Deep Lake Managed Credentials to load/create the dataset, but you must use Managed Credentials to connect the dataset to Deep Lake
+            >>> ds = deeplake.load("s3://bucket/dataset", creds = {"aws_access_key_id": ..., ...})
+            >>> ds.connect(org_id="my_org_id", creds_key = "managed_creds_key")
 
 
         Args:
-            creds_key (str): The managed credentials to be used for accessing the source path.
+            creds_key (str): The managed credentials to be used for accessing the source path. Optional if the dataset was orginally loaded with a creds_key
             dest_path (str, optional): The full path to which the connected Deep Lake dataset will reside. Can be:
                 a Deep Lake path like ``hub://<org_id>/<dataset_name>``
             org_id (str, optional): The organization to which the connected Deep Lake dataset will be added. The dataset name will be the same as parent folder for the dataset in the cloud storage location.
@@ -4428,6 +4443,19 @@ class Dataset:
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
             TokenPermissionError: If the user does not have permission to create a dataset in the specified organization.
         """
+        if creds_key is None:
+            creds_key = self.dataset_creds_key
+            if creds_key is None:
+                raise ValueError(
+                    "The creds_key argument must be provided as the dataset was not loaded with a creds_key."
+                )
+
+            if org_id is None and dest_path is None:
+                org_id = self.dataset_creds_key_org_id
+
+            if token is None:
+                token = self.dataset_creds_key_token
+
         try:
             path = connect_dataset_entry(
                 src_path=self.path,

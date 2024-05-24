@@ -11,6 +11,7 @@ from deeplake.auto.unstructured.kaggle import download_kaggle_dataset
 from deeplake.auto.unstructured.image_classification import ImageClassification
 from deeplake.auto.unstructured.coco.coco import CocoDataset
 from deeplake.auto.unstructured.yolo.yolo import YoloDataset
+from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.dataset.indra_dataset_view import IndraDatasetView
@@ -92,6 +93,25 @@ def _check_indra_and_read_only_flags(indra: bool, read_only: Optional[bool]):
     )
 
 
+def _fetch_creds_from_key(creds: dict, org_id: str, token: str) -> Optional[str]:
+    if "creds_key" in creds:
+        if len(creds) != 1:
+            raise ValueError("Other creds values are not allowed with creds_key")
+
+        client = DeepLakeBackendClient(token)
+        creds_key = creds["creds_key"]
+
+        if not org_id:
+            raise ValueError("Please specify org_id when using creds_key")
+
+        creds.update(client.get_managed_creds(org_id, creds_key))
+        del creds["creds_key"]
+
+        return creds_key
+
+    return None
+
+
 class dataset:
     @staticmethod
     @spinner
@@ -120,28 +140,28 @@ class dataset:
 
         Examples:
 
-            >>> ds = deeplake.dataset("hub://username/dataset")
-            >>> ds = deeplake.dataset("s3://mybucket/my_dataset")
-            >>> ds = deeplake.dataset("./datasets/my_dataset", overwrite=True)
+            >>> ds = deeplake.dataset("hub://org_id/dataset") # Initialize dataset managed by Deep Lake.
+            >>> ds = deeplake.dataset("s3://mybucket/my_dataset", creds = {"aws_access_key_id": ..., ...}) # Initialize dataset stored in your cloud using your own credentials.
+            >>> ds = deeplake.dataset("./datasets/my_dataset", overwrite=True) # Overwrite the dataset currently at the path
 
             Loading to a specfic version:
 
-            >>> ds = deeplake.dataset("hub://username/dataset@new_branch")
-            >>> ds = deeplake.dataset("hub://username/dataset@3e49cded62b6b335c74ff07e97f8451a37aca7b2)
+            >>> ds = deeplake.dataset("hub://org_id/dataset@new_branch")
+            >>> ds = deeplake.dataset("hub://org_id/dataset@3e49cded62b6b335c74ff07e97f8451a37aca7b2)
 
             >>> my_commit_id = "3e49cded62b6b335c74ff07e97f8451a37aca7b2"
-            >>> ds = deeplake.dataset(f"hub://username/dataset@{my_commit_id}")
+            >>> ds = deeplake.dataset(f"hub://org_id/dataset@{my_commit_id}")
 
         Args:
             path (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
                 - Loading to a specific version:
 
                     - You can also specify a ``commit_id`` or ``branch`` to load the dataset to that version directly by using the ``@`` symbol.
-                    - The path will then be of the form ``hub://username/dataset@{branch}`` or ``hub://username/dataset@{commit_id}``.
+                    - The path will then be of the form ``hub://org_id/dataset@{branch}`` or ``hub://org_id/dataset@{commit_id}``.
                     - See examples above.
             runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
             read_only (bool, optional): Opens dataset in read only mode if this is passed as ``True``. Defaults to ``False``.
@@ -153,9 +173,10 @@ class dataset:
             creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - To use credentials managed in your Activeloop organization, use they key 'creds_key': 'managed_key_name'. This requires the org_id dataset argument to be set.
                 - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
-            org_id (str, Optional): Organization id to be used for enabling high-performance features. Only applicable for local datasets.
+            org_id (str, Optional): Organization id to be used for enabling high-performance features and credential lookup.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
             access_method (str): The access method to use for the dataset. Can be:
 
@@ -224,11 +245,10 @@ class dataset:
         path, address = process_dataset_path(path)
         verify_dataset_name(path)
 
-        if org_id is not None and get_path_type(path) != "local":
-            raise ValueError("org_id parameter can only be used with local datasets")
-
         if creds is None:
             creds = {}
+
+        dataset_creds_key = _fetch_creds_from_key(creds, org_id, token)
 
         db_engine = parse_runtime_parameters(path, runtime)["tensor_db"]
 
@@ -284,6 +304,9 @@ class dataset:
             "lock_timeout": lock_timeout,
             "lock_enabled": lock_enabled,
             "index_params": index_params,
+            "dataset_creds_key": dataset_creds_key,
+            "dataset_creds_key_org_id": org_id,
+            "dataset_creds_key_token": token,
         }
 
         if access_method == "stream":
@@ -340,6 +363,7 @@ class dataset:
         path: Union[str, pathlib.Path],
         creds: Optional[Union[Dict, str]] = None,
         token: Optional[str] = None,
+        org_id: Optional[str] = None,
     ) -> bool:
         """Checks if a dataset exists at the given ``path``.
 
@@ -348,8 +372,10 @@ class dataset:
             creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - To use credentials managed in your Activeloop organization, use they key 'creds_key': 'managed_key_name'. This requires the org_id dataset argument to be set.
                 - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
+            org_id (str, Optional): Organization id to be used for enabling high-performance features and credential lookup.
 
         Returns:
             A boolean confirming whether the dataset exists or not at the given path.
@@ -366,6 +392,9 @@ class dataset:
 
         if creds is None:
             creds = {}
+
+        _fetch_creds_from_key(creds, org_id, token)
+
         try:
             storage, cache_chain = get_storage_and_cache_chain(
                 path=path,
@@ -398,6 +427,13 @@ class dataset:
     ) -> Dataset:
         """Creates an empty Deep Lake dataset.
 
+        Examples:
+
+            >>> ds = deeplake.empty("hub://org_id/dataset") # Create dataset in the default storage for your organization.
+            >>> ds = deeplake.empty("s3://mybucket/my_dataset", creds = {"aws_access_key_id": ..., ...}) # Create dataset stored in your cloud using your own credentials.
+            >>> ds = deeplake.empty("s3://mybucket/my_dataset", creds = {"creds_key": "managed_creds_key"}, org_id = "my_org_id") # Create dataset stored in your cloud using Deep Lake managed credentials.
+            >>> ds = deeplake.empty("./datasets/my_dataset", overwrite=True) # Overwrite the dataset currently at the path
+
         Args:
             path (str, pathlib.Path): - The full path to the dataset. It can be:
                 - a Deep Lake cloud path of the form ``hub://org_id/dataset_name``. Requires registration with Deep Lake.
@@ -412,9 +448,10 @@ class dataset:
             creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - To use credentials managed in your Activeloop organization, use they key 'creds_key': 'managed_key_name'. This requires the org_id dataset argument to be set.
                 - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
-            org_id (str, Optional): Organization id to be used for enabling high-performance features. Only applicable for local datasets.
+            org_id (str, Optional): Organization id to be used for enabling high-performance features and credential lookup.
             verbose (bool): If True, logs will be printed. Defaults to True.
             lock_timeout (int): Number of seconds to wait before throwing a LockException. If None, wait indefinitely
             lock_enabled (bool): If true, the dataset manages a write lock. NOTE: Only set to False if you are managing concurrent access externally.
@@ -435,8 +472,6 @@ class dataset:
         """
         path, address = process_dataset_path(path)
 
-        if org_id is not None and get_path_type(path) != "local":
-            raise ValueError("org_id parameter can only be used with local datasets")
         db_engine = parse_runtime_parameters(path, runtime)["tensor_db"]
 
         if address:
@@ -448,6 +483,8 @@ class dataset:
 
         if creds is None:
             creds = {}
+
+        dataset_creds_key = _fetch_creds_from_key(creds, org_id, token)
 
         try:
             storage, cache_chain = get_storage_and_cache_chain(
@@ -507,6 +544,9 @@ class dataset:
             "lock_timeout": lock_timeout,
             "lock_enabled": lock_enabled,
             "index_params": index_params,
+            "dataset_creds_key": dataset_creds_key,
+            "dataset_creds_key_org_id": org_id,
+            "dataset_creds_key_token": token,
         }
         ret = dataset._load(dataset_kwargs, create=True)
         return ret
@@ -531,32 +571,32 @@ class dataset:
         lock_enabled: Optional[bool] = True,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
     ) -> Dataset:
-        """Loads an existing Deep Lake dataset
+        """Loads an existing Deep Lake dataset.
 
         Examples:
 
-            >>> ds = deeplake.load("hub://username/dataset")
-            >>> ds = deeplake.load("s3://mybucket/my_dataset")
-            >>> ds = deeplake.load("./datasets/my_dataset", overwrite=True)
+            >>> ds = deeplake.load("hub://org_id/dataset") # Load dataset managed by Deep Lake.
+            >>> ds = deeplake.load("s3://mybucket/my_dataset", creds = {"aws_access_key_id": ..., ...}) # Load dataset stored in your cloud using your own credentials.
+            >>> ds = deeplake.load("s3://mybucket/my_dataset", creds = {"creds_key": "managed_creds_key"}, org_id = "my_org_id") # Load dataset stored in your cloud using Deep Lake managed credentials.
 
             Loading to a specfic version:
 
-            >>> ds = deeplake.load("hub://username/dataset@new_branch")
-            >>> ds = deeplake.load("hub://username/dataset@3e49cded62b6b335c74ff07e97f8451a37aca7b2)
+            >>> ds = deeplake.load("hub://org_id/dataset@new_branch")
+            >>> ds = deeplake.load("hub://org_id/dataset@3e49cded62b6b335c74ff07e97f8451a37aca7b2)
 
             >>> my_commit_id = "3e49cded62b6b335c74ff07e97f8451a37aca7b2"
-            >>> ds = deeplake.load(f"hub://username/dataset@{my_commit_id}")
+            >>> ds = deeplake.load(f"hub://org_id/dataset@{my_commit_id}")
 
         Args:
             path (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
                 - Loading to a specific version:
 
                         - You can also specify a ``commit_id`` or ``branch`` to load the dataset to that version directly by using the ``@`` symbol.
-                        - The path will then be of the form ``hub://username/dataset@{branch}`` or ``hub://username/dataset@{commit_id}``.
+                        - The path will then be of the form ``hub://org_id/dataset@{branch}`` or ``hub://org_id/dataset@{commit_id}``.
                         - See examples above.
             read_only (bool, optional): Opens dataset in read only mode if this is passed as ``True``. Defaults to ``False``.
                 Datasets stored on Deep Lake cloud that your account does not have write access to will automatically open in read mode.
@@ -565,6 +605,7 @@ class dataset:
             creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - To use credentials managed in your Activeloop organization, use they key 'creds_key': 'managed_key_name'. This requires the org_id dataset argument to be set.
                 - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
             org_id (str, Optional): Organization id to be used for enabling high-performance features. Only applicable for local datasets.
@@ -633,8 +674,7 @@ class dataset:
         if creds is None:
             creds = {}
 
-        if org_id is not None and get_path_type(path) != "local":
-            raise ValueError("org_id parameter can only be used with local datasets")
+        dataset_creds_key = _fetch_creds_from_key(creds, org_id, token)
 
         try:
             storage, cache_chain = get_storage_and_cache_chain(
@@ -680,6 +720,9 @@ class dataset:
             "lock_timeout": lock_timeout,
             "lock_enabled": lock_enabled,
             "index_params": index_params,
+            "dataset_creds_key": dataset_creds_key,
+            "dataset_creds_key_org_id": org_id,
+            "dataset_creds_key_token": token,
         }
 
         if access_method == "stream":
@@ -844,6 +887,7 @@ class dataset:
         creds: Optional[Union[dict, str]] = None,
         token: Optional[str] = None,
         verbose: bool = False,
+        org_id: Optional[str] = None,
     ) -> None:
         """Deletes a dataset at a given path.
 
@@ -855,9 +899,11 @@ class dataset:
             creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - To use credentials managed in your Activeloop organization, use they key 'creds_key': 'managed_key_name'. This requires the org_id dataset argument to be set.
                 - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
             verbose (bool): If True, logs will be printed. Defaults to True.
+            org_id (str, Optional): Organization id to be used for enabling high-performance features and credential lookup.
 
         Raises:
             DatasetHandlerError: If a Dataset does not exist at the given path and ``force = False``.
@@ -877,6 +923,8 @@ class dataset:
 
         if creds is None:
             creds = {}
+
+        _fetch_creds_from_key(creds, org_id, token)
 
         feature_report_path(
             path, "delete", {"Force": force, "Large_OK": large_ok}, token=token
@@ -1935,7 +1983,7 @@ class dataset:
             tag (str): Kaggle dataset tag. Example: ``"coloradokb/dandelionimages"`` points to https://www.kaggle.com/coloradokb/dandelionimages
             src (str, pathlib.Path): Local path to where the raw kaggle dataset will be downlaoded to.
             dest (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
@@ -2048,7 +2096,7 @@ class dataset:
             src (pd.DataFrame): The pandas dataframe to be converted.
             dest (str, pathlib.Path):
                 - A Dataset or The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
