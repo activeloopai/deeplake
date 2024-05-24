@@ -861,8 +861,8 @@ class dataset:
             >>> deeplake.rename("hub://org_id/image_ds", "new_ds") ## New dataset path is `hub://org_id/new_ds`
 
         Args:
-            path (str, pathlib.Path): The path to the dataset to be renamed.
-            new_name (str, pathlib.Path): New name of the dataset.
+            path (str): The path to the dataset to be renamed.
+            new_name (str): New name of the dataset.
             token (str, optional): Activeloop token for accessing the dataset
 
         Returns:
