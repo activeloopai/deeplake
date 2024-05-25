@@ -245,7 +245,7 @@ class DeepLakeCloudDataset(Dataset):
             return
         self.client.delete_dataset_entry(self.org_id, self.ds_name)
 
-    def rename(self, new_name: str):
+    def rename(self, new_name):
         self.storage.check_readonly()
 
         if "/" in new_name:

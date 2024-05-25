@@ -109,7 +109,7 @@ class ViewEntry:
             unlink (bool): - If ``True``, this unlinks linked tensors (if any) by copying data from the links to the view.
                     - This does not apply to linked videos. Set ``deeplake.constants._UNLINK_VIDEOS`` to ``True`` to change this behavior.
             num_workers (int): Number of workers to be used for the optimization process. Defaults to 0.
-            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', and 'processed'.
                 Only applicable if ``optimize=True``. Defaults to 'threaded'.
             progressbar (bool): Whether to display a progressbar.
 
