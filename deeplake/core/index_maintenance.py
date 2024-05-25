@@ -115,8 +115,13 @@ def check_index_params(self):
 
     existing_distance = existing_params.get("distance", "COS")
     if curr_distance == existing_distance:
-        current_additional_params_dict = current_params.get("additional_params", None)
-        existing_additional_params_dict = existing_params.get("additional_params", None)
+        current_additional_params_dict = current_params.get("additional_params", {}).copy()
+        existing_additional_params_dict = existing_params.get("additional_params", {}).copy()
+
+        # Remove the 'partitions' key from the copies of the dictionaries
+        current_additional_params_dict.pop('partitions', None)
+        existing_additional_params_dict.pop('partitions', None)
+
         if current_additional_params_dict == existing_additional_params_dict:
             return True
 
