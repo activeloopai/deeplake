@@ -194,8 +194,11 @@ class DeepLakeBackendClient:
             ).json()
         except Exception as e:
             if isinstance(e, AuthorizationException):
-                response_data = e.response.json()
-                code = response_data.get("code")
+                code = -1
+                if e.response is not None:
+                    response_data = e.response.json()
+                    code = response_data.get("code")
+
                 if code == 1:
                     agreements = response_data["agreements"]
                     agreements = [agreement["text"] for agreement in agreements]
