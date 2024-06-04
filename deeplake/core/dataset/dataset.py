@@ -569,6 +569,7 @@ class Dataset:
                     enabled_tensors=self.enabled_tensors,
                     view_base=self._view_base or self,
                     libdeeplake_dataset=self.libdeeplake_dataset,
+                    index_params=self.index_params,
                 )
             elif "/" in item:
                 splt = posixpath.split(item)
@@ -615,6 +616,7 @@ class Dataset:
                     enabled_tensors=enabled_tensors,
                     view_base=self._view_base or self,
                     libdeeplake_dataset=self.libdeeplake_dataset,
+                    index_params=self.index_params,
                 )
             elif isinstance(item, tuple) and len(item) and isinstance(item[0], str):
                 ret = self
@@ -644,6 +646,7 @@ class Dataset:
                     enabled_tensors=self.enabled_tensors,
                     view_base=self._view_base or self,
                     libdeeplake_dataset=self.libdeeplake_dataset,
+                    index_params=self.index_params,
                 )
         else:
             raise InvalidKeyTypeError(item)
@@ -2921,6 +2924,7 @@ class Dataset:
             path=self.path,
             link_creds=self.link_creds,
             libdeeplake_dataset=self.libdeeplake_dataset,
+            index_params=self.index_params,
         )
         self.storage.autoflush = autoflush
         return ds
@@ -2944,6 +2948,7 @@ class Dataset:
             link_creds=self.link_creds,
             view_base=self._view_base,
             libdeeplake_dataset=self.libdeeplake_dataset,
+            index_params=self.index_params,
         )
         self.storage.autoflush = autoflush
         return ds
@@ -2967,6 +2972,7 @@ class Dataset:
             pad_tensors=self._pad_tensors,
             enabled_tensors=self.enabled_tensors,
             libdeeplake_dataset=self.libdeeplake_dataset,
+            index_params=self.index_params,
         )
 
     def _create_group(self, name: str) -> "Dataset":
@@ -4901,6 +4907,7 @@ class Dataset:
             pad_tensors=True,
             enabled_tensors=self.enabled_tensors,
             libdeeplake_dataset=self.libdeeplake_dataset,
+            index_params=self.index_params,
         )
 
     def random_split(self, lengths: Sequence[Union[int, float]]):

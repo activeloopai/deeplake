@@ -329,6 +329,7 @@ DEFAULT_DEEPMEMORY_DISTANCE_METRIC = "deepmemory_distance"
 
 DEFAULT_VECTORSTORE_INDEX_PARAMS = {
     "threshold": -1,
+    "bm25": False,
     "distance_metric": DEFAULT_VECTORSTORE_DISTANCE_METRIC,
     "additional_params": {
         "efConstruction": 600,
