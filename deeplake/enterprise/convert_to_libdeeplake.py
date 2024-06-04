@@ -8,6 +8,7 @@ from deeplake.core.storage.indra import IndraProvider
 from deeplake.core.storage.azure import AzureProvider
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.exceptions import EmptyTokenException
+from deeplake.core.dataset.indra_dataset_view import IndraDatasetView
 
 from deeplake.util.dataset import try_flushing  # type: ignore
 import importlib
@@ -65,6 +66,7 @@ def _get_indra_ds_from_azure_provider(
     storage = IndraProvider(
         path,
         read_only=provider.read_only,
+        origin_path=provider.root,
         token=token,
         account_name=account_name,
         account_key=account_key,
@@ -169,7 +171,7 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
     token = (
         hub2_dataset.client.get_token()
         if (hub2_dataset.token is None or hub2_dataset._token == "")
-        and hub2_dataset.client
+        and hasattr(hub2_dataset, "client") and hub2_dataset.client
         else hub2_dataset.token
     )
     if token is None or token == "":
@@ -248,5 +250,11 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
     if slice_ != slice(None):
         if isinstance(slice_, tuple):
             slice_ = list(slice_)
-        libdeeplake_dataset = libdeeplake_dataset[slice_]
+        from deeplake.core.index import Index
+        try:
+            idx = Index(libdeeplake_dataset.indexes)
+        except:
+            idx = Index(slice(0, len(libdeeplake_dataset)))
+        if isinstance(slice_, slice) or (list(slice_) != list(idx.values[0].value)):
+            libdeeplake_dataset = libdeeplake_dataset[slice_]
     return libdeeplake_dataset

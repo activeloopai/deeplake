@@ -60,6 +60,40 @@ class IndraDatasetView(Dataset):
         except:
             pass
 
+    def __getstate__(self) -> Dict[str, Any]:
+        keys = [
+            "path",
+            "_read_only",
+            "group_index",
+            "storage",
+            "_token",
+            "verbose",
+            "enabled_tensors",
+            "index"
+        ]
+
+        state = {k: getattr(self, k) for k in keys}
+        return state
+
+    def __setstate__(self, state):
+        from indra import api  # type: ignore
+
+        d: Dict[str, Any] = {}
+        self.storage = state["storage"]
+        d["indra_ds"] = api.load_from_storage(self.storage.core)
+        d["group_index"] = state["group_index"]
+        d["enabled_tensors"] = state["enabled_tensors"]
+        d["verbose"] = state["verbose"]
+        d["_token"] = state["_token"]
+        self.__dict__.update(d)
+        self._view_base = None
+        self._view_entry = None
+        self._read_only = state["_read_only"]
+        self._locked_out = False
+        self._query_string = None
+        index = state["index"]
+        self.indra_ds = self[list(index.values[0].value)].indra_ds
+
     @property
     def meta(self):
         return DatasetMeta()
@@ -96,6 +130,10 @@ class IndraDatasetView(Dataset):
     @property
     def libdeeplake_dataset(self):
         return self.indra_ds
+
+    @libdeeplake_dataset.setter
+    def libdeeplake_dataset(self, new_indra_ds):
+        self.indra_ds = new_indra_ds
 
     def merge(self, *args, **kwargs):
         raise InvalidOperationError(
@@ -188,22 +226,30 @@ class IndraDatasetView(Dataset):
                     )
                     for x in item
                 ]
-                return IndraDatasetView(
+                ret = IndraDatasetView(
                     indra_ds=self.indra_ds,
                     enabled_tensors=enabled_tensors,
                 )
+                if hasattr(self, "_tql_query"):
+                    ret._tql_query = self._tql_query
+                return ret
             elif isinstance(item, tuple) and len(item) and isinstance(item[0], str):
                 ret = self
                 for x in item:
                     ret = self[x]
                 return ret
             else:
-                return IndraDatasetView(
+                ret = IndraDatasetView(
                     indra_ds=self.indra_ds[item],
                 )
+                if hasattr(self, "_tql_query"):
+                    ret._tql_query = self._tql_query
+                return ret
         else:
             raise InvalidKeyTypeError(item)
+
         raise AttributeError("Dataset has no attribute - {item}")
+
 
     def __getattr__(self, key):
         try:

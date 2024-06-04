@@ -1,9 +1,10 @@
 from typing import Callable, Dict, List, Optional, Union
 import deeplake
-from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
+
 from deeplake.enterprise.dummy_dataloader import DummyDataloader  # type: ignore
 from deeplake.util.scheduling import create_fetching_schedule, find_primary_tensor
 from deeplake.core.seed import DeeplakeRandom
+from deeplake.util.exceptions import EmptyTensorError, MacOSEnvironmentError
 from deeplake.enterprise.util import (
     handle_mode,
     raise_indra_installation_error,
@@ -22,6 +23,8 @@ from deeplake.integrations.pytorch.common import (
 from deeplake.util.dataset import map_tensor_keys
 from functools import partial
 import importlib
+import os
+import sys
 
 try:
     from torch.utils.data.dataloader import DataLoader, _InfiniteConstantSampler
@@ -113,6 +116,7 @@ class DeepLakeDataLoader(DataLoader):
         _ignore_errors=False,
         _verbose=False,
         _offset=None,
+        _pin_memory=False,
         **kwargs,
     ):
         import_indra_loader()
@@ -139,6 +143,7 @@ class DeepLakeDataLoader(DataLoader):
         self._ignore_errors = _ignore_errors
         self._verbose = _verbose
         self._offset = _offset
+        self._pin_memory = _pin_memory
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -345,13 +350,16 @@ class DeepLakeDataLoader(DataLoader):
         all_vars = self.__dict__.copy()
         all_vars["_shuffle"] = shuffle
         all_vars["_buffer_size"] = buffer_size
-        if shuffle:
-            schedule = create_fetching_schedule(
-                self._orig_dataset, self._primary_tensor_name
-            )
-            if schedule is not None:
-                ds = self._orig_dataset  # type: ignore
-                all_vars["_orig_dataset"] = ds[schedule]
+
+        # TODO check the view dataset shuffle
+        # if shuffle:
+        #     schedule = create_fetching_schedule(
+        #         self._orig_dataset, self._primary_tensor_name
+        #     )
+        #     if schedule is not None:
+        #         ds = self._orig_dataset  # type: ignore
+        #         all_vars["_orig_dataset"] = ds[schedule]
+
         all_vars["_dataloader"] = None
         return self.__class__(**all_vars)
 
@@ -483,6 +491,7 @@ class DeepLakeDataLoader(DataLoader):
         return_index: bool = True,
         decode_method: Optional[Dict[str, str]] = None,
         persistent_workers: bool = False,
+        pin_memory: bool = False,
     ):
         """Creates a PyTorch Dataloader on top of the ``DeepLakeDataLoader`` from the Deep Lake dataset. During iteration, the data from all tensors will be streamed on-the-fly from the storage location.
         Understanding the parameters below is critical for achieving fast streaming for your use-case
@@ -498,6 +507,7 @@ class DeepLakeDataLoader(DataLoader):
             distributed (bool): Used for DDP training. Distributes different sections of the dataset to different ranks. Defaults to ``False``.
             return_index (bool): Used to idnetify where loader needs to retur sample index or not. Defaults to ``True``.
             persistent_workers (bool): If ``True``, the data loader will not shutdown the worker processes after a dataset has been consumed once. Defaults to ``False``.
+            pin_memory (bool): If ``True``, the data loader will copy Tensors into device/CUDA pinned memory before returning them. Defaults to ``False``.
             decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to ``None``.
 
 
@@ -554,6 +564,7 @@ class DeepLakeDataLoader(DataLoader):
         all_vars["_mode"] = mode
         all_vars["_persistent_workers"] = persistent_workers
         all_vars["_dataloader"] = None
+        all_vars["_pin_memory"] = pin_memory
         if distributed:
             all_vars["_world_size"] = torch.distributed.get_world_size()
         return self.__class__(**all_vars)
@@ -740,13 +751,13 @@ class DeepLakeDataLoader(DataLoader):
 
     def __get_indra_dataloader(
         self,
-        dataset,
-        indra_dataset,
+        deeplake_dataset,
         tensors: Optional[List[str]] = None,
         raw_tensors: Optional[List[str]] = None,
         pil_compressed_tensors: Optional[List[str]] = None,
         json_tensors: Optional[List[str]] = None,
         list_tensors: Optional[List[str]] = None,
+        medical_tensors: Optional[List[str]] = None,
         htype_dict: Optional[dict] = None,
         ndim_dict: Optional[dict] = None,
         tensor_info_dict: Optional[dict] = None,
@@ -773,26 +784,27 @@ class DeepLakeDataLoader(DataLoader):
             pil_compressed_tensors=pil_compressed_tensors or [],
             json_tensors=json_tensors or [],
             list_tensors=list_tensors or [],
+            medical_tensors=medical_tensors or [],
         )
-
         loader_meta = LoaderMetaInfo(
             context=self.multiprocessing_context,
             distributed=self._distributed,
+            mode=self._mode,
             upcast=self._mode == "pytorch"
             and self.__is_upcast_needed(
-                dataset, tensors
+                deeplake_dataset, tensors
             ),  # upcast to handle unsupported dtypes,
             return_index=self._return_index,
             verbose=self._verbose,
             ignore_errors=self._ignore_errors,
             prefetch_factor=self._prefetch_factor,
             offset=self._offset,
-            primary_tensor=self._primary_tensor_name,
             worker_init_fn=self.worker_init_fn,
+            pin_memory=self.pin_memory,
         )
 
         return INDRA_LOADER(  # type: ignore [misc]
-            indra_dataset,
+            deeplake_dataset=deeplake_dataset,
             batch_size=self._batch_size,
             num_threads=num_threads,
             shuffle=self._shuffle,
@@ -833,21 +845,26 @@ class DeepLakeDataLoader(DataLoader):
             dataset = self._orig_dataset
             tensors = self._tensors or map_tensor_keys(dataset, None)
 
-            jpeg_png_compressed_tensors, json_tensors, list_tensors = check_tensors(
-                dataset, tensors
-            )
+            (
+                jpeg_png_compressed_tensors,
+                json_tensors,
+                list_tensors,
+                medical_tensors,
+            ) = check_tensors(dataset, tensors)
             (
                 raw_tensors,
                 pil_compressed_tensors,
                 json_tensors,
                 list_tensors,
                 data_tensors,
+                medical_tensors,
             ) = validate_decode_method(
                 self._decode_method,
                 tensors,
                 jpeg_png_compressed_tensors,
                 json_tensors,
                 list_tensors,
+                medical_tensors,
             )
             sample_info_tensors, tensor_info_tensors = find_additional_tensors_and_info(
                 dataset, data_tensors
@@ -855,6 +872,7 @@ class DeepLakeDataLoader(DataLoader):
             self._fill_sample_info_tensors(
                 dataset, sample_info_tensors, json_tensors, list_tensors
             )
+
             tensors.extend(sample_info_tensors)
             htype_dict, ndim_dict, tensor_info_dict = get_htype_ndim_tensor_info_dicts(
                 dataset, data_tensors, tensor_info_tensors
@@ -867,19 +885,14 @@ class DeepLakeDataLoader(DataLoader):
                     pil_compressed_tensors=pil_compressed_tensors,
                 )
             else:
-                if not hasattr(self, "_indra_dataset"):
-                    indra_dataset = dataset_to_libdeeplake(dataset)
-                else:
-                    indra_dataset = self._indra_dataset
-
                 self._dataloader = self.__get_indra_dataloader(
                     dataset,
-                    indra_dataset,
                     tensors=tensors,
                     raw_tensors=raw_tensors,
                     pil_compressed_tensors=pil_compressed_tensors,
                     json_tensors=json_tensors,
                     list_tensors=list_tensors,
+                    medical_tensors=medical_tensors,
                     htype_dict=htype_dict,
                     ndim_dict=ndim_dict,
                     tensor_info_dict=tensor_info_dict,
@@ -887,10 +900,22 @@ class DeepLakeDataLoader(DataLoader):
 
         dataset_read(self._orig_dataset)
 
+        self._check_environment()
         if self._iterator is not None:
             self._iterator = iter(self._dataloader)
 
         return self
+
+    def _check_environment(self):
+        if sys.platform == "darwin":
+            import multiprocessing as mp
+
+            if mp.get_start_method() == "fork":
+                env_vars = os.environ
+                no_proxy = env_vars.get("NO_PROXY", "")
+                init_check = env_vars.get("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "")
+                if no_proxy != "*" or init_check != "YES":
+                    raise MacOSEnvironmentError
 
     def __setattr__(self, attr, val):
         if (
