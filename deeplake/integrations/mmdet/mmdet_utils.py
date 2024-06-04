@@ -63,6 +63,18 @@ class _COCO(pycocotools_coco.COCO):
         if self.dataset is not None:
             self.createDeeplakeIndex()
 
+    def processSegmentationMask(self, segmentation_mask, num_classes):
+        """
+        Convert a segmentation mask to a list of binary masks, one for each class.
+        """
+        binary_masks = []
+        for class_id in range(num_classes):
+            binary_mask = (segmentation_mask == class_id).astype(np.uint8)
+            if np.any(binary_mask):
+                rle = _mask.encode(np.asfortranarray(binary_mask))
+                binary_masks.append(rle)
+        return binary_masks
+
     def createDeeplakeIndex(self):
         # create index
         print("creating index...")
@@ -112,8 +124,19 @@ class _COCO(pycocotools_coco.COCO):
                             )
                     elif self.masks.htype == "polygon":
                         mask = convert_poly_to_coco_format(masks.numpy()[bbox_index])
+                    elif self.masks.htype == "segment_mask":
+                        num_classes = len(self.class_names)
+                        binary_masks = self.processSegmentationMask(
+                            masks.numpy(), num_classes
+                        )
+                        # mask = binary_masks[categories[bbox_index]]
+                        class_id = categories[bbox_index]
+                        if class_id in binary_masks:
+                            mask = binary_masks[class_id]
+                        else:
+                            mask = None  # Handle the case where no binary mask is found for the clas
                     else:
-                        raise Exception(f"{type(self.masks)} is not supported yet.")
+                        raise Exception(f"{self.masks.htype} is not supported yet.")
                 ann = {
                     "image_id": row_index,
                     "id": absolute_id,

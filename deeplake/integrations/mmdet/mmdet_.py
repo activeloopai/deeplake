@@ -884,7 +884,17 @@ def transform(
                 [process_polygons(polygons) for polygons in masks], shape[0], shape[1]
             )
         else:
-            masks = BitmapMasks(masks.astype(np.uint8).transpose(2, 0, 1), *shape[:2])
+            if masks.ndim == 2:
+                binary_masks = np.zeros(
+                    (len(labels), shape[0], shape[1]), dtype=np.uint8
+                )
+                for idx, label in enumerate(labels):
+                    binary_masks[idx] = (masks == label).astype(np.uint8)
+                masks = BitmapMasks(binary_masks, *shape[:2])
+            elif masks.ndim == 3:
+                masks = BitmapMasks(
+                    masks.astype(np.uint8).transpose(2, 0, 1), *shape[:2]
+                )
 
         pipeline_dict["gt_masks"] = masks
         pipeline_dict["mask_fields"] = ["gt_masks"]
