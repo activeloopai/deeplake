@@ -313,7 +313,7 @@ def test_partitioned_index(local_auth_ds_generator):
         )
         index = ds.embeddings.load_vdb_index("hnsw_1")
         additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
-        assert additional_params["Partitions"] == 2
+        assert additional_params["partitions"] == 2
         count = 0
         for i in range(len(ds)):
             ret = index.search_knn(ds.embeddings[i].numpy(), 1)
@@ -325,7 +325,7 @@ def test_partitioned_index(local_auth_ds_generator):
         index = ds.embeddings.load_vdb_index("hnsw_1")
         count = 0
         for i in range(len(ds)):
-            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
             if i == ret.indices[0]:
                 count += 1
         recall2 = count / len(ds)
@@ -337,7 +337,7 @@ def test_partitioned_index(local_auth_ds_generator):
         index = ds.embeddings.load_vdb_index("hnsw_1")
         count = 0
         for i in range(len(ds)):
-            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
             if i == ret.indices[0]:
                 count += 1
         recall2 = count / len(ds)
@@ -377,12 +377,12 @@ def test_partitioned_index_add(local_auth_ds_generator):
         )
         index = ds.embeddings.load_vdb_index("hnsw_1")
         additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
-        assert additional_params["Partitions"] == 2
+        assert additional_params["partitions"] == 2
         arr = np.random.uniform(-1, 1, (5000, 48)).astype("float32")
         ds.embeddings.extend(arr)
         index = ds.embeddings.load_vdb_index("hnsw_1")
         additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
-        assert additional_params["Partitions"] == 4
+        assert additional_params["partitions"] == 4
         ds.embeddings.unload_vdb_index_cache()
 
 
@@ -412,18 +412,18 @@ def test_partitioned_index_uneven_partitions(local_auth_ds_generator):
         )
         index = ds.embeddings.load_vdb_index("hnsw_1")
         additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
-        assert additional_params["Partitions"] == 2
+        assert additional_params["partitions"] == 2
         arr = np.random.uniform(-1, 1, (100, 48)).astype("float32")
         ds.embeddings.extend(arr)
         index = ds.embeddings.load_vdb_index("hnsw_1")
         additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
-        assert additional_params["Partitions"] == 3
+        assert additional_params["partitions"] == 3
 
         arr = np.random.uniform(-1, 1, (700, 48)).astype("float32")
         ds.embeddings.extend(arr)
         index = ds.embeddings.load_vdb_index("hnsw_1")
         additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
-        assert additional_params["Partitions"] == 4
+        assert additional_params["partitions"] == 6
         ds.embeddings.unload_vdb_index_cache()
 
 
@@ -453,16 +453,16 @@ def test_partitioned_index_delete(local_auth_ds_generator):
         )
         index = ds.embeddings.load_vdb_index("hnsw_1")
         additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
-        assert additional_params["Partitions"] == 2
+        assert additional_params["partitions"] == 2
         arr = np.random.uniform(-1, 1, (5000, 48)).astype("float32")
         ds.embeddings.extend(arr)
         index = ds.embeddings.load_vdb_index("hnsw_1")
         additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
-        assert additional_params["Partitions"] == 4
+        assert additional_params["partitions"] == 4
         ds.pop(9999)
         index = ds.embeddings.load_vdb_index("hnsw_1")
         additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
-        assert additional_params["Partitions"] == 4
+        assert additional_params["partitions"] == 4
         ds.embeddings.unload_vdb_index_cache()
 
 
@@ -491,12 +491,12 @@ def test_partitioned_index_update(local_auth_ds_generator):
         )
         index = ds.embeddings.load_vdb_index("hnsw_1")
         additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
-        assert additional_params["Partitions"] == 2
+        assert additional_params["partitions"] == 2
         arr = np.random.uniform(-1, 1, (5000, 48)).astype("float32")
         ds.embeddings.extend(arr)
         index = ds.embeddings.load_vdb_index("hnsw_1")
         additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
-        assert additional_params["Partitions"] == 4
+        assert additional_params["partitions"] == 4
         index = ds.embeddings.load_vdb_index("hnsw_1")
         count = 0
         for i in range(len(ds)):
@@ -764,7 +764,7 @@ def test_incremental_index_maintenance_update_add(local_auth_ds_generator):
         index = ds.embeddings.load_vdb_index("hnsw_1")
         count = 0
         for i in range(len(ds)):
-            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
             if i == ret.indices[0]:
                 count += 1
         recall = count / len(ds)
@@ -773,7 +773,7 @@ def test_incremental_index_maintenance_update_add(local_auth_ds_generator):
         index = ds.embeddings.load_vdb_index("hnsw_1")
         count = 0
         for i in range(len(ds)):
-            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
             if i == ret.indices[0]:
                 count += 1
         recall2 = count / len(ds)
@@ -789,7 +789,7 @@ def test_incremental_index_maintenance_update_add(local_auth_ds_generator):
         index = ds.embeddings.load_vdb_index("hnsw_1")
         count = 0
         for i in range(0, len(ds)):
-            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
             if i == ret.indices[0]:
                 count += 1
         recall2 = count / (len(ds))
@@ -802,7 +802,7 @@ def test_incremental_index_maintenance_update_add(local_auth_ds_generator):
         index = ds.embeddings.load_vdb_index("hnsw_1")
         count = 0
         for i in range(len(ds)):
-            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
             if i == ret.indices[0]:
                 count += 1
         recall2 = count / len(ds)
@@ -814,7 +814,7 @@ def test_incremental_index_maintenance_update_add(local_auth_ds_generator):
         index = ds.embeddings.load_vdb_index("hnsw_1")
         count = 0
         for i in range(0, len(ds)):
-            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
             if i == ret.indices[0]:
                 count += 1
         recall2 = count / (len(ds))
@@ -827,7 +827,7 @@ def test_incremental_index_maintenance_update_add(local_auth_ds_generator):
         index = ds.embeddings.load_vdb_index("hnsw_1")
         count = 0
         for i in range(500, len(ds)):
-            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
             if i == ret.indices[0]:
                 count += 1
         recall2 = count / (len(ds) - 500)
@@ -861,7 +861,7 @@ def test_incremental_index_partitioned_maintenance_delete_multipart(
         index = ds.embeddings.load_vdb_index("hnsw_1")
         count = 0
         for i in range(len(ds)):
-            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
             if i == ret.indices[0]:
                 count += 1
         recall = count / len(ds)
@@ -873,7 +873,7 @@ def test_incremental_index_partitioned_maintenance_delete_multipart(
         index = ds.embeddings.load_vdb_index("hnsw_1")
         count = 0
         for i in range(len(ds)):
-            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
             if i == ret.indices[0]:
                 count += 1
         recall21 = count / len(ds)
@@ -889,7 +889,7 @@ def test_incremental_index_partitioned_maintenance_delete_multipart(
         index = ds.embeddings.load_vdb_index("hnsw_1")
         count = 0
         for i in range(len(ds)):
-            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
             if i == ret.indices[0]:
                 count += 1
         recall22 = count / len(ds)
@@ -905,7 +905,7 @@ def test_incremental_index_partitioned_maintenance_delete_multipart(
         index = ds.embeddings.load_vdb_index("hnsw_1")
         count = 0
         for i in range(0, len(ds)):
-            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
             if i == ret.indices[0]:
                 count += 1
         recall23 = count / (len(ds))
@@ -921,7 +921,7 @@ def test_incremental_index_partitioned_maintenance_delete_multipart(
         index = ds.embeddings.load_vdb_index("hnsw_1")
         count = 0
         for i in range(50, len(ds)):
-            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
             if i == ret.indices[0]:
                 count += 1
         recall24 = count / (len(ds) - 50)
@@ -937,7 +937,7 @@ def test_incremental_index_partitioned_maintenance_delete_multipart(
         index = ds.embeddings.load_vdb_index("hnsw_1")
         count = 0
         for i in range(0, len(ds)):
-            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
             if i == ret.indices[0]:
                 count += 1
         recall25 = count / (len(ds))
@@ -953,7 +953,7 @@ def test_incremental_index_partitioned_maintenance_delete_multipart(
         index = ds.embeddings.load_vdb_index("hnsw_1")
         count = 0
         for i in range(len(ds)):
-            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
             if i == ret.indices[0]:
                 count += 1
         recall26 = count / len(ds)
@@ -969,7 +969,7 @@ def test_incremental_index_partitioned_maintenance_delete_multipart(
         index = ds.embeddings.load_vdb_index("hnsw_1")
         count = 0
         for i in range(61, len(ds)):
-            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
             print(f"i: {i}, ret: {ret.indices[0]}")
             if i == ret.indices[0]:
                 count += 1
