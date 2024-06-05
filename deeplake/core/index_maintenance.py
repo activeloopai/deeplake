@@ -61,6 +61,7 @@ def index_exists(dataset):
     else:
         return False
 
+
 def index_partition_count(dataset):
     emb_tensor = fetch_embedding_tensor(dataset)
     if emb_tensor is not None:
@@ -69,7 +70,7 @@ def index_partition_count(dataset):
             return 1
         else:
             additional_params = vdb_indexes[0].get("additional_params", {})
-            if (additional_params is None):
+            if additional_params is None:
                 return 1
             return additional_params.get("partitions", 1)
     else:
@@ -115,12 +116,16 @@ def check_index_params(self):
 
     existing_distance = existing_params.get("distance", "COS")
     if curr_distance == existing_distance:
-        current_additional_params_dict = current_params.get("additional_params", {}).copy()
-        existing_additional_params_dict = existing_params.get("additional_params", {}).copy()
+        current_additional_params_dict = current_params.get(
+            "additional_params", {}
+        ).copy()
+        existing_additional_params_dict = existing_params.get(
+            "additional_params", {}
+        ).copy()
 
         # Remove the 'partitions' key from the copies of the dictionaries
-        current_additional_params_dict.pop('partitions', None)
-        existing_additional_params_dict.pop('partitions', None)
+        current_additional_params_dict.pop("partitions", None)
+        existing_additional_params_dict.pop("partitions", None)
 
         if current_additional_params_dict == existing_additional_params_dict:
             return True
@@ -199,7 +204,9 @@ def check_vdb_indexes(dataset):
     return False
 
 
-def _incr_maintenance_vdb_indexes(tensor, indexes, index_operation, is_partitioned = False):
+def _incr_maintenance_vdb_indexes(
+    tensor, indexes, index_operation, is_partitioned=False
+):
     try:
         is_embedding = tensor.htype == "embedding"
         has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
@@ -213,7 +220,7 @@ def _incr_maintenance_vdb_indexes(tensor, indexes, index_operation, is_partition
                 tensor.update_vdb_index(
                     operation_kind=index_operation,
                     row_ids=indexes,
-                    is_partitioned = is_partitioned,
+                    is_partitioned=is_partitioned,
                 )
     except Exception as e:
         raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
@@ -294,7 +301,9 @@ def index_operation_dataset(self, dml_type, rowids):
         partition_count = index_partition_count(self)
         print(f"Partition count: {partition_count}")
         if partition_count > 1:
-            _incr_maintenance_vdb_indexes(emb_tensor, rowids, dml_type, is_partitioned = True)
+            _incr_maintenance_vdb_indexes(
+                emb_tensor, rowids, dml_type, is_partitioned=True
+            )
         else:
             _incr_maintenance_vdb_indexes(emb_tensor, rowids, dml_type)
     else:
