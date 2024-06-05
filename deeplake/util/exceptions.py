@@ -1,6 +1,8 @@
+import requests
 import numpy as np
-import deeplake
 from typing import Any, List, Sequence, Tuple, Optional, Union
+
+import deeplake
 
 
 class ExternalCommandError(Exception):
@@ -189,14 +191,6 @@ class ModuleNotInstalledException(Exception):
         super().__init__(message)
 
 
-class LoginException(Exception):
-    def __init__(
-        self,
-        message="Error while logging in, invalid auth token. Please try logging in again.",
-    ):
-        super().__init__(message)
-
-
 class UserNotLoggedInException(Exception):
     def __init__(self):
         message = (
@@ -237,18 +231,11 @@ class AuthenticationException(Exception):
 class AuthorizationException(Exception):
     def __init__(
         self,
-        message="You are not authorized to access this resource on Activeloop Server.",
-        response=None,
+        message: Optional[str] = None,
+        response: Optional[requests.Response] = None,
     ):
+        self.original_message = message
         self.response = response
-        super().__init__(message)
-
-
-class InvalidPasswordException(AuthorizationException):
-    def __init__(
-        self,
-        message="The password you provided was invalid.",
-    ):
         super().__init__(message)
 
 
@@ -993,8 +980,14 @@ class GetChunkError(Exception):
         chunk_key: Optional[str],
         global_index: Optional[int] = None,
         tensor_name: Optional[str] = None,
+        cause: Optional[Exception] = None,
     ):
+        self.root_cause = cause
         self.chunk_key = chunk_key
+
+        if isinstance(cause, GetChunkError):
+            self.root_cause = cause.root_cause
+
         message = "Unable to get chunk"
         if chunk_key is not None:
             message += f" '{chunk_key}'"
@@ -1003,6 +996,14 @@ class GetChunkError(Exception):
         if tensor_name is not None:
             message += f" in tensor {tensor_name}"
         message += "."
+
+        if cause is not None:
+            cause_message = str(cause)
+            if isinstance(cause, KeyError):
+                cause_message = f"The file {cause} does not exist."
+
+            message += f" Root Cause: {cause_message}"
+
         super().__init__(message)
 
 

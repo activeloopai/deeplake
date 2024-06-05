@@ -105,6 +105,7 @@ class DeepLakeDataLoader(DataLoader):
         _return_index=None,
         _primary_tensor_name=None,
         _buffer_size=None,
+        _orig_dataset=None,
         _decode_method=None,
         _persistent_workers=None,
         _dataloader=None,
@@ -116,6 +117,7 @@ class DeepLakeDataLoader(DataLoader):
     ):
         import_indra_loader()
         self.dataset = dataset
+        self._orig_dataset = _orig_dataset or dataset
         self._batch_size = _batch_size
         self._shuffle = _shuffle
         self._num_threads = _num_threads
@@ -235,7 +237,7 @@ class DeepLakeDataLoader(DataLoader):
     @property
     def sampler(self):
         return (
-            DistributedSampler(self.dataset)
+            DistributedSampler(self._orig_dataset)
             if self._distributed
             else _InfiniteConstantSampler()
         )
@@ -277,9 +279,9 @@ class DeepLakeDataLoader(DataLoader):
 
     def __len__(self):
         len_ds = (
-            len(self.dataset[self._tensors])
+            len(self._orig_dataset[self._tensors])
             if self._tensors is not None
-            else len(self.dataset)
+            else len(self._orig_dataset)
         )
         round_fn = math.floor if self._drop_last else math.ceil
         return round_fn(len_ds / ((self.batch_size) * self._world_size))
@@ -344,10 +346,12 @@ class DeepLakeDataLoader(DataLoader):
         all_vars["_shuffle"] = shuffle
         all_vars["_buffer_size"] = buffer_size
         if shuffle:
-            schedule = create_fetching_schedule(self.dataset, self._primary_tensor_name)
+            schedule = create_fetching_schedule(
+                self._orig_dataset, self._primary_tensor_name
+            )
             if schedule is not None:
-                ds = self.dataset.no_view_dataset  # type: ignore
-                all_vars["dataset"] = ds[schedule]
+                ds = self._orig_dataset  # type: ignore
+                all_vars["_orig_dataset"] = ds[schedule]
         all_vars["_dataloader"] = None
         return self.__class__(**all_vars)
 
@@ -374,12 +378,12 @@ class DeepLakeDataLoader(DataLoader):
         all_vars = self.__dict__.copy()
         if isinstance(transform, dict):
             tensors = [k for k in transform.keys() if k != "index"]
-            tensors = map_tensor_keys(self.dataset, tensors)
+            tensors = map_tensor_keys(self._orig_dataset, tensors)
             if self._tensors:
                 raise ValueError(
                     f"Tensors have already been specified in the .{self._mode} method."
                 )
-            all_vars["_tensors"] = map_tensor_keys(self.dataset, tensors)
+            all_vars["_tensors"] = map_tensor_keys(self._orig_dataset, tensors)
             transform = PytorchTransformFunction(transform_dict=transform)
         else:
             if kwargs:
@@ -410,7 +414,7 @@ class DeepLakeDataLoader(DataLoader):
             >>> query_ds_train = ds_train.dataloader().query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
         """
         all_vars = self.__dict__.copy()
-        all_vars["dataset"] = query(self.dataset, query_string)
+        all_vars["_orig_dataset"] = query(self._orig_dataset, query_string)
         all_vars["_dataloader"] = None
         return self.__class__(**all_vars)
 
@@ -455,8 +459,8 @@ class DeepLakeDataLoader(DataLoader):
 
         """
         all_vars = self.__dict__.copy()
-        all_vars["dataset"] = sample_by(
-            self.dataset, weights, replace=replace, size=size
+        all_vars["_orig_dataset"] = sample_by(
+            self._orig_dataset, weights, replace=replace, size=size
         )
         all_vars["_dataloader"] = None
         return self.__class__(**all_vars)
@@ -480,13 +484,15 @@ class DeepLakeDataLoader(DataLoader):
         decode_method: Optional[Dict[str, str]] = None,
         persistent_workers: bool = False,
     ):
-        """Returns a :class:`DeepLakeDataLoader` object.
-
+        """Creates a PyTorch Dataloader on top of the ``DeepLakeDataLoader`` from the Deep Lake dataset. During iteration, the data from all tensors will be streamed on-the-fly from the storage location.
+        Understanding the parameters below is critical for achieving fast streaming for your use-case
 
         Args:
             num_workers (int): Number of workers to use for transforming and processing the data. Defaults to 0.
             collate_fn (Callable, Optional): merges a list of samples to form a mini-batch of Tensor(s).
-            tensors (List[str], Optional): List of tensors to load. If None, all tensors are loaded. Defaults to ``None``.
+            tensors (List, Optional): List of tensors to load. If ``None``, all tensors are loaded. Defaults to ``None``.
+                For datasets with many tensors, its extremely important to stream only the data that is needed for training the model, in order to avoid bottlenecks associated with streaming unused data.
+                For example, if you have a dataset that has ``image``, ``label``, and ``metadata`` tensors, if ``tensors=["image", "label"]``, the Data Loader will only stream the ``image`` and ``label`` tensors.
             num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If ``None``, the number of threads is automatically determined. Defaults to ``None``.
             prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 2.
             distributed (bool): Used for DDP training. Distributes different sections of the dataset to different ranks. Defaults to ``False``.
@@ -539,7 +545,7 @@ class DeepLakeDataLoader(DataLoader):
         all_vars = self.__dict__.copy()
         all_vars["_num_workers"] = num_workers
         all_vars["_collate"] = collate_fn
-        validate_tensors(tensors, self.dataset, all_vars)
+        validate_tensors(tensors, self._orig_dataset, all_vars)
         all_vars["_decode_method"] = decode_method
         all_vars["_num_threads"] = num_threads
         all_vars["_prefetch_factor"] = prefetch_factor
@@ -614,7 +620,7 @@ class DeepLakeDataLoader(DataLoader):
         all_vars = self.__dict__.copy()
         all_vars["_num_workers"] = num_workers
         all_vars["_collate"] = collate_fn
-        validate_tensors(tensors, self.dataset, all_vars)
+        validate_tensors(tensors, self._orig_dataset, all_vars)
         all_vars["_decode_method"] = decode_method
         all_vars["_num_threads"] = num_threads
         all_vars["_prefetch_factor"] = prefetch_factor
@@ -659,7 +665,7 @@ class DeepLakeDataLoader(DataLoader):
         handle_mode(self._mode, mode)
         all_vars = self.__dict__.copy()
         all_vars["_num_workers"] = num_workers
-        validate_tensors(tensors, self.dataset, all_vars)
+        validate_tensors(tensors, self._orig_dataset, all_vars)
         all_vars["_decode_method"] = decode_method
         all_vars["_tensors"] = self._tensors or tensors
         all_vars["_num_threads"] = num_threads
@@ -801,9 +807,30 @@ class DeepLakeDataLoader(DataLoader):
             info=info,
         )
 
+    def _fill_sample_info_tensors(
+        self,
+        dataset,
+        sample_info_tensors,
+        json_tensors,
+        list_tensors,
+    ):
+        for tensor_name in sample_info_tensors:
+            tensor = dataset._get_tensor_from_root(tensor_name)
+            if len(tensor) == 0:
+                raise EmptyTensorError(
+                    f" the dataset has an empty tensor {tensor_name}, pytorch dataloader can't be created."
+                    f" Please either populate the tensor or pass tensors argument to .pytorch that excludes this"
+                    f" tensor."
+                )
+            meta = tensor.meta
+            if meta.htype == "json":
+                json_tensors.append(tensor_name)
+            elif meta.htype in ["list", "tag"]:
+                list_tensors.append(tensor_name)
+
     def __iter__(self):
         if self._dataloader is None:
-            dataset = self.dataset
+            dataset = self._orig_dataset
             tensors = self._tensors or map_tensor_keys(dataset, None)
 
             jpeg_png_compressed_tensors, json_tensors, list_tensors = check_tensors(
@@ -824,6 +851,9 @@ class DeepLakeDataLoader(DataLoader):
             )
             sample_info_tensors, tensor_info_tensors = find_additional_tensors_and_info(
                 dataset, data_tensors
+            )
+            self._fill_sample_info_tensors(
+                dataset, sample_info_tensors, json_tensors, list_tensors
             )
             tensors.extend(sample_info_tensors)
             htype_dict, ndim_dict, tensor_info_dict = get_htype_ndim_tensor_info_dicts(
@@ -855,7 +885,7 @@ class DeepLakeDataLoader(DataLoader):
                     tensor_info_dict=tensor_info_dict,
                 )
 
-        dataset_read(self.dataset)
+        dataset_read(self._orig_dataset)
 
         if self._iterator is not None:
             self._iterator = iter(self._dataloader)

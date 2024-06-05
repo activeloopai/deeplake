@@ -10,6 +10,7 @@ from deeplake.core.compression import (
     _read_audio_meta,
     _read_3d_data_meta,
     _open_nifti,
+    HEADER_MAX_BYTES,
 )
 from deeplake.compression import (
     get_compression_type,
@@ -104,7 +105,9 @@ class Sample:
                     self._compression = get_compression(path=self.path)
                 compressed_bytes = self._read_from_path()
                 if self._compression is None:
-                    self._compression = get_compression(header=compressed_bytes[:32])
+                    self._compression = get_compression(
+                        header=compressed_bytes[:HEADER_MAX_BYTES]
+                    )
                 self._shape, self._typestr = verify_compressed_file(compressed_bytes, self._compression)  # type: ignore
 
         if array is not None:
@@ -318,7 +321,9 @@ class Sample:
                     self._compression = get_compression(path=self.path)
                 compressed_bytes = self._read_from_path()
                 if self._compression is None:
-                    self._compression = get_compression(header=compressed_bytes[:32])
+                    self._compression = get_compression(
+                        header=compressed_bytes[:HEADER_MAX_BYTES]
+                    )
                 if self._compression == compression:
                     if self._shape is None:
                         _, self._shape, self._typestr = read_meta_from_compressed_file(
@@ -328,7 +333,9 @@ class Sample:
                     compressed_bytes = self._recompress(compressed_bytes, compression)
             elif self._buffer is not None:
                 if self._compression is None:
-                    self._compression = get_compression(header=self._buffer[:32])
+                    self._compression = get_compression(
+                        header=self._buffer[:HEADER_MAX_BYTES]
+                    )
                 if self._compression == compression:
                     compressed_bytes = self._buffer
                 else:
