@@ -10,8 +10,6 @@ from collections import defaultdict
 from typing import DefaultDict, List, Union, Optional, Dict
 from deeplake.core.sample import Sample
 from deeplake.core.linked_sample import LinkedSample
-import pathlib
-
 
 from deeplake.client.log import logger
 
@@ -30,13 +28,12 @@ class DataFrame(StructuredDataset):
         Raises:
             Exception: If source is not a pandas dataframe object.
         """
+
         import pandas as pd  # type: ignore
 
         super().__init__(source)
         if not isinstance(self.source, pd.DataFrame):
             raise Exception("Source is not a pandas dataframe object.")
-
-        self.source = self.source.replace({np.nan: None})
 
         self.creds = creds
         self.creds_key = creds_key
@@ -79,8 +76,13 @@ class DataFrame(StructuredDataset):
         )
         return most_frequent_image_extension
 
+    def _is_datetime(self, type: Union[type, np.dtype]):
+        return "datetime64[ns]" in str(type) or type == np.dtype(np.datetime64)
+
     def _parse_tensor_params(self, key: str, inspect_limit: int = 1000):
         """Parse the tensor parameters for a column. Required parameters that are not specified will be inferred by inspecting up to 'inspect_limit' rows in the data."""
+
+        import pandas as pd  # type: ignore
 
         tensor_params: Dict = self.column_params[key]
 
@@ -89,11 +91,12 @@ class DataFrame(StructuredDataset):
         if (
             "htype" not in tensor_params
         ):  # Auto-set some typing parameters if htype is not specified
-            if dtype == np.dtype("object"):
+            if dtype == np.dtype("object") or self._is_datetime(dtype):
+
+                column_data = self.source[key][0:inspect_limit]
+                column_data = column_data.where(pd.notnull(column_data), None).values
                 types = [
-                    type(v)
-                    for v in self.source[key][0:inspect_limit].values
-                    if v is not None
+                    type(v) for v in column_data if v is not None
                 ]  # Can be length 0 if all data is None
 
                 if len(set(types)) > 1:
@@ -101,7 +104,7 @@ class DataFrame(StructuredDataset):
                         f"Dataframe has different data types inside '{key}' column. Please make sure all data is given column is compatible with a single Deep Lake htype, or try specifying the htype manually."
                     )
 
-                if len(types) > 0 and types[0] == str:
+                if len(types) > 0 and (types[0] == str or self._is_datetime(types[0])):
                     tensor_params.update(
                         htype="text"
                     )  # Use "text" htype for text data when the htype is not specified tensor_params
@@ -127,10 +130,22 @@ class DataFrame(StructuredDataset):
 
     def _get_extend_values(self, tensor_params: dict, key: str):  # type: ignore
         """Method creates a list of values to be extended to the tensor, based on the tensor parameters and the data in the dataframe column"""
+
         import pandas as pd  # type: ignore
 
         column_data = self.source[key]
-        column_data = column_data.where(pd.notnull(column_data), None).values.tolist()
+
+        # Convert datetime arrays to strings. Other data can be uploaded as is.
+        if self._is_datetime(column_data.dtype):
+            column_data = (
+                column_data.where(pd.notnull(column_data), None)
+                .astype(str)
+                .values.tolist()
+            )
+        else:
+            column_data = column_data.where(
+                pd.notnull(column_data), None
+            ).values.tolist()
 
         extend_values: List[Optional[Union[Sample, LinkedSample, np.ndarray]]]
 
