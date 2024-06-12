@@ -3210,7 +3210,7 @@ class Dataset:
         ignore_errors: bool = False,
         progressbar: bool = False,
     ):
-        """Appends multiple samples (rows) to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
+        """Appends multiple samples (rows) to multiple tensors at once. This method expects all tensors being updated to be of the same length.
 
         Args:
             samples (Dict[str, Any]): Dictionary with tensor names as keys and data as values. The values can be a sequence (i.e. a list) or a single numpy array (the first axis in the array is treated as the row axis).
@@ -3232,11 +3232,15 @@ class Dataset:
             >>> ds = deeplake.empty("../test/test_ds")
 
             >>> with ds:
-            >>>     ds.create_tensor('data')
-            >>>     ds.create_tensor('labels')
+            >>>     ds.create_tensor("data")
+            >>>     ds.create_tensor("labels", htype = "class_label")
+            >>>     ds.create_tensor("images", htype = "image", sample_compression = "jpeg")
 
             >>>     # This operation will append 4 samples (rows) to the Deep Lake dataset
-            >>>     ds.extend({"data": [1, 2, 3, 4], "labels":["table", "chair", "desk", "table"]})
+            >>>     ds.extend({"data": [1, 2, 3, 4],
+                               "labels":["table", "chair", "desk", "table"],
+                               "images": [deeplake.read("image1.jpg"), deeplake.read("image2.jpg"), deeplake.read("image3.jpg"), deeplake.read("image4.jpg")]
+                               })
 
         """
         extend = False
