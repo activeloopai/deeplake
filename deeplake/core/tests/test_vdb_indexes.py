@@ -287,3 +287,697 @@ def test_index_maintenance_delete(local_auth_ds_generator):
         with pytest.raises(EmbeddingTensorPopError):
             ds.pop(2000)
         ds.embeddings.unload_vdb_index_cache()
+
+
+@pytest.mark.slow
+@requires_libdeeplake
+def test_partitioned_index(local_auth_ds_generator):
+    ds = local_auth_ds_generator()
+    with ds:
+        ds.create_tensor(
+            "embeddings",
+            dtype=np.float32,
+            htype="embedding",
+            sample_compression=None,
+        )
+        ds.embeddings.unload_vdb_index_cache()
+        arr = np.random.uniform(-1, 1, (5000, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        additional_params = {
+            "efConstruction": 200,
+            "M": 16,
+            "partitions": 2,
+        }
+        ds.embeddings.create_vdb_index(
+            "hnsw_1", distance="cosine_similarity", additional_params=additional_params
+        )
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 2
+        count = 0
+        for i in range(len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall = count / len(ds)
+        sample = ds.embeddings[4999].numpy()
+        ds.pop(4999)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall2 = count / len(ds)
+        assert recall2 / recall > 0.98
+        ret = index.search_knn(sample, 1)
+        assert ret.indices[0] != 4999
+        sample = np.random.uniform(-1, 1, (48)).astype("float32")
+        ds.embeddings.append(sample)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall2 = count / len(ds)
+        assert recall2 / recall > 0.98
+        ret = index.search_knn(sample, 1)
+        assert ret.indices[0] == 4999
+        with pytest.raises(EmbeddingTensorPopError):
+            ds.embeddings.pop(2000)
+        with pytest.raises(EmbeddingTensorPopError):
+            ds.pop(2000)
+        ds.embeddings.unload_vdb_index_cache()
+
+
+@pytest.mark.slow
+@requires_libdeeplake
+def test_partitioned_index_add(local_auth_ds_generator):
+    ds = local_auth_ds_generator()
+    with ds:
+        ds.create_tensor(
+            "embeddings",
+            dtype=np.float32,
+            htype="embedding",
+            sample_compression=None,
+        )
+        ds.embeddings.unload_vdb_index_cache()
+        arr = np.random.uniform(-1, 1, (5000, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+
+        additional_params = {
+            "efConstruction": 200,
+            "M": 16,
+            "partitions": 2,
+        }
+
+        ds.embeddings.create_vdb_index(
+            "hnsw_1", distance="cosine_similarity", additional_params=additional_params
+        )
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 2
+        arr = np.random.uniform(-1, 1, (5000, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 4
+        ds.embeddings.unload_vdb_index_cache()
+
+
+@pytest.mark.slow
+@requires_libdeeplake
+def test_partitioned_index_uneven_partitions(local_auth_ds_generator):
+    ds = local_auth_ds_generator()
+    with ds:
+        ds.create_tensor(
+            "embeddings",
+            dtype=np.float32,
+            htype="embedding",
+            sample_compression=None,
+        )
+        ds.embeddings.unload_vdb_index_cache()
+        arr = np.random.uniform(-1, 1, (500, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+
+        additional_params = {
+            "efConstruction": 200,
+            "M": 16,
+            "partitions": 2,
+        }
+
+        ds.embeddings.create_vdb_index(
+            "hnsw_1", distance="cosine_similarity", additional_params=additional_params
+        )
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 2
+        arr = np.random.uniform(-1, 1, (100, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 3
+
+        arr = np.random.uniform(-1, 1, (700, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 6
+        ds.embeddings.unload_vdb_index_cache()
+
+
+@pytest.mark.slow
+@requires_libdeeplake
+def test_partitioned_index_delete(local_auth_ds_generator):
+    ds = local_auth_ds_generator()
+    with ds:
+        ds.create_tensor(
+            "embeddings",
+            dtype=np.float32,
+            htype="embedding",
+            sample_compression=None,
+        )
+        ds.embeddings.unload_vdb_index_cache()
+        arr = np.random.uniform(-1, 1, (5000, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+
+        additional_params = {
+            "efConstruction": 200,
+            "M": 16,
+            "partitions": 2,
+        }
+
+        ds.embeddings.create_vdb_index(
+            "hnsw_1", distance="cosine_similarity", additional_params=additional_params
+        )
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 2
+        arr = np.random.uniform(-1, 1, (5000, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 4
+        ds.pop(9999)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 4
+        ds.embeddings.unload_vdb_index_cache()
+
+
+@pytest.mark.slow
+@requires_libdeeplake
+def test_partitioned_index_update(local_auth_ds_generator):
+    ds = local_auth_ds_generator()
+    with ds:
+        ds.create_tensor(
+            "embeddings",
+            dtype=np.float32,
+            htype="embedding",
+            sample_compression=None,
+        )
+        ds.embeddings.unload_vdb_index_cache()
+        arr = np.random.uniform(-1, 1, (5000, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+
+        additional_params = {
+            "efConstruction": 200,
+            "M": 16,
+            "partitions": 2,
+        }
+        ds.embeddings.create_vdb_index(
+            "hnsw_1", distance="cosine_similarity", additional_params=additional_params
+        )
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 2
+        arr = np.random.uniform(-1, 1, (5000, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 4
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall = count / len(ds)
+        sample = np.random.uniform(-1, 1, (48)).astype("float32")
+        ds.embeddings[2000] = sample
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        ret = index.search_knn(ds.embeddings[2000].numpy(), 1)
+        assert ret.indices[0] == 2000
+        ds.embeddings.unload_vdb_index_cache()
+
+
+@pytest.mark.slow
+@requires_libdeeplake
+def test_incremental_index_partitioned_maintenance_delete(local_auth_ds_generator):
+    ds = local_auth_ds_generator()
+    with ds:
+        ds.create_tensor(
+            "embeddings",
+            dtype=np.float32,
+            htype="embedding",
+            sample_compression=None,
+        )
+        ds.embeddings.unload_vdb_index_cache()
+        arr = np.random.uniform(-1, 1, (50, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        ds.embeddings.create_vdb_index(
+            "hnsw_1",
+            distance="cosine_similarity",
+            additional_params={"M": 16, "efConstruction": 500, "partitions": 5},
+        )
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall = count / len(ds)
+        assert recall == 1.0
+        sample = ds.embeddings[49].numpy()
+        ds.pop(49)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall2 = count / len(ds)
+        assert recall2 / recall > 0.98
+        ret = index.search_knn(sample, 1)
+        assert ret.indices[0] != 49
+        sample = np.random.uniform(-1, 1, (48)).astype("float32")
+        ds.embeddings.append(sample)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall2 = count / len(ds)
+        assert recall2 / recall > 0.98
+        ret = index.search_knn(sample, 1)
+        assert ret.indices[0] == 49
+        ds.embeddings.unload_vdb_index_cache()
+
+
+@pytest.mark.slow
+@requires_libdeeplake
+def test_incremental_index_partitioned_maintenance_update(local_auth_ds_generator):
+    ds = local_auth_ds_generator()
+    with ds:
+        ds.create_tensor(
+            "embeddings",
+            dtype=np.float32,
+            htype="embedding",
+            sample_compression=None,
+        )
+        ds.embeddings.unload_vdb_index_cache()
+        arr = np.random.uniform(-1, 1, (500, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        ds.embeddings.create_vdb_index(
+            "hnsw_1",
+            distance="cosine_similarity",
+            additional_params={"M": 16, "efConstruction": 500, "partitions": 5},
+        )
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall = count / len(ds)
+        sample = np.random.uniform(-1, 1, (48)).astype("float32")
+        ds.embeddings[200] = sample
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall2 = count / len(ds)
+        assert recall2 / recall > 0.90
+        ret = index.search_knn(sample, 1)
+        ds.embeddings.unload_vdb_index_cache()
+
+
+@pytest.mark.slow
+@requires_libdeeplake
+def test_incremental_partitioned_add_multiple_new_part(local_auth_ds_generator):
+    ds = local_auth_ds_generator()
+    with ds:
+        ds.create_tensor(
+            "embeddings",
+            dtype=np.float32,
+            htype="embedding",
+            sample_compression=None,
+        )
+        ds.embeddings.unload_vdb_index_cache()
+        arr = np.random.uniform(-1, 1, (500, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        ds.embeddings.create_vdb_index(
+            "hnsw_1",
+            distance="cosine_similarity",
+            additional_params={"M": 16, "efConstruction": 500, "partitions": 10},
+        )
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall = count / len(ds)
+        arr = np.random.uniform(-1, 1, (100, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(500, len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall2 = count / (len(ds) - 500)
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 12
+        assert recall2 / recall > 0.98
+        arr = np.random.uniform(-1, 1, (700, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(0, len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall2 = count / (len(ds))
+        assert recall2 / recall > 0.98
+        ds.embeddings.unload_vdb_index_cache()
+
+
+@pytest.mark.slow
+@requires_libdeeplake
+def test_incremental_partitioned_add_multiple_old_part(local_auth_ds_generator):
+    ds = local_auth_ds_generator()
+    with ds:
+        ds.create_tensor(
+            "embeddings",
+            dtype=np.float32,
+            htype="embedding",
+            sample_compression=None,
+        )
+        ds.embeddings.unload_vdb_index_cache()
+        arr = np.random.uniform(-1, 1, (500, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        ds.embeddings.create_vdb_index(
+            "hnsw_1",
+            distance="cosine_similarity",
+            additional_params={"M": 16, "efConstruction": 500, "partitions": 10},
+        )
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(0, len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall = count / len(ds)
+        # Add 10 rows to make new partition.
+        arr = np.random.uniform(-1, 1, (10, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(0, len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall2 = count / (len(ds))
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 11
+        assert recall2 / recall > 0.98
+
+        # Add 10 rows to the old partition.
+        arr = np.random.uniform(-1, 1, (10, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(0, len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall2 = count / (len(ds))
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 11
+        assert recall2 / recall > 0.98
+
+        # Add 10 rows to the old partition.
+        arr = np.random.uniform(-1, 1, (10, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(0, len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall2 = count / (len(ds))
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 11
+        assert recall2 / recall > 0.98
+
+        # Add 100 rows to the old partition and new partition.
+        arr = np.random.uniform(-1, 1, (70, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(0, len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall2 = count / (len(ds))
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 12
+        assert recall2 / recall > 0.98
+
+        ds.embeddings.unload_vdb_index_cache()
+
+
+@pytest.mark.slow
+@requires_libdeeplake
+def test_incremental_index_maintenance_update_add(local_auth_ds_generator):
+    ds = local_auth_ds_generator()
+    with ds:
+        ds.create_tensor(
+            "embeddings",
+            dtype=np.float32,
+            htype="embedding",
+            sample_compression=None,
+        )
+        ds.embeddings.unload_vdb_index_cache()
+        arr = np.random.uniform(-1, 1, (500, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        ds.embeddings.create_vdb_index(
+            "hnsw_1",
+            distance="cosine_similarity",
+            additional_params={"M": 16, "efConstruction": 500, "partitions": 10},
+        )
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall = count / len(ds)
+        sample = np.random.uniform(-1, 1, (48)).astype("float32")
+        ds.embeddings[200] = sample
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall2 = count / len(ds)
+        assert recall2 / recall > 0.98
+        ret = index.search_knn(sample, 1)
+        assert ret.indices[0] == 200
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 10
+
+        # Add 100 rows to the old partition and new partition.
+        arr = np.random.uniform(-1, 1, (10, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(0, len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall2 = count / (len(ds))
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 11
+        assert recall2 / recall > 0.98
+
+        sample = np.random.uniform(-1, 1, (48)).astype("float32")
+        ds.embeddings[505] = sample
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall2 = count / len(ds)
+        assert recall2 / recall > 0.98
+
+        # Add 100 rows to the old partition and new partition.
+        arr = np.random.uniform(-1, 1, (100, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(0, len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall2 = count / (len(ds))
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 13
+        assert recall2 / recall > 0.98
+
+        sample = np.random.uniform(-1, 1, (48)).astype("float32")
+        ds.embeddings[595] = sample
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(500, len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall2 = count / (len(ds) - 500)
+        assert recall2 == 1.0
+        assert recall2 / recall > 0.98
+
+        ds.embeddings.unload_vdb_index_cache()
+
+
+@pytest.mark.slow
+@requires_libdeeplake
+def test_incremental_index_partitioned_maintenance_delete_multipart(
+    local_auth_ds_generator,
+):
+    ds = local_auth_ds_generator()
+    with ds:
+        ds.create_tensor(
+            "embeddings",
+            dtype=np.float32,
+            htype="embedding",
+            sample_compression=None,
+        )
+        ds.embeddings.unload_vdb_index_cache()
+        arr = np.random.uniform(-1, 1, (50, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        ds.embeddings.create_vdb_index(
+            "hnsw_1",
+            distance="cosine_similarity",
+            additional_params={"M": 16, "efConstruction": 500, "partitions": 5},
+        )
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall = count / len(ds)
+        assert recall == 1.0
+
+        # Pop Last Row 49.
+        sample = ds.embeddings[49].numpy()
+        ds.pop(49)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall21 = count / len(ds)
+        assert recall21 == 1.0
+        assert len(ds) == 49
+        assert recall21 / recall > 0.98
+        ret = index.search_knn(sample, 1)
+        assert ret.indices[0] != 49
+
+        # Add 1 row to the old partition.
+        sample = np.random.uniform(-1, 1, (48)).astype("float32")
+        ds.embeddings.append(sample)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall22 = count / len(ds)
+        assert recall22 == 1.0
+        assert len(ds) == 50
+        assert recall22 / recall > 0.98
+        ret = index.search_knn(sample, 1)
+        assert ret.indices[0] == 49
+
+        # Add 10 rows to the old partition and new partition.
+        arr = np.random.uniform(-1, 1, (10, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(0, len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall23 = count / (len(ds))
+        assert recall23 == 1.0
+        assert len(ds) == 60
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 6
+        assert recall23 / recall > 0.98
+
+        # Update 1 row to the old partition.
+        sample = np.random.uniform(-1, 1, (48)).astype("float32")
+        ds.embeddings[55] = sample
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(50, len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall24 = count / (len(ds) - 50)
+        assert len(ds) == 60
+        assert recall24 == 1.0
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 6
+        assert recall24 / recall > 0.98
+
+        # Add 2 rows to the new partition and new partition.
+        arr = np.random.uniform(-1, 1, (2, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(0, len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall25 = count / (len(ds))
+        assert recall25 == 1.0
+        assert len(ds) == 62
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 7
+        assert recall25 / recall > 0.98
+
+        # Pop Last Row 61.
+        sample = ds.embeddings[61].numpy()
+        ds.pop(61)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
+            if i == ret.indices[0]:
+                count += 1
+        recall26 = count / len(ds)
+        assert recall26 == 1.0
+        assert len(ds) == 61
+        assert recall26 / recall > 0.98
+        ret = index.search_knn(sample, 1)
+        assert ret.indices[0] != 61
+
+        # Add 20 rows to the new partition and new partition.
+        arr = np.random.uniform(-1, 1, (20, 48)).astype("float32")
+        ds.embeddings.extend(arr)
+        index = ds.embeddings.load_vdb_index("hnsw_1")
+        count = 0
+        for i in range(61, len(ds)):
+            ret = index.search_knn(ds.embeddings[i].numpy(fetch_chunks=True), 1)
+            print(f"i: {i}, ret: {ret.indices[0]}")
+            if i == ret.indices[0]:
+                count += 1
+        recall27 = count / (len(ds) - 61)
+        assert len(ds) == 81
+        assert recall27 == 1.0
+        additional_params = ds.embeddings.get_vdb_indexes()[0]["additional_params"]
+        assert additional_params["partitions"] == 9
+        assert recall27 / recall > 0.98
+
+        ds.embeddings.unload_vdb_index_cache()
