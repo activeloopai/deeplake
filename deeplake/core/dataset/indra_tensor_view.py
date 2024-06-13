@@ -71,6 +71,8 @@ class IndraTensorView(tensor.Tensor):
             return list(b.decode() for b in bs)
         except Exception as e:
             bs = self.indra_tensor.numpy(aslist=True)
+            if self.ndim == 1:
+                return bs[0]
             return list(b[0] for b in bs)
 
     def dict(self, fetch_chunks: bool = False):
@@ -84,6 +86,8 @@ class IndraTensorView(tensor.Tensor):
             return list(json.loads(b.decode()) for b in self.indra_tensor.bytes())
         except Exception as e:
             bs = self.indra_tensor.numpy(aslist=True)
+            if self.ndim == 1:
+                return bs[0]
             return list(b[0] for b in bs)
 
     @property
