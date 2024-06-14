@@ -8,107 +8,35 @@ class MemoryProvider(StorageProvider):
     """Provider class for using the memory."""
 
     def __init__(self, root: str = ""):
+        super().__init__()
         self.dict: Dict[str, Any] = {}
         self.root = root
 
-    def __getitem__(
+    def _getitem_impl(
         self,
         path: str,
     ):
-        """Gets the object present at the path within the given byte range.
-
-        Example:
-
-            >>> memory_provider = MemoryProvider("xyz")
-            >>> my_data = memory_provider["abc.txt"]
-
-        Args:
-            path (str): The path relative to the root of the provider.
-
-        Returns:
-            bytes: The bytes of the object present at the path.
-
-        Raises:
-            KeyError: If an object is not found at the path.
-        """
         return self.dict[path]
 
-    def __setitem__(
+    def _setitem_impl(
         self,
         path: str,
         value: bytes,
     ):
-        """Sets the object present at the path with the value
-
-        Example:
-
-            >>> memory_provider = MemoryProvider("xyz")
-            >>> memory_provider["abc.txt"] = b"abcd"
-
-        Args:
-            path (str): the path relative to the root of the provider.
-            value (bytes): the value to be assigned at the path.
-
-        Raises:
-            ReadOnlyError: If the provider is in read-only mode.
-        """
         self.check_readonly()
         self.dict[path] = value
 
-    def __iter__(self):
-        """Generator function that iterates over the keys of the provider.
-
-        Example:
-
-            >>> memory_provider = MemoryProvider("xyz")
-            >>> for my_data in memory_provider:
-            ...    pass
-
-        Yields:
-            str: the path of the object that it is iterating over, relative to the root of the provider.
-        """
-        yield from self.dict
-
-    def __delitem__(self, path: str):
-        """Delete the object present at the path.
-
-        Example:
-
-            >>> memory_provider = MemoryProvider("xyz")
-            >>> del memory_provider["abc.txt"]
-
-        Args:
-            path (str): the path to the object relative to the root of the provider.
-
-        Raises:
-            KeyError: If an object is not found at the path.
-            ReadOnlyError: If the provider is in read-only mode.
-        """
+    def _delitem_impl(self, path: str):
         self.check_readonly()
         del self.dict[path]
 
-    def __len__(self):
-        """Returns the number of files present inside the root of the provider.
-
-        Example:
-
-            >>> memory_provider = MemoryProvider("xyz")
-            >>> len(memory_provider)
-
-        Returns:
-            int: the number of files present inside the root.
-        """
+    def _len_impl(self):
         return len(self.dict)
 
-    def _all_keys(self):
-        """Lists all the objects present at the root of the Provider.
-
-        Returns:
-            set: set of all the objects found at the root of the Provider.
-        """
+    def _all_keys_impl(self, refresh: bool = False):
         return set(self.dict.keys())
 
-    def clear(self, prefix=""):
+    def _clear_impl(self, prefix=""):
         """Clears the provider."""
         self.check_readonly()
         if prefix:
@@ -116,12 +44,15 @@ class MemoryProvider(StorageProvider):
         else:
             self.dict = {}
 
-    def __getstate__(self) -> str:
-        """Does NOT save the in memory data in state."""
-        return self.root
+    def __getstate__(self) -> dict:
+        super()._getstate_prepare()
 
-    def __setstate__(self, state: str):
-        self.__init__(root=state)  # type: ignore
+        """Does NOT save the in memory data in state."""
+        return {"root": self.root, "_temp_data": self._temp_data}
+
+    def __setstate__(self, state: dict):
+        self.__init__(root=state["root"])  # type: ignore
+        self._temp_data = state.get("_temp_data", {})
 
     def get_object_size(self, key: str) -> int:
         return _get_nbytes(self[key])

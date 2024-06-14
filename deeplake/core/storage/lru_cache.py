@@ -45,6 +45,8 @@ class LRUCache(StorageProvider):
                 This number may be less than the actual space available on the cache_storage.
                 Setting it to a higher value than actually available space may lead to unexpected behaviors.
         """
+        super().__init__()
+
         self.next_storage = next_storage
         self.cache_storage = cache_storage
         self.cache_size = cache_size
@@ -65,6 +67,10 @@ class LRUCache(StorageProvider):
         #     else False and sys.version_info >= (3, 7) and sys.platform != "win32"
         # )
         self.use_async = False
+
+    def _is_temp(self, key: str) -> bool:
+        """Always returns False so temp objects are handled by the underlying storage instance"""
+        return False
 
     def register_deeplake_object(self, path: str, obj: DeepLakeMemoryObject):
         """Registers a new object in the cache."""
@@ -195,7 +201,7 @@ class LRUCache(StorageProvider):
             self.lru_sizes.move_to_end(path)  # refresh position for LRU
             return self.cache_storage[path]
 
-    def __getitem__(self, path: str):
+    def _getitem_impl(self, path: str):
         """If item is in cache_storage, retrieves from there and returns.
         If item isn't in cache_storage, retrieves from next storage, stores in cache_storage (if possible) and returns.
 
@@ -231,7 +237,7 @@ class LRUCache(StorageProvider):
                     self._insert_in_cache(key, result)
                 yield result
 
-    def get_bytes(
+    def _get_bytes_impl(
         self,
         path: str,
         start_byte: Optional[int] = None,
@@ -277,6 +283,8 @@ class LRUCache(StorageProvider):
         Raises:
             ReadOnlyError: If the provider is in read-only mode.
         """
+        # Overrides otherwise-final Provider __setitem__ to handle DeepLakeMemoryObject
+
         self.check_readonly()
         if path in self.deeplake_objects:
             self.deeplake_objects[path].is_dirty = False
@@ -292,6 +300,9 @@ class LRUCache(StorageProvider):
             self._forward_value(path, value)
 
         self.maybe_flush()
+
+    def _setitem_impl(self, path: str, value: bytes):
+        assert False, "This function should not be called. Use __setitem__ instead."
 
     def _del_item_from_cache(self, path: str):
         deleted_from_cache = False
@@ -309,7 +320,7 @@ class LRUCache(StorageProvider):
 
         return deleted_from_cache
 
-    def __delitem__(self, path: str):
+    def _delitem_impl(self, path: str):
         """Deletes the object present at the path from the cache and the underlying storage.
 
         Args:
@@ -347,7 +358,7 @@ class LRUCache(StorageProvider):
         if self.next_storage is not None and hasattr(self.next_storage, "clear_cache"):
             self.next_storage.clear_cache()
 
-    def clear(self, prefix=""):
+    def _clear_impl(self, prefix=""):
         """Deletes ALL the data from all the layers of the cache and the actual storage.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
         """
@@ -372,21 +383,13 @@ class LRUCache(StorageProvider):
         if self.next_storage is not None:
             self.next_storage.clear(prefix=prefix)
 
-    def __len__(self):
+    def _len_impl(self):
         """Returns the number of files present in the cache and the underlying storage.
 
         Returns:
             int: the number of files present inside the root.
         """
         return len(self._all_keys())
-
-    def __iter__(self):
-        """Generator function that iterates over the keys of the cache and the underlying storage.
-
-        Yields:
-            str: the path of the object that it is iterating over, relative to the root of the provider.
-        """
-        yield from self._all_keys()
 
     def _forward(self, path):
         """Forward the value at a given path to the next storage, and un-marks its key."""
@@ -442,12 +445,7 @@ class LRUCache(StorageProvider):
 
         self.update_used_cache_for_path(path, _get_nbytes(value))
 
-    def _all_keys(self):
-        """Helper function that lists all the objects present in the cache and the underlying storage.
-
-        Returns:
-            set: set of all the objects found in the cache and the underlying storage.
-        """
+    def _all_keys_impl(self, refresh: bool = False):
         key_set = set()
         if self.next_storage is not None:
             key_set = self.next_storage._all_keys()  # type: ignore
@@ -464,6 +462,8 @@ class LRUCache(StorageProvider):
 
     def __getstate__(self) -> Dict[str, Any]:
         """Returns the state of the cache, for pickling"""
+
+        super()._getstate_prepare()
 
         # flushes the cache before pickling
         self._flush_if_not_read_only()
