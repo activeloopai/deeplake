@@ -1,3 +1,4 @@
+import re
 from threading import local
 from typing import Optional
 import deeplake
@@ -84,6 +85,10 @@ def download_kaggle_dataset(
     cwd = os.getcwd()
     os.chdir(local_path)
 
+    if not re.match("^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$", tag):
+        raise ValueError(
+            "Invalid Kaggle dataset tag. Example: 'coloradokb/dandelionimages'"
+        )
     _exec_command("kaggle datasets download -d %s" % (tag))
 
     for item in os.listdir():
