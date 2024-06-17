@@ -22,6 +22,10 @@ def empty_cuda():
 
 @runner.RUNNERS.register_module()
 class DeeplakeIterBasedRunner(runner.IterBasedRunner):
+    def __init__(self, **kwargs):
+        self.force_cleanup = kwargs.pop("force_cleanup", True)
+        super().__init__(**kwargs)
+
     def run(
         self,
         data_loaders: List[DataLoader],
@@ -77,7 +81,11 @@ class DeeplakeIterBasedRunner(runner.IterBasedRunner):
 
                     iter_time = time.time()
 
-                    if iter_time - start_time > TIME_INTERVAL_FOR_CUDA_MEMORY_CLEANING:
+                    if (
+                        self.force_cleanup
+                        and iter_time - start_time
+                        > TIME_INTERVAL_FOR_CUDA_MEMORY_CLEANING
+                    ):
                         empty_cuda()
                         start_time = iter_time
                     iter_runner(iter_loaders[i], **kwargs)
@@ -89,6 +97,10 @@ class DeeplakeIterBasedRunner(runner.IterBasedRunner):
 
 @runner.RUNNERS.register_module()
 class DeeplakeEpochBasedRunner(runner.EpochBasedRunner):
+    def __init__(self, **kwargs):
+        self.force_cleanup = kwargs.pop("force_cleanup", True)
+        super().__init__(**kwargs)
+
     def train(self, data_loader, **kwargs):
         start_time = time.time()
         self.model.train()
@@ -106,7 +118,10 @@ class DeeplakeEpochBasedRunner(runner.EpochBasedRunner):
             del self.data_batch
             self._iter += 1
             iter_time = time.time()
-            if iter_time - start_time > TIME_INTERVAL_FOR_CUDA_MEMORY_CLEANING:
+            if (
+                self.force_cleanup
+                and iter_time - start_time > TIME_INTERVAL_FOR_CUDA_MEMORY_CLEANING
+            ):
                 empty_cuda()
                 start_time = iter_time
 
@@ -129,7 +144,10 @@ class DeeplakeEpochBasedRunner(runner.EpochBasedRunner):
             self.call_hook("after_val_iter")
             del self.data_batch
             iter_time = time.time()
-            if iter_time - start_time > TIME_INTERVAL_FOR_CUDA_MEMORY_CLEANING:
+            if (
+                self.force_cleanup
+                and iter_time - start_time > TIME_INTERVAL_FOR_CUDA_MEMORY_CLEANING
+            ):
                 empty_cuda()
                 start_time = iter_time
         self.call_hook("after_val_epoch")

@@ -113,7 +113,7 @@ class _COCO(pycocotools_coco.COCO):
                     elif self.masks.htype == "polygon":
                         mask = convert_poly_to_coco_format(masks.numpy()[bbox_index])
                     else:
-                        raise Exception(f"{type(self.masks)} is not supported yet.")
+                        raise Exception(f"{self.masks.htype} is not supported yet.")
                 ann = {
                     "image_id": row_index,
                     "id": absolute_id,
