@@ -124,6 +124,15 @@ class MMSegDataset(TorchDataset):
             self.masks_data = self.masks.numpy(aslist=True)
             print_log("Annotations are loaded into memory")
 
+    def __len__(self):
+        if self.mode == "val":
+            per_gpu_length = math.floor(
+                len(self.dataset) / (self.batch_size * self.num_gpus)
+            )
+            total_length = per_gpu_length * self.num_gpus
+            return total_length
+        return super().__len__()
+
     def _get_images(self, images_tensor):
         image_tensor = self.dataset[images_tensor]
         return image_tensor
