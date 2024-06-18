@@ -38,7 +38,7 @@ from mmcv.runner import init_dist  # type: ignore
 import torch
 import numpy as np
 from mmcv.utils import print_log
-from prettytable import PrettyTable # type: ignore
+from prettytable import PrettyTable  # type: ignore
 from mmseg.core import eval_metrics, intersect_and_union, pre_eval_to_metrics
 from terminaltables import AsciiTable  # type: ignore
 from mmseg.utils.util_distribution import *  # type: ignore
@@ -223,7 +223,7 @@ class MMSegDataset(TorchDataset):
                 related information during evaluation. Default: None.
             gt_seg_maps (generator[ndarray]): Custom gt seg maps as input,
                 used in ConcatDataset
-  
+
         ..
             # noqa: DAR101
 
