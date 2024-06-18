@@ -62,21 +62,6 @@ def index_exists(dataset):
         return False
 
 
-def index_partition_count(dataset):
-    emb_tensor = fetch_embedding_tensor(dataset)
-    if emb_tensor is not None:
-        vdb_indexes = emb_tensor.fetch_vdb_indexes()
-        if len(vdb_indexes) == 0:
-            return 1
-        else:
-            additional_params = vdb_indexes[0].get("additional_params", {})
-            if additional_params is None:
-                return 1
-            return additional_params.get("partitions", 1)
-    else:
-        return 1
-
-
 def index_used(exec_option):
     """Check if the index is used for the exec_option"""
     return exec_option in ("tensor_db", "compute_engine")
@@ -116,17 +101,8 @@ def check_index_params(self):
 
     existing_distance = existing_params.get("distance", "COS")
     if curr_distance == existing_distance:
-        current_additional_params_dict = current_params.get(
-            "additional_params", {}
-        ).copy()
-        existing_additional_params_dict = existing_params.get(
-            "additional_params", {}
-        ).copy()
-
-        # Remove the 'partitions' key from the copies of the dictionaries
-        current_additional_params_dict.pop("partitions", None)
-        existing_additional_params_dict.pop("partitions", None)
-
+        current_additional_params_dict = current_params.get("additional_params", None)
+        existing_additional_params_dict = existing_params.get("additional_params", None)
         if current_additional_params_dict == existing_additional_params_dict:
             return True
 
@@ -158,9 +134,9 @@ def get_index_metric(metric):
 
 
 def normalize_additional_params(params: dict) -> dict:
-    mapping = {"efconstruction": "efConstruction", "m": "M", "partitions": "partitions"}
+    mapping = {"efconstruction": "efConstruction", "m": "M"}
 
-    allowed_keys = ["efConstruction", "m", "partitions"]
+    allowed_keys = ["efConstruction", "m"]
 
     # New dictionary to store the result with desired key format
     result_dict = {}
@@ -204,9 +180,7 @@ def check_vdb_indexes(dataset):
     return False
 
 
-def _incr_maintenance_vdb_indexes(
-    tensor, indexes, index_operation, is_partitioned=False
-):
+def _incr_maintenance_vdb_indexes(tensor, indexes, index_operation):
     try:
         is_embedding = tensor.htype == "embedding"
         has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
@@ -220,7 +194,6 @@ def _incr_maintenance_vdb_indexes(
                 tensor.update_vdb_index(
                     operation_kind=index_operation,
                     row_ids=indexes,
-                    is_partitioned=is_partitioned,
                 )
     except Exception as e:
         raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
@@ -274,6 +247,7 @@ def index_operation_dataset(self, dml_type, rowids):
 
     if index_operation_type == INDEX_OP_TYPE.NOOP:
         return
+
     if (
         index_operation_type == INDEX_OP_TYPE.CREATE_INDEX
         or index_operation_type == INDEX_OP_TYPE.REGENERATE_INDEX
@@ -298,13 +272,6 @@ def index_operation_dataset(self, dml_type, rowids):
         else:
             emb_tensor.create_vdb_index("hnsw_1", distance=distance)
     elif index_operation_type == INDEX_OP_TYPE.INCREMENTAL_INDEX:
-        partition_count = index_partition_count(self)
-        print(f"Partition count: {partition_count}")
-        if partition_count > 1:
-            _incr_maintenance_vdb_indexes(
-                emb_tensor, rowids, dml_type, is_partitioned=True
-            )
-        else:
-            _incr_maintenance_vdb_indexes(emb_tensor, rowids, dml_type)
+        _incr_maintenance_vdb_indexes(emb_tensor, rowids, dml_type)
     else:
         raise Exception("Unknown index operation")

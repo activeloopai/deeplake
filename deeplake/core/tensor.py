@@ -7,7 +7,6 @@ from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.core.version_control.commit_chunk_map import CommitChunkMap
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.chunk.base_chunk import InputSample
-import json
 import numpy as np
 from typing import Dict, List, Sequence, Union, Optional, Tuple, Any, Callable
 from functools import reduce, partial
@@ -1530,71 +1529,10 @@ class Tensor:
         """Invalidates the libdeeplake dataset object."""
         self.dataset.libdeeplake_dataset = None
 
-    def deserialize_partitions(self, serialized_data, incremental_dml=False):
-        from io import BytesIO
-
-        stream = BytesIO(serialized_data)
-
-        # Read number of partitions
-        num_partitions = int.from_bytes(
-            stream.read(8), "little"
-        )  # Assuming size_t is 8 bytes
-
-        partition_info = []
-        for _ in range(num_partitions):
-            # Read partition name length and name
-            name_length = int.from_bytes(stream.read(8), "little")
-            name = stream.read(name_length).decode("utf-8")
-
-            # Read start and end indices
-            start = int.from_bytes(stream.read(8), "little")
-            end = int.from_bytes(stream.read(8), "little")
-
-            partition_info.append({"name": name, "start": start, "end": end})
-
-        incr_info = []
-        if incremental_dml == True:
-            # Check for incremental update info
-            incr_info_size = int.from_bytes(stream.read(8), "little")
-            for _ in range(incr_info_size):
-                name_length = int.from_bytes(stream.read(8), "little")
-                name = stream.read(name_length).decode("utf-8")
-
-                start = int.from_bytes(stream.read(8), "little")
-                end = int.from_bytes(stream.read(8), "little")
-
-                incr_info.append({"name": name, "start": start, "end": end})
-
-        # Extract the actual data for each partition
-        partitions_data = []
-        while True:
-            size_data = stream.read(8)
-            if not size_data:
-                break
-            size = int.from_bytes(size_data, "little")
-            partition_blob = stream.read(size)
-            partitions_data.append(partition_blob)
-
-        return partition_info, partitions_data, incr_info
-
-    def is_partitioned_vdb_index(self):
-        vdb_indexes = self.get_vdb_indexes()
-        if len(vdb_indexes) == 0:
-            return False
-        for vdb_index in vdb_indexes:
-            if (
-                vdb_index["additional_params"] is not None
-                and "partitions" in vdb_index["additional_params"]
-                and vdb_index["additional_params"]["partitions"] > 1
-            ):
-                return True
-        return False
-
     def update_vdb_index(
         self,
         operation_kind: int,
         row_ids: List[int] = [],
-        is_partitioned: bool = False,
     ):
         self.storage.check_readonly()
         if self.meta.htype != "embedding":
@@ -1623,31 +1561,7 @@ class Tensor:
                 for id, index in indexes:
                     b = index.serialize()
                     commit_id = self.version_state["commit_id"]
-                    if is_partitioned:
-                        metadata, partitions_data, incr_info = (
-                            self.deserialize_partitions(b, incremental_dml=True)
-                        )
-                        partition_key = get_tensor_vdb_index_key(
-                            self.key, commit_id, f"{id}_partition_metadata"
-                        )
-                        metadata_json = json.dumps(metadata)
-                        metadata_bytes = metadata_json.encode("utf-8")
-                        self.storage[partition_key] = metadata_bytes
-
-                        incr_data_map = {
-                            info["name"]: data
-                            for info, data in zip(incr_info, partitions_data)
-                        }
-                        for info in incr_info:
-                            partition_key = get_tensor_vdb_index_key(
-                                self.key, commit_id, f"{id}_{info['name']}"
-                            )
-                            self.storage[partition_key] = incr_data_map[info["name"]]
-                        self.meta.update_vdb_partition(id, len(metadata))
-                    else:
-                        self.storage[
-                            get_tensor_vdb_index_key(self.key, commit_id, id)
-                        ] = b
+                    self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
                 self.storage.flush()
             except:
                 raise
@@ -1660,30 +1574,7 @@ class Tensor:
                 for id, index in indexes:
                     b = index.serialize()
                     commit_id = self.version_state["commit_id"]
-                    if is_partitioned:
-                        metadata, partitions_data, incr_info = (
-                            self.deserialize_partitions(b, incremental_dml=True)
-                        )
-                        partition_key = get_tensor_vdb_index_key(
-                            self.key, commit_id, f"{id}_partition_metadata"
-                        )
-                        metadata_json = json.dumps(metadata)
-                        metadata_bytes = metadata_json.encode("utf-8")
-                        self.storage[partition_key] = metadata_bytes
-
-                        incr_data_map = {
-                            info["name"]: data
-                            for info, data in zip(incr_info, partitions_data)
-                        }
-                        for info in incr_info:
-                            partition_key = get_tensor_vdb_index_key(
-                                self.key, commit_id, f"{id}_{info['name']}"
-                            )
-                            self.storage[partition_key] = incr_data_map[info["name"]]
-                    else:
-                        self.storage[
-                            get_tensor_vdb_index_key(self.key, commit_id, id)
-                        ] = b
+                    self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
                 self.storage.flush()
             except:
                 raise
@@ -1696,30 +1587,7 @@ class Tensor:
                 for id, index in indexes:
                     b = index.serialize()
                     commit_id = self.version_state["commit_id"]
-                    if is_partitioned:
-                        metadata, partitions_data, incr_info = (
-                            self.deserialize_partitions(b, incremental_dml=True)
-                        )
-                        partition_key = get_tensor_vdb_index_key(
-                            self.key, commit_id, f"{id}_partition_metadata"
-                        )
-                        metadata_json = json.dumps(metadata)
-                        metadata_bytes = metadata_json.encode("utf-8")
-                        self.storage[partition_key] = metadata_bytes
-
-                        incr_data_map = {
-                            info["name"]: data
-                            for info, data in zip(incr_info, partitions_data)
-                        }
-                        for info in incr_info:
-                            partition_key = get_tensor_vdb_index_key(
-                                self.key, commit_id, f"{id}_{info['name']}"
-                            )
-                            self.storage[partition_key] = incr_data_map[info["name"]]
-                    else:
-                        self.storage[
-                            get_tensor_vdb_index_key(self.key, commit_id, id)
-                        ] = b
+                    self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
                     self.storage.flush()
                 self.storage.flush()
             except:
@@ -1766,27 +1634,7 @@ class Tensor:
                 )
             b = index.serialize()
             commit_id = self.version_state["commit_id"]
-            # Check if the index is partitioned
-            if (
-                additional_params
-                and "partitions" in additional_params
-                and additional_params["partitions"] > 1
-            ):
-                metadata, partitions_data, incr_info = self.deserialize_partitions(b)
-                partition_key = get_tensor_vdb_index_key(
-                    self.key, commit_id, f"{id}_partition_metadata"
-                )
-                metadata_json = json.dumps(metadata)
-                metadata_bytes = metadata_json.encode("utf-8")
-                self.storage[partition_key] = metadata_bytes
-                for i, data in enumerate(partitions_data):
-                    partition_key = get_tensor_vdb_index_key(
-                        self.key, commit_id, f"{id}_part_{i}"
-                    )
-                    self.storage[partition_key] = data
-            else:
-                self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
-
+            self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
             self.invalidate_libdeeplake_dataset()
         except:
             self.meta.remove_vdb_index(id=id)
@@ -1799,30 +1647,7 @@ class Tensor:
             raise Exception(f"Only supported for embedding tensors.")
         commit_id = self.version_state["commit_id"]
         self.unload_vdb_index_cache()
-        if self.is_partitioned_vdb_index():
-            metadata_file = self.storage[
-                get_tensor_vdb_index_key(
-                    self.key,
-                    self.version_state["commit_id"],
-                    f"{id}_partition_metadata",
-                )
-            ]
-            metadata = json.loads(metadata_file.decode("utf-8"))
-            for part in metadata:
-                partition_key = get_tensor_vdb_index_key(
-                    self.key, self.version_state["commit_id"], f"{id}_{part['name']}"
-                )
-                self.storage.pop(partition_key)
-            self.storage.pop(
-                get_tensor_vdb_index_key(
-                    self.key,
-                    self.version_state["commit_id"],
-                    f"{id}_partition_metadata",
-                )
-            )
-        else:
-            self.storage.pop(get_tensor_vdb_index_key(self.key, commit_id, id))
-
+        self.storage.pop(get_tensor_vdb_index_key(self.key, commit_id, id))
         self.meta.remove_vdb_index(id=id)
         self.invalidate_libdeeplake_dataset()
         self.storage.flush()

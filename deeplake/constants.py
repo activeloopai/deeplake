@@ -333,7 +333,6 @@ DEFAULT_VECTORSTORE_INDEX_PARAMS = {
     "additional_params": {
         "efConstruction": 600,
         "M": 32,
-        "partitions": 1,
     },
 }
 VECTORSTORE_EXTEND_BATCH_SIZE = 500
