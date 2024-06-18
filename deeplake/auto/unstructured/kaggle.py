@@ -55,6 +55,7 @@ def download_kaggle_dataset(
     Raises:
         KaggleMissingCredentialsError: If no kaggle credentials are found.
         KaggleDatasetAlreadyDownloadedError: If the dataset `tag` already exists in `local_path`.
+        ValueError: If the `tag` is not in the correct format.
     """
 
     zip_files = glob.glob(os.path.join(local_path, "*.zip"))
