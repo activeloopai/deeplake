@@ -80,9 +80,6 @@ deeplake.util.exceptions
 .. autoclass:: ModuleNotInstalledException
     :show-inheritance:
     
-.. autoclass:: LoginException
-    :show-inheritance:
-    
 .. autoclass:: UserNotLoggedInException
     :show-inheritance:
     
@@ -96,9 +93,6 @@ deeplake.util.exceptions
     :show-inheritance:
     
 .. autoclass:: AuthorizationException
-    :show-inheritance:
-    
-.. autoclass:: InvalidPasswordException
     :show-inheritance:
     
 .. autoclass:: CouldNotCreateNewDatasetException
