@@ -57,7 +57,7 @@ Example:
 
 
 MMSegmentation Config Examples
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Below is the example of the deeplake mmseg configuration:
 
 

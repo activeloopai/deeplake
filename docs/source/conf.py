@@ -40,6 +40,8 @@ extensions = [
     "sphinx.ext.autosectionlabel",
     "sphinx_copybutton",  # copy button
 ]
+
+autodoc_mock_imports = ["mmdet", "mmcv", "mmseg"]
 autosummary_generate = False
 
 # Add any paths that contain templates here, relative to this directory.

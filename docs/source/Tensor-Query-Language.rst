@@ -10,7 +10,7 @@ Tensor Query Language
 **In addition to standard SQL operations, TQL supports array arithmetic, user-defined-functions, and other features specific to Deep Lake's diverse data formats.**
 
 Resources
-~~~~~~~~
+~~~~~~~~~
 
 * `TQL Overview <https://docs.activeloop.ai/examples/tql>`_
 * `TQL Syntax <https://docs.activeloop.ai/examples/tql/syntax>`_
