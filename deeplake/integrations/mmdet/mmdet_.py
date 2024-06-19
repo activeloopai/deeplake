@@ -216,9 +216,9 @@ from mmdet.core import BitmapMasks, PolygonMasks
 
 import mmcv  # type: ignore
 from mmcv.runner import init_dist  # type: ignore
-from mmcv.utils import print_log
 from mmcv.parallel import collate  # type: ignore
 from mmcv.utils import build_from_cfg  # type: ignore
+from mmcv.utils import print_log
 from mmcv.runner import (  # type: ignore
     DistSamplerSeedHook,
     EpochBasedRunner,

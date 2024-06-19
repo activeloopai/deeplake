@@ -1,3 +1,161 @@
+"""
+Deep Lake offers an integration with MMSegmentation, a popular open-source semantic segmentation toolbox based on PyTorch.
+The integration enables users to train models while streaming Deep Lake dataset using the transformation, training, and evaluation tools built by MMSeg.
+
+Learn more about MMSegmentation `here <https://mmsegmentation.readthedocs.io/en/latest/>`_.
+
+Integration Interface
+~~~~~~~~~~~~~~~~~~~~~
+MMSegmentation works with configs. Deeplake adopted this strategy, and in order to train MMSeg models, you need to create/specify your model
+and training/validation config. Deep Lake integration's logic is almost the same as MMSegmentation's with some minor modifications. The integrations
+with MMSeg occurs in the deeplake.integrations.mmseg module. At a high-level, Deep Lake is responsible for the pytorch dataloader that streams data
+to the training framework, while MMSeg is used for the training, transformation, and evaluation logic. Let us take a look at the config with deeplake changes:
+
+Deeplake integration requires the following parameters to be specified in the configuration file:
+
+- ``data``: Just like in the MMSegmentation configuration files, in data dictionary you can specify everything that you want to be applied to the data during training and validation
+    - ``train``: Keyword argument of data, a dictionary where one can specify dataset path, credentials, transformations of the training data
+    - ``val``: Keyword argument of data, a dictionary where one can specify dataset path, credentials, transformations of the validation data
+    - ``pipeline``: List of transformations. This parameter exists for train as well as for val.
+
+        - Example:
+
+            >>> pipeline =  [dict(type="Resize", img_scale=[(320, 320), (608, 608)], keep_ratio=True), dict(type="RandomFlip", flip_ratio=0.5), dict(type="PhotoMetricDistortion")]
+
+    - ``deeplake_path``: Path to the deeplake dataset. This parameter exists for train as well as for val.
+    - ``deeplake_credentials``: Optional parameter. Required only when using private nonlocal datasets. See documendataion for `deeplake.load() <https://docs.deeplake.ai/en/latest/deeplake.html#deeplake.load>`_ for details. This parameter exists for train as well as for val.
+    - ``deeplake_commit_id``: Optional parameter. If specified, the dataset will checkout to the commit. This parameter exists for train as well as for val. See documentation for `Dataset.commit_id <https://deep-lake--2152.org.readthedocs.build/en/2152/deeplake.core.dataset.html#deeplake.core.dataset.Dataset.commit_id>`_
+    - ``deeplake_view_id``: Optional parameter. If specified the dataset will load saved view. This parameter exists for train as well as for val.
+    - ``deeplake_tensors``: Optional parameter. If specified maps MMSegmentation tensors to the associated tensors in the dataset. MMSeg tensors are: "img", "gt_semantic_seg". This parameter exists for train as well as for val.
+        - ``"img"``: Stands for image tensor.
+        - ``"gt_semantic_seg"``: Stands for semantic segmenataion tensor.
+
+    - ``deeplake_dataloader``: Optional parameter. If specified represents the parameters of the deeplake dataloader. Deeplake dataloader parameters are: "shuffle", "batch_size", "num_workers". This parameter exists for train as well as for val.
+        - ``"shuffle"``: If ``True`` shuffles the dataset.
+        - ``"batch_size"``: Size of batch. If not specified, dataloader will use ``samples_per_gpu``.
+        - ``"num_workers"``: Number of workers to use. If not specified, dataloader will use ``workers_per_gpu``.
+
+- ``deeplake_dataloader_type``: Optional parameter. If specified, it represents the type of deeplake dataloader to use.
+
+Example:
+
+>>> evaluation = dict(metric=["mIoU"], interval=1)
+
+- ``train_segmentor``: Function to train the MMSegmentation model.
+
+    Parameters:
+
+        - ``model``: MMSegmentation model that is going to be used.
+        - ``cfg``: mmcv.ConfigDict, Configuration of the model as well as of the datasets and transforms that's going to be used.
+        - ``ds_train``: Optional parameter. If provided will overwrite deeplake_path in train, and will pass this tensor directly to the dataloader.
+        - ``ds_val``: Optional parameter. If provided will overwrite deeplake_path in val, and will pass this tensor directly to the dataloader.
+        - ``ds_train_tensors``: Optional parameter. If provided will overwrite deeplake_tensors in train, and will pass this tensor mapping directly to dataloader.
+        - ``ds_val_tensors``: Optional parameter. If provided will overwrite deeplake_tensors in val, and will pass this tensor mapping directly to dataloader.
+        - ``distributed``: Optional parameter. If provided will run the code on all available gpus. Meta data used to build runner.
+        - ``timestamp``: Variable used in runner to make .log and .log.json filenames the same.
+        - ``validate``: Bool, whether validation should be run, defaults to ``True``.
+
+
+MMSegmentation Config Examples
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Below is the example of the deeplake mmseg configuration:
+
+
+>>> _base_ = "../mmsegmentation/configs/pspnet/pspnet_r101-d8_512x512_4x4_160k_coco-stuff164k.py"
+>>> # use caffe img_norm
+>>> img_norm_cfg = dict(mean=[0, 0, 0], std=[255., 255., 255.], to_rgb=True)
+>>> train_pipeline = [
+...     dict(type='LoadImageFromFile'),
+...     dict(type='LoadAnnotations'),
+...     dict(
+...         type='Expand',
+...         mean=img_norm_cfg['mean'],
+...         to_rgb=img_norm_cfg['to_rgb'],
+...         ratio_range=(1, 2)),
+...     dict(type='Resize', img_scale=[(320, 320), (416, 416)], keep_ratio=True),
+...     dict(type='RandomFlip', flip_ratio=0.0),
+...     dict(type='PhotoMetricDistortion'),
+...     dict(type='Normalize', **img_norm_cfg),
+...     dict(type='Pad', size_divisor=32),
+...     dict(type='DefaultFormatBundle'),
+...     dict(type='Collect', keys=['img', 'gt_semantic_seg'])
+... ]
+>>> test_pipeline = [
+...     dict(type='LoadImageFromFile'),
+...     dict(
+...         type='MultiScaleFlipAug',
+...         img_scale=(416, 416),
+...         flip=False,
+...         transforms=[
+...             dict(type='Resize', keep_ratio=True),
+...             dict(type='RandomFlip', flip_ratio=0.0),
+...             dict(type='Normalize', **img_norm_cfg),
+...             dict(type='Pad', size_divisor=32),
+...             dict(type='ImageToTensor', keys=['img']),
+...             dict(type='Collect', keys=['img'])
+...         ])
+... ]
+>>> #--------------------------------------DEEPLAKE INPUTS------------------------------------------------------------#
+>>> TOKEN = "INSERT_YOUR_DEEPLAKE_TOKEN"
+>>> data = dict(
+...     # samples_per_gpu=4, # Is used instead of batch_size if deeplake_dataloader is not specified below
+...     # workers_per_gpu=8, # Is used instead of num_workers if deeplake_dataloader is not specified below
+...     train=dict(
+...         pipeline=train_pipeline,
+...         # Credentials for authentication. See documendataion for deeplake.load() for details
+...         deeplake_path="hub://activeloop/coco-train",
+...          deeplake_credentials={
+...             "username": None,
+...             "password": None,
+...             "token": TOKEN,
+...             "creds": None,
+...         },
+...         #OPTIONAL - Checkout the specified commit_id before training
+...         deeplake_commit_id="",
+...         #OPTIONAL - Loads a dataset view for training based on view_id
+...         deeplake_view_id="",
+...         # OPTIONAL - {"mmseg_key": "deep_lake_tensor",...} - Maps Deep Lake tensors to MMSeg dictionary keys.
+...         # If not specified, Deep Lake will auto-infer the mapping, but it might make mistakes if datasets have many tensors
+...         deeplake_tensors = {"img": "images", "gt_semantic_seg": "semantic_seg"},
+...         # OPTIONAL - Parameters to use for the Deep Lake dataloader. If unspecified, the integration uses
+...         # the parameters in other parts of the cfg file such as samples_per_gpu, and others.
+...         deeplake_dataloader = {"shuffle": True, "batch_size": 4, 'num_workers': 8}
+...     ),
+...     # Parameters as the same as for train
+...     val=dict(
+...         pipeline=test_pipeline,
+...         deeplake_path="hub://activeloop/coco-val",
+...         deeplake_credentials={
+...             "username": None,
+...             "password": None,
+...             "token": TOKEN,
+...             "creds": None,
+...         },
+...         deeplake_tensors = {"img": "images", "gt_semantic_seg": "semantic_seg"},
+...         deeplake_dataloader = {"shuffle": False, "batch_size": 1, 'num_workers': 8}
+...     ),
+... )
+>>> # Which dataloader to use
+>>> deeplake_dataloader_type = "c++"  # "c++" is available to enterprise users. Otherwise use "python"
+>>> # Which metrics to use for evaulation. In MMSeg (without Deeplake), this is inferred from the dataset type.
+>>> # In the Deep Lake integration, since the format is standardized, a variety of metrics can be used for a given dataset.
+>>> #----------------------------------END DEEPLAKE INPUTS------------------------------------------------------------#
+
+And config for training:
+
+>>> import os
+>>> from mmcv import Config
+>>> import mmcv
+>>> from deeplake.integrations import mmseg as mmseg_deeplake
+>>> cfg = Config.fromfile(cfg_file)
+>>> # Build the segmentor
+>>> model = mmseg_deeplake.build_segmentor(cfg.model)
+>>> # Create work_dir
+>>> mmcv.mkdir_or_exist(os.path.abspath(cfg.work_dir))
+>>> # Run the training
+>>> mmseg_deeplake.train_segmentor(model, cfg, distributed=args.distributed, validate=args.validate)
+"""
+
 import warnings
 import torch
 import numpy as np
@@ -441,7 +599,7 @@ def _train_segmentor(
         cfg_data = cfg.data.train.get("deeplake_path")
         if cfg_data:
             always_warn(
-                "A Deep Lake dataset was specified in the cfg as well as inthe dataset input to train_detector. The dataset input to train_detector will be used in the workflow."
+                "A Deep Lake dataset was specified in the cfg as well as inthe dataset input to train_segmentor. The dataset input to train_segmentor will be used in the workflow."
             )
 
     eval_cfg = cfg.get("evaluation", {})
@@ -613,7 +771,7 @@ def _train_segmentor(
             cfg_data = cfg.data.val.get("deeplake_path")
             if cfg_data is not None:
                 always_warn(
-                    "A Deep Lake dataset was specified in the cfg as well as inthe dataset input to train_detector. The dataset input to train_detector will be used in the workflow."
+                    "A Deep Lake dataset was specified in the cfg as well as inthe dataset input to train_segmentor. The dataset input to train_segmentor will be used in the workflow."
                 )
 
         if ds_val is None:
