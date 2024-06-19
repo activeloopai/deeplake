@@ -171,6 +171,20 @@ from collections import OrderedDict
 
 from typing import Callable, Optional, List, Dict
 
+from functools import partial
+
+import os
+import math
+import types
+import torch
+import warnings
+import tempfile
+import numpy as np
+import os.path as osp
+
+from PIL import Image, ImageDraw  # type: ignore
+
+from terminaltables import AsciiTable  # type: ignore
 
 try:
     from mmdet.apis.train import auto_scale_lr  # type: ignore
@@ -189,6 +203,22 @@ from mmdet.utils import (  # type: ignore
 )
 from mmdet.core import DistEvalHook, EvalHook  # type: ignore
 from mmdet.core import build_optimizer
+
+from mmdet.datasets import replace_ImageToTensor  # type: ignore
+
+from mmdet.datasets.builder import PIPELINES  # type: ignore
+from mmdet.datasets.pipelines import Compose  # type: ignore
+from mmdet.core import BitmapMasks  # type: ignore
+from mmdet.core import eval_map, eval_recalls
+from mmdet.datasets.pipelines import Compose
+from mmdet.utils.util_distribution import *  # type: ignore
+from mmdet.core import BitmapMasks, PolygonMasks
+
+import mmcv  # type: ignore
+from mmcv.runner import init_dist  # type: ignore
+from mmcv.utils import print_log
+from mmcv.parallel import collate  # type: ignore
+from mmcv.utils import build_from_cfg  # type: ignore
 from mmcv.runner import (  # type: ignore
     DistSamplerSeedHook,
     EpochBasedRunner,
@@ -196,39 +226,14 @@ from mmcv.runner import (  # type: ignore
     OptimizerHook,
     build_runner,
 )
-from mmdet.datasets import replace_ImageToTensor  # type: ignore
-from mmcv.utils import build_from_cfg  # type: ignore
-from mmdet.datasets.builder import PIPELINES  # type: ignore
-from mmdet.datasets.pipelines import Compose  # type: ignore
-from mmcv.parallel import collate  # type: ignore
-from functools import partial
-from deeplake.integrations.pytorch.dataset import TorchDataset
-from deeplake.core.ipc import _get_free_port
-from mmdet.core import BitmapMasks  # type: ignore
+
 import deeplake as dp
+from deeplake.core.ipc import _get_free_port
 from deeplake.util.warnings import always_warn
 from deeplake.util.bugout_reporter import deeplake_reporter
-import os.path as osp
-import warnings
-from collections import OrderedDict
-import mmcv  # type: ignore
-from mmcv.runner import init_dist  # type: ignore
-
-import torch
-import numpy as np
-from mmcv.utils import print_log
-from terminaltables import AsciiTable  # type: ignore
-from mmdet.core import eval_map, eval_recalls
-from mmdet.datasets.pipelines import Compose
-from mmdet.utils.util_distribution import *  # type: ignore
-import tempfile
 from deeplake.integrations.mmdet import mmdet_utils
 from deeplake.enterprise.dataloader import indra_available, dataloader
-from PIL import Image, ImageDraw  # type: ignore
-import os
-from mmdet.core import BitmapMasks, PolygonMasks
-import math
-import types
+from deeplake.integrations.pytorch.dataset import TorchDataset
 from deeplake.integrations.mmdet.mmdet_runners import DeeplakeIterBasedRunner
 from deeplake.integrations.mm.mm_common import (
     load_ds_from_cfg,
@@ -237,6 +242,7 @@ from deeplake.integrations.mm.mm_common import (
     find_tensor_with_htype,
     ddp_setup,
     force_cudnn_initialization,
+    check_unsupported_functionalities,
 )
 
 
@@ -932,6 +938,19 @@ def build_dataloader(
 
     decode_method = {images_tensor: "numpy"}
 
+    mmdet_ds = MMDetDataset(
+        dataset=dataset,
+        metrics_format=metrics_format,
+        pipeline=pipeline,
+        tensors_dict=tensors_dict,
+        tensors=tensors,
+        mode=mode,
+        bbox_info=bbox_info,
+        decode_method=decode_method,
+        num_gpus=train_loader_config["num_gpus"],
+        batch_size=batch_size,
+    )
+
     if implementation == "python":
         if persistent_workers:
             always_warn(
@@ -952,19 +971,6 @@ def build_dataloader(
             mode=mode,
             bbox_info=bbox_info,
             decode_method=decode_method,
-        )
-
-        mmdet_ds = MMDetDataset(
-            dataset=dataset,
-            metrics_format=metrics_format,
-            pipeline=pipeline,
-            tensors_dict=tensors_dict,
-            tensors=tensors,
-            mode=mode,
-            bbox_info=bbox_info,
-            decode_method=decode_method,
-            num_gpus=train_loader_config["num_gpus"],
-            batch_size=batch_size,
         )
 
         loader.dataset.mmdet_dataset = mmdet_ds
@@ -989,18 +995,6 @@ def build_dataloader(
             )
         )
 
-        mmdet_ds = MMDetDataset(
-            dataset=dataset,
-            metrics_format=metrics_format,
-            pipeline=pipeline,
-            tensors_dict=tensors_dict,
-            tensors=tensors,
-            mode=mode,
-            bbox_info=bbox_info,
-            decode_method=decode_method,
-            num_gpus=train_loader_config["num_gpus"],
-            batch_size=batch_size,
-        )
         loader.dataset = mmdet_ds
     loader.dataset.CLASSES = classes
     return loader
@@ -1096,7 +1090,7 @@ def train_detector(
         meta: meta data used to build runner
         validate: bool, whether validation should be conducted, by default `True`
     """
-    mmdet_utils.check_unsupported_functionalities(cfg)
+    check_unsupported_functionalities(cfg)
 
     if not hasattr(cfg, "gpu_ids"):
         cfg.gpu_ids = range(torch.cuda.device_count() if distributed else 1)

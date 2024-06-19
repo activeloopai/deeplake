@@ -1,14 +1,34 @@
+import warnings
+import torch
+import numpy as np
+import os
+import math
+import types
+import tempfile
+from functools import partial
 from collections import OrderedDict
 
 from typing import Callable, Optional, List, Dict
+from prettytable import PrettyTable  # type: ignore
+from PIL import Image, ImageDraw  # type: ignore
 
+from mmseg.core import DistEvalHook, EvalHook  # type: ignore
+from mmseg.core import build_optimizer
 from mmseg.utils import (  # type: ignore
     build_dp,
     find_latest_checkpoint,
     get_root_logger,
 )
-from mmseg.core import DistEvalHook, EvalHook  # type: ignore
-from mmseg.core import build_optimizer
+from mmseg.datasets.builder import PIPELINES  # type: ignore
+from mmseg.datasets.pipelines import Compose  # type: ignore
+from mmseg.core import eval_metrics, intersect_and_union, pre_eval_to_metrics
+from mmseg.utils.util_distribution import *  # type: ignore
+
+from mmcv.utils import build_from_cfg  # type: ignore
+from mmcv.parallel import collate  # type: ignore
+from mmcv.utils import print_log
+import mmcv  # type: ignore
+from mmcv.runner import init_dist  # type: ignore
 from mmcv.runner import (  # type: ignore
     DistSamplerSeedHook,
     EpochBasedRunner,
@@ -17,42 +37,15 @@ from mmcv.runner import (  # type: ignore
     HOOKS,
 )
 
-from collections import OrderedDict
 
-from mmcv.utils import build_from_cfg  # type: ignore
-from mmseg.datasets.builder import PIPELINES  # type: ignore
-from mmseg.datasets.pipelines import Compose  # type: ignore
-from mmcv.parallel import collate  # type: ignore
-from functools import partial
-from deeplake.integrations.pytorch.dataset import TorchDataset
 from deeplake.core.ipc import _get_free_port
 import deeplake as dp
 from deeplake.util.warnings import always_warn
 from deeplake.util.bugout_reporter import deeplake_reporter
-import os.path as osp
-import warnings
-from collections import OrderedDict
-import mmcv  # type: ignore
-from mmcv.runner import init_dist  # type: ignore
-
-import torch
-import numpy as np
-from mmcv.utils import print_log
-from prettytable import PrettyTable  # type: ignore
-from mmseg.core import eval_metrics, intersect_and_union, pre_eval_to_metrics
-from terminaltables import AsciiTable  # type: ignore
-from mmseg.utils.util_distribution import *  # type: ignore
-import tempfile
-from deeplake.integrations.mmdet import mmdet_utils
 from deeplake.enterprise.dataloader import indra_available, dataloader
-from PIL import Image, ImageDraw  # type: ignore
-import os
-import math
-import types
 from deeplake.enterprise.dummy_dataloader import upcast_array
+from deeplake.integrations.pytorch.dataset import TorchDataset
 from deeplake.integrations.mmdet.mmdet_runners import DeeplakeIterBasedRunner
-
-
 from deeplake.integrations.mm.mm_common import (
     load_ds_from_cfg,
     get_collect_keys,
@@ -60,6 +53,7 @@ from deeplake.integrations.mm.mm_common import (
     find_tensor_with_htype,
     ddp_setup,
     force_cudnn_initialization,
+    check_unsupported_functionalities,
 )
 
 
@@ -383,7 +377,7 @@ def train_segmentor(
     meta=None,
     validate: bool = True,
 ):
-    mmdet_utils.check_unsupported_functionalities(cfg)
+    check_unsupported_functionalities(cfg)
 
     if not hasattr(cfg, "gpu_ids"):
         cfg.gpu_ids = range(torch.cuda.device_count() if distributed else 1)
@@ -468,7 +462,6 @@ def _train_segmentor(
         train_images_tensor = ds_train_tensors["img"]
         train_masks_tensor = ds_train_tensors.get("gt_semantic_seg")
     else:
-        print("ds_train: ", ds_train)
         train_images_tensor = find_tensor_with_htype(ds_train, "image", "img")
         train_masks_tensor = None
 
@@ -706,7 +699,6 @@ def build_dataloader(
     mode: str = "train",
     **train_loader_config,
 ):
-
     classes = dataset[masks_tensor].info.class_names
     dataset.CLASSES = classes
     pipeline = build_pipeline(pipeline)
@@ -746,6 +738,17 @@ def build_dataloader(
 
     decode_method = {images_tensor: "numpy"}
 
+    mmseg_ds = MMSegDataset(
+        dataset=dataset,
+        pipeline=pipeline,
+        tensors_dict=tensors_dict,
+        tensors=tensors,
+        mode=mode,
+        decode_method=decode_method,
+        num_gpus=train_loader_config["num_gpus"],
+        batch_size=batch_size,
+    )
+
     if implementation == "python":
         if persistent_workers:
             always_warn(
@@ -764,17 +767,6 @@ def build_dataloader(
             batch_size=batch_size,
             mode=mode,
             decode_method=decode_method,
-        )
-
-        mmseg_ds = MMSegDataset(
-            dataset=dataset,
-            pipeline=pipeline,
-            tensors_dict=tensors_dict,
-            tensors=tensors,
-            mode=mode,
-            decode_method=decode_method,
-            num_gpus=train_loader_config["num_gpus"],
-            batch_size=batch_size,
         )
 
         loader.dataset.mmseg_dataset = mmseg_ds
@@ -799,16 +791,6 @@ def build_dataloader(
             )
         )
 
-        mmseg_ds = MMSegDataset(
-            dataset=dataset,
-            pipeline=pipeline,
-            tensors_dict=tensors_dict,
-            tensors=tensors,
-            mode=mode,
-            decode_method=decode_method,
-            num_gpus=train_loader_config["num_gpus"],
-            batch_size=batch_size,
-        )
         loader.dataset = mmseg_ds
     loader.dataset.CLASSES = classes
     return loader

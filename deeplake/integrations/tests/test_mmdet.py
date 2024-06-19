@@ -59,18 +59,18 @@ def process_cfg(cfg, model_name, dataset_path):
 )
 def test_check_unused_dataset_fields():
     import mmcv  # type: ignore
-    from deeplake.integrations.mmdet import mmdet_utils
+    from deeplake.integrations.mm.mm_common import check_unused_dataset_fields
 
     cfg = mmcv.utils.config.ConfigDict()
     cfg.dataset_type = "COCODataset"
 
     with pytest.warns(UserWarning):
-        mmdet_utils.check_unused_dataset_fields(cfg)
+        check_unused_dataset_fields(cfg)
 
     cfg.data_root = "./"
 
     with pytest.warns(UserWarning):
-        mmdet_utils.check_unused_dataset_fields(cfg)
+        check_unused_dataset_fields(cfg)
 
 
 @pytest.mark.skipif(
@@ -83,7 +83,9 @@ def test_check_unused_dataset_fields():
 )
 def test_check_unsupported_train_pipeline_fields():
     import mmcv  # type: ignore
-    from deeplake.integrations.mmdet import mmdet_utils
+    from deeplake.integrations.mm.mm_common import (
+        check_unsupported_train_pipeline_fields,
+    )
 
     cfg = mmcv.utils.config.ConfigDict()
     cfg.data = mmcv.utils.config.ConfigDict()
@@ -91,32 +93,32 @@ def test_check_unsupported_train_pipeline_fields():
     cfg.data.train.pipeline = [dict(type="LoadImageFromFile")]
 
     with pytest.warns(UserWarning):
-        mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
+        check_unsupported_train_pipeline_fields(cfg)
 
     cfg.data.train.pipeline = [dict(type="LoadAnnotations")]
 
     with pytest.warns(UserWarning):
-        mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
+        check_unsupported_train_pipeline_fields(cfg)
 
     cfg.data.train.pipeline = [dict(type="Corrupt")]
 
     with pytest.raises(Exception) as ex_info:
-        mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
+        check_unsupported_train_pipeline_fields(cfg)
 
     cfg.data.train.pipeline = [dict(type="CopyPaste")]
 
     with pytest.raises(Exception) as ex_info:
-        mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
+        check_unsupported_train_pipeline_fields(cfg)
 
     cfg.data.train.pipeline = [dict(type="CutOut")]
 
     with pytest.raises(Exception) as ex_info:
-        mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
+        check_unsupported_train_pipeline_fields(cfg)
 
     cfg.data.train.pipeline = [dict(type="Mosaic")]
 
     with pytest.raises(Exception) as ex_info:
-        mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
+        check_unsupported_train_pipeline_fields(cfg)
 
 
 @pytest.mark.skipif(
@@ -129,13 +131,15 @@ def test_check_unsupported_train_pipeline_fields():
 )
 def test_check_dataset_augmentation_formats():
     import mmcv  # type: ignore
-    from deeplake.integrations.mmdet import mmdet_utils
+    from deeplake.integrations.mm.mm_common import (
+        check_unsupported_train_pipeline_fields,
+    )
 
     cfg = mmcv.utils.config.ConfigDict()
     cfg.train_dataset = dict(type="ConcatDataset")
 
     with pytest.raises(Exception) as ex_info:
-        mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
+        check_unsupported_train_pipeline_fields(cfg)
 
 
 @pytest.mark.skipif(
