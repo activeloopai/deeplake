@@ -58,7 +58,7 @@ Deep Lake comes with built-in dataloaders for Pytorch and TensorFlow. Train your
 </details>
 <details>
   <summary><b>Integrations with Powerful Tools</b></summary>
-Deep Lake has integrations with <a href="https://github.com/hwchase17/langchain">Langchain</a> and <a href="https://github.com/jerryjliu/llama_index">LLamaIndex</a> as a vector store for LLM apps, <a href="https://wandb.ai/">Weights & Biases</a> for data lineage during model training, and <a href="https://github.com/open-mmlab/mmdetection">MMDetection</a> for training object detection models.
+Deep Lake has integrations with <a href="https://github.com/hwchase17/langchain">Langchain</a> and <a href="https://github.com/jerryjliu/llama_index">LLamaIndex</a> as a vector store for LLM apps, <a href="https://wandb.ai/">Weights & Biases</a> for data lineage during model training, <a href="https://github.com/open-mmlab/mmdetection">MMDetection</a> for training object detection models, and <a href="https://github.com/open-mmlab/mmsegmentation">MMSegmentation</a> for training semantic segmentation models.
 </details>
 <details>
   <summary><b>100+ most-popular image, video, and audio datasets available in seconds</b></summary>
