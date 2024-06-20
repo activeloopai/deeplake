@@ -26,107 +26,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
 
 jobs:
-  setup:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' || (! github.event.pull_request.draft)
-    outputs:
-      matrix: ${{ steps.setup.outputs.matrix }}
-    steps:
-      - name: Setup tests matrix
-        id: setup
-        shell: python
-        run: |
-          import os
-          import json
-          
-          matrix = {
-              "os": [
-                  "ubuntu-latest",
-                  "windows-latest",
-              ],
-              "python-version": [
-                  "3.11",
-              ],
-              "storage": [
-                  "--hub-cloud --local",
-                  "--s3 --gcs --azure --gdrive --memory-skip"
-              ]
-          }
-          
-          if "${{ github.event_name }}" == "pull_request":
-              if "${{ contains(github.event.pull_request.labels.*.name, 'quick-tests') }}" == "true":
-                  matrix = {
-                      "os": [
-                          "ubuntu-latest",
-                      ],
-                      "python-version": [
-                          "3.11",
-                      ],
-                      "storage": [
-                          "local",
-                      ]
-                  }
-          
-              if "${{ contains(github.event.pull_request.labels.*.name, 'macos-tests') }}" == "true":
-                  matrix["os"].append("macos-latest")
-
-              if "${{ contains(github.event.pull_request.labels.*.name, 'full-tests') }}" == "true":
-                  matrix["os"] = [
-                      "macos-latest",
-                      "ubuntu-latest",
-                      "windows-latest",
-                  ]
-                  matrix["python-version"] = [
-                      "3.11",
-                      "3.10",
-                      "3.9",
-                      "3.8",
-                  ]
-                  matrix["storage"] = [
-                    "--hub-cloud --local",
-                    "--s3 --gcs --azure --gdrive --memory-skip"
-                  ]
-          
-          elif "${{ github.event_name }}" == "push":
-              if "${{ github.ref_name == 'main' || startsWith( github.ref_name, 'release/' ) }}" == "true":
-                  matrix["os"] = [
-                      "macos-latest",
-                      "ubuntu-latest",
-                      "windows-latest",
-                  ]
-                  matrix["python-version"] = [
-                      "3.11",
-                      "3.10",
-                      "3.9",
-                      "3.8",
-                  ]
-              else:
-                  raise Exception("Unexpected branch")
-          else:
-              raise Exception("Unexpected event")
-          
-          matrix["exclude"] = [
-            {
-              "os": "macos-latest",
-              "python-version": "3.8",
-            },
-            {
-              "os": "macos-latest",
-              "python-version": "3.9",
-            },
-            {
-              "os": "macos-latest",
-              "python-version": "3.11",
-            },
-            {
-              "os": "windows-latest",
-              "python-version": "3.11",
-            },
-          ]
-            
-          with open(os.environ.get("GITHUB_OUTPUT"), "a") as file:
-            file.write("matrix=%s\n" % json.dumps(matrix))
-
   test:
     name: Test
     needs: setup
@@ -135,8 +34,6 @@ jobs:
     with:
       repo: ${{ github.repository }}
       ref: ${{ github.sha }}
-      testMatrix: ${{ needs.setup.outputs.matrix }}
-
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}
       aws_role_arn: ${{ secrets.AWS_ROLE_ARN }}
