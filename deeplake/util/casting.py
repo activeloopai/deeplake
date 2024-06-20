@@ -125,15 +125,21 @@ def get_incompatible_dtype(
         None if all samples are compatible. If not, the dtype of the offending item is returned.
 
     Raises:
-        TypeError: if samples is of unexepcted type.
+        TypeError: if samples is of unexpected type.
     """
     if isinstance(samples, np.ndarray):
         if samples.size == 0:
             return None
         elif samples.size == 1:
             samples = samples.reshape(1).tolist()[0]
-
-    if isinstance(samples, (int, float, bool)) or hasattr(samples, "dtype"):
+    if isinstance(samples, (int, float, bool)):
+        samples_np = np.array(samples)
+        return (
+            None
+            if np.can_cast(samples_np, dtype)
+            else getattr(samples, "dtype", samples_np.dtype)
+        )
+    elif hasattr(samples, "dtype"):
         return (
             None
             if np.can_cast(samples, dtype)
