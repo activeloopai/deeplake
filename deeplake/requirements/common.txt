@@ -1,4 +1,4 @@
-numpy
+numpy<2
 pillow~=10.2.0
 boto3
 click
