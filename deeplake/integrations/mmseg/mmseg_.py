@@ -103,7 +103,7 @@ Below is the example of the deeplake mmseg configuration:
 ...     train=dict(
 ...         pipeline=train_pipeline,
 ...         # Credentials for authentication. See documendataion for deeplake.load() for details
-...         deeplake_path="hub://activeloop/coco-train",
+...         deeplake_path="hub://activeloop/semantic-seg-train",
 ...          deeplake_credentials={
 ...             "username": None,
 ...             "password": None,
@@ -124,7 +124,7 @@ Below is the example of the deeplake mmseg configuration:
 ...     # Parameters as the same as for train
 ...     val=dict(
 ...         pipeline=test_pipeline,
-...         deeplake_path="hub://activeloop/coco-val",
+...         deeplake_path="hub://activeloop/semantic-seg-val",
 ...         deeplake_credentials={
 ...             "username": None,
 ...             "password": None,
