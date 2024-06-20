@@ -28,7 +28,6 @@ concurrency:
 jobs:
   test:
     name: Test
-    needs: setup
     uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@buh_fixes
     if: github.repository == 'activeloopai/deeplake'
     with:
