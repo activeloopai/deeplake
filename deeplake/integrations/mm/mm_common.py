@@ -3,6 +3,7 @@ import torch
 import mmcv  # type: ignore
 import deeplake as dp
 from deeplake.util.warnings import always_warn
+from deeplake.util.exceptions import EmptyTokenException
 
 
 def ddp_setup(rank: int, world_size: int, port: int):
@@ -30,11 +31,8 @@ def load_ds_from_cfg(cfg: mmcv.utils.config.ConfigDict):
     creds = cfg.get("deeplake_credentials", {})
     token = creds.get("token", None)
     if token is None:
-        uname = creds.get("username")
-        if uname is not None:
-            raise NotImplementedError(
-                "Username/Password based authentication from deeplake has been deprecated. Please specify a token in the config."
-            )
+        raise EmptyTokenException()
+
     ds_path = cfg.deeplake_path
     ds = dp.load(ds_path, token=token, read_only=True)
     deeplake_commit = cfg.get("deeplake_commit")
