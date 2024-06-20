@@ -11,7 +11,8 @@ def test_intelligent_cast():
     assert intelligent_cast(1, np.float64, "generic").dtype == np.float64
     assert intelligent_cast(True, np.bool_, "generic").dtype == np.bool_
 
-    with pytest.raises(TensorDtypeMismatchError):
-        intelligent_cast(1, "int32", "generic")
-    with pytest.raises(TensorDtypeMismatchError):
-        intelligent_cast(1, np.float32, "generic")
+    if np.lib.NumpyVersion(np.__version__) >= '2.0.0':
+        with pytest.raises(TensorDtypeMismatchError):
+            intelligent_cast(1, "int32", "generic")
+        with pytest.raises(TensorDtypeMismatchError):
+            intelligent_cast(1, np.float32, "generic")
