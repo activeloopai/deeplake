@@ -402,7 +402,7 @@ class S3Provider(StorageProvider):
     def _clear(self, prefix):
         bucket = self.resource.Bucket(self.bucket)
         for response in bucket.objects.filter(Prefix=prefix).delete():
-            if response["Errors"]:
+            if response.get("Errors"):
                 raise S3DeletionError(response["Errors"][0]["Message"])
 
     def clear(self, prefix=""):
