@@ -105,8 +105,6 @@ Below is the example of the deeplake mmseg configuration:
 ...         # Credentials for authentication. See documendataion for deeplake.load() for details
 ...         deeplake_path="hub://activeloop/semantic-seg-train",
 ...          deeplake_credentials={
-...             "username": None,
-...             "password": None,
 ...             "token": TOKEN,
 ...             "creds": None,
 ...         },
@@ -126,8 +124,6 @@ Below is the example of the deeplake mmseg configuration:
 ...         pipeline=test_pipeline,
 ...         deeplake_path="hub://activeloop/semantic-seg-val",
 ...         deeplake_credentials={
-...             "username": None,
-...             "password": None,
 ...             "token": TOKEN,
 ...             "creds": None,
 ...         },
@@ -535,6 +531,65 @@ def train_segmentor(
     meta=None,
     validate: bool = True,
 ):
+    """
+    Creates runner and trains evaluates the model:
+    Args:
+        model: model to train, should be built before passing
+        cfg: mmcv.ConfigDict object containing all necessary configuration.
+            In cfg we have several changes to support deeplake integration:
+                _base_: still serves as a base model to inherit from
+                data: where everything related to data processing, you will need to specify the following parameters:
+                    train: everything related to training data, it has the following attributes:
+                        pipeline: dictionary where all training augmentations and transformations should be specified, like in mmdet
+                        deeplake_tensors: dictionary that maps mmseg keys to deeplake dataset tensor. Example:  `{"img": "images", "gt_semantic_seg": "semantic_seg"}`.
+                            If this dictionary is not specified, these tensors will be searched automatically using htypes like "image" and "segment_mask".
+                            keys that needs to be mapped are: `img` and "gt_semantic_seg". `img` and `gt_semantic_seg` are always required, if they not specified they
+                            are always searched, if you specify in collect `gt_semantic_seg` then you need to either specify it in config or it will be searched based on
+                            `segment_mask` htype.
+                        deeplake_credentials: dictionary with deeplake credentials that allow you to access the specified data. It has following arguments: `token`.
+                            `token` is the token that gives you read or write access to the datasets. It is available in your personal account on: https://www.activeloop.ai/.
+                    val (Optional): everything related to validating data, it has the following attributes:
+                        pipeline: dictionary where all training augmentations and transformations should be specified, like in mmdet
+                        deeplake_tensors: dictionary that maps mmseg keys to deeplake dataset tensor. Example:  `{"img": "images", "gt_semantic_seg": "semantic_seg"}`.
+                            If this dictionary is not specified, these tensors will be searched automatically using htypes like "image" and "segment_mask".
+                            keys that needs to be mapped are: `img` and "gt_semantic_seg". `img` and `gt_semantic_seg` are always required, if they not specified they
+                            are always searched, if you specify in collect `gt_semantic_seg` then you need to either specify it in config or it will be searched based on
+                            `segment_mask` htype.
+                        deeplake_credentials: deeplake credentials that allow you to access the specified data. It has following arguments: `token`.
+                            `token` is the token that gives you read or write access to the datasets. It is available in your personal account on: https://www.activeloop.ai/.
+                    test (Optional): everything related to testing data, it has the following attributes:
+                        pipeline: dictionary where all training augmentations and transformations should be specified, like in mmdet
+                        deeplake_tensors: dictionary that maps mmseg keys to deeplake dataset tensor. Example:  `{"img": "images", "gt_semantic_seg": "semantic_seg"}`.
+                            If this dictionary is not specified, these tensors will be searched automatically using htypes like "image" and "segment_mask".
+                            keys that needs to be mapped are: `img` and "gt_semantic_seg". `img` and `gt_semantic_seg` are always required, if they not specified they
+                            are always searched, if you specify in collect `gt_semantic_seg` then you need to either specify it in config or it will be searched based on
+                            `segment_mask` htype.
+                        deeplake_credentials: deeplake credentials that allow you to access the specified data. It has following arguments: `token`.
+                            `token` is the token that gives you read or write access to the datasets. It is available in your personal acccount on: https://www.activeloop.ai/.
+                    samples_per_gpu: number of samples to be processed per gpu
+                    workers_per_gpu: number of workers per gpu
+                optimizer: dictionary containing information about optimizer initialization
+                optimizer_config: some optimizer configuration that might be used during training like grad_clip etc.
+                runner: training type e.g. EpochBasedRunner, here you can specify maximum number of epochs to be conducted. For instance: `runner = dict(type='EpochBasedRunner', max_epochs=273)`
+        ds_train: train dataset of type dp.Dataset. This can be a view of the dataset.
+        ds_train_tensors: dictionary that maps mmdet keys to deeplake dataset tensor. Example:  {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}.
+            If this dictionary is not specified, these tensors will be searched automatically using htypes like "image" and "segment_mask".
+            keys that needs to be mapped are: `img` and "gt_semantic_seg". `img` and `gt_semantic_seg` are always required, if they not specified they
+            are always searched, if you specify in collect `gt_semantic_seg` then you need to either specify it in config or it will be searched based on
+            `segment_mask` htype.
+        ds_val: validation dataset of type dp.Dataset. This can be view of the dataset.
+        ds_val_tensors: dictionary that maps mmdet keys to deeplake dataset tensor. Example:  {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}.
+            If this dictionary is not specified, these tensors will be searched automatically using htypes like "image" and "segment_mask".
+            keys that needs to be mapped are: `img` and "gt_semantic_seg". `img` and `gt_semantic_seg` are always required, if they not specified they
+            are always searched, if you specify in collect `gt_semantic_seg` then you need to either specify it in config or it will be searched based on
+            `segment_mask` htype.
+        evaluation: dictionary that contains all information needed for evaluation apart from data processing, like how often evaluation should be done and what metrics we want to use.
+            For instance, `evaluation = dict(interval=1, metric=['mIoU'])`
+        distributed: bool, whether ddp training should be started, by default `False`
+        timestamp: variable used in runner to make .log and .log.json filenames the same
+        meta: meta data used to build runner
+        validate: bool, whether validation should be conducted, by default `True`
+    """
     check_unsupported_functionalities(cfg)
 
     if not hasattr(cfg, "gpu_ids"):
@@ -599,7 +654,7 @@ def _train_segmentor(
         cfg_data = cfg.data.train.get("deeplake_path")
         if cfg_data:
             always_warn(
-                "A Deep Lake dataset was specified in the cfg as well as inthe dataset input to train_segmentor. The dataset input to train_segmentor will be used in the workflow."
+                "A Deep Lake dataset was specified in the cfg as well as in the dataset input to train_segmentor. The dataset input to train_segmentor will be used in the workflow."
             )
 
     eval_cfg = cfg.get("evaluation", {})
