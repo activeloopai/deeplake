@@ -114,8 +114,6 @@ Below is the example of the deeplake mmdet configuration:
 ...         # Credentials for authentication. See documendataion for deeplake.load() for details
 ...         deeplake_path="hub://activeloop/coco-train",
 ...          deeplake_credentials={
-...             "username": None,
-...             "password": None,
 ...             "token": TOKEN,
 ...             "creds": None,
 ...         },
@@ -135,8 +133,6 @@ Below is the example of the deeplake mmdet configuration:
 ...         pipeline=test_pipeline,
 ...         deeplake_path="hub://activeloop/coco-val",
 ...         deeplake_credentials={
-...             "username": None,
-...             "password": None,
 ...             "token": TOKEN,
 ...             "creds": None,
 ...         },
@@ -1030,41 +1026,35 @@ def train_detector(
         train_dataset: dataset to train of type dp.Dataset
         cfg: mmcv.ConfigDict object containing all necessary configuration.
             In cfg we have several changes to support deeplake integration:
-                _base_: still serbes as a base model to inherit from
-                data: where everything related to dataprocessing, you will need to specify the following parameters:
+                _base_: still serves as a base model to inherit from
+                data: where everything related to data processing, you will need to specify the following parameters:
                     train: everything related to training data, it has the following attributes:
                         pipeline: dictionary where all training augmentations and transformations should be specified, like in mmdet
                         deeplake_tensors: dictionary that maps mmdet keys to deeplake dataset tensor. Example:  `{"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}`.
                             If this dictionary is not specified, these tensors will be searched automatically using htypes like "image", "class_label, "bbox", "segment_mask" or "polygon".
-                            keys that needs to be mapped are: `img`, `gt_labels`, `gt_bboxes`, `gt_masks`. `img`, `gt_labels`, `gt_bboxes` are always required, they if not specified they
+                            keys that needs to be mapped are: `img`, `gt_labels`, `gt_bboxes`, `gt_masks`. `img`, `gt_labels`, `gt_bboxes` are always required, if they not specified they
                             are always searched, while masks are optional, if you specify in collect `gt_masks` then you need to either specify it in config or it will be searched based on
                             `segment_mask` and `polygon` htypes.
-                        deeplake_credentials: dictionary with deeplake credentials that allow you to acess the specified data. It has following arguments: `username`, `password`, `token`.
-                            `username` and `password` are your CLI credentials, if not specified public read and write access will be granted.
-                            `token` is the token that gives you read or write access to the datasets. It is available in your personal acccount on: https://www.activeloop.ai/.
-                            if both `username`, `password` and `token` are specified, token's read write access will be granted.
+                        deeplake_credentials: dictionary with deeplake credentials that allow you to acess the specified data. It has following arguments: `token`.
+                            `token` is the token that gives you read or write access to the datasets. It is available in your personal account on: https://www.activeloop.ai/.
                     val (Optional): everything related to validating data, it has the following attributes:
                         pipeline: dictionary where all training augmentations and transformations should be specified, like in mmdet
                         deeplake_tensors: dictionary that maps mmdet keys to deeplake dataset tensor. Example:  {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}.
                             If this dictionary is not specified, these tensors will be searched automatically using htypes like "image", "class_label, "bbox", "segment_mask" or "polygon".
-                            keys that needs to be mapped are: `img`, `gt_labels`, `gt_bboxes`, `gt_masks`. `img`, `gt_labels`, `gt_bboxes` are always required, they if not specified they
+                            keys that needs to be mapped are: `img`, `gt_labels`, `gt_bboxes`, `gt_masks`. `img`, `gt_labels`, `gt_bboxes` are always required, if they not specified they
                             are always searched, while masks are optional, if you specify in collect `gt_masks` then you need to either specify it in config or it will be searched based on
                             `segment_mask` and `polygon` htypes.
-                        deeplake_credentials: deeplake credentials that allow you to acess the specified data. It has following arguments: `username`, `password`, `token`.
-                            `username` and `password` are your CLI credentials, if not specified public read and write access will be granted.
-                            `token` is the token that gives you read or write access to the datasets. It is available in your personal acccount on: https://www.activeloop.ai/.
-                            if both `username`, `password` and `token` are specified, token's read write access will be granted.
+                        deeplake_credentials: deeplake credentials that allow you to acess the specified data. It has following arguments: `token`.
+                            `token` is the token that gives you read or write access to the datasets. It is available in your personal account on: https://www.activeloop.ai/.
                     test (Optional): everything related to testing data, it has the following attributes:
                         pipeline: dictionary where all training augmentations and transformations should be specified, like in mmdet
                         deeplake_tensors: dictionary that maps mmdet keys to deeplake dataset tensor. Example:  {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}.
                             If this dictionary is not specified, these tensors will be searched automatically using htypes like "image", "class_label, "bbox", "segment_mask" or "polygon".
-                            keys that needs to be mapped are: `img`, `gt_labels`, `gt_bboxes`, `gt_masks`. `img`, `gt_labels`, `gt_bboxes` are always required, they if not specified they
+                            keys that needs to be mapped are: `img`, `gt_labels`, `gt_bboxes`, `gt_masks`. `img`, `gt_labels`, `gt_bboxes` are always required, if they not specified they
                             are always searched, while masks are optional, if you specify in collect `gt_masks` then you need to either specify it in config or it will be searched based on
                             `segment_mask` and `polygon` htypes.
-                        deeplake_credentials: deeplake credentials that allow you to acess the specified data. It has following arguments: `username`, `password`, `token`.
-                            `username` and `password` are your CLI credentials, if not specified public read and write access will be granted.
-                            `token` is the token that gives you read or write access to the datasets. It is available in your personal acccount on: https://www.activeloop.ai/.
-                            if both `username`, `password` and `token` are specified, token's read write access will be granted.
+                        deeplake_credentials: deeplake credentials that allow you to acess the specified data. It has following arguments: `token`.
+                            `token` is the token that gives you read or write access to the datasets. It is available in your personal account on: https://www.activeloop.ai/.
                     samples_per_gpu: number of samples to be processed per gpu
                     workers_per_gpu: number of workers per gpu
                 optimizer: dictionary containing information about optimizer initialization
@@ -1073,16 +1063,15 @@ def train_detector(
         ds_train: train dataset of type dp.Dataset. This can be a view of the dataset.
         ds_train_tensors: dictionary that maps mmdet keys to deeplake dataset tensor. Example:  {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}.
             If this dictionary is not specified, these tensors will be searched automatically using htypes like "image", "class_label, "bbox", "segment_mask" or "polygon".
-            keys that needs to be mapped are: `img`, `gt_labels`, `gt_bboxes`, `gt_masks`. `img`, `gt_labels`, `gt_bboxes` are always required, they if not specified they
+            keys that needs to be mapped are: `img`, `gt_labels`, `gt_bboxes`, `gt_masks`. `img`, `gt_labels`, `gt_bboxes` are always required, if they not specified they
             are always searched, while masks are optional, if you specify in collect `gt_masks` then you need to either specify it in config or it will be searched based on
             `segment_mask` and `polygon` htypes.
         ds_val: validation dataset of type dp.Dataset. This can be view of the dataset.
         ds_val_tensors: dictionary that maps mmdet keys to deeplake dataset tensor. Example:  {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}.
             If this dictionary is not specified, these tensors will be searched automatically using htypes like "image", "class_label, "bbox", "segment_mask" or "polygon".
-            keys that needs to be mapped are: `img`, `gt_labels`, `gt_bboxes`, `gt_masks`. `img`, `gt_labels`, `gt_bboxes` are always required, they if not specified they
+            keys that needs to be mapped are: `img`, `gt_labels`, `gt_bboxes`, `gt_masks`. `img`, `gt_labels`, `gt_bboxes` are always required, if they not specified they
             are always searched, while masks are optional, if you specify in collect `gt_masks` then you need to either specify it in config or it will be searched based on
             `segment_mask` and `polygon` htypes.
-        runner: dict(type='EpochBasedRunner', max_epochs=273)
         evaluation: dictionary that contains all information needed for evaluation apart from data processing, like how often evaluation should be done and what metrics we want to use. In deeplake
             integration version you also need to specify what kind of output you want to be printed during evalaution. For instance, `evaluation = dict(interval=1, metric=['bbox'], metrics_format="COCO")`
         distributed: bool, whether ddp training should be started, by default `False`
