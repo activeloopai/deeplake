@@ -31,7 +31,6 @@ import mmap
 import struct
 import sys
 import re
-from numpy.core.fromnumeric import compress  # type: ignore
 import math
 from pathlib import Path
 from gzip import GzipFile
