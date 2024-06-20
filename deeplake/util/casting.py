@@ -133,11 +133,16 @@ def get_incompatible_dtype(
         elif samples.size == 1:
             samples = samples.reshape(1).tolist()[0]
     if isinstance(samples, (int, float, bool)):
-        samples_np = np.array(samples)
+        if isinstance(samples, bool):
+            correct_dtype = (dtype == np.bool_ or dtype == "bool")
+        elif isinstance(samples, int):
+            correct_dtype = (dtype == np.int64 or dtype == "int64" or dtype == np.float64 or dtype == "float64")
+        elif isinstance(samples, float):
+            correct_dtype = (dtype == np.float64 or dtype == "float64")
         return (
             None
-            if np.can_cast(samples_np, dtype)
-            else getattr(samples, "dtype", samples_np.dtype)
+            if correct_dtype
+            else getattr(samples, "dtype", np.array(samples).dtype)
         )
     elif hasattr(samples, "dtype"):
         return (
