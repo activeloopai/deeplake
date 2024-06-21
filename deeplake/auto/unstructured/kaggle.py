@@ -1,3 +1,4 @@
+import re
 from threading import local
 from typing import Optional
 import deeplake
@@ -54,6 +55,7 @@ def download_kaggle_dataset(
     Raises:
         KaggleMissingCredentialsError: If no kaggle credentials are found.
         KaggleDatasetAlreadyDownloadedError: If the dataset `tag` already exists in `local_path`.
+        ValueError: If the `tag` is not in the correct format.
     """
 
     zip_files = glob.glob(os.path.join(local_path, "*.zip"))
@@ -84,6 +86,10 @@ def download_kaggle_dataset(
     cwd = os.getcwd()
     os.chdir(local_path)
 
+    if not re.match("^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$", tag):
+        raise ValueError(
+            "Invalid Kaggle dataset tag. Example: 'coloradokb/dandelionimages'"
+        )
     _exec_command("kaggle datasets download -d %s" % (tag))
 
     for item in os.listdir():
