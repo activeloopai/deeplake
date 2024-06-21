@@ -4,6 +4,7 @@ import mmcv  # type: ignore
 import deeplake as dp
 from deeplake.util.warnings import always_warn
 from deeplake.util.exceptions import EmptyTokenException
+from deeplake.client.config import DEEPLAKE_AUTH_TOKEN
 
 
 def ddp_setup(rank: int, world_size: int, port: int):
@@ -30,6 +31,7 @@ def force_cudnn_initialization(device_id):
 def load_ds_from_cfg(cfg: mmcv.utils.config.ConfigDict):
     creds = cfg.get("deeplake_credentials", {})
     token = creds.get("token", None)
+    token = token or os.environ.get(DEEPLAKE_AUTH_TOKEN)
     if token is None:
         raise EmptyTokenException()
 
