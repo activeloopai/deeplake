@@ -5,6 +5,9 @@ permissions:
   id-token: write
 
 on:
+  push:
+    branches:
+      - 'sre/remove_workflows'
   schedule:
     - cron: '0 4 * * *'
   workflow_dispatch: {}
