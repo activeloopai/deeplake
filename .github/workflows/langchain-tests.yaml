@@ -31,6 +31,6 @@ jobs:
         env:
           ACTIVELOOP_TOKEN: ${{ secrets.ACTIVELOOP_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          BUCKET: ${{ secrets.AWS_S3_BUCKET }}         
+          BUCKET: ${{ secrets.AWS_S3_BUCKET }}
         run: |
           bash order_of_runing.sh
