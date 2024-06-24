@@ -31,7 +31,7 @@ jobs:
           role-to-assume: ${{ secrets.aws_role_arn }}
           aws-region: us-east-1
           role-duration-seconds: 21600
-          role-session-name: deeplake-langchain-tests-${{ github.sha }}
+          role-session-name: -lt-${{ github.sha }}
 
       - name: configure environment
         working-directory: .github/langchain-tests
