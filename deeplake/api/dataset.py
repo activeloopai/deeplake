@@ -1151,7 +1151,8 @@ class dataset:
                 destination_ds.delete_tensor(tensor_name)
             destination_ds.create_tensor_like(tensor_name, source_tensor, unlink=tensor_name in unlink)  # type: ignore
 
-        destination_ds.info.update(source_ds.info.__getstate__())  # type: ignore
+        if not source_ds.group_index:
+            destination_ds.info.update(source_ds.info.__getstate__())  # type: ignore
 
         return destination_ds
 
