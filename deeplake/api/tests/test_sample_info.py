@@ -16,6 +16,9 @@ def get_exif_helper(path):
 
 @pytest.mark.slow
 def test_image_samples(local_ds_generator, compressed_image_paths):
+    from PIL import ImageFile
+
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
     ds = local_ds_generator()
     jpg = ds.create_tensor("jpg_images", htype="image", sample_compression="jpg")
     jpg_paths = compressed_image_paths["jpeg"]
