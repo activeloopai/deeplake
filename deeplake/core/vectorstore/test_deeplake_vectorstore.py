@@ -753,7 +753,6 @@ def test_delete(local_path, hub_cloud_dev_token):
     assert_vectorstore_structure(vector_store, 10)
 
     # delete the data in the dataset by id:
-    print(len(vector_store.dataset_handler.dataset))
     vector_store.delete(row_ids=[4, 8, 9])
     assert len(vector_store.dataset_handler.dataset) == NUMBER_OF_DATA - 3
 
@@ -1614,11 +1613,7 @@ def test_vdb_index_incr_maint_extend(local_path, capsys, hub_cloud_dev_token):
     query101 = ds.embedding[101].numpy()
     query102 = ds.embedding[102].numpy()
 
-    print(type(query1))
-    print(query1)
-
     s1 = ",".join(str(c) for c in query1)
-    print(s1)
     view1 = ds.query(
         f"select *  order by cosine_similarity(embedding ,array[{s1}]) DESC limit 1"
     )
