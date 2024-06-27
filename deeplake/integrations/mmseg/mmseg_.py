@@ -264,13 +264,11 @@ class MMSegDataset(TorchDataset):
         self.ignore_index = ignore_index
         self.reduce_zero_label = reduce_zero_label
         if self.mode in ("val", "test"):
-            self.images = self._get_images(tensors_dict["images_tensor"])
             self.masks = self._get_masks(tensors_dict.get("masks_tensor", None))
             self.CLASSES = self.get_classes(tensors_dict["masks_tensor"])
 
             print_log("Loading annotations into memory")
             self.masks_data = self.masks.numpy(aslist=True)
-            print_log("Annotations are loaded into memory")
 
     def __len__(self):
         if self.mode == "val":
@@ -280,10 +278,6 @@ class MMSegDataset(TorchDataset):
             total_length = per_gpu_length * self.num_gpus
             return total_length
         return super().__len__()
-
-    def _get_images(self, images_tensor):
-        image_tensor = self.dataset[images_tensor]
-        return image_tensor
 
     def _get_masks(self, masks_tensor):
         if masks_tensor is None:
@@ -312,51 +306,6 @@ class MMSegDataset(TorchDataset):
 
         for idx in range(len(self)):
             yield upcast_array(self.masks_data[idx])
-
-    def get_gt_seg_map_by_idx(self, index):
-        """Get one ground truth segmentation map for evaluation."""
-        return upcast_array(self.masks_data[index])
-
-    def pre_eval(self, preds, indices):
-        """Collect eval result from each iteration.
-
-        Args:
-            preds (list[torch.Tensor] | torch.Tensor): the segmentation logit
-                after argmax, shape (N, H, W).
-            indices (list[int] | int): the prediction related ground truth
-                indices.
-
-        Returns:
-            list[torch.Tensor]: (area_intersect, area_union, area_prediction,
-                area_ground_truth).
-        """
-        # In order to compat with batch inference
-        if not isinstance(indices, list):
-            indices = [indices]
-        if not isinstance(preds, list):
-            preds = [preds]
-
-        pre_eval_results = []
-
-        for pred, index in zip(preds, indices):
-            seg_map = self.get_gt_seg_map_by_idx(index)
-            pre_eval_results.append(
-                intersect_and_union(
-                    pred,
-                    seg_map,
-                    len(self.CLASSES),
-                    self.ignore_index,
-                    # as the labels has been converted when dataset initialized
-                    # in `get_palette_for_custom_classes ` this `label_map`
-                    # should be `dict()`, see
-                    # https://github.com/open-mmlab/mmsegmentation/issues/1415
-                    # for more ditails
-                    label_map=dict(),
-                    reduce_zero_label=self.reduce_zero_label,
-                )
-            )
-
-        return pre_eval_results
 
     def evaluate(self, results, metric="mIoU", logger=None, gt_seg_maps=None, **kwargs):
         """Evaluate the dataset.
@@ -511,7 +460,7 @@ def transform(
         "ori_filename": None,
         "img_shape": shape,
         "ori_shape": shape,
-        "gt_semantic_seg": mask,
+        "gt_semantic_seg": np.ascontiguousarray(mask, np.int64),
         "seg_fields": ["gt_semantic_seg"],
     }
 
