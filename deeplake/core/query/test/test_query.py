@@ -334,7 +334,7 @@ def test_query_shape(local_ds):
 
 @pytest.mark.slow
 def test_query_sample_info(local_ds, compressed_image_paths):
-    from PIL import ImageFile
+    from PIL import ImageFile  # type: ignore
 
     ImageFile.LOAD_TRUNCATED_IMAGES = True
     ds = local_ds

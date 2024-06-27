@@ -16,7 +16,7 @@ def get_exif_helper(path):
 
 @pytest.mark.slow
 def test_image_samples(local_ds_generator, compressed_image_paths):
-    from PIL import ImageFile
+    from PIL import ImageFile  # type: ignore
 
     ImageFile.LOAD_TRUNCATED_IMAGES = True
     ds = local_ds_generator()
