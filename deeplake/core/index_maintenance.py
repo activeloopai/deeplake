@@ -299,7 +299,6 @@ def index_operation_dataset(self, dml_type, rowids):
             emb_tensor.create_vdb_index("hnsw_1", distance=distance)
     elif index_operation_type == INDEX_OP_TYPE.INCREMENTAL_INDEX:
         partition_count = index_partition_count(self)
-        print(f"Partition count: {partition_count}")
         if partition_count > 1:
             _incr_maintenance_vdb_indexes(
                 emb_tensor, rowids, dml_type, is_partitioned=True
