@@ -880,13 +880,14 @@ def _frame_to_stamp(nframe, stream):
 def _open_video(file: Union[str, bytes, memoryview]):
     try:
         import av  # type: ignore
+        import av.container
     except ImportError:
         raise ModuleNotFoundError(
             "PyAV is not installed. Run `pip install deeplake[video]`."
         )
 
     if isinstance(file, str):
-        container: Union[av.InputContainer, av.OutputContainer] = av.open(
+        container: Union[av.container.InputContainer, av.container.OutputContainer] = av.open(
             file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
         )
     else:
@@ -1064,13 +1065,14 @@ def _read_timestamps(
 def _open_audio(file: Union[str, bytes, memoryview]):
     try:
         import av
+        import av.container
     except ImportError:
         raise ModuleNotFoundError(
             "PyAV is not installed. Please run `pip install deeplake[audio]`"
         )
 
     if isinstance(file, str):
-        container: Union[av.InputContainer, av.OutputContainer] = av.open(
+        container: Union[av.container.InputContainer, av.container.OutputContainer] = av.open(
             file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
         )
     else:
