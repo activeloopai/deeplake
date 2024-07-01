@@ -886,8 +886,10 @@ def _open_video(file: Union[str, bytes, memoryview]):
         )
 
     if isinstance(file, str):
-        container: Union[av.InputContainer, av.OutputContainer] = av.open(
-            file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
+        container: Union[av.container.InputContainer, av.container.OutputContainer] = (
+            av.open(
+                file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
+            )
         )
     else:
         container = av.open(BytesIO(file))
@@ -1070,8 +1072,10 @@ def _open_audio(file: Union[str, bytes, memoryview]):
         )
 
     if isinstance(file, str):
-        container: Union[av.InputContainer, av.OutputContainer] = av.open(
-            file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
+        container: Union[av.container.InputContainer, av.container.OutputContainer] = (
+            av.open(
+                file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
+            )
         )
     else:
         container = av.open(BytesIO(file))
