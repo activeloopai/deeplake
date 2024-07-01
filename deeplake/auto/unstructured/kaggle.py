@@ -16,10 +16,9 @@ from typing import Optional
 
 
 def _exec_command(command: list[str]):
-    out = subprocess.Popen(command)
-    out.wait()
+    out = subprocess.run(command)
     if out.returncode != 0:
-        raise ExternalCommandError(command, out)
+        raise ExternalCommandError(" ".join(command), out.returncode)
 
 
 def _set_environment_credentials_if_none(kaggle_credentials: Optional[dict] = None):
