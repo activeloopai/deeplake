@@ -446,7 +446,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert vector_store_none_exec.dataset_handler.exec_option == "compute_engine"
 
     # Check that filter_fn with cloud dataset (and therefore "compute_engine" exec option) switches to "python" automatically.
-    with pytest.warns(None):
+    with pytest.warns(Warning):
         _ = vector_store_cloud.search(
             filter=filter_fn,
         )
@@ -624,7 +624,7 @@ def test_index_basic(local_path, hub_cloud_dev_token):
     assert pre_update_index == post_update_index
 
     # Check that distance metric throws a warning when there is an index
-    with pytest.warns(None):
+    with pytest.warns(Warning):
         vector_store.search(embedding=query_embedding, distance_metric="l1")
 
 
