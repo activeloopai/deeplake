@@ -385,7 +385,15 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     )  # One for each return_tensors
     assert len(data_e_f.keys()) == 2
 
-    # Run a filter query using a json with indra
+    # Run a filter query using a list
+    data_e_j = vector_store.search(
+        k=2,
+        return_tensors=["id", "text"],
+        filter={"text": texts[0:2]},
+    )
+    assert len(data_e_j["text"]) == 2
+
+    # Run a filter query using a json with indra. Wrap text as list to make sure it works
     data_ce_f = vector_store_cloud.search(
         embedding=query_embedding,
         exec_option="compute_engine",
@@ -395,7 +403,9 @@ def test_search_basic(local_path, hub_cloud_dev_token):
             "metadata": vector_store_cloud.dataset_handler.dataset.metadata[0].data()[
                 "value"
             ],
-            "text": vector_store_cloud.dataset_handler.dataset.text[0].data()["value"],
+            "text": [
+                vector_store_cloud.dataset_handler.dataset.text[0].data()["value"]
+            ],
         },
     )
     assert len(data_ce_f["text"]) == 1
