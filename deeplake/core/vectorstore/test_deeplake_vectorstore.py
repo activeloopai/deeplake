@@ -452,7 +452,10 @@ def test_search_basic(local_path, hub_cloud_dev_token, caplog):
     _ = vector_store_cloud.search(
         filter=filter_fn,
     )
-    assert "Switching exec_option to \"python\" (runs on client) because filter is specified as a function." in caplog.text
+    assert (
+        'Switching exec_option to "python" (runs on client) because filter is specified as a function.'
+        in caplog.text
+    )
 
     # Check exceptions
     # Invalid exec option
@@ -629,7 +632,10 @@ def test_index_basic(local_path, hub_cloud_dev_token, caplog):
 
     # Check that distance metric throws a warning when there is an index
     vector_store.search(embedding=query_embedding, distance_metric="l1")
-    assert "The specified `distance_metric': `l1` does not match the distance metric in the index:" in caplog.text
+    assert (
+        "The specified `distance_metric': `l1` does not match the distance metric in the index:"
+        in caplog.text
+    )
 
 
 @pytest.mark.slow
