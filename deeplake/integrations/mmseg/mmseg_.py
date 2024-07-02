@@ -893,6 +893,7 @@ def build_dataloader(
         tensors_dict["masks_tensor"] = masks_tensor
 
     batch_size = train_loader_config.get("batch_size")
+    drop_last = train_loader_config.get("drop_last", False)
     if batch_size is None:
         batch_size = train_loader_config["samples_per_gpu"]
 
@@ -927,6 +928,7 @@ def build_dataloader(
             collate_fn=collate_fn,
             pipeline=pipeline,
             batch_size=batch_size,
+            drop_last=drop_last,
             mode=mode,
             decode_method=decode_method,
         )
@@ -942,7 +944,7 @@ def build_dataloader(
             dataloader(dataset)
             .transform(transform_fn)
             .shuffle(shuffle)
-            .batch(batch_size)
+            .batch(batch_size=batch_size, drop_last=drop_last)
             .pytorch(
                 num_workers=num_workers,
                 collate_fn=collate_fn,
