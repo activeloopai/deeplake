@@ -87,6 +87,24 @@ class GCloudCredentials:
             json.dump(token, f)
         return token_file.name
 
+    def _connect_from_dict(self, token: Dict):
+        """
+        Connect using a dictionary type token.
+
+        Distinguishes between service account and user account tokens.
+        Args:
+            token (Dict): dictionary with token to be stored in either .json Service file, or credentials combination.
+        """
+        from google.oauth2.credentials import Credentials  # type: ignore
+        if "token" in token:
+            self.credentials = Credentials(token["token"])
+            self.project = token.get("project_id", None)
+            return
+        
+        service_file = self._dict_to_credentials(token)
+        self._connect_service(service_file)
+
+
     def _connect_token(self, token: Optional[Union[str, Dict]] = None):
         """
         Connect using a concrete token.
@@ -111,13 +129,13 @@ class GCloudCredentials:
             except:
                 token = json.load(open(token))
         if isinstance(token, dict):
-            token = self._dict_to_credentials(token)
-            self._connect_service(token)
+            self._connect_from_dict(token)
             return
         elif isinstance(token, google.auth.credentials.Credentials):
             credentials = token
         else:
             raise ValueError("Token format not understood")
+        
         self.credentials = credentials
 
     def _connect_service(self, fn):
@@ -300,7 +318,11 @@ class GCSProvider(StorageProvider):
             self.token = None
         self.scoped_credentials = GCloudCredentials(self.token, project=self.project)
         self.retry = retry.Retry(deadline=60)
-        self.client = storage.Client(credentials=self.scoped_credentials.credentials)
+        kwargs = {}
+        if self.scoped_credentials.project:
+            kwargs["project"] = self.scoped_credentials.project
+
+        self.client = storage.Client(credentials=self.scoped_credentials.credentials, **kwargs)
         self._client_bucket = None
 
     @property
