@@ -4,6 +4,7 @@ from typing import Optional
 import deeplake
 import glob
 import os
+import subprocess
 from deeplake.util.exceptions import (
     ExternalCommandError,
     KaggleMissingCredentialsError,
@@ -14,10 +15,10 @@ from zipfile import ZipFile
 from typing import Optional
 
 
-def _exec_command(command):
-    out = os.system(command)
-    if out != 0:
-        raise ExternalCommandError(command, out)
+def _exec_command(command: list[str]):
+    out = subprocess.run(command)
+    if out.returncode != 0:
+        raise ExternalCommandError(" ".join(command), out.returncode)
 
 
 def _set_environment_credentials_if_none(kaggle_credentials: Optional[dict] = None):
@@ -90,7 +91,7 @@ def download_kaggle_dataset(
         raise ValueError(
             "Invalid Kaggle dataset tag. Example: 'coloradokb/dandelionimages'"
         )
-    _exec_command("kaggle datasets download -d %s" % (tag))
+    _exec_command(["kaggle", "datasets", "download", "-d", tag])
 
     for item in os.listdir():
         if item.endswith(".zip"):
