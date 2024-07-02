@@ -150,5 +150,5 @@ def check_unsupported_train_pipeline_fields(cfg, mode="train"):
 def check_dataset_augmentation_formats(cfg):
     if cfg.get("train_dataset"):
         always_warn(
-            "train_dataset is going to be unused. Datset types like: ConcatDataset, RepeatDataset, ClassBalancedDataset, MultiImageMixDataset are not supported."
+            "train_dataset is going to be unused. Dataset types like: ConcatDataset, RepeatDataset, ClassBalancedDataset, MultiImageMixDataset are not supported."
         )
