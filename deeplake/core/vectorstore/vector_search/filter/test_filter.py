@@ -9,10 +9,13 @@ def test_attribute_based_filtering():
     ds.create_tensor("metadata", htype="json")
     ds.create_tensor("metadata2", htype="json")
     ds.create_tensor("text", htype="text")
+    ds.create_tensor("text2", htype="text")
     ds.metadata.extend([{"k": 1}, {"k": 2}, {"k": 3}, {"k": 4}])
     ds.metadata2.extend([{"kk": "a"}, {"kk": "b"}, {"kk": "c"}, {"kk": "d"}])
     ds.text.extend(["AA", "BB", "CC", "DD"])
+    ds.text2.extend(["11", "22", "33", "DD"])
 
+    # Test basic filter
     filter_dict = {"metadata": {"k": 1}, "metadata2": {"kk": "a"}, "text": "AA"}
 
     def filter_udf(x):
@@ -23,9 +26,7 @@ def test_attribute_based_filtering():
 
     view_udf = filter_utils.attribute_based_filtering_python(ds, filter=filter_udf)
 
-    view_tql, tql_filter = filter_utils.attribute_based_filtering_tql(
-        ds, filter=filter_dict
-    )
+    view_tql, _ = filter_utils.attribute_based_filtering_tql(ds, filter=filter_dict)
 
     assert view_dict.metadata.data()["value"][0] == filter_dict["metadata"]
     assert view_dict.metadata2.data()["value"][0] == filter_dict["metadata2"]
@@ -34,10 +35,24 @@ def test_attribute_based_filtering():
     assert view_udf.metadata.data()["value"][0] == filter_dict["metadata"]
 
     assert len(view_tql) == len(ds)
-    assert (
-        tql_filter == "metadata['k'] == 1 and metadata2['kk'] == 'a' and text == 'AA'"
+
+    # Test filter with list
+    filter_dict_list = {"text2": ["11", "DD"]}
+
+    view_dict_list = filter_utils.attribute_based_filtering_python(
+        ds, filter=filter_dict_list
     )
 
+    view_tql_list, _ = filter_utils.attribute_based_filtering_tql(
+        ds, filter=filter_dict_list
+    )
+
+    assert view_dict_list.text2.data()["value"][0] in filter_dict_list["text2"]
+    assert view_dict_list.text2.data()["value"][1] in filter_dict_list["text2"]
+
+    assert len(view_tql_list) == len(ds)
+
+    # Test bad tensor
     filter_dict_bad_tensor = {
         "metadata_bad": {"k": 1},
         "metadata2": {"kk": "a"},

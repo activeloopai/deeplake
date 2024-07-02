@@ -53,6 +53,7 @@ class SearchBasic(ABC):
             tql_filter,
             return_tensors,
         )
+
         view = self._get_view(
             tql_query,
             runtime=self.runtime,
