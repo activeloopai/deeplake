@@ -76,7 +76,11 @@ def attribute_based_filtering_tql(
                         tql_filter += f"{tensor}['{key}'] == {val_str} and "
                 else:
                     if type(filter[tensor]) == list:
-                        tql_filter += f"{tensor} in {tuple(filter[tensor])} and "
+                        val_str = str(filter[tensor])[
+                            1:-1
+                        ]  # Remove square bracked and add rounded brackets below.
+
+                        tql_filter += f"{tensor} in ({val_str}) and "
 
                     else:
                         val_str = (
