@@ -1,3 +1,4 @@
+import logging
 import pickle
 import uuid
 import os
@@ -249,7 +250,9 @@ def test_creds(gcs_path, gcs_creds):
 
 @pytest.mark.slow
 @requires_libdeeplake
-def test_search_basic(local_path, hub_cloud_dev_token):
+def test_search_basic(local_path, hub_cloud_dev_token, caplog):
+    logging.getLogger("deeplake").propagate = True
+
     openai_embeddings = OpenAILikeEmbedder()
     """Test basic search features"""
     # Initialize vector store object and add data
@@ -385,7 +388,15 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     )  # One for each return_tensors
     assert len(data_e_f.keys()) == 2
 
-    # Run a filter query using a json with indra
+    # Run a filter query using a list
+    data_e_j = vector_store.search(
+        k=2,
+        return_tensors=["id", "text"],
+        filter={"text": texts[0:2]},
+    )
+    assert len(data_e_j["text"]) == 2
+
+    # Run a filter query using a json with indra. Wrap text as list to make sure it works
     data_ce_f = vector_store_cloud.search(
         embedding=query_embedding,
         exec_option="compute_engine",
@@ -395,7 +406,9 @@ def test_search_basic(local_path, hub_cloud_dev_token):
             "metadata": vector_store_cloud.dataset_handler.dataset.metadata[0].data()[
                 "value"
             ],
-            "text": vector_store_cloud.dataset_handler.dataset.text[0].data()["value"],
+            "text": [
+                vector_store_cloud.dataset_handler.dataset.text[0].data()["value"]
+            ],
         },
     )
     assert len(data_ce_f["text"]) == 1
@@ -446,10 +459,13 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert vector_store_none_exec.dataset_handler.exec_option == "compute_engine"
 
     # Check that filter_fn with cloud dataset (and therefore "compute_engine" exec option) switches to "python" automatically.
-    with pytest.warns(Warning):
-        _ = vector_store_cloud.search(
-            filter=filter_fn,
-        )
+    _ = vector_store_cloud.search(
+        filter=filter_fn,
+    )
+    assert (
+        'Switching exec_option to "python" (runs on client) because filter is specified as a function.'
+        in caplog.text
+    )
 
     # Check exceptions
     # Invalid exec option
@@ -558,7 +574,8 @@ def test_search_basic(local_path, hub_cloud_dev_token):
 
 @pytest.mark.slow
 @requires_libdeeplake
-def test_index_basic(local_path, hub_cloud_dev_token):
+def test_index_basic(local_path, hub_cloud_dev_token, caplog):
+    logging.getLogger("deeplake").propagate = True
     # Start by testing behavior without an index
     vector_store = VectorStore(
         path=local_path,
@@ -624,8 +641,11 @@ def test_index_basic(local_path, hub_cloud_dev_token):
     assert pre_update_index == post_update_index
 
     # Check that distance metric throws a warning when there is an index
-    with pytest.warns(Warning):
-        vector_store.search(embedding=query_embedding, distance_metric="l1")
+    vector_store.search(embedding=query_embedding, distance_metric="l1")
+    assert (
+        "The specified `distance_metric': `l1` does not match the distance metric in the index:"
+        in caplog.text
+    )
 
 
 @pytest.mark.slow
