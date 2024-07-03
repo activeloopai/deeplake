@@ -96,14 +96,14 @@ class GCloudCredentials:
             token (Dict): dictionary with token to be stored in either .json Service file, or credentials combination.
         """
         from google.oauth2.credentials import Credentials  # type: ignore
+
         if "token" in token:
             self.credentials = Credentials(token["token"])
             self.project = token.get("project_id", None)
             return
-        
+
         service_file = self._dict_to_credentials(token)
         self._connect_service(service_file)
-
 
     def _connect_token(self, token: Optional[Union[str, Dict]] = None):
         """
@@ -135,7 +135,7 @@ class GCloudCredentials:
             credentials = token
         else:
             raise ValueError("Token format not understood")
-        
+
         self.credentials = credentials
 
     def _connect_service(self, fn):
@@ -322,7 +322,9 @@ class GCSProvider(StorageProvider):
         if self.scoped_credentials.project:
             kwargs["project"] = self.scoped_credentials.project
 
-        self.client = storage.Client(credentials=self.scoped_credentials.credentials, **kwargs)
+        self.client = storage.Client(
+            credentials=self.scoped_credentials.credentials, **kwargs
+        )
         self._client_bucket = None
 
     @property
