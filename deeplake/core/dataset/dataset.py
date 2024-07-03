@@ -572,7 +572,11 @@ class Dataset:
                 )
             elif "/" in item:
                 splt = posixpath.split(item)
-                ret = self[splt[0]][splt[1]]
+                ret = (
+                    self[splt[1]]
+                    if splt[0] == self.group_index
+                    else self[splt[0]][splt[1]]
+                )
             else:
                 raise TensorDoesNotExistError(item)
         elif isinstance(item, (int, slice, list, tuple, Index, type(Ellipsis))):
