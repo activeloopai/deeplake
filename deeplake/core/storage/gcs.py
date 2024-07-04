@@ -97,8 +97,8 @@ class GCloudCredentials:
         """
         from google.oauth2.credentials import Credentials  # type: ignore
 
-        if "token" in token:
-            self.credentials = Credentials(token["token"])
+        if "gcs_oauth_token" in token:
+            self.credentials = Credentials(token["gcs_oauth_token"])
             self.project = token.get("project_id", None)
             return
 
