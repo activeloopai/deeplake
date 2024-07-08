@@ -304,7 +304,8 @@ class GCSProvider(StorageProvider):
     def subdir(self, path: str, read_only: bool = False):
         sd = self.__class__(
             root=posixpath.join(self.root, path),
-            token=self.token,
+            creds=self.token,
+            token=self.activeloop_token,
             project=self.project,
         )
         if self.expiration:
