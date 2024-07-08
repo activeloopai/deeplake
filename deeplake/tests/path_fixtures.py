@@ -351,13 +351,13 @@ def gcs_path(request, gcs_creds):
         return
 
     path = _get_storage_path(request, GCS)
-    GCSProvider(path, token=gcs_creds).clear()
+    GCSProvider(path, creds=gcs_creds).clear()
 
     yield path
 
     # clear storage unless flagged otherwise
     if not is_opt_true(request, KEEP_STORAGE_OPT):
-        GCSProvider(path, token=gcs_creds).clear()
+        GCSProvider(path, creds=gcs_creds).clear()
 
 
 @pytest.fixture
