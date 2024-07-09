@@ -386,6 +386,18 @@ def test_random_split(local_auth_ds_generator):
 
 
 @requires_libdeeplake
+def test_value_for_virtual_tensors():
+    ds = deeplake.load("hub://activeloop/twitter-algorithm")
+    view = ds.query("select metadata['source'], 'type' as type limit 10")
+
+    assert view.metadata[0].data()["value"] == "./the-algorithm/COPYING"
+    assert view.metadata.data()["value"] == 10 * ["./the-algorithm/COPYING"]
+
+    assert view.type[0].data()["value"] == "type"
+    assert view.type.data()["value"] == 10 * ["type"]
+
+
+@requires_libdeeplake
 def test_virtual_tensors(local_auth_ds_generator):
     deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
