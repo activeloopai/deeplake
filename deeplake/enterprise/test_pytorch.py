@@ -10,6 +10,7 @@ from deeplake.core.index.index import IndexEntry
 from deeplake.tests.common import (
     requires_torch,
     requires_libdeeplake,
+    disabale_hidden_tensors_config,
     convert_data_according_to_torch_version,
 )
 from deeplake.core.dataset import Dataset
@@ -80,7 +81,9 @@ def test_setting_woker_init_function(local_auth_ds):
 @requires_libdeeplake
 def test_offset_ds_iteration(local_auth_ds):
     with local_auth_ds as ds:
-        ds.create_tensor("abc", htype="generic", dtype="uint16")
+        ds.create_tensor(
+            "abc", htype="generic", dtype="uint16", **disabale_hidden_tensors_config
+        )
         ds.abc.extend([i for i in range(10)])
 
     dl = (
@@ -112,10 +115,18 @@ def test_offset_ds_iteration(local_auth_ds):
 @pytest.mark.skip("causing lockups")
 def test_pytorch_small(ds):
     with ds:
-        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "image",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
         ds.commit()
-        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "image2",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
     dl = ds.dataloader().batch(1).pytorch(num_workers=2)
 
@@ -174,10 +185,18 @@ def test_pytorch_small(ds):
 @pytest.mark.skip("causing lockups")
 def test_pytorch_transform(local_auth_ds):
     with local_auth_ds as ds:
-        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "image",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
         ds.checkout("alt", create=True)
-        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "image2",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
     dl = (
@@ -200,8 +219,8 @@ def test_pytorch_transform(local_auth_ds):
 @pytest.mark.flaky
 def test_inequal_tensors_dataloader_length(local_auth_ds):
     with local_auth_ds as ds:
-        ds.create_tensor("images")
-        ds.create_tensor("label")
+        ds.create_tensor("images", **disabale_hidden_tensors_config)
+        ds.create_tensor("label", **disabale_hidden_tensors_config)
         ds.images.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
 
     ld = local_auth_ds.dataloader().batch(1).pytorch()
@@ -216,11 +235,23 @@ def test_inequal_tensors_dataloader_length(local_auth_ds):
 @pytest.mark.slow
 def test_pytorch_transform_dict(local_auth_ds):
     with local_auth_ds as ds:
-        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "image",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
-        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "image2",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
-        ds.create_tensor("image3", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "image3",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.image3.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
     dl = ds.dataloader().transform({"image": double, "image2": None}).pytorch()
@@ -257,9 +288,13 @@ def test_pytorch_with_compression(local_auth_ds: Dataset):
             htype="image",
             sample_compression="png",
             max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
         )
         labels = ds.create_tensor(
-            "labels", htype="class_label", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
+            "labels",
+            htype="class_label",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
         )
 
         assert images.meta.sample_compression == "png"
@@ -285,7 +320,11 @@ def test_custom_tensor_order(local_auth_ds):
     with local_auth_ds as ds:
         tensors = ["a", "b", "c", "d"]
         for t in tensors:
-            ds.create_tensor(t, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+            ds.create_tensor(
+                t,
+                max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+                **disabale_hidden_tensors_config,
+            )
             ds[t].extend(np.random.random((3, 4, 5)))
 
     with pytest.raises(TensorDoesNotExistError):
@@ -326,8 +365,16 @@ def test_custom_tensor_order(local_auth_ds):
 @pytest.mark.timeout(10)
 def test_readonly_with_two_workers(local_auth_ds):
     with local_auth_ds as ds:
-        ds.create_tensor("images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-        ds.create_tensor("labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "images",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
+        ds.create_tensor(
+            "labels",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.images.extend(np.ones((10, 12, 12)))
         ds.labels.extend(np.ones(10))
 
@@ -347,16 +394,6 @@ def test_readonly_with_two_workers(local_auth_ds):
         continue
 
 
-@pytest.mark.xfail(raises=NotImplementedError, strict=True)
-def test_corrupt_dataset():
-    raise NotImplementedError
-
-
-@pytest.mark.xfail(raises=NotImplementedError, strict=True)
-def test_pytorch_local_cache():
-    raise NotImplementedError
-
-
 @requires_torch
 @requires_libdeeplake
 @pytest.mark.slow
@@ -365,8 +402,18 @@ def test_groups(local_auth_ds, compressed_image_paths):
     img1 = deeplake.read(compressed_image_paths["jpeg"][0])
     img2 = deeplake.read(compressed_image_paths["png"][0])
     with local_auth_ds as ds:
-        ds.create_tensor("images/jpegs/cats", htype="image", sample_compression="jpeg")
-        ds.create_tensor("images/pngs/flowers", htype="image", sample_compression="png")
+        ds.create_tensor(
+            "images/jpegs/cats",
+            htype="image",
+            sample_compression="jpeg",
+            **disabale_hidden_tensors_config,
+        )
+        ds.create_tensor(
+            "images/pngs/flowers",
+            htype="image",
+            sample_compression="png",
+            **disabale_hidden_tensors_config,
+        )
         for _ in range(10):
             ds.images.jpegs.cats.append(img1)
             ds.images.pngs.flowers.append(img2)
@@ -394,7 +441,7 @@ def test_groups(local_auth_ds, compressed_image_paths):
 @pytest.mark.flaky
 def test_string_tensors(local_auth_ds):
     with local_auth_ds as ds:
-        ds.create_tensor("strings", htype="text")
+        ds.create_tensor("strings", htype="text", **disabale_hidden_tensors_config)
         ds.strings.extend([f"string{idx}" for idx in range(5)])
 
     ptds = ds.dataloader().pytorch()
@@ -408,7 +455,7 @@ def test_string_tensors(local_auth_ds):
 @pytest.mark.flaky
 def test_tag_tensors(local_auth_ds):
     with local_auth_ds as ds:
-        ds.create_tensor("tags", htype="tag")
+        ds.create_tensor("tags", htype="tag", **disabale_hidden_tensors_config)
         ds.tags.extend(
             [
                 f"tag{idx}" if idx % 2 == 0 else [f"tag{idx}", f"tag{idx}"]
@@ -460,9 +507,9 @@ def test_pytorch_view(local_auth_ds, index):
     label_list = list(range(10))
 
     with local_auth_ds as ds:
-        ds.create_tensor("img1")
-        ds.create_tensor("img2")
-        ds.create_tensor("label")
+        ds.create_tensor("img1", **disabale_hidden_tensors_config)
+        ds.create_tensor("img2", **disabale_hidden_tensors_config)
+        ds.create_tensor("label", **disabale_hidden_tensors_config)
         ds.img1.extend(arr_list_1)
         ds.img2.extend(arr_list_2)
         ds.label.extend(label_list)
@@ -483,9 +530,9 @@ def test_pytorch_view(local_auth_ds, index):
 @pytest.mark.flaky
 def test_pytorch_collate(local_auth_ds, shuffle):
     with local_auth_ds as ds:
-        ds.create_tensor("a")
-        ds.create_tensor("b")
-        ds.create_tensor("c")
+        ds.create_tensor("a", **disabale_hidden_tensors_config)
+        ds.create_tensor("b", **disabale_hidden_tensors_config)
+        ds.create_tensor("c", **disabale_hidden_tensors_config)
         for _ in range(100):
             ds.a.append(0)
             ds.b.append(1)
@@ -509,9 +556,9 @@ def test_pytorch_collate(local_auth_ds, shuffle):
 @pytest.mark.flaky
 def test_pytorch_transform_collate(local_auth_ds, shuffle):
     with local_auth_ds as ds:
-        ds.create_tensor("a")
-        ds.create_tensor("b")
-        ds.create_tensor("c")
+        ds.create_tensor("a", **disabale_hidden_tensors_config)
+        ds.create_tensor("b", **disabale_hidden_tensors_config)
+        ds.create_tensor("c", **disabale_hidden_tensors_config)
         for _ in range(100):
             ds.a.append(0 * np.ones((300, 300)))
             ds.b.append(1 * np.ones((300, 300)))
@@ -534,11 +581,6 @@ def test_pytorch_transform_collate(local_auth_ds, shuffle):
         np.testing.assert_array_equal(batch[0], 2 * np.ones((4, 300, 300)))
         np.testing.assert_array_equal(batch[1], 0 * np.ones((4, 300, 300)))
         np.testing.assert_array_equal(batch[2], 1 * np.ones((4, 300, 300)))
-
-
-@pytest.mark.xfail(raises=NotImplementedError, strict=True)
-def test_pytorch_ddp():
-    raise NotImplementedError
 
 
 @requires_torch
@@ -589,8 +631,8 @@ def test_pytorch_decode(local_auth_ds, compressed_image_paths, compression):
 def test_rename(local_auth_ds):
     group_name = "red/green"
     with local_auth_ds as ds:
-        ds.create_tensor("abc")
-        ds.create_tensor("blue/green")
+        ds.create_tensor("abc", **disabale_hidden_tensors_config)
+        ds.create_tensor("blue/green", **disabale_hidden_tensors_config)
         ds.abc.append([1, 2, 3])
         ds.rename_tensor("abc", "xyz")
         ds.rename_group("blue", "red")
@@ -617,7 +659,7 @@ def test_rename(local_auth_ds):
 @pytest.mark.flaky
 def test_indexes(local_auth_ds, num_workers):
     with local_auth_ds as ds:
-        ds.create_tensor("xyz")
+        ds.create_tensor("xyz", **disabale_hidden_tensors_config)
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
@@ -643,7 +685,7 @@ def test_indexes(local_auth_ds, num_workers):
 @pytest.mark.flaky
 def test_indexes_transform(local_auth_ds, num_workers):
     with local_auth_ds as ds:
-        ds.create_tensor("xyz")
+        ds.create_tensor("xyz", **disabale_hidden_tensors_config)
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
@@ -671,7 +713,7 @@ def test_indexes_transform(local_auth_ds, num_workers):
 @pytest.mark.flaky
 def test_indexes_transform_dict(local_auth_ds, num_workers):
     with local_auth_ds as ds:
-        ds.create_tensor("xyz")
+        ds.create_tensor("xyz", **disabale_hidden_tensors_config)
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
@@ -707,7 +749,7 @@ def test_indexes_transform_dict(local_auth_ds, num_workers):
 @pytest.mark.flaky
 def test_indexes_tensors(local_auth_ds, num_workers):
     with local_auth_ds as ds:
-        ds.create_tensor("xyz")
+        ds.create_tensor("xyz", **disabale_hidden_tensors_config)
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
@@ -736,8 +778,8 @@ def test_indexes_tensors(local_auth_ds, num_workers):
 @pytest.mark.slow
 def test_uneven_iteration(local_auth_ds):
     with local_auth_ds as ds:
-        ds.create_tensor("x")
-        ds.create_tensor("y")
+        ds.create_tensor("x", **disabale_hidden_tensors_config)
+        ds.create_tensor("y", **disabale_hidden_tensors_config)
         ds.x.extend(list(range(5)))
         ds.y.extend(list(range(10)))
     ptds = ds.dataloader().pytorch()
@@ -752,8 +794,8 @@ def test_uneven_iteration(local_auth_ds):
 @pytest.mark.slow
 def test_pytorch_error_handling(local_auth_ds):
     with local_auth_ds as ds:
-        ds.create_tensor("x")
-        ds.create_tensor("y")
+        ds.create_tensor("x", **disabale_hidden_tensors_config)
+        ds.create_tensor("y", **disabale_hidden_tensors_config)
         ds.x.extend(list(range(5)))
 
     ptds = ds.dataloader().pytorch()
@@ -831,9 +873,9 @@ def test_pytorch_dummy_data(local_auth_ds):
     y_data = [np.random.rand(100, 100, 3), np.random.rand(120, 120, 3)]
     z_data = ["hello", "world"]
     with local_auth_ds as ds:
-        ds.create_tensor("x")
-        ds.create_tensor("y")
-        ds.create_tensor("z")
+        ds.create_tensor("x", **disabale_hidden_tensors_config)
+        ds.create_tensor("y", **disabale_hidden_tensors_config)
+        ds.create_tensor("z", **disabale_hidden_tensors_config)
         ds.x.extend(x_data)
         ds.y.extend(y_data)
         ds.z.extend(z_data)
@@ -864,6 +906,7 @@ def test_json_data_loader(local_auth_ds):
             "json",
             htype="json",
             sample_compression=None,
+            **disabale_hidden_tensors_config,
         )
         d = {"x": 1, "y": 2, "z": 3}
         for _ in range(10):
@@ -889,6 +932,7 @@ def test_list_data_loader(local_auth_ds):
             "list",
             htype="list",
             sample_compression=None,
+            **disabale_hidden_tensors_config,
         )
         l = [1, 2, 3]
         for _ in range(10):

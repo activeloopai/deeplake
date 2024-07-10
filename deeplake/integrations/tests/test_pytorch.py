@@ -7,6 +7,7 @@ from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.exceptions import DatasetUnsupportedPytorch, TensorDoesNotExistError
 from deeplake.tests.common import (
     requires_torch,
+    disabale_hidden_tensors_config,
     convert_data_according_to_torch_version,
 )
 from deeplake.core.dataset import Dataset
@@ -70,10 +71,18 @@ def pytorch_small_shuffle_helper(start, end, dataloader):
 @pytest.mark.skip("causing lockup")
 def test_pytorch_small(local_ds):
     with local_ds as ds:
-        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "image",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
         ds.commit()
-        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "image2",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
@@ -151,10 +160,18 @@ def test_pytorch_transform(local_ds):
     import torch
 
     with local_ds as ds:
-        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "image",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
         ds.checkout("alt", create=True)
-        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "image2",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
@@ -227,11 +244,23 @@ def test_pytorch_transform(local_ds):
 @pytest.mark.flaky
 def test_pytorch_transform_dict(local_ds):
     with local_ds as ds:
-        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "image",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
-        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "image2",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
-        ds.create_tensor("image3", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "image3",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.image3.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
@@ -273,9 +302,13 @@ def test_pytorch_with_compression(local_ds: Dataset):
             htype="image",
             sample_compression="png",
             max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
         )
         labels = ds.create_tensor(
-            "labels", htype="class_label", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
+            "labels",
+            htype="class_label",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
         )
 
         assert images.meta.sample_compression == "png"
@@ -306,7 +339,11 @@ def test_custom_tensor_order(local_ds):
     with local_ds as ds:
         tensors = ["a", "b", "c", "d"]
         for t in tensors:
-            ds.create_tensor(t, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+            ds.create_tensor(
+                t,
+                max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+                **disabale_hidden_tensors_config,
+            ),
             ds[t].extend(np.random.random((3, 4, 5)))
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
@@ -366,8 +403,16 @@ def test_custom_tensor_order(local_ds):
 @requires_torch
 @pytest.mark.flaky
 def test_readonly_with_two_workers(local_ds):
-    local_ds.create_tensor("images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-    local_ds.create_tensor("labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+    local_ds.create_tensor(
+        "images",
+        max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+        **disabale_hidden_tensors_config,
+    )
+    local_ds.create_tensor(
+        "labels",
+        max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+        **disabale_hidden_tensors_config,
+    )
     local_ds.images.extend(np.ones((10, 12, 12)))
     local_ds.labels.extend(np.ones(10))
 
@@ -389,7 +434,12 @@ def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
     img_good = deeplake.read(compressed_image_paths["jpeg"][0])
     img_bad = deeplake.read(corrupt_image_paths["jpeg"])
     with local_ds:
-        local_ds.create_tensor("image", htype="image", sample_compression="jpeg")
+        local_ds.create_tensor(
+            "image",
+            htype="image",
+            sample_compression="jpeg",
+            **disabale_hidden_tensors_config,
+        )
         for i in range(3):
             for i in range(10):
                 local_ds.image.append(img_good)
@@ -408,9 +458,17 @@ def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
 @pytest.mark.flaky
 def test_pytorch_local_cache(local_ds):
     with local_ds as ds:
-        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "image",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
-        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "image2",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
@@ -447,10 +505,16 @@ def test_groups(local_ds, compressed_image_paths):
     img2 = deeplake.read(compressed_image_paths["png"][0])
     with local_ds:
         local_ds.create_tensor(
-            "images/jpegs/cats", htype="image", sample_compression="jpeg"
+            "images/jpegs/cats",
+            htype="image",
+            sample_compression="jpeg",
+            **disabale_hidden_tensors_config,
         )
         local_ds.create_tensor(
-            "images/pngs/flowers", htype="image", sample_compression="png"
+            "images/pngs/flowers",
+            htype="image",
+            sample_compression="png",
+            **disabale_hidden_tensors_config,
         )
         for _ in range(10):
             local_ds.images.jpegs.cats.append(img1)
@@ -461,12 +525,8 @@ def test_groups(local_ds, compressed_image_paths):
         np.testing.assert_array_equal(flower[0], img2.array)
 
     with local_ds:
-        local_ds.create_tensor(
-            "arrays/x",
-        )
-        local_ds.create_tensor(
-            "arrays/y",
-        )
+        local_ds.create_tensor("arrays/x", **disabale_hidden_tensors_config)
+        local_ds.create_tensor("arrays/y", **disabale_hidden_tensors_config)
         for _ in range(10):
             local_ds.arrays.x.append(np.random.random((2, 3)))
             local_ds.arrays.y.append(np.random.random((4, 5)))
@@ -483,7 +543,9 @@ def test_groups(local_ds, compressed_image_paths):
 @pytest.mark.flaky
 def test_string_tensors(local_ds):
     with local_ds:
-        local_ds.create_tensor("strings", htype="text")
+        local_ds.create_tensor(
+            "strings", htype="text", **disabale_hidden_tensors_config
+        )
         local_ds.strings.extend([f"string{idx}" for idx in range(5)])
 
     ptds = local_ds.pytorch(batch_size=1)
@@ -499,7 +561,7 @@ def test_string_tensors(local_ds):
 @pytest.mark.flaky
 def test_tag_tensors(local_ds):
     with local_ds:
-        local_ds.create_tensor("tags", htype="tag")
+        local_ds.create_tensor("tags", htype="tag", **disabale_hidden_tensors_config)
         local_ds.tags.extend(
             [
                 f"tag{idx}" if idx % 2 == 0 else [f"tag{idx}", f"tag{idx}"]
@@ -532,9 +594,9 @@ def test_pytorch_large(local_ds):
     label_list = list(range(5))
 
     with local_ds as ds:
-        ds.create_tensor("img1")
-        ds.create_tensor("img2")
-        ds.create_tensor("label")
+        ds.create_tensor("img1", **disabale_hidden_tensors_config)
+        ds.create_tensor("img2", **disabale_hidden_tensors_config)
+        ds.create_tensor("label", **disabale_hidden_tensors_config)
         ds.img1.extend(arr_list_1)
         ds.img2.extend(arr_list_2)
         ds.label.extend(label_list)
@@ -575,9 +637,9 @@ def test_pytorch_view(local_ds, index, shuffle):
     label_list = list(range(10))
 
     with local_ds as ds:
-        ds.create_tensor("img1")
-        ds.create_tensor("img2")
-        ds.create_tensor("label")
+        ds.create_tensor("img1", **disabale_hidden_tensors_config)
+        ds.create_tensor("img2", **disabale_hidden_tensors_config)
+        ds.create_tensor("label", **disabale_hidden_tensors_config)
         ds.img1.extend(arr_list_1)
         ds.img2.extend(arr_list_2)
         ds.label.extend(label_list)
@@ -605,9 +667,9 @@ def test_pytorch_view(local_ds, index, shuffle):
 @pytest.mark.parametrize("buffer_size", [0, 10])
 @pytest.mark.flaky
 def test_pytorch_collate(local_ds, shuffle, buffer_size):
-    local_ds.create_tensor("a")
-    local_ds.create_tensor("b")
-    local_ds.create_tensor("c")
+    local_ds.create_tensor("a", **disabale_hidden_tensors_config)
+    local_ds.create_tensor("b", **disabale_hidden_tensors_config)
+    local_ds.create_tensor("c", **disabale_hidden_tensors_config)
     for _ in range(100):
         local_ds.a.append(0)
         local_ds.b.append(1)
@@ -634,9 +696,9 @@ def test_pytorch_collate(local_ds, shuffle, buffer_size):
 )
 @pytest.mark.flaky
 def test_pytorch_transform_collate(local_ds, shuffle):
-    local_ds.create_tensor("a")
-    local_ds.create_tensor("b")
-    local_ds.create_tensor("c")
+    local_ds.create_tensor("a", **disabale_hidden_tensors_config)
+    local_ds.create_tensor("b", **disabale_hidden_tensors_config)
+    local_ds.create_tensor("c", **disabale_hidden_tensors_config)
     for _ in range(100):
         local_ds.a.append(0 * np.ones((300, 300)))
         local_ds.b.append(1 * np.ones((300, 300)))
@@ -680,7 +742,11 @@ def test_pytorch_ddp(local_ds):
     import multiprocessing as mp
 
     with local_ds as ds:
-        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor(
+            "image",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+            **disabale_hidden_tensors_config,
+        )
         ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(255)]))
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
@@ -719,7 +785,9 @@ def identity(x):
 @pytest.mark.flaky
 def test_pytorch_decode(local_ds, compressed_image_paths, compression):
     with local_ds as ds:
-        ds.create_tensor("image", sample_compression=compression)
+        ds.create_tensor(
+            "image", sample_compression=compression, **disabale_hidden_tensors_config
+        )
         ds.image.extend(
             np.array([i * np.ones((10, 10, 3), dtype=np.uint8) for i in range(5)])
         )
@@ -759,7 +827,9 @@ def test_pytorch_decode(local_ds, compressed_image_paths, compression):
 @pytest.mark.flaky
 def test_pytorch_decode_multi_worker_shuffle(local_ds, compressed_image_paths):
     with local_ds as ds:
-        ds.create_tensor("image", sample_compression="jpeg")
+        ds.create_tensor(
+            "image", sample_compression="jpeg", **disabale_hidden_tensors_config
+        )
         ds.image.extend(
             np.array([i * np.ones((10, 10, 3), dtype=np.uint8) for i in range(5)])
         )
@@ -788,8 +858,8 @@ def test_pytorch_decode_multi_worker_shuffle(local_ds, compressed_image_paths):
 @pytest.mark.flaky
 def test_rename(local_ds):
     with local_ds as ds:
-        ds.create_tensor("abc")
-        ds.create_tensor("blue/green")
+        ds.create_tensor("abc", **disabale_hidden_tensors_config)
+        ds.create_tensor("blue/green", **disabale_hidden_tensors_config)
         ds.abc.append([1, 2, 3])
         ds.rename_tensor("abc", "xyz")
         ds.rename_group("blue", "red")
@@ -811,7 +881,7 @@ def test_rename(local_ds):
 @pytest.mark.flaky
 def test_indexes(local_ds, shuffle, num_workers):
     with local_ds as ds:
-        ds.create_tensor("xyz")
+        ds.create_tensor("xyz", **disabale_hidden_tensors_config)
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
@@ -835,7 +905,7 @@ def index_transform(sample):
 @pytest.mark.flaky
 def test_indexes_transform(local_ds, shuffle, num_workers):
     with local_ds as ds:
-        ds.create_tensor("xyz")
+        ds.create_tensor("xyz", **disabale_hidden_tensors_config)
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
@@ -862,7 +932,7 @@ def test_indexes_transform(local_ds, shuffle, num_workers):
 @pytest.mark.flaky
 def test_indexes_transform_dict(local_ds, shuffle, num_workers):
     with local_ds as ds:
-        ds.create_tensor("xyz")
+        ds.create_tensor("xyz", **disabale_hidden_tensors_config)
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
@@ -897,7 +967,7 @@ def test_indexes_transform_dict(local_ds, shuffle, num_workers):
 @pytest.mark.flaky
 def test_indexes_tensors(local_ds, shuffle, num_workers):
     with local_ds as ds:
-        ds.create_tensor("xyz")
+        ds.create_tensor("xyz", **disabale_hidden_tensors_config)
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
@@ -924,8 +994,8 @@ def test_indexes_tensors(local_ds, shuffle, num_workers):
 @pytest.mark.flaky
 def test_uneven_iteration(local_ds):
     with local_ds as ds:
-        ds.create_tensor("x")
-        ds.create_tensor("y")
+        ds.create_tensor("x", **disabale_hidden_tensors_config)
+        ds.create_tensor("y", **disabale_hidden_tensors_config)
         ds.x.extend(list(range(10)))
         ds.y.extend(list(range(5)))
         ptds = ds.pytorch()
@@ -963,7 +1033,7 @@ def list_transform_fn(sample):
 def test_pytorch_json(local_ds):
     ds = local_ds
     with ds:
-        ds.create_tensor("a", htype="json")
+        ds.create_tensor("a", htype="json", **disabale_hidden_tensors_config)
         ds.a.append({"x": 1})
         ds.a.append({"x": 2})
 
@@ -981,7 +1051,7 @@ def test_pytorch_json(local_ds):
 def test_pytorch_list(local_ds):
     ds = local_ds
     with ds:
-        ds.create_tensor("a", htype="list")
+        ds.create_tensor("a", htype="list", **disabale_hidden_tensors_config)
         ds.a.append([1, 2])
         ds.a.append([3, 4])
 
