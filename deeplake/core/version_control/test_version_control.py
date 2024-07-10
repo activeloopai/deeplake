@@ -2448,7 +2448,7 @@ def test_version_in_path(local_path):
 @pytest.mark.slow
 def test_branch_delete(local_ds_generator):
     local_ds = local_ds_generator()
-    local_ds.create_tensor("test", **disabale_hidden_tensors_config)
+    local_ds.create_tensor("test")
 
     with pytest.raises(VersionControlError) as e:
         local_ds.delete_branch("main")
