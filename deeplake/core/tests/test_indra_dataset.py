@@ -432,6 +432,9 @@ def test_value_for_virtual_tensors(local_auth_ds_generator):
         assert view.json[0].data()["value"] == [0]
         assert np.all(view.json.data()["value"] == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
+        assert view.type[0].data()["value"] == "type"
+        assert view.type.data()["value"] == 10 * ["type"]
+
 
 @requires_libdeeplake
 def test_virtual_tensors(local_auth_ds_generator):
