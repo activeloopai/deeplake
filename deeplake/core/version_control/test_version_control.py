@@ -12,6 +12,7 @@ from deeplake.util.diff import (
     get_lowest_common_ancestor,
     sanitize_commit,
 )
+from deeplake.tests.common import disabale_hidden_tensors_config
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.exceptions import (
     CheckoutError,
@@ -2373,7 +2374,7 @@ def test_reset_create_delete_tensors(local_ds):
 )
 def test_reset_bug(ds_generator):
     ds = ds_generator()
-    ds.create_tensor("abc")
+    ds.create_tensor("abc", **disabale_hidden_tensors_config)
     ds.abc.append([1, 2, 3])
     assert len(ds.abc) == 1
     a = ds.commit()
@@ -2447,7 +2448,7 @@ def test_version_in_path(local_path):
 @pytest.mark.slow
 def test_branch_delete(local_ds_generator):
     local_ds = local_ds_generator()
-    local_ds.create_tensor("test")
+    local_ds.create_tensor("test", **disabale_hidden_tensors_config)
 
     with pytest.raises(VersionControlError) as e:
         local_ds.delete_branch("main")

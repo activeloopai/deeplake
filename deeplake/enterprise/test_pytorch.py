@@ -414,9 +414,9 @@ def test_groups(local_auth_ds, compressed_image_paths):
             sample_compression="png",
             **disabale_hidden_tensors_config,
         )
-        for _ in range(10):
-            ds.images.jpegs.cats.append(img1)
-            ds.images.pngs.flowers.append(img2)
+
+        ds.images.jpegs.cats.extend(10 * [img1])
+        ds.images.pngs.flowers.extend(10 * [img2])
 
     another_ds = deeplake.dataset(
         ds.path,
@@ -533,10 +533,9 @@ def test_pytorch_collate(local_auth_ds, shuffle):
         ds.create_tensor("a", **disabale_hidden_tensors_config)
         ds.create_tensor("b", **disabale_hidden_tensors_config)
         ds.create_tensor("c", **disabale_hidden_tensors_config)
-        for _ in range(100):
-            ds.a.append(0)
-            ds.b.append(1)
-            ds.c.append(2)
+        ds.a.extend(100 * [0])
+        ds.b.extend(100 * [1])
+        ds.c.extend(100 * [2])
 
     ptds = ds.dataloader().batch(4).pytorch(collate_fn=reorder_collate)
     if shuffle:
@@ -559,10 +558,9 @@ def test_pytorch_transform_collate(local_auth_ds, shuffle):
         ds.create_tensor("a", **disabale_hidden_tensors_config)
         ds.create_tensor("b", **disabale_hidden_tensors_config)
         ds.create_tensor("c", **disabale_hidden_tensors_config)
-        for _ in range(100):
-            ds.a.append(0 * np.ones((300, 300)))
-            ds.b.append(1 * np.ones((300, 300)))
-            ds.c.append(2 * np.ones((300, 300)))
+        ds.a.extend(100 * [0 * np.ones((300, 300))])
+        ds.b.extend(100 * [1 * np.ones((300, 300))])
+        ds.c.extend(100 * [2 * np.ones((300, 300))])
 
     ptds = (
         ds.dataloader()
@@ -873,9 +871,9 @@ def test_pytorch_dummy_data(local_auth_ds):
     y_data = [np.random.rand(100, 100, 3), np.random.rand(120, 120, 3)]
     z_data = ["hello", "world"]
     with local_auth_ds as ds:
-        ds.create_tensor("x", **disabale_hidden_tensors_config)
-        ds.create_tensor("y", **disabale_hidden_tensors_config)
-        ds.create_tensor("z", **disabale_hidden_tensors_config)
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.create_tensor("z")
         ds.x.extend(x_data)
         ds.y.extend(y_data)
         ds.z.extend(z_data)
