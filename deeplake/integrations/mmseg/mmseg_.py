@@ -155,16 +155,15 @@ And config for training:
 import warnings
 import torch
 import numpy as np
-import os
+import io
 import math
 import types
-import tempfile
 from functools import partial
 from collections import OrderedDict
 
 from typing import Callable, Optional, List, Dict
 from prettytable import PrettyTable  # type: ignore
-from PIL import Image, ImageDraw  # type: ignore
+from PIL import Image  # type: ignore
 
 from mmseg.core import DistEvalHook, EvalHook  # type: ignore
 from mmseg.core import build_optimizer
@@ -438,7 +437,9 @@ def transform(
     pipeline: Callable,
 ):
     img = sample_in[images_tensor]
-    if not isinstance(img, np.ndarray):
+    if isinstance(img, (bytes, bytearray)):
+        img = np.array(Image.open(io.BytesIO(img)))
+    elif not isinstance(img, np.ndarray):
         img = np.array(img)
 
     mask = sample_in[masks_tensor]
@@ -899,7 +900,9 @@ def build_dataloader(
 
     collate_fn = partial(collate, samples_per_gpu=batch_size)
 
-    decode_method = {images_tensor: "numpy"}
+    decode_method = train_loader_config.get("decode_method") or {
+        "images_tensor": "numpy"
+    }
 
     mmseg_ds = MMSegDataset(
         dataset=dataset,
