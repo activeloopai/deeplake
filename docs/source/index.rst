@@ -36,6 +36,8 @@ For tutorials, code examples, and high-level information, please check out the `
 
    MMDetection <MMDetection>
 
+   MMSegmentation <MMSegmentation>
+
 .. toctree::
    :maxdepth: 1
    :caption: High-Performance Features

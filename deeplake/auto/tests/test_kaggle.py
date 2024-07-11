@@ -146,3 +146,22 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
                 summary=False,
                 overwrite=False,
             )
+
+
+def test_invalid_dataset_path(local_ds: Dataset, hub_kaggle_credentials):
+    with CliRunner().isolated_filesystem():
+        kaggle_path = os.path.join(local_ds.path, "unstructured_kaggle_data")
+        dummy_path = get_dummy_data_path("tests_auto/image_classification")
+        username, key = hub_kaggle_credentials
+
+        with pytest.raises(ValueError):
+            deeplake.ingest_kaggle(
+                tag="a tag with bad chars!",
+                src=dummy_path,
+                dest=dummy_path,
+                images_compression="jpeg",
+                kaggle_credentials={"username": username, "key": key},
+                progressbar=False,
+                summary=False,
+                overwrite=False,
+            )

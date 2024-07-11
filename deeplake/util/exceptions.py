@@ -1,6 +1,8 @@
+import requests
 import numpy as np
-import deeplake
 from typing import Any, List, Sequence, Tuple, Optional, Union
+
+import deeplake
 
 
 class ExternalCommandError(Exception):
@@ -189,14 +191,6 @@ class ModuleNotInstalledException(Exception):
         super().__init__(message)
 
 
-class LoginException(Exception):
-    def __init__(
-        self,
-        message="Error while logging in, invalid auth token. Please try logging in again.",
-    ):
-        super().__init__(message)
-
-
 class UserNotLoggedInException(Exception):
     def __init__(self):
         message = (
@@ -237,18 +231,11 @@ class AuthenticationException(Exception):
 class AuthorizationException(Exception):
     def __init__(
         self,
-        message="You are not authorized to access this resource on Activeloop Server.",
-        response=None,
+        message: Optional[str] = None,
+        response: Optional[requests.Response] = None,
     ):
+        self.original_message = message
         self.response = response
-        super().__init__(message)
-
-
-class InvalidPasswordException(AuthorizationException):
-    def __init__(
-        self,
-        message="The password you provided was invalid.",
-    ):
         super().__init__(message)
 
 

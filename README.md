@@ -36,7 +36,7 @@ Deep Lake is a Database for AI powered by a storage format optimized for deep-le
 1. Storing data and vectors while building LLM applications
 2. Managing datasets while training deep learning models
    
-Deep Lake simplifies the deployment of enterprise-grade LLM-based products by offering storage for all data types (embeddings, audio, text, videos, images, pdfs, annotations, etc.), querying and vector search, data streaming while training models at scale, data versioning and lineage, and integrations with popular tools such as LangChain, LlamaIndex, Weights & Biases, and many more. Deep Lake works with data of any size, it is serverless, and it enables you to store all of your data in your own cloud and in one place. Deep Lake is used by Intel, Bayer Radiology, Matterport, ZERO Systems, Red Cross, Yale, & Oxford. 
+Deep Lake simplifies the deployment of enterprise-grade LLM-based products by offering storage for all data types (embeddings, audio, text, videos, images, dicom, pdfs, annotations, [and more](https://docs.deeplake.ai/en/latest/Htypes.html)), querying and vector search, data streaming while training models at scale, data versioning and lineage, and integrations with popular tools such as LangChain, LlamaIndex, Weights & Biases, and many more. Deep Lake works with data of any size, it is serverless, and it enables you to store all of your data in your own cloud and in one place. Deep Lake is used by Intel, Bayer Radiology, Matterport, ZERO Systems, Red Cross, Yale, & Oxford. 
 
 ### Deep Lake includes the following features:
 
@@ -58,7 +58,7 @@ Deep Lake comes with built-in dataloaders for Pytorch and TensorFlow. Train your
 </details>
 <details>
   <summary><b>Integrations with Powerful Tools</b></summary>
-Deep Lake has integrations with <a href="https://github.com/hwchase17/langchain">Langchain</a> and <a href="https://github.com/jerryjliu/llama_index">LLamaIndex</a> as a vector store for LLM apps, <a href="https://wandb.ai/">Weights & Biases</a> for data lineage during model training, and <a href="https://github.com/open-mmlab/mmdetection">MMDetection</a> for training object detection models.
+Deep Lake has integrations with <a href="https://github.com/hwchase17/langchain">Langchain</a> and <a href="https://github.com/jerryjliu/llama_index">LLamaIndex</a> as a vector store for LLM apps, <a href="https://wandb.ai/">Weights & Biases</a> for data lineage during model training, <a href="https://github.com/open-mmlab/mmdetection">MMDetection</a> for training object detection models, and <a href="https://github.com/open-mmlab/mmsegmentation">MMSegmentation</a> for training semantic segmentation models.
 </details>
 <details>
   <summary><b>100+ most-popular image, video, and audio datasets available in seconds</b></summary>
@@ -95,19 +95,20 @@ pip3 install deeplake
 
 ### Vector Store Applications
 Using Deep Lake as a Vector Store for building LLM applications:
-### - [Vector Store Quickstart](https://docs.activeloop.ai/quickstart)
-### - [Vector Store Getting Started Guide](https://docs.activeloop.ai/getting-started/vector-store)
-### - [Using Deep Lake with LangChain](https://docs.activeloop.ai/tutorials/vector-store/deep-lake-vector-store-in-langchain)
-### - [Image Similarity Search with Deep Lake](https://docs.activeloop.ai/tutorials/vector-store/image-similarity-search)
+### - [Vector Store Quickstart](https://docs.activeloop.ai/examples/rag/quickstart)
+### - [Vector Store Tutorials](https://docs.activeloop.ai/examples/rag/tutorials)
+### - [LangChain Integration](https://docs.activeloop.ai/examples/rag/langchain-integration)
+### - [LlamaIndex Integration](https://docs.activeloop.ai/examples/rag/llamaindex-integration)
+### - [Image Similarity Search with Deep Lake](https://docs.activeloop.ai/examples/rag/tutorials/image-similarity-search)
 
 
 ### Deep Learning Applications
 Using Deep Lake for managing data while training Deep Learning models:
-### - [Deep Learning Quickstart](https://docs.activeloop.ai/quickstart-dl)
-### - [Deep Learning Getting Started Guide](https://docs.activeloop.ai/getting-started/deep-learning)
-### - [Tutorials for Training Models](https://docs.activeloop.ai/tutorials/deep-learning/training-models)
-### - [Tutorials for Creating Deep Learning Datasets](https://docs.activeloop.ai/tutorials/deep-learning/creating-datasets)
-### - [Deep Learning Playbooks](https://docs.activeloop.ai/playbooks/evaluating-model-performance)
+### - [Deep Learning Quickstart](https://docs.activeloop.ai/examples/dl/quickstart)
+### - [Deep Learning Getting Started Guide](https://docs.activeloop.ai/examples/dl/guide)
+### - [Tutorials for Training Models](https://docs.activeloop.ai/examples/dl/tutorials/training-models)
+### - [Tutorials for Creating Deep Learning Datasets](https://docs.activeloop.ai/examples/dl/tutorials/creating-datasets)
+### - [Deep Learning Playbooks](https://docs.activeloop.ai/examples/dl/playbooks)
 
 ## ⚙️ Integrations
 

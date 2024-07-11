@@ -550,7 +550,7 @@ def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, 
 
     - ``scheduler (str)``: The scheduler to be used to compute the transformation.
 
-        - Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Defaults to 'threaded'.
+        - Supported values include: 'serial', 'threaded', and 'processed'. Defaults to 'threaded'.
 
     - ``progressbar (bool)``: Displays a progress bar if True (default).
 
@@ -569,7 +569,7 @@ def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, 
 
     - ``TensorMismatchError``: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
 
-    - ``UnsupportedSchedulerError``: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+    - ``UnsupportedSchedulerError``: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', and 'processed'.
 
     - ``TransformError``: All other exceptions raised if there are problems while running the pipeline.
     """
@@ -634,7 +634,7 @@ def compute(
 
     - ``scheduler (str)``: The scheduler to be used to compute the transformation.
 
-        - Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Defaults to 'threaded'.
+        - Supported values include: 'serial', 'threaded', and 'processed'. Defaults to 'threaded'.
 
     - ``progressbar (bool)``: Displays a progress bar if ``True`` (default).
 
@@ -660,7 +660,7 @@ def compute(
 
     - ``TensorMismatchError``: If one or more of the outputs generated during transform contain different tensors than the ones present in ``ds_out`` provided to transform.
 
-    - ``UnsupportedSchedulerError``: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+    - ``UnsupportedSchedulerError``: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', and 'processed'.
 
     - ``TransformError``: All other exceptions raised if there are problems while running the pipeline.
     """

@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 import deeplake
@@ -87,3 +89,28 @@ def test_connect_user_not_in_org(s3_ds_generator, hub_cloud_dev_token):
             token=hub_cloud_dev_token,
         )
         assert "organization id" in str(e)
+
+
+# @pytest.mark.slow
+def test_connect_from_managed_credentials(hub_cloud_path: str, hub_cloud_dev_token):
+    old_environ = dict(os.environ)
+    os.environ.pop("AWS_ACCESS_KEY_ID", None)
+    os.environ.pop("AWS_SECRET_ACCESS_KEY", None)
+    os.environ.pop("AWS_SESSION_TOKEN", None)
+
+    try:
+        dir_name = hub_cloud_path.rsplit("/", 1)[1]
+        ds = deeplake.empty(
+            f"s3://deeplake-tests/{dir_name}",
+            creds={"creds_key": "aws_creds"},
+            org_id="testingacc2",
+            token=hub_cloud_dev_token,
+        )
+        ds.create_tensor("id", htype="text")
+
+        ds.connect()
+        assert ds.path == f"hub://testingacc2/{dir_name}"
+
+    finally:
+        os.environ.clear()
+        os.environ.update(old_environ)

@@ -1,19 +1,13 @@
-import os
-
 import deeplake
 import requests  # type: ignore
-import textwrap
-from typing import Any, Optional, Dict, List, Union
+from typing import Any, Optional, Dict
 from deeplake.util.exceptions import (
     AgreementNotAcceptedError,
     AuthorizationException,
-    LoginException,
-    InvalidPasswordException,
     ManagedCredentialsNotFoundError,
     NotLoggedInAgreementError,
     ResourceNotFoundException,
     InvalidTokenException,
-    UserNotLoggedInException,
     TokenPermissionError,
 )
 from deeplake.client.utils import (
@@ -107,9 +101,6 @@ class DeepLakeBackendClient:
             headers (dict, optional): Dictionary of HTTP Headers to send with the request.
             timeout (float,optional): How many seconds to wait for the server to send data before giving up.
 
-        Raises:
-            InvalidPasswordException: `password` cannot be `None` inside `json`.
-
         Returns:
             requests.Response: The response received from the server.
         """
@@ -124,11 +115,6 @@ class DeepLakeBackendClient:
         headers = headers or {}
         headers["hub-cli-version"] = self.version
         headers = {**headers, **self.auth_context.get_auth_headers()}
-
-        # clearer error than `ServerUnderMaintenence`
-        if json is not None and "password" in json and json["password"] is None:
-            # do NOT pass in the password here. `None` is explicitly typed.
-            raise InvalidPasswordException("Password cannot be `None`.")
 
         status_code = None
         tries = 0
@@ -205,8 +191,11 @@ class DeepLakeBackendClient:
             ).json()
         except Exception as e:
             if isinstance(e, AuthorizationException):
-                response_data = e.response.json()
-                code = response_data.get("code")
+                code = -1
+                if e.response is not None:
+                    response_data = e.response.json()
+                    code = response_data.get("code")
+
                 if code == 1:
                     agreements = response_data["agreements"]
                     agreements = [agreement["text"] for agreement in agreements]
@@ -215,11 +204,13 @@ class DeepLakeBackendClient:
                     raise NotLoggedInAgreementError from e
                 else:
                     try:
-                        jwt.decode(self.token, options={"verify_signature": False})
+                        jwt.decode(
+                            self.get_token(), options={"verify_signature": False}
+                        )
                     except Exception:
                         raise InvalidTokenException
 
-                    raise TokenPermissionError()
+                    raise TokenPermissionError(e.original_message)
             raise
         full_url = response.get("path")
         repository = response.get("repository")

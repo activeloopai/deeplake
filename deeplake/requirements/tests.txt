@@ -1,4 +1,4 @@
-pytest==7.4
+pytest
 pytest-cases
 pytest-benchmark
 pytest-cov
@@ -13,7 +13,6 @@ mypy==1.7.0
 black
 darglint
 pre-commit
-
 
 typing_extensions>=3.10.0.0
 types-requests

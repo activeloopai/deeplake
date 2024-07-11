@@ -11,7 +11,3 @@ def tensorflow_installed():
 
 def tfds_installed():
     return find_spec("tensorflow_datasets") != None
-
-
-def ray_installed():
-    return find_spec("ray") != None

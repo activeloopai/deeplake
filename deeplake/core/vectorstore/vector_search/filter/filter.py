@@ -9,7 +9,10 @@ from typing import Optional, Any, Iterable, List, Dict, Callable, Union
 
 
 def dp_filter_python(x: dict, filter: Dict) -> bool:
-    """Filter helper function for Deep Lake"""
+    """Filter helper function for Deep Lake
+    For non-dict tensors, perform exact match if target data is not a list, and perform "IN" match if target data is a list.
+    For dict tensors, perform exact match for each key-value pair in the target data.
+    """
 
     result = True
 
@@ -22,7 +25,10 @@ def dp_filter_python(x: dict, filter: Dict) -> bool:
                     k in data and v == data[k] for k, v in filter[tensor].items()
                 )
             else:
-                result = result and data == filter[tensor]
+                if type(filter[tensor]) == list:
+                    result = result and data in filter[tensor]
+                else:
+                    result = result and data == filter[tensor]
 
     return result
 
@@ -50,6 +56,11 @@ def attribute_based_filtering_python(
 def attribute_based_filtering_tql(
     view, filter: Optional[Dict] = None, debug_mode=False, logger=None
 ):
+    """Filter helper function converting filter dictionary to TQL Deep Lake
+    For non-dict tensors, perform exact match if target data is not a list, and perform "IN" match if target data is a list.
+    For dict tensors, perform exact match for each key-value pair in the target data.
+    """
+
     tql_filter = ""
 
     if filter is not None:
@@ -64,13 +75,22 @@ def attribute_based_filtering_tql(
                         val_str = f"'{value}'" if type(value) == str else f"{value}"
                         tql_filter += f"{tensor}['{key}'] == {val_str} and "
                 else:
-                    val_str = (
-                        f"'{filter[tensor]}'"
-                        if isinstance(filter[tensor], str)
-                        or isinstance(filter[tensor], np.str_)
-                        else f"{filter[tensor]}"
-                    )
-                    tql_filter += f"{tensor} == {val_str} and "
+                    if type(filter[tensor]) == list:
+                        val_str = str(filter[tensor])[
+                            1:-1
+                        ]  # Remove square bracked and add rounded brackets below.
+
+                        tql_filter += f"{tensor} in ({val_str}) and "
+
+                    else:
+                        val_str = (
+                            f"'{filter[tensor]}'"
+                            if isinstance(filter[tensor], str)
+                            or isinstance(filter[tensor], np.str_)
+                            else f"{filter[tensor]}"
+                        )
+                        tql_filter += f"{tensor} == {val_str} and "
+
             tql_filter = tql_filter[:-5]
 
     if debug_mode and logger is not None:

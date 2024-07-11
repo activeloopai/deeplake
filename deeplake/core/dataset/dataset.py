@@ -23,6 +23,8 @@ from deeplake.core.sample import Sample
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
+from deeplake.util.storage import get_dataset_credentials
+from deeplake.util.tag import process_hub_path
 from deeplake.util.version_control import (
     save_version_info,
     integrity_check,
@@ -195,6 +197,9 @@ class Dataset:
         view_base: Optional["Dataset"] = None,
         libdeeplake_dataset=None,
         index_params: Optional[Dict[str, Union[int, str]]] = None,
+        dataset_creds_key: Optional[str] = None,
+        dataset_creds_key_org_id: Optional[str] = None,
+        dataset_creds_key_token: Optional[str] = None,
         **kwargs,
     ):
         """Initializes a new or existing dataset.
@@ -222,6 +227,9 @@ class Dataset:
             view_base (Optional["Dataset"]): Base dataset of this view.
             libdeeplake_dataset : The libdeeplake dataset object corresponding to this dataset.
             index_params: (Dict[str, Union[int, str]] Optional) VDB index parameter. Defaults to ``None.``
+            dataset_creds_key: (str, Optional) The key to use for fetching dataset credentials. Defaults to ``None``.
+            dataset_creds_key_org_id: (str, Optional) If dataset_creds_key is set, the org_id the key lives in
+            dataset_creds_key_token: (str, Optional) If dataset_creds_key is set, the token used to access the credentials
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
@@ -273,6 +281,9 @@ class Dataset:
         d["_temp_tensors"] = []
         d["_vc_info_updated"] = True
         d["_query_string"] = None
+        d["dataset_creds_key"] = dataset_creds_key
+        d["dataset_creds_key_org_id"] = dataset_creds_key_org_id
+        d["dataset_creds_key_token"] = dataset_creds_key_token
         dct = self.__dict__
         dct.update(d)
 
@@ -561,7 +572,11 @@ class Dataset:
                 )
             elif "/" in item:
                 splt = posixpath.split(item)
-                ret = self[splt[0]][splt[1]]
+                ret = (
+                    self[splt[1]]
+                    if splt[0] == self.group_index
+                    else self[splt[0]][splt[1]]
+                )
             else:
                 raise TensorDoesNotExistError(item)
         elif isinstance(item, (int, slice, list, tuple, Index, type(Ellipsis))):
@@ -897,6 +912,7 @@ class Dataset:
             "point_cloud",
             "mesh",
             "nifti",
+            "segment_mask",
         ):
             self._create_sample_info_tensor(name)
         if create_shape_tensor and htype not in ("text", "json", "tag"):
@@ -2609,29 +2625,17 @@ class Dataset:
         return size
 
     @invalid_view_op
-    def rename(self, path: Union[str, pathlib.Path]):
-        """Renames the dataset to `path`.
-
-        Example:
-
-            >>> ds = deeplake.load("hub://username/dataset")
-            >>> ds.rename("hub://username/renamed_dataset")
+    def rename(self, new_name: str):
+        """Renames the dataset to `new_name`.
 
         Args:
-            path (str, pathlib.Path): New path to the dataset.
+            new_name (str): New name for the dataset.
 
         Raises:
-            RenameError: If ``path`` points to a different directory.
+            RenameError: If this dataset is not a managed dataset
         """
 
-        deeplake_reporter.feature_report(feature_name="rename", parameters={})
-
-        path = convert_pathlib_to_string_if_needed(path)
-        path = path.rstrip("/")
-        if posixpath.split(path)[0] != posixpath.split(self.path)[0]:
-            raise RenameError
-        self.base_storage.rename(path)
-        self.path = path
+        raise RenameError("Rename is not available for non-managed datasets")
 
     @invalid_view_op
     def delete(self, large_ok=False):
@@ -3043,7 +3047,7 @@ class Dataset:
             tensors (str, List[str], Optional): Name/names of the tensors to rechunk.
                 If None, all tensors in the dataset are rechunked.
             num_workers (int): The number of workers to use for rechunking. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-            scheduler (str): The scheduler to be used for rechunking. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+            scheduler (str): The scheduler to be used for rechunking. Supported values include: 'serial', 'threaded', and 'processed'.
                 Defaults to 'threaded'.
             progressbar (bool): Displays a progress bar If ``True`` (default).
         """
@@ -3210,7 +3214,7 @@ class Dataset:
         ignore_errors: bool = False,
         progressbar: bool = False,
     ):
-        """Appends multiple samples (rows) to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
+        """Appends multiple samples (rows) to multiple tensors at once. This method expects all tensors being updated to be of the same length.
 
         Args:
             samples (Dict[str, Any]): Dictionary with tensor names as keys and data as values. The values can be a sequence (i.e. a list) or a single numpy array (the first axis in the array is treated as the row axis).
@@ -3232,11 +3236,15 @@ class Dataset:
             >>> ds = deeplake.empty("../test/test_ds")
 
             >>> with ds:
-            >>>     ds.create_tensor('data')
-            >>>     ds.create_tensor('labels')
+            >>>     ds.create_tensor("data")
+            >>>     ds.create_tensor("labels", htype = "class_label")
+            >>>     ds.create_tensor("images", htype = "image", sample_compression = "jpeg")
 
             >>>     # This operation will append 4 samples (rows) to the Deep Lake dataset
-            >>>     ds.extend({"data": [1, 2, 3, 4], "labels":["table", "chair", "desk", "table"]})
+            >>>     ds.extend({"data": [1, 2, 3, 4],
+                               "labels":["table", "chair", "desk", "table"],
+                               "images": [deeplake.read("image1.jpg"), deeplake.read("image2.jpg"), deeplake.read("image3.jpg"), deeplake.read("image4.jpg")]
+                               })
 
         """
         extend = False
@@ -3702,7 +3710,7 @@ class Dataset:
                 - You can also choose to optimize the saved view later by calling its :meth:`ViewEntry.optimize` method.
             tensors (List, optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             num_workers (int): Number of workers to be used for optimization process. Applicable only if ``optimize=True``. Defaults to 0.
-            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Only applicable if ``optimize=True``. Defaults to 'threaded'.
+            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', and 'processed'. Only applicable if ``optimize=True``. Defaults to 'threaded'.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
             ignore_errors (bool): Skip samples that cause errors while saving views. Only applicable if ``optimize=True``. Defaults to ``False``.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for :func:`deeplake.dataset()`)
@@ -3772,7 +3780,7 @@ class Dataset:
             optimize (bool): Whether the view should be optimized by copying the required data. Default False.
             tensors (Optional, List[str]): Tensors to be copied if `optimize` is True. By default all tensors are copied.
             num_workers (int): Number of workers to be used if `optimize` is True.
-            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', and 'processed'.
                 Only applicable if ``optimize=True``. Defaults to 'threaded'.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
             _ret_ds (bool): If ``True``, the VDS is retured as such without converting it to a view. If ``False``, the VDS path is returned.
@@ -3989,7 +3997,7 @@ class Dataset:
                 take some time, depending on the size of the data.
             tensors (Optional, List[str]): Tensors to be copied if `optimize` is True. By default all tensors are copied.
             num_workers (int): Number of workers to be used for the optimization process. Only applicable if `optimize=True`. Defaults to 0.
-            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', and 'processed'.
                 Only applicable if `optimize=True`. Defaults to 'threaded'.
             progressbar (bool): Whether to use progressbar for optimization. Only applicable if `optimize=True`. Defaults to True.
 
@@ -4329,7 +4337,7 @@ class Dataset:
             creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
             token (str, Optional): token used to for fetching credentials to `dest`.
             num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-            scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+            scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', and 'processed'.
                 Defaults to 'threaded'.
             progressbar (bool): Displays a progress bar If ``True`` (default).
             public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to False.
@@ -4411,27 +4419,31 @@ class Dataset:
 
     def connect(
         self,
-        creds_key: str,
+        creds_key: Optional[str] = None,
         dest_path: Optional[str] = None,
         org_id: Optional[str] = None,
         ds_name: Optional[str] = None,
         token: Optional[str] = None,
     ):
-        """Connect a Deep Lake dataset stored in your cloud to the Deep Lake App.
+        """Connect a Deep Lake dataset stored in your cloud to the Deep Lake App. This enabables you to visualize the dataset in the Deep Lake App and have access to the full Deep Lake feature set.
 
         Examples:
-            >>> # Load an s3 dataset
-            >>> s3_ds = deeplake.load("s3://bucket/dataset")
-            >>>
-            >>> # Specify the org_id and managed creds_key, and the dataset name is inferred from the currently storage location path
-            >>> ds = s3_ds.connect(org_id="my_org_id", creds_key="managed_creds_key")
-            >>>
-            >>> # Or if you want to explicitly specify the full path, which contains the org_id
-            >>> ds = s3_ds.connect(dest_path="hub://my_org/dataset", creds_key="managed_creds_key")
+            >>> # Load (or create) a could dataset using Deep Lake Managed Credentials from your org
+            >>> ds = deeplake.load("s3://bucket/dataset", creds={"creds_key": "managed_creds_key"}, org_id="my_org_id")
+
+            >>> # Connect the dataset to the Deep Lake App using the same managed credentials and organization as above
+            >>> ds.connect()
+
+            >>> # Or specify an alternative path and/or managed credentials to connect the dataset
+            >>> ds.connect(dest_path="hub://my_org/dataset", creds_key = "different_creds_key")
+
+            >>> # You can opt not to use Deep Lake Managed Credentials to load/create the dataset, but you must use Managed Credentials to connect the dataset to Deep Lake
+            >>> ds = deeplake.load("s3://bucket/dataset", creds = {"aws_access_key_id": ..., ...})
+            >>> ds.connect(org_id="my_org_id", creds_key = "managed_creds_key")
 
 
         Args:
-            creds_key (str): The managed credentials to be used for accessing the source path.
+            creds_key (str): The managed credentials to be used for accessing the source path. Optional if the dataset was orginally loaded with a creds_key
             dest_path (str, optional): The full path to which the connected Deep Lake dataset will reside. Can be:
                 a Deep Lake path like ``hub://<org_id>/<dataset_name>``
             org_id (str, optional): The organization to which the connected Deep Lake dataset will be added. The dataset name will be the same as parent folder for the dataset in the cloud storage location.
@@ -4442,7 +4454,21 @@ class Dataset:
             InvalidSourcePathError: If the dataset's path is not a valid s3, gcs or azure path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
             TokenPermissionError: If the user does not have permission to create a dataset in the specified organization.
+            ValueError: If the dataset was not loaded with a creds_key and one is not provided.
         """
+        if creds_key is None:
+            creds_key = self.dataset_creds_key
+            if creds_key is None:
+                raise ValueError(
+                    "The creds_key argument must be provided as the dataset was not loaded with a creds_key."
+                )
+
+            if org_id is None and dest_path is None:
+                org_id = self.dataset_creds_key_org_id
+
+            if token is None:
+                token = self.dataset_creds_key_token
+
         try:
             path = connect_dataset_entry(
                 src_path=self.path,

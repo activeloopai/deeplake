@@ -1,5 +1,7 @@
 import os
 import sys
+import time
+
 import numpy as np
 import pathlib
 import pytest
@@ -924,63 +926,28 @@ def test_invalid_token():
         )
 
 
-@pytest.mark.parametrize(
-    ("ds_generator", "path", "hub_token"),
-    [
-        ("local_ds_generator", "local_path", "hub_cloud_dev_token"),
-        pytest.param(
-            "s3_ds_generator", "s3_path", "hub_cloud_dev_token", marks=pytest.mark.slow
-        ),
-        pytest.param(
-            "gcs_ds_generator",
-            "gcs_path",
-            "hub_cloud_dev_token",
-            marks=pytest.mark.slow,
-        ),
-        pytest.param(
-            "azure_ds_generator",
-            "azure_path",
-            "hub_cloud_dev_token",
-            marks=pytest.mark.slow,
-        ),
-        pytest.param(
-            "hub_cloud_ds_generator",
-            "hub_cloud_path",
-            "hub_cloud_dev_token",
-            marks=pytest.mark.slow,
-        ),
-    ],
-    indirect=True,
-)
-@pytest.mark.parametrize("convert_to_pathlib", [True, False])
-def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
-    ds = ds_generator()
+@pytest.mark.slow
+def test_dataset_rename(hub_cloud_ds_generator, hub_cloud_path, hub_cloud_dev_token):
+    ds = hub_cloud_ds_generator()
     ds.create_tensor("abc")
     ds.abc.append([1, 2, 3, 4])
+    original_path = ds.path
 
-    new_path = "_".join([path, "renamed"])
-
-    ds.path = convert_string_to_pathlib_if_needed(ds.path, convert_to_pathlib)
-    new_path = convert_string_to_pathlib_if_needed(new_path, convert_to_pathlib)
+    new_name = f"renamed-{time.time()}"
+    new_path = original_path.rsplit("/", 1)[0] + "/" + new_name
 
     with pytest.raises(RenameError):
-        ds.rename("wrongfolder/new_ds")
+        ds.rename("hub://wrong_org/test")
 
-    if str(ds.path).startswith("hub://"):
-        with pytest.raises(BadRequestException):
-            ds.rename(ds.path)
-    else:
-        with pytest.raises(PathNotEmptyException):
-            ds.rename(ds.path)
+    ds.rename(new_name)
 
-    ds = deeplake.rename(ds.path, new_path, token=hub_token)
-    assert ds.path == str(new_path)
+    assert ds.path.endswith("/" + new_name)
     assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
 
-    ds = deeplake.load(new_path, token=hub_token)
+    ds = deeplake.load(new_path, token=hub_cloud_dev_token)
     assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
 
-    deeplake.delete(new_path, token=hub_token)
+    deeplake.delete(new_path, token=hub_cloud_dev_token)
 
 
 @pytest.mark.parametrize(
@@ -2807,13 +2774,13 @@ def test_slice_shape_interval(memory_ds):
 
 
 def test_non_local_org_id():
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidTokenException):
         ds = deeplake.dataset("hub://test/test_dataset", org_id="test")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidTokenException):
         ds = deeplake.empty("hub://test/test_dataset", org_id="test")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidTokenException):
         ds = deeplake.load("hub://test/test_dataset", org_id="test")
 
     with pytest.raises(ValueError):
@@ -3030,3 +2997,43 @@ def test_append_non_uint8_to_image(local_ds):
         ds.images.append(np.zeros((40, 40, 1), dtype=np.uint8))
 
     assert ds.images.dtype.name == "int16"
+
+
+@pytest.mark.slow
+def test_create_and_load_with_managed_credentials(
+    hub_cloud_path: str, hub_cloud_dev_token
+):
+    old_environ = dict(os.environ)
+    os.environ.pop("AWS_ACCESS_KEY_ID", None)
+    os.environ.pop("AWS_SECRET_ACCESS_KEY", None)
+    os.environ.pop("AWS_SESSION_TOKEN", None)
+
+    try:
+        dir_name = hub_cloud_path.rsplit("/", 1)[1]
+        ds = deeplake.empty(
+            f"s3://deeplake-tests/{dir_name}",
+            creds={"creds_key": "aws_creds"},
+            org_id="testingacc2",
+            token=hub_cloud_dev_token,
+        )
+        ds.create_tensor("id", htype="text")
+
+        assert ds.path == f"s3://deeplake-tests/{dir_name}"
+
+        ds = deeplake.load(
+            f"s3://deeplake-tests/{dir_name}",
+            creds={"creds_key": "aws_creds"},
+            org_id="testingacc2",
+            token=hub_cloud_dev_token,
+        )
+        assert "id" in ds.tensors
+
+        deeplake.delete(
+            f"s3://deeplake-tests/{dir_name}",
+            creds={"creds_key": "aws_creds"},
+            org_id="testingacc2",
+            token=hub_cloud_dev_token,
+        )
+    finally:
+        os.environ.clear()
+        os.environ.update(old_environ)

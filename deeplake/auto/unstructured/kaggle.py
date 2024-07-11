@@ -1,8 +1,9 @@
+import re
 from threading import local
-from typing import Optional
 import deeplake
 import glob
 import os
+import subprocess
 from deeplake.util.exceptions import (
     ExternalCommandError,
     KaggleMissingCredentialsError,
@@ -10,13 +11,13 @@ from deeplake.util.exceptions import (
 )
 from deeplake.constants import ENV_KAGGLE_KEY, ENV_KAGGLE_USERNAME
 from zipfile import ZipFile
-from typing import Optional
+from typing import Optional, List
 
 
-def _exec_command(command):
-    out = os.system(command)
-    if out != 0:
-        raise ExternalCommandError(command, out)
+def _exec_command(command: List[str]):
+    out = subprocess.run(command)
+    if out.returncode != 0:
+        raise ExternalCommandError(" ".join(command), out.returncode)
 
 
 def _set_environment_credentials_if_none(kaggle_credentials: Optional[dict] = None):
@@ -54,6 +55,7 @@ def download_kaggle_dataset(
     Raises:
         KaggleMissingCredentialsError: If no kaggle credentials are found.
         KaggleDatasetAlreadyDownloadedError: If the dataset `tag` already exists in `local_path`.
+        ValueError: If the `tag` is not in the correct format.
     """
 
     zip_files = glob.glob(os.path.join(local_path, "*.zip"))
@@ -84,7 +86,11 @@ def download_kaggle_dataset(
     cwd = os.getcwd()
     os.chdir(local_path)
 
-    _exec_command("kaggle datasets download -d %s" % (tag))
+    if not re.match("^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$", tag):
+        raise ValueError(
+            "Invalid Kaggle dataset tag. Example: 'coloradokb/dandelionimages'"
+        )
+    _exec_command(["kaggle", "datasets", "download", "-d", tag])
 
     for item in os.listdir():
         if item.endswith(".zip"):

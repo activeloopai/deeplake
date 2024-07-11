@@ -1,9 +1,7 @@
 import pytest
-from deeplake.util.check_installation import ray_installed
 from deeplake.util.compute import get_compute_provider
 
 schedulers = ["threaded", "processed", "serial"]
-schedulers = schedulers + ["ray"] if ray_installed() else schedulers
 all_schedulers = pytest.mark.parametrize("scheduler", schedulers)
 
 

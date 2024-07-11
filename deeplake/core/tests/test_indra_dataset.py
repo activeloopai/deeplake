@@ -1,6 +1,6 @@
 import deeplake
 import numpy as np
-from deeplake.tests.common import requires_libdeeplake
+from deeplake.tests.common import requires_libdeeplake, disabale_hidden_tensors_config
 from deeplake.util.exceptions import (
     DynamicTensorNumpyError,
     EmptyTokenException,
@@ -18,7 +18,9 @@ def test_indexing(local_auth_ds_generator):
 
     deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
-        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
+        deeplake_ds.create_tensor(
+            "label", htype="generic", dtype=np.int32, **disabale_hidden_tensors_config
+        )
         for i in range(1000):
             deeplake_ds.label.append(int(100 * random.uniform(0.0, 1.0)))
 
@@ -63,7 +65,9 @@ def test_save_view(local_auth_ds_generator):
 
     deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
-        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
+        deeplake_ds.create_tensor(
+            "label", htype="generic", dtype=np.int32, **disabale_hidden_tensors_config
+        )
         for i in range(1000):
             deeplake_ds.label.append(int(100 * random.uniform(0.0, 1.0)))
 
@@ -83,7 +87,9 @@ def test_empty_token_exception(local_auth_ds):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
     with local_auth_ds:
-        local_auth_ds.create_tensor("label", htype="generic", dtype=np.int32)
+        local_auth_ds.create_tensor(
+            "label", htype="generic", dtype=np.int32, **disabale_hidden_tensors_config
+        )
 
     loaded = deeplake.load(local_auth_ds.path, token="")
 
@@ -97,9 +103,15 @@ def test_load_view(local_auth_ds_generator):
 
     deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
-        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         deeplake_ds.create_tensor(
-            "image", htype="image", dtype=np.uint8, sample_compression="jpg"
+            "label", htype="generic", dtype=np.int32, **disabale_hidden_tensors_config
+        )
+        deeplake_ds.create_tensor(
+            "image",
+            htype="image",
+            dtype=np.uint8,
+            sample_compression="jpg",
+            **disabale_hidden_tensors_config,
         )
         for i in range(100):
             deeplake_ds.label.append(i % 10)
@@ -197,13 +209,22 @@ def test_metadata(local_auth_ds_generator):
 
     deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
-        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         deeplake_ds.create_tensor(
-            "image", htype="image", dtype=np.uint8, sample_compression="jpeg"
+            "label", htype="generic", dtype=np.int32, **disabale_hidden_tensors_config
         )
-        deeplake_ds.create_tensor("none_metadata")
         deeplake_ds.create_tensor(
-            "sequence", htype="sequence[class_label]", dtype=np.uint8
+            "image",
+            htype="image",
+            dtype=np.uint8,
+            sample_compression="jpeg",
+            **disabale_hidden_tensors_config,
+        )
+        deeplake_ds.create_tensor("none_metadata", **disabale_hidden_tensors_config)
+        deeplake_ds.create_tensor(
+            "sequence",
+            htype="sequence[class_label]",
+            dtype=np.uint8,
+            **disabale_hidden_tensors_config,
         )
 
     indra_ds = dataset_to_libdeeplake(deeplake_ds)
@@ -228,7 +249,9 @@ def test_accessing_data(local_auth_ds_generator):
 
     deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
-        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
+        deeplake_ds.create_tensor(
+            "label", htype="generic", dtype=np.int32, **disabale_hidden_tensors_config
+        )
         for i in range(1000):
             deeplake_ds.label.append(int(100 * random.uniform(0.0, 1.0)))
 
@@ -244,11 +267,17 @@ def test_accessing_data(local_auth_ds_generator):
 def test_sequences_accessing_data(local_auth_ds_generator):
     deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
-        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
+        deeplake_ds.create_tensor(
+            "label", htype="generic", dtype=np.int32, **disabale_hidden_tensors_config
+        )
         for i in range(200):
             deeplake_ds.label.append(int(i / 101))
         deeplake_ds.create_tensor(
-            "image", htype="image", sample_compression="jpeg", dtype=np.uint8
+            "image",
+            htype="image",
+            sample_compression="jpeg",
+            dtype=np.uint8,
+            **disabale_hidden_tensors_config,
         )
         for i in range(199):
             deeplake_ds.image.append(np.zeros((10, 10, 3), dtype=np.uint8))
@@ -277,12 +306,14 @@ def test_query_tensors_polygon_htype_consistency(local_auth_ds_generator):
             dtype=np.float32,
             htype="polygon",
             sample_compression=None,
+            **disabale_hidden_tensors_config,
         )
         ds.create_tensor(
             "labels",
             dtype=np.uint16,
             htype="generic",
             sample_compression=None,
+            **disabale_hidden_tensors_config,
         )
         for i in range(10):
             polygons = []
@@ -312,7 +343,9 @@ def test_random_split_with_seed(local_auth_ds_generator):
     from deeplake.core.seed import DeeplakeRandom
 
     with deeplake_ds:
-        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
+        deeplake_ds.create_tensor(
+            "label", htype="generic", dtype=np.int32, **disabale_hidden_tensors_config
+        )
         for i in range(1000):
             deeplake_ds.label.append(int(i % 100))
 
@@ -345,7 +378,9 @@ def test_random_split_with_seed(local_auth_ds_generator):
 def test_random_split(local_auth_ds_generator):
     deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
-        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
+        deeplake_ds.create_tensor(
+            "label", htype="generic", dtype=np.int32, **disabale_hidden_tensors_config
+        )
         for i in range(1000):
             deeplake_ds.label.append(int(i % 100))
 
@@ -386,13 +421,40 @@ def test_random_split(local_auth_ds_generator):
 
 
 @requires_libdeeplake
+def test_value_for_virtual_tensors(local_auth_ds_generator):
+    with local_auth_ds_generator() as ds:
+        ds.create_tensor("json", htype="json", **disabale_hidden_tensors_config)
+
+        for i in range(10):
+            ds.json.append({"source": i})
+
+        view = ds.query("select json['source'], 'type' as type")
+        assert view.json[0].data()["value"] == [0]
+        assert np.all(view.json.data()["value"] == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+        assert view.type[0].data()["value"] == "type"
+        assert view.type.data()["value"] == 10 * ["type"]
+
+
+@requires_libdeeplake
 def test_virtual_tensors(local_auth_ds_generator):
     deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
-        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
-        deeplake_ds.create_tensor("embeddings", htype="generic", dtype=np.float32)
-        deeplake_ds.create_tensor("text", htype="text")
-        deeplake_ds.create_tensor("json", htype="json")
+        deeplake_ds.create_tensor(
+            "label", htype="generic", dtype=np.int32, **disabale_hidden_tensors_config
+        )
+        deeplake_ds.create_tensor(
+            "embeddings",
+            htype="generic",
+            dtype=np.float32,
+            **disabale_hidden_tensors_config,
+        )
+        deeplake_ds.create_tensor(
+            "text", htype="text", **disabale_hidden_tensors_config
+        )
+        deeplake_ds.create_tensor(
+            "json", htype="json", **disabale_hidden_tensors_config
+        )
         for i in range(100):
             count = i % 5
             deeplake_ds.label.append([int(i % 100)] * count)

@@ -304,7 +304,7 @@ def test_dataframe_files(memory_ds: Dataset, dataframe_ingestion_data):
     assert ds[df_keys[2]][2].data()["text"][0] == df[df_keys[2]][2]
 
 
-def test_dataframe_array(memory_ds: Dataset):
+def test_dataframe_mixed(memory_ds: Dataset):
     data = {
         "AA": ["Alice", "Bob", np.nan, None],
         "BB": [
@@ -321,8 +321,11 @@ def test_dataframe_array(memory_ds: Dataset):
             None,
             np.array([0, 56, 34]),
         ],
-        "FF": [None, "Bob", "Charlie", "Dave"],
+        "FF": ["2024-01-01", None, "", "2024-04-01"],
+        "G G": [None, "Bob", "Charlie", "Dave"],
     }
+
+    data["FF"] = pd.to_datetime(data["FF"])
 
     df = pd.DataFrame(data)
     df_keys = df.keys()
@@ -334,7 +337,8 @@ def test_dataframe_array(memory_ds: Dataset):
     )
     tensors_names = list(ds.tensors.keys())
 
-    assert tensors_names == df_keys.tolist()
+    assert tensors_names[:-1] == df_keys.tolist()[:-1]
+    assert tensors_names[-1] == "G_G"
     assert ds[df_keys[0]].htype == "text"
 
     np.testing.assert_array_equal(
@@ -354,6 +358,10 @@ def test_dataframe_array(memory_ds: Dataset):
     assert ds[df_keys[4]][0].numpy().tolist() == []
     assert ds[df_keys[4]][0].numpy().shape[0] == 0
     assert ds[df_keys[4]][1].numpy().shape[0] == 4
+
+    assert ds[df_keys[5]][0].text() in str(data["FF"][0])  # type: ignore
+    assert ds[df_keys[5]][2].text() == "NaT"  # type: ignore
+    assert ds[df_keys[5]][1].text() == "NaT"  # type: ignore
 
 
 def test_dataframe_array_bad(memory_ds: Dataset):
