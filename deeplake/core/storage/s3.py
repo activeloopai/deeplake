@@ -122,6 +122,8 @@ class S3Provider(StorageProvider):
             config  (Any, Optional): s3 client configuration provided by the user. Defaults to None.
             **kwargs: Additional arguments to pass to the S3 client. Includes: ``expiration``.
         """
+        super().__init__()
+
         self.root = root
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
@@ -172,18 +174,7 @@ class S3Provider(StorageProvider):
                 ContentType="application/octet-stream",  # signifies binary data
             )
 
-    def __setitem__(self, path, content):
-        """Sets the object present at the path with the value
-
-        Args:
-            path (str): the path relative to the root of the S3Provider.
-            content (bytes): the value to be assigned at the path.
-
-        Raises:
-            S3SetError: Any S3 error encountered while setting the value at the path.
-            ReadOnlyError: If the provider is in read-only mode.
-        """
-        self.check_readonly()
+    def _setitem_impl(self, path, content):
         self._check_update_creds()
         path = "".join((self.path, path))
         content = bytes(memoryview(content))
@@ -218,20 +209,8 @@ class S3Provider(StorageProvider):
         )
         return resp["Body"].read()
 
-    def __getitem__(self, path):
-        """Gets the object present at the path.
-
-        Args:
-            path (str): the path relative to the root of the S3Provider.
-
-        Returns:
-            bytes: The bytes of the object present at the path.
-
-        Raises:
-            KeyError: If an object is not found at the path.
-            S3GetError: Any other error other than KeyError while retrieving the object.
-        """
-        return self.get_bytes(path)
+    def _getitem_impl(self, path):
+        return self._get_bytes_impl(path)
 
     def _get_bytes(
         self, path, start_byte: Optional[int] = None, end_byte: Optional[int] = None
@@ -248,7 +227,7 @@ class S3Provider(StorageProvider):
         resp = self.client.get_object(Bucket=self.bucket, Key=path, **range_kwarg)
         return resp["Body"].read()
 
-    def get_bytes(
+    def _get_bytes_impl(
         self,
         path: str,
         start_byte: Optional[int] = None,
@@ -307,7 +286,7 @@ class S3Provider(StorageProvider):
     def _del(self, path):
         self.client.delete_object(Bucket=self.bucket, Key=path)
 
-    def __delitem__(self, path):
+    def _delitem_impl(self, path):
         """Delete the object present at the path.
 
         Args:
@@ -364,19 +343,13 @@ class S3Provider(StorageProvider):
             for content in page.get("Contents", ()):
                 yield content["Key"]
 
-    def _all_keys(self):
-        """Helper function that lists all the objects present at the root of the S3Provider.
+    def _all_keys_impl(self, refresh: bool = False):
+        self._check_update_creds()
 
-        Returns:
-            set: set of all the objects found at the root of the S3Provider.
-
-        Raises:
-            S3ListError: Any S3 error encountered while listing the objects.
-        """
         len_path = len(self.path.split("/")) - 1
         return ("/".join(name.split("/")[len_path:]) for name in self._keys_iterator())
 
-    def __len__(self):
+    def _len_impl(self):
         """Returns the number of files present at the root of the S3Provider.
 
         Note:
@@ -390,22 +363,13 @@ class S3Provider(StorageProvider):
         """
         return sum(1 for _ in self._keys_iterator())
 
-    def __iter__(self):
-        """Generator function that iterates over the keys of the S3Provider.
-
-        Yields:
-            str: the name of the object that it is iterating over.
-        """
-        self._check_update_creds()
-        yield from self._all_keys()
-
     def _clear(self, prefix):
         bucket = self.resource.Bucket(self.bucket)
         for response in bucket.objects.filter(Prefix=prefix).delete():
             if response.get("Errors"):
                 raise S3DeletionError(response["Errors"][0]["Message"])
 
-    def clear(self, prefix=""):
+    def _clear_impl(self, prefix=""):
         """Deletes ALL data with keys having given prefix on the s3 bucket (under self.root).
 
         Warning:
@@ -476,9 +440,12 @@ class S3Provider(StorageProvider):
             "read_only",
             "profile_name",
             "creds_used",
+            "_temp_data",
         }
 
     def __getstate__(self):
+        super()._getstate_prepare()
+
         return {key: getattr(self, key) for key in self._state_keys()}
 
     def __setstate__(self, state):

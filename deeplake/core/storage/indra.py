@@ -13,6 +13,8 @@ class IndraProvider(StorageProvider):
         read_only: Optional[bool] = False,
         **kwargs,
     ):
+        super().__init__()
+
         from indra.api import storage  # type: ignore
 
         if isinstance(root, str):
@@ -39,14 +41,14 @@ class IndraProvider(StorageProvider):
     def subdir(self, path: str, read_only: bool = False):
         return IndraProvider(self.core.subdir(path, read_only))
 
-    def __setitem__(self, path, content):
+    def _setitem_impl(self, path, content):
         self.check_readonly()
         self.core.set(path, bytes(content))
 
-    def __getitem__(self, path):
+    def _getitem_impl(self, path):
         return bytes(self.core.get(path))
 
-    def get_bytes(
+    def _get_bytes_impl(
         self, path, start_byte: Optional[int] = None, end_byte: Optional[int] = None
     ):
         s = start_byte or 0
@@ -91,17 +93,14 @@ class IndraProvider(StorageProvider):
     def get_object_size(self, path: str) -> int:
         return self.core.length(path)
 
-    def __delitem__(self, path):
+    def _delitem_impl(self, path):
         return self.core.remove(path)
 
-    def _all_keys(self):
+    def _all_keys_impl(self, refresh: bool = False):
         return self.core.list("")
 
-    def __len__(self):
+    def _len_impl(self):
         return len(self.core.list(""))
 
-    def __iter__(self):
-        return iter(self.core.list(""))
-
-    def clear(self, prefix=""):
+    def _clear_impl(self, prefix=""):
         self.core.clear(prefix)

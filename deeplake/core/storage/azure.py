@@ -14,6 +14,8 @@ from concurrent import futures
 
 class AzureProvider(StorageProvider):
     def __init__(self, root: str, creds: Dict = {}, token: Optional[str] = None):
+        super().__init__()
+
         try:
             import azure.identity
             import azure.storage.blob
@@ -87,7 +89,7 @@ class AzureProvider(StorageProvider):
             self.container_name
         )
 
-    def __setitem__(self, path, content):
+    def _setitem_impl(self, path, content):
         self.check_readonly()
         self._check_update_creds()
         if isinstance(content, memoryview):
@@ -99,10 +101,10 @@ class AzureProvider(StorageProvider):
         )
         blob_client.upload_blob(content, overwrite=True)
 
-    def __getitem__(self, path):
+    def _getitem_impl(self, path):
         return self.get_bytes(path)
 
-    def __delitem__(self, path):
+    def _delitem_impl(self, path):
         self.check_readonly()
         blob_client = self.container_client.get_blob_client(
             f"{self.root_folder}/{path}"
@@ -111,7 +113,7 @@ class AzureProvider(StorageProvider):
             raise KeyError(path)
         blob_client.delete_blob()
 
-    def get_bytes(
+    def _get_bytes_impl(
         self,
         path: str,
         start_byte: Optional[int] = None,
@@ -144,11 +146,12 @@ class AzureProvider(StorageProvider):
         byts = blob_client.download_blob(offset=offset, length=length).readall()
         return byts
 
-    def clear(self, prefix=""):
+    def _clear_impl(self, prefix=""):
         self.check_readonly()
         self._check_update_creds()
         blobs = [
-            posixpath.join(self.root_folder, key) for key in self._all_keys(prefix)
+            posixpath.join(self.root_folder, key)
+            for key in self._all_keys_impl(prefix=prefix)
         ]
         # delete_blobs can only delete 256 blobs at a time
         batches = [blobs[i : i + 256] for i in range(0, len(blobs), 256)]
@@ -176,7 +179,7 @@ class AzureProvider(StorageProvider):
         )
         return sas_token
 
-    def _all_keys(self, prefix: str = ""):
+    def _all_keys_impl(self, refresh: bool = False, prefix: str = ""):
         self._check_update_creds()
         prefix = posixpath.join(self.root_folder, prefix)
         return {
@@ -189,14 +192,9 @@ class AzureProvider(StorageProvider):
             )  # https://github.com/Azure/azure-sdk-for-python/issues/24814
         }
 
-    def __iter__(self):
-        yield from self._all_keys()
-
-    def __len__(self):
-        self._check_update_creds()
-        return len(self._all_keys())
-
     def __getstate__(self):
+        super()._getstate_prepare()
+
         return {
             "root": self.root,
             "creds": self.creds,
@@ -206,6 +204,7 @@ class AzureProvider(StorageProvider):
             "db_engine": self.db_engine,
             "repository": self.repository,
             "expiration": self.expiration,
+            "_temp_data": self._temp_data,
         }
 
     def __setstate__(self, state):

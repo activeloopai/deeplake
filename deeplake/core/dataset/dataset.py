@@ -1087,6 +1087,8 @@ class Dataset:
             raise TensorDoesNotExistError(name)
 
         if not tensor_exists(key, self.storage, self.version_state["commit_id"]):
+            if key.startswith("__temp"):
+                return
             raise TensorDoesNotExistError(name)
 
         if not self._is_root():
