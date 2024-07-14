@@ -92,3 +92,12 @@ Video features
 
     Tensor.play
     Tensor.timestamps
+
+Index features
+~~~~~~~~~~~~~~
+
+.. autosummary::
+    :toctree:
+    :nosignatures:
+
+    Tensor.create_vdb_index
