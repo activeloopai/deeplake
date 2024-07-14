@@ -1737,11 +1737,11 @@ class Tensor:
         Args:
             id (str): unique identifier for the index.
             distance (DistanceType, str): distance metric to be used for similarity search. possible values are "l2_norm", "cosine_similarity"
-            additional_params (Optional[Dict[str, int]]): additional parameters for the index. structure of additional params is 
+            additional_params (Optional[Dict[str, int]]): additional parameters for the index. structure of additional params is
                 {
                     "M": int, # default 16 increasing this value will increase the index build time and memory usage but will improve the search accuracy
                     "efConstruction": int, # default 200
-                    "partitions": 32, # default 1. if tensors contains more than 45M samples it is recommended to use partitions to create index. 
+                    "partitions": 32, # default 1. if tensors contains more than 45M samples it is recommended to use partitions to create index.
                 }
 
         Example:
