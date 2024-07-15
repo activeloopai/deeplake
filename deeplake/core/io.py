@@ -297,7 +297,6 @@ class SampleStreaming(Streaming):
             jpeg_png_compressed_tensors,
             json_tensors,
             list_tensors,
-            medical_tensors,
         ) = check_tensors(self.dataset, tensors, verbose)
         (
             raw_tensors,
@@ -305,14 +304,12 @@ class SampleStreaming(Streaming):
             json_tensors,
             list_tensors,
             data_tensors,
-            medical_tensors,
         ) = validate_decode_method(
             self.decode_method,
             tensors,
             jpeg_png_compressed_tensors,
             json_tensors,
             list_tensors,
-            medical_tensors,
         )
         sample_info_tensors, tensor_info_tensors = find_additional_tensors_and_info(
             dataset, data_tensors

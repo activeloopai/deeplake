@@ -757,7 +757,6 @@ class DeepLakeDataLoader(DataLoader):
         pil_compressed_tensors: Optional[List[str]] = None,
         json_tensors: Optional[List[str]] = None,
         list_tensors: Optional[List[str]] = None,
-        medical_tensors: Optional[List[str]] = None,
         htype_dict: Optional[dict] = None,
         ndim_dict: Optional[dict] = None,
         tensor_info_dict: Optional[dict] = None,
@@ -784,7 +783,6 @@ class DeepLakeDataLoader(DataLoader):
             pil_compressed_tensors=pil_compressed_tensors or [],
             json_tensors=json_tensors or [],
             list_tensors=list_tensors or [],
-            medical_tensors=medical_tensors or [],
         )
         loader_meta = LoaderMetaInfo(
             context=self.multiprocessing_context,
@@ -849,7 +847,6 @@ class DeepLakeDataLoader(DataLoader):
                 jpeg_png_compressed_tensors,
                 json_tensors,
                 list_tensors,
-                medical_tensors,
             ) = check_tensors(dataset, tensors)
             (
                 raw_tensors,
@@ -857,14 +854,12 @@ class DeepLakeDataLoader(DataLoader):
                 json_tensors,
                 list_tensors,
                 data_tensors,
-                medical_tensors,
             ) = validate_decode_method(
                 self._decode_method,
                 tensors,
                 jpeg_png_compressed_tensors,
                 json_tensors,
                 list_tensors,
-                medical_tensors,
             )
             sample_info_tensors, tensor_info_tensors = find_additional_tensors_and_info(
                 dataset, data_tensors
@@ -892,7 +887,6 @@ class DeepLakeDataLoader(DataLoader):
                     pil_compressed_tensors=pil_compressed_tensors,
                     json_tensors=json_tensors,
                     list_tensors=list_tensors,
-                    medical_tensors=medical_tensors,
                     htype_dict=htype_dict,
                     ndim_dict=ndim_dict,
                     tensor_info_dict=tensor_info_dict,

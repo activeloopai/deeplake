@@ -92,9 +92,7 @@ def check_tensors(dataset, tensors, verbose=True):
     json_tensors = []
     list_tensors = []
     tag_tensors = []
-    medical_tensors = []
     supported_image_compressions = {"png", "jpeg"}
-    supported_medical_compressions = {"nii", "nii.gz", "dcm"}
     for tensor_name in tensors:
         tensor = dataset._get_tensor_from_root(tensor_name)
         if len(tensor) == 0:
@@ -106,8 +104,6 @@ def check_tensors(dataset, tensors, verbose=True):
         meta = tensor.meta
         if meta.sample_compression in supported_image_compressions:
             jpeg_png_compressed_tensors.append(tensor_name)
-        if meta.sample_compression in supported_medical_compressions:
-            medical_tensors.append(tensor_name)
         elif meta.htype == "json":
             json_tensors.append(tensor_name)
         elif meta.htype == "list":
@@ -123,7 +119,7 @@ def check_tensors(dataset, tensors, verbose=True):
 
     list_tensors += tag_tensors
 
-    return jpeg_png_compressed_tensors, json_tensors, list_tensors, medical_tensors
+    return jpeg_png_compressed_tensors, json_tensors, list_tensors
 
 
 def validate_decode_method(
@@ -132,7 +128,6 @@ def validate_decode_method(
     jpeg_png_compressed_tensors,
     json_tensors,
     list_tensors,
-    medical_tensors,
 ):
     raw_tensors = []
     pil_compressed_tensors = []
@@ -148,13 +143,11 @@ def validate_decode_method(
             json_tensors,
             list_tensors,
             data_tensors,
-            medical_tensors,
         )
 
     jpeg_png_compressed_tensors_set = set(jpeg_png_compressed_tensors)
     json_list_tensors_set = set(json_tensors + list_tensors)
     generic_supported_decode_methods = {"numpy", "tobytes", "data"}
-    medical_supported_decode_methods = {"numpy", "tobytes", "data"}
     jpeg_png_supported_decode_methods = {"numpy", "tobytes", "pil", "data"}
     json_list_supported_decode_methods = {"numpy", "data"}
     for tensor_name, decode_method in decode_method.items():
@@ -176,10 +169,6 @@ def validate_decode_method(
             raise ValueError(
                 f"decode_method {decode_method} not supported for tensor {tensor_name}. Supported methods for this tensor are {generic_supported_decode_methods}"
             )
-        elif decode_method not in medical_supported_decode_methods:
-            raise ValueError(
-                f"decode_method {decode_method} not supported for tensor {tensor_name}. Supported methods for this tensor are {medical_supported_decode_methods}"
-            )
         if decode_method == "tobytes":
             raw_tensors.append(tensor_name)
         elif decode_method == "pil":
@@ -192,7 +181,6 @@ def validate_decode_method(
         json_tensors,
         list_tensors,
         data_tensors,
-        medical_tensors,
     )
 
 
