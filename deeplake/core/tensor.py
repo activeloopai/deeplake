@@ -1739,7 +1739,7 @@ class Tensor:
         Args:
             id (str): Unique identifier for the index.
             distance (DistanceType, str): Distance metric to be used for similarity search. Possible values are "l2_norm", "cosine_similarity".
-            additional_params (Optional[Dict[str, int]]): Additional parameters for the index. 
+            additional_params (Optional[Dict[str, int]]): Additional parameters for the index.
                 - Structure of additional params is:
                     :"M": Increasing this value will increase the index build time and memory usage but will improve the search accuracy. Defaults to ``16``.
                     :"efConstruction": Defaults to ``200``.
@@ -1757,6 +1757,9 @@ class Tensor:
 
         Raises:
             Exception: If the tensor is not an embedding tensor.
+
+        Returns:
+            Index: Returns the index object.
         """
         self.storage.check_readonly()
         if self.meta.htype != "embedding":
