@@ -1733,30 +1733,30 @@ class Tensor:
         distance: Union[DistanceType, str] = DistanceType.L2_NORM,
         additional_params: Optional[Dict[str, int]] = None,
     ):
-        """create similarity search index for embedding tensor.
+        """
+        Create similarity search index for embedding tensor.
 
         Args:
-            id (str): unique identifier for the index.
-            distance (DistanceType, str): distance metric to be used for similarity search. possible values are "l2_norm", "cosine_similarity"
-            additional_params (Optional[Dict[str, int]]): additional parameters for the index. structure of additional params is
-                {
-                    "M": int, # default 16 increasing this value will increase the index build time and memory usage but will improve the search accuracy
-                    "efConstruction": int, # default 200
-                    "partitions": 32, # default 1. if tensors contains more than 45M samples it is recommended to use partitions to create index.
-                }
+            id (str): Unique identifier for the index.
+            distance (DistanceType, str): Distance metric to be used for similarity search. Possible values are "l2_norm", "cosine_similarity".
+            additional_params (Optional[Dict[str, int]]): Additional parameters for the index. 
+                - Structure of additional params is:
+                    :"M": Increasing this value will increase the index build time and memory usage but will improve the search accuracy. Defaults to ``16``.
+                    :"efConstruction": Defaults to ``200``.
+                    :"partitions": If tensors contain more than 45M samples, it is recommended to use partitions to create the index. Defaults to ``1``.
 
         Example:
             >>> ds = deeplake.load("./test/my_embedding_ds")
             >>> # create cosine_similarity index on embedding tensor
             >>> ds.embedding.create_vdb_index(id="hnsw_1", distance=DistanceType.COSINE_SIMILARITY)
             >>> # create cosine_similarity index on embedding tensor with additional params
-            >>> ds.embedding.create_vdb_index(id="hnsw_1", distance=DistanceType.COSINE_SIMILARITY, additional_params={"M": 32, "partitions":1, 'efConstruction':200})
+            >>> ds.embedding.create_vdb_index(id="hnsw_1", distance=DistanceType.COSINE_SIMILARITY, additional_params={"M": 32, "partitions": 1, 'efConstruction': 200})
 
         Notes:
-            index creation is supported only for embedding tensors.
+            Index creation is supported only for embedding tensors.
 
         Raises:
-            Exception: if the tensor is not an embedding tensor.
+            Exception: If the tensor is not an embedding tensor.
         """
         self.storage.check_readonly()
         if self.meta.htype != "embedding":
