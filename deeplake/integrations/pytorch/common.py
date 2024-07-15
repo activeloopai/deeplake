@@ -175,7 +175,13 @@ def validate_decode_method(
             pil_compressed_tensors.append(tensor_name)
         elif decode_method == "data":
             data_tensors.append(tensor_name)
-    return raw_tensors, pil_compressed_tensors, json_tensors, list_tensors, data_tensors
+    return (
+        raw_tensors,
+        pil_compressed_tensors,
+        json_tensors,
+        list_tensors,
+        data_tensors,
+    )
 
 
 def find_additional_tensors_and_info(dataset, data_tensors):
