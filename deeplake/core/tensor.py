@@ -1734,6 +1734,7 @@ class Tensor:
         additional_params: Optional[Dict[str, int]] = None,
     ):
         """create similarity search index for embedding tensor.
+
         Args:
             id (str): unique identifier for the index.
             distance (DistanceType, str): distance metric to be used for similarity search. possible values are "l2_norm", "cosine_similarity"
@@ -1750,8 +1751,12 @@ class Tensor:
             >>> ds.embedding.create_vdb_index(id="hnsw_1", distance=DistanceType.COSINE_SIMILARITY)
             >>> # create cosine_similarity index on embedding tensor with additional params
             >>> ds.embedding.create_vdb_index(id="hnsw_1", distance=DistanceType.COSINE_SIMILARITY, additional_params={"M": 32, "partitions":1, 'efConstruction':200})
+
         Notes:
             index creation is supported only for embedding tensors.
+
+        Raises:
+            Exception: if the tensor is not an embedding tensor.
         """
         self.storage.check_readonly()
         if self.meta.htype != "embedding":
