@@ -1729,16 +1729,16 @@ class Tensor:
 
     def create_vdb_index(
         self,
-        id: str,
-        distance: Union[DistanceType, str] = DistanceType.L2_NORM,
+        id: str = "hnsw_1",
+        distance: Union[DistanceType, str] = DistanceType.COSINE_SIMILARITY,
         additional_params: Optional[Dict[str, int]] = None,
     ):
         """
         Create similarity search index for embedding tensor.
 
         Args:
-            id (str): Unique identifier for the index.
-            distance (DistanceType, str): Distance metric to be used for similarity search. Possible values are "l2_norm", "cosine_similarity".
+            id (str): Unique identifier for the index. Defaults to ``hnsw_1``.
+            distance (DistanceType, str): Distance metric to be used for similarity search. Possible values are "l2_norm", "cosine_similarity". Defaults to ``DistanceType.COSINE_SIMILARITY``.
             additional_params (Optional[Dict[str, int]]): Additional parameters for the index.
                 - Structure of additional params is:
                     :"M": Increasing this value will increase the index build time and memory usage but will improve the search accuracy. Defaults to ``16``.
