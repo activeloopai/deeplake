@@ -1729,10 +1729,38 @@ class Tensor:
 
     def create_vdb_index(
         self,
-        id: str,
-        distance: Union[DistanceType, str] = DistanceType.L2_NORM,
+        id: str = "hnsw_1",
+        distance: Union[DistanceType, str] = DistanceType.COSINE_SIMILARITY,
         additional_params: Optional[Dict[str, int]] = None,
     ):
+        """
+        Create similarity search index for embedding tensor.
+
+        Args:
+            id (str): Unique identifier for the index. Defaults to ``hnsw_1``.
+            distance (DistanceType, str): Distance metric to be used for similarity search. Possible values are "l2_norm", "cosine_similarity". Defaults to ``DistanceType.COSINE_SIMILARITY``.
+            additional_params (Optional[Dict[str, int]]): Additional parameters for the index.
+                - Structure of additional params is:
+                    :"M": Increasing this value will increase the index build time and memory usage but will improve the search accuracy. Defaults to ``16``.
+                    :"efConstruction": Defaults to ``200``.
+                    :"partitions": If tensors contain more than 45M samples, it is recommended to use partitions to create the index. Defaults to ``1``.
+
+        Example:
+            >>> ds = deeplake.load("./test/my_embedding_ds")
+            >>> # create cosine_similarity index on embedding tensor
+            >>> ds.embedding.create_vdb_index(id="hnsw_1", distance=DistanceType.COSINE_SIMILARITY)
+            >>> # create cosine_similarity index on embedding tensor with additional params
+            >>> ds.embedding.create_vdb_index(id="hnsw_1", distance=DistanceType.COSINE_SIMILARITY, additional_params={"M": 32, "partitions": 1, 'efConstruction': 200})
+
+        Notes:
+            Index creation is supported only for embedding tensors.
+
+        Raises:
+            Exception: If the tensor is not an embedding tensor.
+
+        Returns:
+            Index: Returns the index object.
+        """
         self.storage.check_readonly()
         if self.meta.htype != "embedding":
             raise Exception(f"Only supported for embedding tensors.")
