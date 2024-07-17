@@ -47,7 +47,8 @@ class PadEncoder(DeepLakeMemoryObject):
 
     def _unpad(self, global_sample_index: int, idx: int) -> None:
         if (
-            global_sample_index == self._encoded[idx]
+            idx + 1 < len(self._encoded)
+            and global_sample_index == self._encoded[idx]
             and self._encoded[idx] + 1 == self._encoded[idx + 1]
         ):
             self._encoded = np.concatenate(
