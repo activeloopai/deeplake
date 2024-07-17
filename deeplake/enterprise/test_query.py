@@ -28,12 +28,7 @@ def test_query(hub_cloud_ds):
 
 @requires_libdeeplake
 def test_query_on_local_datasets(local_ds, hub_cloud_dev_token):
-
     path = local_ds.path
-    ds = deeplake.empty(path, overwrite=True)
-    ds.create_tensor("label", **disabale_hidden_tensors_config)
-    ds.label.extend([floor(i / 20) for i in range(100)])
-
     ds = deeplake.empty(path, overwrite=True, token=hub_cloud_dev_token)
     ds.create_tensor("label", **disabale_hidden_tensors_config)
     ds.label.extend([floor(i / 20) for i in range(100)])
