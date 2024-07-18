@@ -900,9 +900,7 @@ def build_dataloader(
 
     collate_fn = partial(collate, samples_per_gpu=batch_size)
 
-    decode_method = train_loader_config.get("decode_method") or {
-        images_tensor: "numpy"
-    }
+    decode_method = train_loader_config.get("decode_method") or {images_tensor: "numpy"}
 
     mmseg_ds = MMSegDataset(
         dataset=dataset,
