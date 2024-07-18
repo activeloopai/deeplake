@@ -172,8 +172,7 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
         and hub2_dataset.client
         else hub2_dataset.token
     )
-    if token is None or token == "":
-        raise EmptyTokenException
+
     if hub2_dataset.libdeeplake_dataset is not None:
         libdeeplake_dataset = hub2_dataset.libdeeplake_dataset
     elif isinstance(hub2_dataset.storage.next_storage, IndraProvider):
