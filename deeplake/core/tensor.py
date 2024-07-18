@@ -81,6 +81,8 @@ from deeplake.htype import (
 )
 import warnings
 import webbrowser
+import pathlib
+import struct
 
 
 def create_tensor(
@@ -1530,6 +1532,32 @@ class Tensor:
         """Invalidates the libdeeplake dataset object."""
         self.dataset.libdeeplake_dataset = None
 
+    def deserialize_inverted_index(self, serialized_data):
+        from io import BytesIO
+
+        stream = BytesIO(serialized_data)
+
+        # Read number of partitions
+        metadataSize = int.from_bytes(
+            stream.read(8), "little"
+        )  # Assuming size_t is 8 bytes
+
+        metadata_bytes = stream.read(metadataSize)
+        metadata = json.loads(metadata_bytes.decode("utf-8"))
+
+        temp_paths_size = int.from_bytes(stream.read(8), 'little')
+
+
+
+        paths_string = stream.read().decode('utf-8')
+        temp_serialized_paths = paths_string.strip().split('\n')
+
+        # Check if the declared number of paths match the actual number
+        if temp_paths_size != len(temp_serialized_paths):
+            raise ValueError("Mismatch between declared count and actual number of paths")
+
+        return metadata, temp_serialized_paths
+
     def deserialize_partitions(self, serialized_data, incremental_dml=False):
         from io import BytesIO
 
@@ -1597,8 +1625,6 @@ class Tensor:
         is_partitioned: bool = False,
     ):
         self.storage.check_readonly()
-        if self.meta.htype != "embedding":
-            raise Exception(f"Only supported for embedding tensors.")
         self.invalidate_libdeeplake_dataset()
         self.dataset.flush()
         from deeplake.enterprise.convert_to_libdeeplake import (
@@ -1734,8 +1760,6 @@ class Tensor:
         additional_params: Optional[Dict[str, int]] = None,
     ):
         self.storage.check_readonly()
-        if self.meta.htype != "embedding":
-            raise Exception(f"Only supported for embedding tensors.")
         if not self.dataset.libdeeplake_dataset is None:
             ds = self.dataset.libdeeplake_dataset
         else:
@@ -1746,6 +1770,51 @@ class Tensor:
             ds = dataset_to_libdeeplake(self.dataset)
         ts = getattr(ds, self.meta.name)
         from indra import api  # type: ignore
+
+        if self.meta.htype == "text":
+            self.meta.add_vdb_index(
+                id=id, type="inverted_index", distance=None
+            )
+            try:
+                if additional_params is None:
+                    index = api.vdb.generate_index(
+                        ts, index_type="inverted_index"
+                    )
+                else:
+                    index = api.vdb.generate_index(
+                        ts,
+                        index_type="inverted_index",
+                        param=additional_params,
+                    )
+                b = index.serialize()
+                commit_id = self.version_state["commit_id"]
+                metadata, temp_serialized_paths = self.deserialize_inverted_index(b)
+                inverted_meta_key = get_tensor_vdb_index_key(
+                    self.key, commit_id, f"{id}_inverted_metadata"
+                )
+                metadata_json = json.dumps(metadata)
+                metadata_bytes = metadata_json.encode("utf-8")
+                self.storage[inverted_meta_key] = metadata_bytes
+                temp_serialized_paths_count = len(temp_serialized_paths)
+                temp_serialized_paths = [str(path) for path in temp_serialized_paths]
+                # Pull the file the location specified in the path and store it in the storage
+                for i, path in enumerate(temp_serialized_paths):
+                    # extract the file name from the path which should after last "/"
+                    file_name = pathlib.Path(path).name
+
+                    # read file and store it in the storage
+                    with open(path, "rb") as f:
+                        inv_key = get_tensor_vdb_index_key(self.key, commit_id, f"{id}_{file_name}")
+                        self.storage[inv_key] = f.read()
+                        # close the file
+                        f.close()
+
+                self.invalidate_libdeeplake_dataset()
+                #self.storage.flush()
+            except:
+                self.meta.remove_vdb_index(id=id)
+                raise
+            return index
 
         if type(distance) == DistanceType:
             distance = distance.value
@@ -1795,8 +1864,6 @@ class Tensor:
 
     def delete_vdb_index(self, id: str):
         self.storage.check_readonly()
-        if self.meta.htype != "embedding":
-            raise Exception(f"Only supported for embedding tensors.")
         commit_id = self.version_state["commit_id"]
         self.unload_vdb_index_cache()
         if self.is_partitioned_vdb_index():
@@ -1844,8 +1911,6 @@ class Tensor:
             raise Exception(f"An error occurred while deleting VDB indexes: {e}")
 
     def load_vdb_index(self, id: str):
-        if self.meta.htype != "embedding":
-            raise Exception(f"Only supported for embedding tensors.")
         if not self.meta.contains_vdb_index(id):
             raise ValueError(f"Tensor meta has no vdb index with name '{id}'.")
         if not self.dataset.libdeeplake_dataset is None:
@@ -1866,8 +1931,6 @@ class Tensor:
             raise ValueError(f"An error occurred while loading the VDB index {id}: {e}")
 
     def unload_vdb_index_cache(self):
-        if self.meta.htype != "embedding":
-            raise Exception(f"Only supported for embedding tensors.")
         if not self.dataset.libdeeplake_dataset is None:
             ds = self.dataset.libdeeplake_dataset
         else:
@@ -1886,7 +1949,7 @@ class Tensor:
             raise Exception(f"An error occurred while cleaning VDB Cache: {e}")
 
     def get_vdb_indexes(self) -> List[Dict[str, str]]:
-        if self.meta.htype != "embedding":
+        if self.meta.htype != "embedding" and self.meta.htype != "str":
             raise Exception(f"Only supported for embedding tensors.")
         return self.meta.vdb_indexes
 
