@@ -134,6 +134,12 @@ requires_non_python11 = pytest.mark.skipif(
     reason="These tests require to run on all python vestions lover than 3.11",
 )
 
+disabale_hidden_tensors_config = {
+    "create_sample_info_tensor": False,
+    "create_id_tensor": False,
+    "create_shape_tensor": False,
+}
+
 
 class LinkTransformTestContext:
     def __init__(self, func: Callable, name: str):

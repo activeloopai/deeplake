@@ -70,10 +70,7 @@ class IndraTensorView(tensor.Tensor):
                 return [bs.decode()]
             return list(b.decode() for b in bs)
         except Exception as e:
-            bs = self.indra_tensor.numpy(aslist=True)
-            if self.ndim == 1:
-                return bs[0]
-            return list(b[0] for b in bs)
+            return self.indra_tensor.numpy(aslist=True)
 
     def dict(self, fetch_chunks: bool = False):
         """Return json data. Only applicable for tensors with 'json' base htype."""
@@ -85,10 +82,7 @@ class IndraTensorView(tensor.Tensor):
                 return [json.loads(bs.decode())]
             return list(json.loads(b.decode()) for b in self.indra_tensor.bytes())
         except Exception as e:
-            bs = self.indra_tensor.numpy(aslist=True)
-            if self.ndim == 1:
-                return bs[0]
-            return list(b[0] for b in bs)
+            return self.indra_tensor.numpy(aslist=True)
 
     @property
     def dtype(self):

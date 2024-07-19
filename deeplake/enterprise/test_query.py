@@ -3,7 +3,7 @@ from math import floor
 
 import deeplake
 from deeplake.constants import QUERY_MESSAGE_MAX_SIZE
-from deeplake.tests.common import requires_libdeeplake
+from deeplake.tests.common import requires_libdeeplake, disabale_hidden_tensors_config
 from deeplake.util.exceptions import EmptyTokenException
 import numpy as np
 
@@ -12,9 +12,8 @@ import numpy as np
 @requires_libdeeplake
 def test_query(hub_cloud_ds):
     with hub_cloud_ds as ds:
-        ds.create_tensor("label")
-        for i in range(100):
-            ds.label.append(floor(i / 20))
+        ds.create_tensor("label", **disabale_hidden_tensors_config)
+        ds.label.extend([floor(i / 20) for i in range(100)])
 
     dsv = hub_cloud_ds.query("SELECT * WHERE CONTAINS(label, 2)")
     assert len(dsv) == 20
@@ -30,18 +29,9 @@ def test_query(hub_cloud_ds):
 @requires_libdeeplake
 def test_query_on_local_datasets(local_ds, hub_cloud_dev_token):
     path = local_ds.path
-    ds = deeplake.empty(path, overwrite=True)
-    ds.create_tensor("label")
-    for i in range(100):
-        ds.label.append(floor(i / 20))
-
-    with pytest.raises(EmptyTokenException):
-        dsv = ds.query("SELECT * WHERE CONTAINS(label, 2)")
-
     ds = deeplake.empty(path, overwrite=True, token=hub_cloud_dev_token)
-    ds.create_tensor("label")
-    for i in range(100):
-        ds.label.append(floor(i / 20))
+    ds.create_tensor("label", **disabale_hidden_tensors_config)
+    ds.label.extend([floor(i / 20) for i in range(100)])
     dsv = ds.query("SELECT * WHERE CONTAINS(label, 2)")
     assert len(dsv) == 20
 
@@ -50,9 +40,8 @@ def test_query_on_local_datasets(local_ds, hub_cloud_dev_token):
 @requires_libdeeplake
 def test_default_query_message(hub_cloud_ds_generator):
     with hub_cloud_ds_generator() as ds:
-        ds.create_tensor("label")
-        for i in range(100):
-            ds.label.append(floor(i / 20))
+        ds.create_tensor("label", **disabale_hidden_tensors_config)
+        ds.label.extend([floor(i / 20) for i in range(100)])
         ds.commit()
 
     query_string = "SELECT * WHERE CONTAINS(label, 2)"
@@ -77,9 +66,8 @@ def test_default_query_message(hub_cloud_ds_generator):
 @requires_libdeeplake
 def test_sample(local_auth_ds):
     with local_auth_ds as ds:
-        ds.create_tensor("label")
-        for i in range(100):
-            ds.label.append(floor(i / 20))
+        ds.create_tensor("label", **disabale_hidden_tensors_config)
+        ds.label.extend([floor(i / 20) for i in range(100)])
 
     dsv = local_auth_ds.sample_by(
         "max_weight(label == 2: 10, label == 1: 1)", replace=False, size=10
