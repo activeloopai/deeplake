@@ -198,7 +198,7 @@ from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.enterprise.dataloader import indra_available, dataloader
 from deeplake.enterprise.dummy_dataloader import upcast_array
 from deeplake.integrations.pytorch.dataset import TorchDataset
-from deeplake.integrations.mmdet.mmdet_runners import DeeplakeIterBasedRunner
+from deeplake.integrations.mm.mm_runners import DeeplakeIterBasedRunner
 from deeplake.integrations.mm.mm_common import (
     load_ds_from_cfg,
     get_collect_keys,
@@ -693,7 +693,7 @@ def _train_segmentor(
 
     # check runner
     cfg.custom_imports = dict(
-        imports=["deeplake.integrations.mmdet.mmdet_runners"],
+        imports=["deeplake.integrations.mm.mm_runners"],
         allow_failed_imports=False,
     )
     if cfg.runner.type == "IterBasedRunner":
