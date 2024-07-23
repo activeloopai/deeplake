@@ -430,6 +430,18 @@ def mmseg_subiterable_dataset_eval(
     return self.mmseg_dataset.evaluate(*args, **kwargs)
 
 
+def get_pipeline(cfg, *, name: str, generic_name: str):
+    pipeline = cfg.data[name].get("pipeline", None)
+    if pipeline is None:
+        warnings.warn(
+            f"Warning: The '{name}' data pipeline is missing in the configuration. Attempting to locate in '{generic_name}'."
+        )
+
+        pipeline = cfg.get(generic_name, [])
+
+    return pipeline
+
+
 def transform(
     sample_in,
     images_tensor: str,
@@ -679,11 +691,13 @@ def _train_segmentor(
     else:
         model = build_dp(model, cfg.device, device_ids=cfg.gpu_ids)
 
+    train_pipeline = get_pipeline(cfg, name="train", generic_name="train_pipeline")
+
     data_loader = build_dataloader(
         ds_train,
         train_images_tensor,
         train_masks_tensor,
-        pipeline=cfg.get("train_pipeline", []),
+        pipeline=train_pipeline,
         implementation=dl_impl,
         **train_loader_cfg,
     )
@@ -796,11 +810,13 @@ def _train_segmentor(
                     ds_val, htype="segment_mask", mm_class="gt_semantic_seg"
                 )
 
+        val_pipeline = get_pipeline(cfg, name="val", generic_name="test_pipeline")
+
         val_dataloader = build_dataloader(
             ds_val,
             val_images_tensor,
             val_masks_tensor,
-            pipeline=cfg.get("test_pipeline", []),
+            pipeline=val_pipeline,
             implementation=dl_impl,
             **val_dataloader_args,
         )
