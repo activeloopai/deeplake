@@ -207,6 +207,7 @@ from deeplake.integrations.mm.mm_common import (
     ddp_setup,
     force_cudnn_initialization,
     check_unsupported_functionalities,
+    get_pipeline,
 )
 
 
@@ -428,18 +429,6 @@ def mmseg_subiterable_dataset_eval(
     **kwargs,
 ):
     return self.mmseg_dataset.evaluate(*args, **kwargs)
-
-
-def get_pipeline(cfg, *, name: str, generic_name: str):
-    pipeline = cfg.data[name].get("pipeline", None)
-    if pipeline is None:
-        warnings.warn(
-            f"Warning: The '{name}' data pipeline is missing in the configuration. Attempting to locate in '{generic_name}'."
-        )
-
-        pipeline = cfg.get(generic_name, [])
-
-    return pipeline
 
 
 def transform(
