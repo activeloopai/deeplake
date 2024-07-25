@@ -95,7 +95,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
         "dtype": "Any",
     },
     htype.LIST: {"dtype": "List"},
-    htype.TEXT: {"dtype": "str"},
+    htype.TEXT: {"dtype": "str", "vdb_indexes": []},
     htype.TAG: {"dtype": "List"},
     htype.DICOM: {"sample_compression": "dcm"},
     htype.NIFTI: {},
