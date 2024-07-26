@@ -31,6 +31,7 @@ from deeplake.client.config import (
     SEND_EVENT_SUFFIX,
     UPDATE_SUFFIX,
     GET_PRESIGNED_URL_SUFFIX,
+    GET_BLOB_PRESIGNED_URL_SUFFIX,
     CONNECT_DATASET_SUFFIX,
     REMOTE_QUERY_SUFFIX,
     ORG_PERMISSION_SUFFIX,
@@ -382,6 +383,21 @@ class DeepLakeBackendClient:
             relative_url,
             endpoint=self.endpoint(),
             params={"chunk_path": chunk_path, "expiration": expiration},
+        ).json()
+        presigned_url = response["data"]
+        return presigned_url
+
+    def get_blob_presigned_url(self, org_id, blob_path, creds_key, expiration=3600):
+        relative_url = GET_BLOB_PRESIGNED_URL_SUFFIX.format(org_id)
+        response = self.request(
+            "GET",
+            relative_url,
+            endpoint=self.endpoint(),
+            params={
+                "creds_key": creds_key,
+                "blob_path": blob_path,
+                "expiration": expiration,
+            },
         ).json()
         presigned_url = response["data"]
         return presigned_url

@@ -16,6 +16,7 @@ USE_STAGING_ENVIRONMENT = False
 
 GET_DATASET_CREDENTIALS_SUFFIX = "/api/org/{}/ds/{}/creds"
 GET_PRESIGNED_URL_SUFFIX = "/api/org/{}/ds/{}/chunks/url/presigned"
+GET_BLOB_PRESIGNED_URL_SUFFIX = "/api/org/{}/managed-credentials/blob/url/presigned"
 CREATE_DATASET_SUFFIX = "/api/dataset/create"
 SEND_EVENT_SUFFIX = "/api/event"
 DATASET_SUFFIX = "/api/dataset"
