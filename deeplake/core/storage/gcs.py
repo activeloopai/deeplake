@@ -6,7 +6,7 @@ import os
 import tempfile
 import time
 from typing import Dict, Optional, Tuple, Union
-from datetime import timezone
+from datetime import timezone, datetime
 
 from deeplake.util.path import relpath
 
@@ -239,6 +239,9 @@ class GCloudCredentials:
             return {"json_credentials": json.dumps(token)}
         return {}
 
+    def are_credentials_downscoped(self):
+        return "gcs_oauth_token" in self.token
+
 
 class GCSProvider(StorageProvider):
     """Provider class for using GC storage."""
@@ -321,9 +324,7 @@ class GCSProvider(StorageProvider):
         """
 
         if self.expiration and (
-            True
-            or force
-            or float(self.expiration) < datetime.now(timezone.utc).timestamp()
+            force or float(self.expiration) < datetime.now(timezone.utc).timestamp()
         ):
             client = DeepLakeBackendClient(self.activeloop_token)
             org_id, ds_name = self.tag.split("/")
@@ -562,14 +563,23 @@ class GCSProvider(StorageProvider):
 
         if url is None:
             if self._is_hub_path:
-                client = DeepLakeBackendClient(self.token)  # type: ignore
+                client = DeepLakeBackendClient(self.activeloop_token)  # type: ignore
                 org_id, ds_name = self.tag.split("/")  # type: ignore
                 url = client.get_presigned_url(org_id, ds_name, key)
             else:
-                blob = client_bucket.get_blob(
-                    self._get_path_from_key(key) if not full else key
-                )
-                url = blob.generate_signed_url(datetime.timedelta(seconds=3600))
+                if self.scoped_credentials.are_credentials_downscoped():
+                    client = DeepLakeBackendClient(self.activeloop_token)
+                    url = client.get_blob_presigned_url(
+                        org_id="davidgyulnazaryan",
+                        creds_key="GCS_FED_TEST",
+                        blob_path=f"gcs://{root}",
+                    )
+                else:
+                    blob = client_bucket.get_blob(
+                        self._get_path_from_key(key) if not full else key
+                    )
+                    url = blob.generate_signed_url(datetime.timedelta(seconds=3600))
+
             self._presigned_urls[key] = (url, time.time())
         return url
 
