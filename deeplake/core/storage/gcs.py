@@ -1,4 +1,3 @@
-import datetime
 import posixpath
 import pickle
 import json
@@ -6,7 +5,7 @@ import os
 import tempfile
 import time
 from typing import Dict, Optional, Tuple, Union
-from datetime import timezone, datetime
+from datetime import timezone, datetime, timedelta
 
 from deeplake.util.path import relpath
 
@@ -298,6 +297,8 @@ class GCSProvider(StorageProvider):
             AttributeError,
             NotFound,
         )
+        self.org_id: Optional[str] = None
+        self.creds_key: Optional[str] = None
         self._initialize_provider()
         self._presigned_urls: Dict[str, Tuple[str, float]] = {}
         self.expiration: Optional[str] = None
@@ -360,6 +361,8 @@ class GCSProvider(StorageProvider):
             credentials=self.scoped_credentials.credentials, **kwargs
         )
         self._client_bucket = None
+        self.org_id = self.token.get("org_id", None)
+        self.creds_key = self.token.get("creds_key", None)
 
     @property
     def client_bucket(self):
@@ -541,6 +544,16 @@ class GCSProvider(StorageProvider):
         self._initialize_provider()
 
     def get_presigned_url(self, key, full=False):
+        """
+        Generate a presigned URL for accessing an object in GCS.
+
+        Args:
+            key (str): The key for the object.
+            full (bool): Whether the key is a full path or relative to the root.
+
+        Returns:
+            str: The presigned URL.
+        """
         self._check_update_creds()
         if full:
             root = _remove_protocol_from_path(key)
@@ -570,17 +583,18 @@ class GCSProvider(StorageProvider):
                 if self.scoped_credentials.are_credentials_downscoped():
                     client = DeepLakeBackendClient(self.activeloop_token)
                     url = client.get_blob_presigned_url(
-                        org_id="davidgyulnazaryan",
-                        creds_key="GCS_FED_TEST",
+                        org_id=self.org_id,
+                        creds_key=self.creds_key,
                         blob_path=f"gcs://{root}",
                     )
                 else:
-                    blob = client_bucket.get_blob(
+                    blob = client_bucket.blob(
                         self._get_path_from_key(key) if not full else key
                     )
-                    url = blob.generate_signed_url(datetime.timedelta(seconds=3600))
+                    url = blob.generate_signed_url(expiration=timedelta(hours=1))
 
             self._presigned_urls[key] = (url, time.time())
+
         return url
 
     def get_object_size(self, key: str) -> int:
