@@ -114,7 +114,8 @@ class LinkCreds(DeepLakeMemoryObject):
                 provider = self.storage_providers[key]
                 if isinstance(provider, GCSProvider):
                     return provider
-
+            creds["org_id"] = self.org_id
+            creds["creds_key"] = key
             provider = storage_factory(GCSProvider, "gcs://bucket/path", creds=creds)
         elif provider_type == "azure":
             from deeplake.core.storage.azure import AzureProvider
