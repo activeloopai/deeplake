@@ -189,6 +189,11 @@ class LinkCreds(DeepLakeMemoryObject):
             self.storage_providers[new_creds_key] = self.storage_providers[
                 old_creds_key
             ]
+            from deeplake.core.storage.gcs import GCSProvider
+
+            if isinstance(self.storage_providers[new_creds_key], GCSProvider):
+                self.storage_providers[new_creds_key].creds_key = new_creds_key
+
             del self.storage_providers[old_creds_key]
         return replaced_indices
 

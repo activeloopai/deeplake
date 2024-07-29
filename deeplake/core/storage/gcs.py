@@ -365,6 +365,14 @@ class GCSProvider(StorageProvider):
         self.creds_key = self.token.get("creds_key", None)
 
     @property
+    def creds_key(self) -> Optional[str]:
+        return self._creds_key
+
+    @creds_key.setter
+    def creds_key(self, creds_key: Optional[str]):
+        self._creds_key = creds_key
+
+    @property
     def client_bucket(self):
         if self._client_bucket is None:
             self._client_bucket = self.client.get_bucket(self.bucket)
