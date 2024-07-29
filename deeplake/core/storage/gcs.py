@@ -239,7 +239,7 @@ class GCloudCredentials:
         return {}
 
     def are_credentials_downscoped(self):
-        return "gcs_oauth_token" in self.token
+        return self.token is not None and "gcs_oauth_token" in self.token
 
 
 class GCSProvider(StorageProvider):
