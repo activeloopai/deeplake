@@ -361,8 +361,10 @@ class GCSProvider(StorageProvider):
             credentials=self.scoped_credentials.credentials, **kwargs
         )
         self._client_bucket = None
-        self.org_id = self.token.get("org_id", None)
-        self.creds_key = self.token.get("creds_key", None)
+        # In case the storage provider is used with Managed Credentials
+        if isinstance(self.token, dict):
+            self.org_id = self.token.get("org_id", None)
+            self.creds_key = self.token.get("creds_key", None)
 
     @property
     def creds_key(self) -> Optional[str]:
