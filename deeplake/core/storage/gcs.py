@@ -324,8 +324,12 @@ class GCSProvider(StorageProvider):
         This would only happen for datasets stored on Deep Lake storage for which temporary credentials are generated.
         """
 
-        if hasattr(self, "expiration") and self.expiration and (
-            force or float(self.expiration) < datetime.now(timezone.utc).timestamp()
+        if (
+            hasattr(self, "expiration")
+            and self.expiration
+            and (
+                force or float(self.expiration) < datetime.now(timezone.utc).timestamp()
+            )
         ):
             client = DeepLakeBackendClient(self.activeloop_token)
             org_id, ds_name = self.tag.split("/")
