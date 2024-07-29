@@ -312,7 +312,7 @@ class GCSProvider(StorageProvider):
             token=self.activeloop_token,
             project=self.project,
         )
-        if self.expiration:
+        if hasattr(self, "expiration") and self.expiration:
             sd._set_hub_creds_info(
                 self.hub_path, self.expiration, self.db_engine, self.repository
             )
@@ -324,7 +324,7 @@ class GCSProvider(StorageProvider):
         This would only happen for datasets stored on Deep Lake storage for which temporary credentials are generated.
         """
 
-        if self.expiration and (
+        if hasattr(self, "expiration") and self.expiration and (
             force or float(self.expiration) < datetime.now(timezone.utc).timestamp()
         ):
             client = DeepLakeBackendClient(self.activeloop_token)
