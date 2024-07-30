@@ -230,7 +230,7 @@ from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.integrations.mmdet import mmdet_utils
 from deeplake.enterprise.dataloader import indra_available, dataloader
 from deeplake.integrations.pytorch.dataset import TorchDataset
-from deeplake.integrations.mmdet.mmdet_runners import DeeplakeIterBasedRunner
+from deeplake.integrations.mm.mm_runners import DeeplakeIterBasedRunner
 from deeplake.integrations.mm.mm_common import (
     load_ds_from_cfg,
     get_collect_keys,
@@ -239,6 +239,7 @@ from deeplake.integrations.mm.mm_common import (
     ddp_setup,
     force_cudnn_initialization,
     check_unsupported_functionalities,
+    get_pipeline,
 )
 
 
@@ -1232,13 +1233,15 @@ def _train_detector(
     else:
         model = build_dp(model, cfg.device, device_ids=cfg.gpu_ids)
 
+    train_pipeline = get_pipeline(cfg, name="train", generic_name="train_pipeline")
+
     data_loader = build_dataloader(
         ds_train,  # TO DO: convert it to for loop if we will suport concatting several datasets
         train_images_tensor,
         train_masks_tensor,
         train_boxes_tensor,
         train_labels_tensor,
-        pipeline=cfg.get("train_pipeline", []),
+        pipeline=train_pipeline,
         implementation=dl_impl,
         **train_loader_cfg,
     )
@@ -1247,7 +1250,7 @@ def _train_detector(
     optimizer = build_optimizer(model, cfg.optimizer)
 
     cfg.custom_imports = dict(
-        imports=["deeplake.integrations.mmdet.mmdet_runners"],
+        imports=["deeplake.integrations.mm.mm_runners"],
         allow_failed_imports=False,
     )
     if cfg.runner.type == "IterBasedRunner":
@@ -1368,6 +1371,7 @@ def _train_detector(
                 ) or find_tensor_with_htype(ds_val, "polygon", "gt_masks")
 
         # TODO make sure required tensors are not None.
+        val_pipeline = get_pipeline(cfg, name="val", generic_name="test_pipeline")
 
         val_dataloader = build_dataloader(
             ds_val,
@@ -1375,7 +1379,7 @@ def _train_detector(
             val_masks_tensor,
             val_boxes_tensor,
             val_labels_tensor,
-            pipeline=cfg.get("test_pipeline", []),
+            pipeline=val_pipeline,
             implementation=dl_impl,
             **val_dataloader_args,
         )
