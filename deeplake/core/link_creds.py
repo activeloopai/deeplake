@@ -114,8 +114,9 @@ class LinkCreds(DeepLakeMemoryObject):
                 provider = self.storage_providers[key]
                 if isinstance(provider, GCSProvider):
                     return provider
-
-            provider = storage_factory(GCSProvider, "gcs://bucket/path", **creds)
+            creds["org_id"] = self.org_id
+            creds["creds_key"] = key
+            provider = storage_factory(GCSProvider, "gcs://bucket/path", creds=creds)
         elif provider_type == "azure":
             from deeplake.core.storage.azure import AzureProvider
 
@@ -188,6 +189,11 @@ class LinkCreds(DeepLakeMemoryObject):
             self.storage_providers[new_creds_key] = self.storage_providers[
                 old_creds_key
             ]
+            from deeplake.core.storage.gcs import GCSProvider
+
+            if isinstance(self.storage_providers[new_creds_key], GCSProvider):
+                self.storage_providers[new_creds_key].creds_key = new_creds_key
+
             del self.storage_providers[old_creds_key]
         return replaced_indices
 

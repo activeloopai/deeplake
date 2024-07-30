@@ -123,7 +123,9 @@ class LinkedChunkEngine(ChunkEngine):
         sample_path = self.get_path(global_sample_index)
         sample_creds_key = self.creds_key(global_sample_index)
         storage = None
-        if sample_path.startswith(("gcs://", "gcp://", "s3://", "az://", "azure://")):
+        if sample_path.startswith(
+            ("gcs://", "gcp://", "gs://", "s3://", "az://", "azure://")
+        ):
             provider_type = get_path_type(sample_path)
             storage = self.link_creds.get_storage_provider(
                 sample_creds_key, provider_type

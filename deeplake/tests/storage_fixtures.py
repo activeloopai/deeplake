@@ -96,7 +96,7 @@ def gcs_root_storage(request, gcs_creds):
         pytest.skip(f"{GCS_OPT} flag not set")
         return
 
-    return GCSProvider(PYTEST_GCS_PROVIDER_BASE_ROOT, token=gcs_creds)
+    return GCSProvider(PYTEST_GCS_PROVIDER_BASE_ROOT, creds=gcs_creds)
 
 
 @pytest.fixture
