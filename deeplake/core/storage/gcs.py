@@ -352,6 +352,11 @@ class GCSProvider(StorageProvider):
         from google.cloud import storage  # type: ignore
         from google.api_core import retry  # type: ignore
 
+        # In case the storage provider is used with Managed Credentials
+        if isinstance(self.token, dict):
+            self.org_id = self.token.pop("org_id", None)
+            self.creds_key = self.token.pop("creds_key", None)
+
         self._set_bucket_and_path()
         if not self.token:
             self.token = None
@@ -365,10 +370,6 @@ class GCSProvider(StorageProvider):
             credentials=self.scoped_credentials.credentials, **kwargs
         )
         self._client_bucket = None
-        # In case the storage provider is used with Managed Credentials
-        if isinstance(self.token, dict):
-            self.org_id = self.token.get("org_id", None)
-            self.creds_key = self.token.get("creds_key", None)
 
     @property
     def creds_key(self) -> Optional[str]:

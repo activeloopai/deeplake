@@ -1,5 +1,6 @@
 import os
 import torch
+import warnings
 import mmcv  # type: ignore
 import deeplake as dp
 from deeplake.util.warnings import always_warn
@@ -152,3 +153,15 @@ def check_dataset_augmentation_formats(cfg):
         always_warn(
             "train_dataset is going to be unused. Dataset types like: ConcatDataset, RepeatDataset, ClassBalancedDataset, MultiImageMixDataset are not supported."
         )
+
+
+def get_pipeline(cfg, *, name: str, generic_name: str):
+    pipeline = cfg.data[name].get("pipeline", None)
+    if pipeline is None:
+        warnings.warn(
+            f"Warning: The '{name}' data pipeline is missing in the configuration. Attempting to locate in '{generic_name}'."
+        )
+
+        pipeline = cfg.get(generic_name, [])
+
+    return pipeline
