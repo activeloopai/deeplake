@@ -3617,6 +3617,13 @@ class Dataset:
         ignore_errors: bool,
     ):
         """Saves this view under ".queries" sub directory of same storage."""
+        existing_views = self.get_views()
+        for v in existing_views:
+            if v.id == id:
+                raise DatasetViewSavingError(
+                    f"View with id {id} already exists. Use a different id or delete the existing view."
+                )
+
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
         # creating sub-view of optimized view
