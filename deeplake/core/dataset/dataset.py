@@ -3663,13 +3663,14 @@ class Dataset:
         num_workers: int,
         scheduler: str,
         ignore_errors: bool,
+        overwrite: bool = False,
         **ds_args,
     ):
         """Saves this view at a given dataset path"""
         if os.path.abspath(path) == os.path.abspath(self.path):
             raise DatasetViewSavingError("Rewriting parent dataset is not allowed.")
         try:
-            vds = deeplake.empty(path, **ds_args)
+            vds = deeplake.empty(path, overwrite=overwrite, **ds_args)
         except Exception as e:
             raise DatasetViewSavingError from e
         info = self._get_view_info(id, message, copy)
@@ -3875,6 +3876,7 @@ class Dataset:
                     num_workers,
                     scheduler,
                     ignore_errors,
+                    overwrite,
                     **ds_args,
                 )
         if verbose and self.verbose:
