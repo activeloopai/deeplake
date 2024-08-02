@@ -59,16 +59,24 @@ class DeepLakeBackendClient:
 
         # remove public token, otherwise env var will be ignored
         # we can remove this after a while
-        self.username, self.organizations = self.get_username_and_organizations()
-        if self.username == "public":
+        self._username, self._organizations = self._get_username_and_organizations()
+        if self._username == "public":
             self.token = token or self.get_token()
         else:
-            if get_reporting_config().get("username") != self.username:
-                save_reporting_config(True, username=self.username)
-                set_username(self.username)
+            if get_reporting_config().get("username") != self._username:
+                save_reporting_config(True, username=self._username)
+                set_username(self._username)
 
     def get_token(self):
         return self.auth_context.get_token()
+
+    @property
+    def username(self) -> str:
+        return self._username
+
+    @property
+    def organizations(self) -> [list[str]]:
+        return self._organizations
 
     def request(
         self,
@@ -334,7 +342,7 @@ class DeepLakeBackendClient:
             "PUT", suffix, endpoint=self.endpoint(), json={"basename": new_name}
         )
 
-    def get_username_and_organizations(self) -> (str, list[str]):
+    def _get_username_and_organizations(self) -> (str, list[str]):
         """Get the username plus a list of user organizations from the backend. If user is not authenticated, returns ('public', ['public']).
 
         Returns:
