@@ -3615,8 +3615,17 @@ class Dataset:
         num_workers: int,
         scheduler: str,
         ignore_errors: bool,
+        overwrite: bool = False,
     ):
-        """Saves this view under ".queries" sub directory of same storage."""
+        """Saves this view under ".queries" subdirectory of same storage."""
+        if not overwrite:
+            existing_views = self.get_views()
+            for v in existing_views:
+                if v.id == id:
+                    raise DatasetViewSavingError(
+                        f"View with id {id} already exists. Use a different id or delete the existing view."
+                    )
+
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
         # creating sub-view of optimized view
@@ -3654,13 +3663,14 @@ class Dataset:
         num_workers: int,
         scheduler: str,
         ignore_errors: bool,
+        overwrite: bool = False,
         **ds_args,
     ):
         """Saves this view at a given dataset path"""
         if os.path.abspath(path) == os.path.abspath(self.path):
             raise DatasetViewSavingError("Rewriting parent dataset is not allowed.")
         try:
-            vds = deeplake.empty(path, **ds_args)
+            vds = deeplake.empty(path, overwrite=overwrite, **ds_args)
         except Exception as e:
             raise DatasetViewSavingError from e
         info = self._get_view_info(id, message, copy)
@@ -3678,6 +3688,7 @@ class Dataset:
         scheduler: str = "threaded",
         verbose: bool = True,
         ignore_errors: bool = False,
+        overwrite: bool = False,
         **ds_args,
     ) -> str:
         """Saves a dataset view as a virtual dataset (VDS)
@@ -3713,6 +3724,7 @@ class Dataset:
             scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', and 'processed'. Only applicable if ``optimize=True``. Defaults to 'threaded'.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
             ignore_errors (bool): Skip samples that cause errors while saving views. Only applicable if ``optimize=True``. Defaults to ``False``.
+            overwrite (bool): If true, any existing view with the same id is silently overwritten. If false, an exception is thrown if a view with the same the id exists. Defaults to ``False``.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for :func:`deeplake.dataset()`)
 
         Returns:
@@ -3753,6 +3765,7 @@ class Dataset:
             verbose,
             False,
             ignore_errors,
+            overwrite,
             **ds_args,
         )
 
@@ -3768,6 +3781,7 @@ class Dataset:
         verbose: bool = True,
         _ret_ds: bool = False,
         ignore_errors: bool = False,
+        overwrite: bool = False,
         **ds_args,
     ) -> Union[str, Any]:
         """Saves a dataset view as a virtual dataset (VDS)
@@ -3786,6 +3800,7 @@ class Dataset:
             _ret_ds (bool): If ``True``, the VDS is retured as such without converting it to a view. If ``False``, the VDS path is returned.
                 Default False.
             ignore_errors (bool): Skip samples that cause errors while saving views. Only applicable if ``optimize=True``. Defaults to ``False``.
+            overwrite (bool): If true, any existing view with the same id is silently overwritten. If false, an exception is thrown if a view with the same the id exists. Defaults to ``False``.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `deeplake.dataset()`)
 
         Returns:
@@ -3829,6 +3844,7 @@ class Dataset:
                                     num_workers,
                                     scheduler,
                                     ignore_errors,
+                                    overwrite,
                                 )
                         except ReadOnlyModeError as e:
                             raise ReadOnlyModeError(
@@ -3848,6 +3864,7 @@ class Dataset:
                         num_workers,
                         scheduler,
                         ignore_errors,
+                        overwrite,
                     )
             else:
                 vds = self._save_view_in_path(
@@ -3859,6 +3876,7 @@ class Dataset:
                     num_workers,
                     scheduler,
                     ignore_errors,
+                    overwrite,
                     **ds_args,
                 )
         if verbose and self.verbose:
