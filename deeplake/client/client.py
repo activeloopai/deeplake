@@ -59,14 +59,13 @@ class DeepLakeBackendClient:
 
         # remove public token, otherwise env var will be ignored
         # we can remove this after a while
-        _, orgs = self.get_username_and_organizations()
-        if orgs == ["public"]:
+        self.username, self.organizations = self.get_username_and_organizations()
+        if self.username == "public":
             self.token = token or self.get_token()
         else:
-            username = self.get_user_profile()["name"]
-            if get_reporting_config().get("username") != username:
-                save_reporting_config(True, username=username)
-                set_username(username)
+            if get_reporting_config().get("username") != self.username:
+                save_reporting_config(True, username=self.username)
+                set_username(self.username)
 
     def get_token(self):
         return self.auth_context.get_token()
@@ -335,12 +334,13 @@ class DeepLakeBackendClient:
             "PUT", suffix, endpoint=self.endpoint(), json={"basename": new_name}
         )
 
-    def get_username_and_organizations(self):
-        """Get list of user organizations from the backend. If user is not authenticated, returns ['public'].
+    def get_username_and_organizations(self) -> (str, list[str]):
+        """Get the username plus a list of user organizations from the backend. If user is not authenticated, returns ('public', ['public']).
 
         Returns:
-            list: user/organization names
+            (str, list[str]): user + organization namess
         """
+
         if self.auth_context.is_public_user():
             return "public", ["public"]
 
@@ -352,8 +352,7 @@ class DeepLakeBackendClient:
     def get_workspace_datasets(
         self, workspace: str, suffix_public: str, suffix_user: str
     ):
-        _, organizations = self.get_username_and_organizations()
-        if workspace in organizations:
+        if workspace in self.organizations:
             response = self.request(
                 "GET",
                 suffix_user,
