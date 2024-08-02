@@ -59,7 +59,7 @@ class DeepLakeBackendClient:
 
         # remove public token, otherwise env var will be ignored
         # we can remove this after a while
-        orgs = self.get_user_organizations()
+        _, orgs = self.get_username_and_organizations()
         if orgs == ["public"]:
             self.token = token or self.get_token()
         else:
@@ -335,24 +335,24 @@ class DeepLakeBackendClient:
             "PUT", suffix, endpoint=self.endpoint(), json={"basename": new_name}
         )
 
-    def get_user_organizations(self):
+    def get_username_and_organizations(self):
         """Get list of user organizations from the backend. If user is not authenticated, returns ['public'].
 
         Returns:
             list: user/organization names
         """
         if self.auth_context.is_public_user():
-            return ["public"]
+            return "public", ["public"]
 
         response = self.request(
             "GET", GET_USER_PROFILE, endpoint=self.endpoint()
         ).json()
-        return response["organizations"]
+        return response["_id"], response["organizations"]
 
     def get_workspace_datasets(
         self, workspace: str, suffix_public: str, suffix_user: str
     ):
-        organizations = self.get_user_organizations()
+        _, organizations = self.get_username_and_organizations()
         if workspace in organizations:
             response = self.request(
                 "GET",

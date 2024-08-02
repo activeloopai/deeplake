@@ -351,10 +351,8 @@ class Dataset:
         if not self.token:
             return "public"
 
-        try:
-            return jwt.decode(self.token, options={"verify_signature": False})["id"]
-        except DecodeError:
-            return "public"
+        username, _ = self.client.get_username_and_organizations()
+        return username
 
     @property
     def num_samples(self) -> int:
