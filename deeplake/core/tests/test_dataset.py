@@ -3,6 +3,7 @@ import traceback
 
 import numpy as np
 import pytest
+import jwt
 
 import deeplake
 from deeplake.client.config import DEEPLAKE_AUTH_TOKEN
@@ -36,6 +37,16 @@ def test_token_and_username(hub_cloud_dev_token):
     )
     assert ds.token == "invalid_value"
     assert ds.username == "public"
+
+    # valid tokens that are formatted oddly come through as "public"
+    ds = Dataset(
+        token=jwt.encode({"x": "unused"}, None, algorithm="none"),
+        storage=LRUCache(
+            cache_storage=MemoryProvider(), cache_size=0, next_storage=MemoryProvider()
+        ),
+    )
+    assert ds.username == "public"
+
 
     # valid tokens come through correctly
     ds = Dataset(

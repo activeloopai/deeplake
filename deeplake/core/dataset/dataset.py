@@ -353,7 +353,7 @@ class Dataset:
 
         try:
             return jwt.decode(self.token, options={"verify_signature": False})["id"]
-        except DecodeError:
+        except:
             return "public"
 
     @property
