@@ -101,7 +101,18 @@ class DHBase(ABC):
 
     @property
     def username(self) -> str:
-        return self.dataset.username
+        if self.dataset:
+            return self.dataset.username
+
+        username = "public"
+        if self.token is not None:
+            try:
+                username = jwt.decode(self.token, options={"verify_signature": False})[
+                    "id"
+                ]
+            except Exception:
+                pass
+        return username
 
     @abstractmethod
     def add(

@@ -1,6 +1,6 @@
 import deeplake
 import requests  # type: ignore
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, Tuple
 from deeplake.util.exceptions import (
     AgreementNotAcceptedError,
     AuthorizationException,
@@ -75,7 +75,7 @@ class DeepLakeBackendClient:
         return self._username
 
     @property
-    def organizations(self) -> [list[str]]:
+    def organizations(self) -> list[str]:
         return self._organizations
 
     def request(
@@ -342,7 +342,7 @@ class DeepLakeBackendClient:
             "PUT", suffix, endpoint=self.endpoint(), json={"basename": new_name}
         )
 
-    def _get_username_and_organizations(self) -> (str, list[str]):
+    def _get_username_and_organizations(self) -> Tuple[str, list[str]]:
         """Get the username plus a list of user organizations from the backend. If user is not authenticated, returns ('public', ['public']).
 
         Returns:
