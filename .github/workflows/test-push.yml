@@ -154,7 +154,7 @@ jobs:
     name: Check Python ${{ matrix.python-version }}
     needs: setup
     runs-on: ${{ matrix.os }}
-    if: github.repository == 'activeloopai/deeplake' && !(github.ref_name == 'main' || startsWith( github.ref_name, 'release/' )) && contains(github.event.pull_request.labels.*.name, 'full-tests')
+    if: github.repository == 'activeloopai/deeplake' && !(github.ref_name == 'main' || startsWith( github.ref_name, 'release/' )) && !contains(github.event.pull_request.labels.*.name, 'full-tests')
     strategy:
       fail-fast: false
       matrix:
