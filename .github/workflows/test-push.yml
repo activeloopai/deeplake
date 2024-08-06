@@ -149,3 +149,45 @@ jobs:
       oauth_client_secret: ${{ secrets.GDRIVE_CLIENT_SECRET }}
       oauth_refresh_token: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
       sonar_token: ${{ secrets.SONAR_TOKEN }}
+
+  version-test:
+    name: Check Python ${{ matrix.python-version }}
+    needs: setup
+    runs-on: ${{ matrix.os }}
+    if: github.repository == 'activeloopai/deeplake' && !(github.ref_name == 'main' || startsWith( github.ref_name, 'release/' )) && contains(github.event.pull_request.labels.*.name, 'full-tests')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest"]
+        python-version: [3.8, 3.9, 3.10, 3.11, 3.12]
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.repo }}
+          ref: ${{ inputs.ref }}
+          token: ${{ secrets.token }}
+          fetch-depth: 0
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: deeplake/requirements/*.txt
+
+      - name: Install requirements
+        run: |
+          pip3 install --upgrade pip --user
+          pip3 install --upgrade setuptools
+          pip3 install -r deeplake/requirements/common.txt
+          pip3 install -r deeplake/requirements/tests.txt
+          pip3 install -e .[all]          
+
+      - name: Run fast tests
+        id: fast-tests
+        timeout-minutes: 30
+        run: |
+          python -m pytest --local -m "not slow and not flaky" --timeout=60
+        env:
+          DEEPLAKE_PYTEST_ENABLED: true
