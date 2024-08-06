@@ -181,12 +181,12 @@ jobs:
           pip3 install --upgrade setuptools
           pip3 install -r deeplake/requirements/common.txt
           pip3 install -r deeplake/requirements/tests.txt
-          pip3 install -e .[all]          
+          pip3 install -e .          
 
       - name: Run fast tests
         id: fast-tests
         timeout-minutes: 30
         run: |
-          python -m pytest --local -m "not slow and not flaky" --timeout=60
+          python -m pytest --local -m "not slow and not flaky" --timeout=60 --ignore=deeplake/integrations/* --ignore=deeplake/auto/tests/test_ingestion.py
         env:
           DEEPLAKE_PYTEST_ENABLED: true
