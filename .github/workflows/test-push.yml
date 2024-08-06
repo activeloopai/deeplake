@@ -166,7 +166,6 @@ jobs:
         with:
           repository: ${{ inputs.repo }}
           ref: ${{ inputs.ref }}
-          token: ${{ secrets.token }}
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
