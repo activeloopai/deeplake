@@ -94,6 +94,8 @@ def _get_indra_ds_from_gcp_provider(
             "endpoint_override": creds.get("endpoint_override", ""),
             "scheme": creds.get("scheme", ""),
             "retry_limit_seconds": creds.get("retry_limit_seconds", ""),
+            "gcs_oauth_token": creds.get("gcs_oauth_token", ""),
+            "project_id": creds.get("project_id", ""),
         }.items()
         if v != ""
     }
