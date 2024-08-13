@@ -1547,8 +1547,6 @@ class Tensor:
 
         temp_paths_size = int.from_bytes(stream.read(8), 'little')
 
-
-
         paths_string = stream.read().decode('utf-8')
         temp_serialized_paths = paths_string.strip().split('\n')
 
@@ -1606,6 +1604,8 @@ class Tensor:
         return partition_info, partitions_data, incr_info
 
     def is_partitioned_vdb_index(self):
+        if self.htype != "embedding":
+            return False
         vdb_indexes = self.get_vdb_indexes()
         if len(vdb_indexes) == 0:
             return False
@@ -1616,6 +1616,16 @@ class Tensor:
                 and vdb_index["additional_params"]["partitions"] > 1
             ):
                 return True
+        return False
+
+    def is_inverted_index(self):
+        if self.htype == "text":
+            vdb_indexes = self.get_vdb_indexes()
+            if len(vdb_indexes) == 0:
+                return False
+            for vdb_index in vdb_indexes:
+                if vdb_index["type"] == "inverted_index":
+                    return True
         return False
 
     def update_vdb_index(
@@ -1887,6 +1897,30 @@ class Tensor:
                     f"{id}_partition_metadata",
                 )
             )
+        elif self.is_inverted_index():
+            metadata_file = self.storage[
+                get_tensor_vdb_index_key(
+                    self.key,
+                    self.version_state["commit_id"],
+                    f"{id}_inverted_metadata",
+                )
+            ]
+            metadata = json.loads(metadata_file.decode("utf-8"))
+            segment_names = list(metadata.keys())
+            # print("Parsed metadata type:", type(metadata))
+            # print("Parsed metadata content:", metadata)
+            for name in segment_names:
+                partition_key = get_tensor_vdb_index_key(
+                    self.key, self.version_state["commit_id"], f"{id}_inv_{name}"
+                )
+                self.storage.pop(partition_key)
+            self.storage.pop(
+                get_tensor_vdb_index_key(
+                    self.key,
+                    self.version_state["commit_id"],
+                    f"{id}_inverted_metadata",
+                )
+            )
         else:
             self.storage.pop(get_tensor_vdb_index_key(self.key, commit_id, id))
 
@@ -1949,8 +1983,8 @@ class Tensor:
             raise Exception(f"An error occurred while cleaning VDB Cache: {e}")
 
     def get_vdb_indexes(self) -> List[Dict[str, str]]:
-        if self.meta.htype != "embedding" and self.meta.htype != "str":
-            raise Exception(f"Only supported for embedding tensors.")
+        if self.meta.htype != "embedding" and self.meta.htype != "text":
+            raise Exception(f"Only supported for embedding and text tensors.")
         return self.meta.vdb_indexes
 
     def fetch_vdb_indexes(self) -> List[Dict[str, str]]:
