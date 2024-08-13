@@ -40,6 +40,7 @@ def validate_embedding_tensor(tensor):
         or tensor.key in valid_names
     )
 
+
 def validate_text_tensor(tensor):
     """Check if a tensor is an embedding tensor."""
 
@@ -58,6 +59,7 @@ def fetch_embedding_tensor(dataset):
         if validate_embedding_tensor(tensor):
             return tensor
     return None
+
 
 def fetch_text_tensor(dataset):
     tensors = dataset.tensors
@@ -156,6 +158,7 @@ def check_index_params(self):
             return True
 
     return False
+
 
 def check_index_params_text(self):
     txt_tensor = fetch_text_tensor(self.dataset)

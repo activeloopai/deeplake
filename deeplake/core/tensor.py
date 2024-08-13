@@ -1545,14 +1545,16 @@ class Tensor:
         metadata_bytes = stream.read(metadataSize)
         metadata = json.loads(metadata_bytes.decode("utf-8"))
 
-        temp_paths_size = int.from_bytes(stream.read(8), 'little')
+        temp_paths_size = int.from_bytes(stream.read(8), "little")
 
-        paths_string = stream.read().decode('utf-8')
-        temp_serialized_paths = paths_string.strip().split('\n')
+        paths_string = stream.read().decode("utf-8")
+        temp_serialized_paths = paths_string.strip().split("\n")
 
         # Check if the declared number of paths match the actual number
         if temp_paths_size != len(temp_serialized_paths):
-            raise ValueError("Mismatch between declared count and actual number of paths")
+            raise ValueError(
+                "Mismatch between declared count and actual number of paths"
+            )
 
         return metadata, temp_serialized_paths
 
@@ -1782,14 +1784,10 @@ class Tensor:
         from indra import api  # type: ignore
 
         if self.meta.htype == "text":
-            self.meta.add_vdb_index(
-                id=id, type="inverted_index", distance=None
-            )
+            self.meta.add_vdb_index(id=id, type="inverted_index", distance=None)
             try:
                 if additional_params is None:
-                    index = api.vdb.generate_index(
-                        ts, index_type="inverted_index"
-                    )
+                    index = api.vdb.generate_index(ts, index_type="inverted_index")
                 else:
                     index = api.vdb.generate_index(
                         ts,
@@ -1814,13 +1812,15 @@ class Tensor:
 
                     # read file and store it in the storage
                     with open(path, "rb") as f:
-                        inv_key = get_tensor_vdb_index_key(self.key, commit_id, f"{id}_{file_name}")
+                        inv_key = get_tensor_vdb_index_key(
+                            self.key, commit_id, f"{id}_{file_name}"
+                        )
                         self.storage[inv_key] = f.read()
                         # close the file
                         f.close()
 
                 self.invalidate_libdeeplake_dataset()
-                #self.storage.flush()
+                # self.storage.flush()
             except:
                 self.meta.remove_vdb_index(id=id)
                 raise
