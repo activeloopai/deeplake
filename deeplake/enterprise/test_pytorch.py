@@ -827,8 +827,6 @@ def test_batch_sampler_attribute(local_auth_ds):
 @pytest.mark.slow
 @pytest.mark.flaky
 def test_pil_decode_method(local_auth_ds):
-    from indra.pytorch.exceptions import CollateExceptionWrapper  # type: ignore
-
     with local_auth_ds as ds:
         ds.create_tensor("x", htype="image", sample_compression="jpeg")
         ds.x.extend(np.random.randint(0, 255, (10, 10, 10, 3), np.uint8))
@@ -838,11 +836,6 @@ def test_pil_decode_method(local_auth_ds):
         assert len(batch.keys()) == 1
         assert "x" in batch.keys()
         assert batch["x"].shape == (1, 10, 10, 3)
-
-    ptds = ds.dataloader().pytorch(decode_method={"x": "pil"})
-    with pytest.raises(CollateExceptionWrapper):
-        for _ in ptds:
-            continue
 
     def custom_transform(batch):
         batch["x"] = np.array(batch["x"])

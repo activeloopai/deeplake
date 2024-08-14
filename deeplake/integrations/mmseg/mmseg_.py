@@ -198,7 +198,7 @@ from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.enterprise.dataloader import indra_available, dataloader
 from deeplake.enterprise.dummy_dataloader import upcast_array
 from deeplake.integrations.pytorch.dataset import TorchDataset
-from deeplake.integrations.mmdet.mmdet_runners import DeeplakeIterBasedRunner
+from deeplake.integrations.mm.mm_runners import DeeplakeIterBasedRunner
 from deeplake.integrations.mm.mm_common import (
     load_ds_from_cfg,
     get_collect_keys,
@@ -207,6 +207,7 @@ from deeplake.integrations.mm.mm_common import (
     ddp_setup,
     force_cudnn_initialization,
     check_unsupported_functionalities,
+    get_pipeline,
 )
 
 
@@ -679,11 +680,13 @@ def _train_segmentor(
     else:
         model = build_dp(model, cfg.device, device_ids=cfg.gpu_ids)
 
+    train_pipeline = get_pipeline(cfg, name="train", generic_name="train_pipeline")
+
     data_loader = build_dataloader(
         ds_train,
         train_images_tensor,
         train_masks_tensor,
-        pipeline=cfg.get("train_pipeline", []),
+        pipeline=train_pipeline,
         implementation=dl_impl,
         **train_loader_cfg,
     )
@@ -693,7 +696,7 @@ def _train_segmentor(
 
     # check runner
     cfg.custom_imports = dict(
-        imports=["deeplake.integrations.mmdet.mmdet_runners"],
+        imports=["deeplake.integrations.mm.mm_runners"],
         allow_failed_imports=False,
     )
     if cfg.runner.type == "IterBasedRunner":
@@ -796,11 +799,13 @@ def _train_segmentor(
                     ds_val, htype="segment_mask", mm_class="gt_semantic_seg"
                 )
 
+        val_pipeline = get_pipeline(cfg, name="val", generic_name="test_pipeline")
+
         val_dataloader = build_dataloader(
             ds_val,
             val_images_tensor,
             val_masks_tensor,
-            pipeline=cfg.get("test_pipeline", []),
+            pipeline=val_pipeline,
             implementation=dl_impl,
             **val_dataloader_args,
         )
@@ -900,9 +905,7 @@ def build_dataloader(
 
     collate_fn = partial(collate, samples_per_gpu=batch_size)
 
-    decode_method = train_loader_config.get("decode_method") or {
-        "images_tensor": "numpy"
-    }
+    decode_method = train_loader_config.get("decode_method") or {images_tensor: "numpy"}
 
     mmseg_ds = MMSegDataset(
         dataset=dataset,

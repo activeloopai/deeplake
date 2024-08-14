@@ -101,6 +101,9 @@ class DHBase(ABC):
 
     @property
     def username(self) -> str:
+        if self.dataset:
+            return self.dataset.username
+
         username = "public"
         if self.token is not None:
             try:

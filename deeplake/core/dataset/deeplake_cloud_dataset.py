@@ -47,6 +47,10 @@ class DeepLakeCloudDataset(Dataset):
         return self._client
 
     @property
+    def username(self):
+        return self.client.username
+
+    @property
     def is_actually_cloud(self) -> bool:
         """Datasets that are connected to Deep Lake cloud can still technically be stored anywhere.
         If a dataset is in Deep Lake cloud but stored without ``hub://`` prefix, it should only be used for testing.

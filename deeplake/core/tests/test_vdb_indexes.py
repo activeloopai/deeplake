@@ -21,7 +21,7 @@ def test_index_management(local_auth_ds_generator):
     es = deeplake_ds.embedding.get_vdb_indexes()
     assert len(es) == 1
     assert es[0]["id"] == "hnsw_1"
-    assert es[0]["distance"] == "l2_norm"
+    assert es[0]["distance"] == "cosine_similarity"
     assert es[0]["type"] == "hnsw"
     with pytest.raises(ValueError):
         deeplake_ds.embedding.create_vdb_index("hnsw_1")

@@ -152,7 +152,11 @@ def test_sub_sample_view_save(optimize, idx_subscriptable, compressed_image_path
         view.save_view(optimize=optimize)
     ds.commit()
     ds.save_view(optimize=optimize, id=id)
-    view.save_view(optimize=optimize, id=id)  # test overwrite
+
+    with pytest.raises(DatasetViewSavingError):
+        ds.save_view(optimize=optimize, id=id)
+
+    view.save_view(optimize=optimize, id=id, overwrite=True)  # test overwrite
     assert len(ds.get_views()) == 1
     view2 = ds.get_views()[0].load()
     np.testing.assert_array_equal(view.x.numpy(), view2.x.numpy())

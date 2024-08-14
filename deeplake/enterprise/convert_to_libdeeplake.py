@@ -84,26 +84,26 @@ def _get_indra_ds_from_gcp_provider(
 
     api = import_indra_api()
     creds = provider.get_creds()
-    anon = creds.get("anon", "")
-    expiration = creds.get("expiration", "")
-    access_token = creds.get("access_token", "")
-    json_credentials = creds.get("json_credentials", "")
-    endpoint_override = creds.get("endpoint_override", "")
-    scheme = creds.get("scheme", "")
-    retry_limit_seconds = creds.get("retry_limit_seconds", "")
+    creds_dict = {
+        k: v
+        for k, v in {
+            "anon": creds.get("anon", ""),
+            "expiration": creds.get("expiration", ""),
+            "access_token": creds.get("access_token", ""),
+            "json_credentials": creds.get("json_credentials", ""),
+            "endpoint_override": creds.get("endpoint_override", ""),
+            "scheme": creds.get("scheme", ""),
+            "retry_limit_seconds": creds.get("retry_limit_seconds", ""),
+        }.items()
+        if v != ""
+    }
 
     storage = IndraProvider(
         path,
         read_only=provider.read_only,
         token=token,
         origin_path=provider.root,
-        anon=anon,
-        expiration=expiration,
-        access_token=access_token,
-        json_credentials=json_credentials,
-        endpoint_override=endpoint_override,
-        scheme=scheme,
-        retry_limit_seconds=retry_limit_seconds,
+        **creds_dict,
     )
     return _get_indra_ds_from_native_provider(storage)
 
@@ -172,8 +172,7 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
         and hub2_dataset.client
         else hub2_dataset.token
     )
-    if token is None or token == "":
-        raise EmptyTokenException
+
     if hub2_dataset.libdeeplake_dataset is not None:
         libdeeplake_dataset = hub2_dataset.libdeeplake_dataset
     elif isinstance(hub2_dataset.storage.next_storage, IndraProvider):

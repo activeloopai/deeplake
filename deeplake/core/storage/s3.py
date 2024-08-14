@@ -6,6 +6,7 @@ import boto3
 import botocore  # type: ignore
 import posixpath
 import ssl
+import urllib3
 from typing import Dict, Optional, Tuple, Type, Any
 from datetime import datetime, timezone
 from botocore.session import ComponentLocator
@@ -43,6 +44,7 @@ CONNECTION_ERRORS = (
     IncompleteReadError,
     SSLError,
     ssl.SSLError,
+    urllib3.exceptions.SSLError,
 )
 
 try:

@@ -1,10 +1,6 @@
 import deeplake
 import numpy as np
 from deeplake.tests.common import requires_libdeeplake, disabale_hidden_tensors_config
-from deeplake.util.exceptions import (
-    DynamicTensorNumpyError,
-    EmptyTokenException,
-)
 
 from deeplake.core.dataset.indra_dataset_view import IndraDatasetView
 import random
@@ -80,21 +76,6 @@ def test_save_view(local_auth_ds_generator):
         deeplake_indra_ds.base_storage["queries.json"]
         == deeplake_ds.base_storage["queries.json"]
     )
-
-
-@requires_libdeeplake
-def test_empty_token_exception(local_auth_ds):
-    from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
-
-    with local_auth_ds:
-        local_auth_ds.create_tensor(
-            "label", htype="generic", dtype=np.int32, **disabale_hidden_tensors_config
-        )
-
-    loaded = deeplake.load(local_auth_ds.path, token="")
-
-    with pytest.raises(EmptyTokenException):
-        dss = dataset_to_libdeeplake(loaded)
 
 
 @requires_libdeeplake
