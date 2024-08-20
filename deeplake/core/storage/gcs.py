@@ -633,7 +633,11 @@ class GCSProvider(StorageProvider):
             raise KeyError(path)
 
     def get_creds(self):
-        d = self.scoped_credentials.get_token_info()
+        if self.scoped_credentials.are_credentials_downscoped:
+            d = self.scoped_credentials.token
+        else:
+            d = self.scoped_credentials.get_token_info()
+
         d["expiration"] = (
             self.expiration if hasattr(self, "expiration") and self.expiration else ""
         )
