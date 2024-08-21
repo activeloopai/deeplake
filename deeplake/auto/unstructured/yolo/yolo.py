@@ -17,6 +17,8 @@ from random import shuffle as rshuffle
 
 import tqdm
 
+import warnings
+
 from .constants import (
     DEFAULT_YOLO_COORDINATES_TENSOR_PARAMS,
     DEFAULT_YOLO_LABEL_TENSOR_PARAMS,
@@ -28,20 +30,26 @@ class YoloExport:
     def __init__(
         self,
         src_ds: Dataset,
-        images_folder=str,
-        annotations_folder=str,
+        directory=str,
         box_tensor=None,
         label_tensor=None,
         image_tensor=None,
         progressbar=True,
     ):
+        """Container exporting Deep Lake dataset in YOLO format."""
+
         self.src_ds = src_ds
-        self.images_folder = images_folder
-        self.annotations_folder = annotations_folder
+        self.directory = Path(directory)
+        self.image_directory = self.directory / Path("images")
+        self.annotation_directory = self.directory / Path("annotations")
+
+        self.image_directory.mkdir(parents=True, exist_ok=True)
+        self.annotation_directory.mkdir(parents=True, exist_ok=True)
+
         self.progressbar = progressbar
 
         if box_tensor is None and label_tensor is None and image_tensor is None:
-            image_tensor, label_tensor, box_tensor = self.find_yolo_tensors()
+            image_tensor, label_tensor, box_tensor = self._find_yolo_tensors()
 
         self.box_tensor = box_tensor
         self.label_tensor = label_tensor
@@ -54,8 +62,26 @@ class YoloExport:
         )
 
     def export_data(self):
+
+        class_names = self.src_ds[self.label_tensor].info.get("class_names")
+
+        if not class_names:
+            raise ValueError("Class names are not defined in the Deep Lake dataset")
+
+        with open(self.directory / Path("classes.names"), "w") as f:
+            for i, name in enumerate(class_names):
+                f.write(f"{name}\n")
+
+        box_format = self.src_ds[self.box_tensor].info.get("coords")
+
+        # Warn about format if not specified
+        if not box_format:
+            warnings.warn(
+                f"The format of the bouding boxes is not specified in the Deep Lake dataset. The bounding box coordinates will be exported to YOLO as-is, and they will not be checked for correctness."
+            )
+
         progress = (
-            tqdm.tqdm(enumerate(self.src_ds))
+            tqdm.tqdm(enumerate(self.src_ds), desc="Exporting data in YOLO format.")
             if self.progressbar
             else enumerate(self.src_ds)
         )
@@ -66,13 +92,15 @@ class YoloExport:
             label_array = sample[self.label_tensor].numpy(fetch_chunks=True)
 
             with open(
-                Path(self.images_folder)
+                Path(self.image_directory)
                 / Path(str(i) + "." + self.export_image_compression),
                 "wb",
             ) as f:
                 f.write(image)
 
-            with open(Path(self.annotations_folder) / Path(str(i) + ".txt"), "w") as f:
+            with open(
+                Path(self.annotation_directory) / Path(str(i) + ".txt"), "w"
+            ) as f:
                 for box, label in zip(box_array, label_array):
                     f.write(f"{label} {' '.join(map(str, box))}\n")
 
@@ -89,18 +117,30 @@ class YoloExport:
                 image_tensors.append(k)
 
         if len(box_tensors) == 0:
-            raise ValueError("No bounding box tensors found in the dataset.")
+            raise ValueError(
+                "Cannot export data in Yolo Format because no bounding box tensors were found in the dataset."
+            )
         if len(label_tensors) == 0:
-            raise ValueError("No label tensors found in the dataset.")
+            raise ValueError(
+                "Cannot export data in Yolo Format because no class_label tensors were found in the dataset."
+            )
         if len(image_tensors) == 0:
-            raise ValueError("No image tensors found in the dataset.")
+            raise ValueError(
+                "Cannot export data in Yolo Format because no image tensors were found in the dataset."
+            )
 
         if len(box_tensors) > 1:
-            raise ValueError("Multiple bounding box tensors found in the dataset.")
+            raise ValueError(
+                "Cannot export data in Yolo Format because multiple bounding box tensors found in the dataset."
+            )
         if len(label_tensors) > 1:
-            raise ValueError("Multiple label tensors found in the dataset.")
+            raise ValueError(
+                "Cannot export data in Yolo Format because multiple label tensors found in the dataset."
+            )
         if len(image_tensors) > 1:
-            raise ValueError("Multiple image tensors found in the dataset.")
+            raise ValueError(
+                "Cannot export data in Yolo Format because multiple image tensors found in the dataset."
+            )
 
         return image_tensors[0], label_tensors[0], box_tensors[0]
 

@@ -2172,8 +2172,7 @@ class dataset:
     @staticmethod
     def export_yolo(
         src: Union[str, pathlib.Path, Dataset],
-        images_folder=Union[str, pathlib.Path],
-        annotations_folder=Union[str, pathlib.Path],
+        dest: Union[str, pathlib.Path],
         src_creds=None,
         token=None,
         progressbar=True,
@@ -2181,62 +2180,53 @@ class dataset:
         label_tensor=None,
         image_tensor=None,
     ):
-        """Export Deep Lake dataset to files in YOLO format.
+        """Export Deep Lake dataset as files in YOLO format. The dataset must contain 1 tensor with each of the following htypes: image, bbox, and class_label.
 
         Examples:
 
-            >>> # Ingest data from a DataFrame into a Deep Lake dataset stored in Deep Lake storage.
-            >>> ds = deeplake.ingest_dataframe(
-            >>>     df,
-            >>>     dest="hub://org_id/dataset",
-            >>> )
-            >>> # Ingest data from a DataFrame into a Deep Lake dataset stored in Deep Lake storage. The filenames in `df_column_with_cloud_paths` will be used as the filenames for loading data into the dataset.
-            >>> ds = deeplake.ingest_dataframe(
-            >>>     df,
-            >>>     dest="hub://org_id/dataset",
-            >>>     column_params={"df_column_with_cloud_paths": {"name": "images", "htype": "image"}},
-            >>>     src_creds=aws_creds
-            >>> )
-            >>> # Ingest data from a DataFrame into a Deep Lake dataset stored in Deep Lake storage. The filenames in `df_column_with_cloud_paths` will be used as the filenames for linked data in the dataset.
-            >>> ds = deeplake.ingest_dataframe(
-            >>>     df,
-            >>>     dest="hub://org_id/dataset",
-            >>>     column_params={"df_column_with_cloud_paths": {"name": "image_links", "htype": "link[image]"}},
-            >>>     creds_key="my_s3_managed_credentials"
-            >>> )
-            >>> # Ingest data from a DataFrame into a Deep Lake dataset stored in your cloud, and connect that dataset to the Deep Lake backend. The filenames in `df_column_with_cloud_paths` will be used as the filenames for linked data in the dataset.
-            >>> ds = deeplake.ingest_dataframe(
-            >>>     df,
-            >>>     dest="s3://bucket/dataset_name",
-            >>>     column_params={"df_column_with_cloud_paths": {"name": "image_links", "htype": "link[image]"}},
-            >>>     creds_key="my_s3_managed_credentials"
-            >>>     connect_kwargs={"creds_key": "my_s3_managed_credentials", "org_id": "org_id"},
-            >>> )
+            >>> # Export a Deep Lake dataset in YOLO format from Deep Lake dataset path
+            >>> deeplake.export_yolo("hub://<org_id>/<dataset_name>", "./path/to/export/directory")
+            >>>
+            >>> # Export a Deep Lake dataset in YOLO format from Deep Lake dataset view
+            >>> ds = deeplake.load("hub://<org_id>/<dataset_name>")
+            >>> view = ds[0:100]
+            >>> deeplake.export_yolo(view, "./path/to/export/directory")
+            >>>
 
         Args:
             src (pd.DataFrame): The pandas dataframe to be converted.
-            dest (str, pathlib.Path):
+            dest (str, pathlib.Path, Dataset:
                 - A Dataset or The full path to the dataset. Can be:
                 - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            column_params (Optional[Dict]): A dictionary containing parameters for the tensors corresponding to the dataframe columns.
             src_creds (Optional[Union[str, Dict]]): Credentials to access the source data. If not provided, will be inferred from the environment.
-            dest_creds (Optional[Union[str, Dict]]): The string ``ENV`` or a dictionary containing credentials used to access the destination path of the dataset.
-            creds_key (Optional[str]): creds_key for linked tensors, applicable if the htype any tensor is specified as 'link[...]' in the 'column_params' input.
-            progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
+            progressbar (bool): Enables or disables export progress bar. Set to ``True`` by default.
             token (Optional[str]): The token to use for accessing the dataset.
-            connect_kwargs (Optional[Dict]): A dictionary containing arguments to be passed to the dataset connect method. See :meth:`Dataset.connect`.
-            indra (bool): Flag indicating whether indra api should be used to create the dataset. Defaults to false
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
         Returns:
-            Dataset: New dataset created from the dataframe.
+            None
 
         Raises:
-            Exception: If ``src`` is not a valid pandas dataframe object.
+            DatasetCorruptError: If loading source dataset fails with DatasetCorruptedError
         """
+
+        feature_report_path(
+            dest,
+            "export_yolo",
+            {},
+            token=token,
+        )
+
+        os.makedirs(dest, exist_ok=True)
+
+        # Check if directory is empty and warn if it's not
+        if os.listdir(dest):
+            warnings.warn(
+                f"Destination directory {dest} is not empty. Existing files and unknown and might cause issues when using the directory for YOLO training."
+            )
 
         if isinstance(src, (str, pathlib.Path)):
             src = convert_pathlib_to_string_if_needed(src)
@@ -2254,26 +2244,9 @@ class dataset:
         else:
             src_ds = src
 
-        if not os.path.exists(images_folder):
-            os.makedirs(images_folder)
-
-        if not os.path.exists(annotations_folder):
-            os.makedirs(annotations_folder)
-
-        # Check if directory is empty and warn if it's not
-        if not os.listdir(images_folder):
-            warnings.warn(
-                f"Images directory {images_folder} is not empty. Existing files might cause issues when using the folder for YOLO training."
-            )
-        if not os.listdir(annotations_folder):
-            warnings.warn(
-                f"Annotations directory {annotations_folder} is not empty. Existing files might cause issues when using the folder for YOLO training."
-            )
-
         export = YoloExport(
             src_ds,
-            images_folder,
-            annotations_folder,
+            dest,
             box_tensor,
             label_tensor,
             image_tensor,
