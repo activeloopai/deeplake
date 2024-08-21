@@ -15,11 +15,94 @@ import numpy as np
 
 from random import shuffle as rshuffle
 
+import tqdm
+
 from .constants import (
     DEFAULT_YOLO_COORDINATES_TENSOR_PARAMS,
     DEFAULT_YOLO_LABEL_TENSOR_PARAMS,
     DEFAULT_IMAGE_TENSOR_PARAMS,
 )
+
+
+class YoloExport:
+    def __init__(
+        self,
+        src_ds: Dataset,
+        images_folder=str,
+        annotations_folder=str,
+        box_tensor=None,
+        label_tensor=None,
+        image_tensor=None,
+        progressbar=True,
+    ):
+        self.src_ds = src_ds
+        self.images_folder = images_folder
+        self.annotations_folder = annotations_folder
+        self.progressbar = progressbar
+
+        if box_tensor is None and label_tensor is None and image_tensor is None:
+            image_tensor, label_tensor, box_tensor = self.find_yolo_tensors()
+
+        self.box_tensor = box_tensor
+        self.label_tensor = label_tensor
+        self.image_tensor = image_tensor
+
+        image_compression = src_ds[image_tensor].meta.sample_compression
+
+        self.export_image_compression = (
+            image_compression if image_compression else "png"
+        )
+
+    def export_data(self):
+        progress = (
+            tqdm.tqdm(enumerate(self.src_ds))
+            if self.progressbar
+            else enumerate(self.src_ds)
+        )
+
+        for i, sample in progress:
+            image = sample[self.image_tensor].tobytes()
+            box_array = sample[self.box_tensor].numpy(fetch_chunks=True)
+            label_array = sample[self.label_tensor].numpy(fetch_chunks=True)
+
+            with open(
+                Path(self.images_folder)
+                / Path(str(i) + "." + self.export_image_compression),
+                "wb",
+            ) as f:
+                f.write(image)
+
+            with open(Path(self.annotations_folder) / Path(str(i) + ".txt"), "w") as f:
+                for box, label in zip(box_array, label_array):
+                    f.write(f"{label} {' '.join(map(str, box))}\n")
+
+    def _find_yolo_tensors(self):
+        box_tensors = []
+        label_tensors = []
+        image_tensors = []
+        for k, v in self.src_ds.tensors.items():
+            if v.meta.htype == "bbox":
+                box_tensors.append(k)
+            elif v.meta.htype == "class_label":
+                label_tensors.append(k)
+            elif v.meta.htype == "image":
+                image_tensors.append(k)
+
+        if len(box_tensors) == 0:
+            raise ValueError("No bounding box tensors found in the dataset.")
+        if len(label_tensors) == 0:
+            raise ValueError("No label tensors found in the dataset.")
+        if len(image_tensors) == 0:
+            raise ValueError("No image tensors found in the dataset.")
+
+        if len(box_tensors) > 1:
+            raise ValueError("Multiple bounding box tensors found in the dataset.")
+        if len(label_tensors) > 1:
+            raise ValueError("Multiple label tensors found in the dataset.")
+        if len(image_tensors) > 1:
+            raise ValueError("Multiple image tensors found in the dataset.")
+
+        return image_tensors[0], label_tensors[0], box_tensors[0]
 
 
 class YoloDataset(UnstructuredDataset):
