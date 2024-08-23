@@ -35,10 +35,11 @@ class YoloExport:
         label_tensor=None,
         image_tensor=None,
         progressbar=True,
+        limit=None,
     ):
         """Container exporting Deep Lake dataset in YOLO format."""
 
-        self.src_ds = src_ds
+        self.src_ds = src_ds[0:limit] if limit else src_ds
         self.directory = Path(directory)
         self.image_directory = self.directory / Path("images")
         self.annotation_directory = self.directory / Path("annotations")
@@ -62,6 +63,7 @@ class YoloExport:
         )
 
     def export_data(self):
+        """TODO: Add multiprocessing."""
 
         class_names = self.src_ds[self.label_tensor].info.get("class_names")
 
@@ -72,13 +74,34 @@ class YoloExport:
             for i, name in enumerate(class_names):
                 f.write(f"{name}\n")
 
-        box_format = self.src_ds[self.box_tensor].info.get("coords")
+        box_format = self.src_ds[self.box_tensor].info.get("coords", {})
 
-        # Warn about format if not specified
+        # Warn about missing box format if not specified, which might cause issues with uploading
         if not box_format:
-            warnings.warn(
-                f"The format of the bouding boxes is not specified in the Deep Lake dataset. The bounding box coordinates will be exported to YOLO as-is, and they will not be checked for correctness."
+
+            inspect_boxes = self.src_ds[self.box_tensor][0:1000].numpy(aslist=True)
+            if np.mean(np.concatenate(inspect_boxes)) <= 1:
+                box_format = {"type": "fractional", "mode": "CCWH"}
+            else:
+                box_format = {"type": "pixel", "mode": "ltwh"}
+
+            logger.warning(
+                f"The format of the bouding boxes is not specified in the Deep Lake dataset. The assumed bounding boxformat in the source dataset is: {box_format}."
             )
+
+        box_mode = box_format.get("mode")
+        if box_mode.lower() == "ltrb":
+            box_converter = ltrb_2_yolo_box
+        elif box_mode.lower() == "ccwh":
+            box_converter = ccwh_2_yolo_box
+        elif box_mode.lower() == "ltwh":
+            box_converter = ltwh_2_yolo_box
+        else:
+            raise ValueError(
+                f"Bounding box format {box_format['mode']} is not supported for YOLO export."
+            )
+
+        box_fractional = box_format.get("type", "pixel").lower() == "fractional"
 
         progress = (
             tqdm.tqdm(enumerate(self.src_ds), desc="Exporting data in YOLO format.")
@@ -90,6 +113,19 @@ class YoloExport:
             image = sample[self.image_tensor].tobytes()
             box_array = sample[self.box_tensor].numpy(fetch_chunks=True)
             label_array = sample[self.label_tensor].numpy(fetch_chunks=True)
+
+            # Image shape is needed only if the existing bounding box format is not fractional
+            if box_converter and box_fractional:
+                box_array = box_converter(box_array, fractional=True)
+            elif box_converter:
+
+                img_shape = sample[self.image_tensor].shape
+                box_array = box_converter(
+                    box_array,
+                    fractional=False,
+                    image_width=img_shape[1],
+                    image_height=img_shape[0],
+                )
 
             with open(
                 Path(self.image_directory)
@@ -449,3 +485,94 @@ class YoloDataset(UnstructuredDataset):
                 raise IngestionError(
                     "Dataset has been created but the largest numeric label in the annotations is inconsistent with the number of classes in the classes file."
                 )
+
+
+def box_normalizer(
+    x_center, y_center, width, height, image_width, image_height, fractional
+):
+
+    if not fractional:
+        x_center = x_center / image_width
+        y_center = y_center / image_height
+        width = width / image_width
+        height = height / image_height
+
+    return x_center, y_center, width, height
+
+
+def ccwh_2_yolo_box(ccwh_array, fractional=False, image_width=None, image_height=None):
+    """TODO: Vectorize the function to avoid for loop"""
+
+    yolo_bboxes = []
+
+    # Iterate through each bounding box in the input array
+    for bbox in ccwh_array:
+
+        # Extract center_x, center_y, width, and height from the array
+        x_center, y_center, width, height = bbox
+
+        # Normalize the coordinates and dimensions by the image size
+        x_center, y_center, width, height = box_normalizer(
+            x_center, y_center, width, height, image_width, image_height, fractional
+        )
+
+        # Append the YOLO format bounding box to the list
+        yolo_bboxes.append([x_center, y_center, width, height])
+
+    # Convert the list to a numpy array and return it
+    return np.array(yolo_bboxes)
+
+
+def ltwh_2_yolo_box(ltwh_array, image_width, image_height, fractional=False):
+    """TODO: Vectorize the function to avoid for loop"""
+
+    yolo_bboxes = []
+
+    # Iterate through each bounding box in the input array
+    for bbox in ltwh_array:
+        # Extract left, top, width, and height from the array
+        left, top, width, height = bbox
+
+        # Calculate the center of the bounding box
+        x_center = left + width / 2.0
+        y_center = top + height / 2.0
+
+        # Normalize the coordinates and dimensions by the image size
+        x_center, y_center, width, height = box_normalizer(
+            x_center, y_center, width, height, image_width, image_height, fractional
+        )
+
+        # Append the YOLO format bounding box to the list
+        yolo_bboxes.append([x_center, y_center, width, height])
+
+    # Convert the list to a numpy array and return it
+    return np.array(yolo_bboxes)
+
+
+def ltrb_2_yolo_box(ltrb_array, image_width, image_height, fractional=False):
+    """TODO: Vectorize the function to avoid for loop"""
+
+    yolo_bboxes = []
+
+    # Iterate through each bounding box in the input array
+    for bbox in ltrb_array:
+
+        # Extract left, top, right, and bottom from the array
+        left, top, right, bottom = bbox
+
+        # Calculate the center coordinates and dimensions
+        width = right - left
+        height = bottom - top
+        x_center = left + width / 2.0
+        y_center = top + height / 2.0
+
+        # Normalize the coordinates and dimensions by the image size
+        x_center, y_center, width, height = box_normalizer(
+            x_center, y_center, width, height, image_width, image_height, fractional
+        )
+
+        # Append the YOLO format bounding box to the list
+        yolo_bboxes.append([x_center, y_center, width, height])
+
+    # Convert the list to a numpy array and return it
+    return np.array(yolo_bboxes)

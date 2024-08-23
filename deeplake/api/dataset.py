@@ -2173,12 +2173,13 @@ class dataset:
     def export_yolo(
         src: Union[str, pathlib.Path, Dataset],
         dest: Union[str, pathlib.Path],
-        src_creds=None,
-        token=None,
-        progressbar=True,
-        box_tensor=None,
-        label_tensor=None,
-        image_tensor=None,
+        src_creds: Optional[Union[str, Dict]] = None,
+        token: Optional[str] = None,
+        progressbar: Optional[bool] = True,
+        image_tensor: Optional[str] = None,
+        label_tensor: Optional[str] = None,
+        box_tensor: Optional[str] = None,
+        limit: Optional[int] = None,
     ):
         """Export Deep Lake dataset as files in YOLO format. The dataset must contain 1 tensor with each of the following htypes: image, bbox, and class_label.
 
@@ -2202,8 +2203,12 @@ class dataset:
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             src_creds (Optional[Union[str, Dict]]): Credentials to access the source data. If not provided, will be inferred from the environment.
-            progressbar (bool): Enables or disables export progress bar. Set to ``True`` by default.
-            token (Optional[str]): The token to use for accessing the dataset.
+            progressbar (Optional[bool]): Enables or disables export progress bar. Set to ``True`` by default.
+            token (Optional[str]): The token to use for accessing the source dataset.
+            image_tensor (Optional[str]): The name of the tensor containing the images.
+            label_tensor (Optional[str]): The name of the tensor containing the labels.
+            box_tensor (Optional[str]): The name of the tensor containing the bounding boxes.
+            limit (Optional[int]): The maximum number of samples to export. Unlimited by default
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
         Returns:
@@ -2224,8 +2229,8 @@ class dataset:
 
         # Check if directory is empty and warn if it's not
         if os.listdir(dest):
-            warnings.warn(
-                f"Destination directory {dest} is not empty. Existing files and unknown and might cause issues when using the directory for YOLO training."
+            logger.warning(
+                f"Destination directory {dest} is not empty. Existing files are unknown and might cause issues when using the files in the destination directory for YOLO training."
             )
 
         if isinstance(src, (str, pathlib.Path)):
@@ -2245,12 +2250,7 @@ class dataset:
             src_ds = src
 
         export = YoloExport(
-            src_ds,
-            dest,
-            box_tensor,
-            label_tensor,
-            image_tensor,
-            progressbar,
+            src_ds, dest, box_tensor, label_tensor, image_tensor, progressbar, limit
         )
 
         export.export_data()
