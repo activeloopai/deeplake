@@ -170,7 +170,8 @@ def check_index_params_text(self):
 
 
 def index_operation_type_dataset(self, num_rows, changed_data_len):
-    if validate_text_tensor(self):
+    txt_tensor = fetch_text_tensor(self)
+    if txt_tensor is not None:
         return INDEX_OP_TYPE.REGENERATE_INDEX
 
     if not index_exists(self):
