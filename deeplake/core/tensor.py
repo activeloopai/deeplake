@@ -1772,16 +1772,19 @@ class Tensor:
         additional_params: Optional[Dict[str, int]] = None,
     ):
         """
-        Create similarity search index for embedding tensor.
+        Create similarity search index for embedding tensor or inverted index for text tensor.
 
         Args:
-            id (str): Unique identifier for the index. Defaults to ``hnsw_1``.
+            id (str): Unique identifier for the index. Defaults to ``hnsw_1``. or ``inverted_index1``.
             distance (DistanceType, str): Distance metric to be used for similarity search. Possible values are "l2_norm", "cosine_similarity". Defaults to ``DistanceType.COSINE_SIMILARITY``.
             additional_params (Optional[Dict[str, int]]): Additional parameters for the index.
-                - Structure of additional params is:
+                - Structure of additional params is used for HNSW index:
                     :"M": Increasing this value will increase the index build time and memory usage but will improve the search accuracy. Defaults to ``16``.
                     :"efConstruction": Defaults to ``200``.
                     :"partitions": If tensors contain more than 45M samples, it is recommended to use partitions to create the index. Defaults to ``1``.
+                - Structure of additional params is used for Inverted index:
+                    :"bloom_filter_size": Size of the bloom filter. Defaults to ``100000``.
+                    :"segment_size": Size of the segment in MB. Defaults to ``25``.
 
         Example:
             >>> ds = deeplake.load("./test/my_embedding_ds")
@@ -1789,12 +1792,16 @@ class Tensor:
             >>> ds.embedding.create_vdb_index(id="hnsw_1", distance=DistanceType.COSINE_SIMILARITY)
             >>> # create cosine_similarity index on embedding tensor with additional params
             >>> ds.embedding.create_vdb_index(id="hnsw_1", distance=DistanceType.COSINE_SIMILARITY, additional_params={"M": 32, "partitions": 1, 'efConstruction': 200})
+            >>> # create inverted index on text tensor
+            >>> ds.text.create_vdb_index(id="inverted_index1")
+            >>> # create inverted index on text tensor with additional params
+            >>> ds.text.create_vdb_index(id="inverted_index1", additional_params={"bloom_filter_size": 1000000, "segment_size": 50})
 
         Notes:
-            Index creation is supported only for embedding tensors.
+            Index creation is supported only for embedding tensors and text tensors.
 
         Raises:
-            Exception: If the tensor is not an embedding tensor.
+            Exception: If the tensor is not an embedding tensor or text tensor.
 
         Returns:
             Index: Returns the index object.
@@ -1812,7 +1819,12 @@ class Tensor:
         from indra import api  # type: ignore
 
         if self.meta.htype == "text":
-            self.meta.add_vdb_index(id=id, type="inverted_index", distance=None)
+            self.meta.add_vdb_index(
+                id=id,
+                type="inverted_index",
+                distance=None,
+                additional_params=additional_params,
+            )
             try:
                 if additional_params is None:
                     index = api.vdb.generate_index(ts, index_type="inverted_index")

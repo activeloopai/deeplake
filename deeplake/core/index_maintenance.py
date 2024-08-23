@@ -170,6 +170,9 @@ def check_index_params_text(self):
 
 
 def index_operation_type_dataset(self, num_rows, changed_data_len):
+    if validate_text_tensor(self):
+        return INDEX_OP_TYPE.REGENERATE_INDEX
+
     if not index_exists(self):
         if self.index_params is None:
             return INDEX_OP_TYPE.NOOP
@@ -194,9 +197,23 @@ def get_index_metric(metric):
 
 
 def normalize_additional_params(params: dict) -> dict:
-    mapping = {"efconstruction": "efConstruction", "m": "M", "partitions": "partitions"}
+    mapping = {
+        "efconstruction": "efConstruction",
+        "m": "M",
+        "partitions": "partitions",
+        "bloom": "bloom_filter_size",
+        "bloom_size": "bloom_filter_size",
+        "Segment_Size": "segment_size",
+        "seg_size": "segment_size",
+    }
 
-    allowed_keys = ["efConstruction", "m", "partitions"]
+    allowed_keys = [
+        "efConstruction",
+        "m",
+        "partitions",
+        "bloom_filter_size",
+        "segment_size",
+    ]
 
     # New dictionary to store the result with desired key format
     result_dict = {}
@@ -337,19 +354,23 @@ def index_operation_dataset(self, dml_type, rowids):
 
     if index_operation_type == INDEX_OP_TYPE.NOOP:
         return
-    if (
-        index_operation_type == INDEX_OP_TYPE.CREATE_INDEX
-        or index_operation_type == INDEX_OP_TYPE.REGENERATE_INDEX
-    ):
+    if index_operation_type in [
+        INDEX_OP_TYPE.CREATE_INDEX,
+        INDEX_OP_TYPE.REGENERATE_INDEX,
+    ]:
+        saved_vdb_indexes = []
+
         if index_operation_type == INDEX_OP_TYPE.REGENERATE_INDEX:
             try:
                 if emb_tensor is not None:
                     vdb_indexes = emb_tensor.get_vdb_indexes()
                     for vdb_index in vdb_indexes:
+                        saved_vdb_indexes.append(vdb_index)
                         emb_tensor.delete_vdb_index(vdb_index["id"])
                 elif txt_tensor is not None:
                     vdb_indexes = txt_tensor.get_vdb_indexes()
                     for vdb_index in vdb_indexes:
+                        saved_vdb_indexes.append(vdb_index)
                         txt_tensor.delete_vdb_index(vdb_index["id"])
             except Exception as e:
                 raise Exception(
@@ -368,7 +389,21 @@ def index_operation_dataset(self, dml_type, rowids):
             else:
                 emb_tensor.create_vdb_index("hnsw_1", distance=distance)
         elif txt_tensor is not None:
-            txt_tensor.create_vdb_index("inverted_index1")
+            if len(saved_vdb_indexes) > 0:
+                id = saved_vdb_indexes[0]["id"]
+                additional_params_dict = saved_vdb_indexes[0].index_params.get(
+                    "additional_params", None
+                )
+            else:
+                id = "inverted_index1"
+                additional_params_dict = self.index_params.get(
+                    "additional_params", None
+                )
+            if additional_params_dict and len(additional_params_dict) > 0:
+                param_dict = normalize_additional_params(additional_params_dict)
+                txt_tensor.create_vdb_index(id, additional_params=param_dict)
+            else:
+                txt_tensor.create_vdb_index(id)
 
     elif index_operation_type == INDEX_OP_TYPE.INCREMENTAL_INDEX:
         if emb_tensor is not None:
