@@ -363,7 +363,9 @@ class Tensor:
             TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype.
         """
         self._extend(samples, progressbar=progressbar, ignore_errors=ignore_errors)
-        if index_maintenance.validate_embedding_tensor(self):
+        if index_maintenance.validate_embedding_tensor(
+            self
+        ) or index_maintenance.validate_text_tensor(self):
             row_ids = list(range(self.num_samples - len(samples), self.num_samples))
             index_maintenance.index_operation_dataset(  # TODO: this might pick the wrong tensor when we support
                 self.dataset,  #       index for multiple tensors in the future
@@ -455,7 +457,9 @@ class Tensor:
         """
         row_ids = [self.num_samples]
         self._extend([sample], progressbar=False)
-        if index_maintenance.validate_embedding_tensor(self):
+        if index_maintenance.validate_embedding_tensor(
+            self
+        ) or index_maintenance.validate_text_tensor(self):
             index_maintenance.index_operation_dataset(  # TODO: this might pick the wrong tensor when we support
                 self.dataset,  #       index for multiple tensors in the future
                 dml_type=_INDEX_OPERATION_MAPPING["ADD"],
@@ -807,7 +811,9 @@ class Tensor:
             (1, 3, 3)
         """
         self._update(item, value)
-        if index_maintenance.is_embedding_tensor(self):
+        if index_maintenance.validate_embedding_tensor(
+            self
+        ) or index_maintenance.validate_text_tensor(self):
             row_index = self.index[Index(item)]
             row_ids = list(row_index.values[0].indices(self.num_samples))
             index_maintenance.index_operation_dataset(
@@ -1216,7 +1222,9 @@ class Tensor:
         index = sorted(index, reverse=True)
 
         self._pop(index)
-        if index_maintenance.is_embedding_tensor(self):
+        if index_maintenance.validate_embedding_tensor(
+            self
+        ) or index_maintenance.validate_text_tensor(self):
             row_ids = index[:]
             index_maintenance.index_operation_dataset(
                 self.dataset,
@@ -1947,8 +1955,6 @@ class Tensor:
             ]
             metadata = json.loads(metadata_file.decode("utf-8"))
             segment_names = list(metadata.keys())
-            # print("Parsed metadata type:", type(metadata))
-            # print("Parsed metadata content:", metadata)
             for name in segment_names:
                 partition_key = get_tensor_vdb_index_key(
                     self.key, self.version_state["commit_id"], f"{id}_inv_{name}"
@@ -2029,7 +2035,7 @@ class Tensor:
 
     def fetch_vdb_indexes(self) -> List[Dict[str, str]]:
         vdb_indexes = []
-        if self.meta.htype == "embedding":
+        if self.meta.htype == "embedding" or self.meta.htype == "text":
             if (not self.meta.vdb_indexes is None) and len(self.meta.vdb_indexes) > 0:
                 vdb_indexes.extend(self.meta.vdb_indexes)
         return vdb_indexes

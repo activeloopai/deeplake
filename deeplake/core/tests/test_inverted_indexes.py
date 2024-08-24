@@ -35,13 +35,13 @@ new_statements = [
 ]
 
 statements1 = [
-    "The apple fell from the tree and rolled into the river.",
-    "In the jungle, the giraffe munched on the leaves of a tall tree.",
+    "The text is about the apple falling from the tree.",
+    "Finally searched the jungle for the giraffe.",
 ]
 
 
 @requires_libdeeplake
-def test_inv_index_(tmp_datasets_dir):
+def test_inv_index_(local_auth_ds_generator):
     ds = local_auth_ds_generator()
     with ds:
         ds.create_tensor("text", htype="text")
@@ -63,7 +63,7 @@ def test_inv_index_(tmp_datasets_dir):
 
 
 @requires_libdeeplake
-def test_inv_index_query(tmp_datasets_dir):
+def test_inv_index_query(local_auth_ds_generator):
     ds = local_auth_ds_generator()
     with ds:
         ds.create_tensor("text", htype="text")
@@ -101,7 +101,7 @@ def test_inv_index_query(tmp_datasets_dir):
 
 
 @requires_libdeeplake
-def test_inv_index_query_with_hnsw(tmp_datasets_dir):
+def test_inv_index_query_with_hnsw(local_auth_ds_generator):
     ds = local_auth_ds_generator()
     with ds:
         ds.create_tensor("text", htype="text")
@@ -147,7 +147,7 @@ def test_inv_index_query_with_hnsw(tmp_datasets_dir):
 
 
 @requires_libdeeplake
-def test_inv_index_multiple_where_or_and(tmp_datasets_dir):
+def test_inv_index_multiple_where_or_and(local_auth_ds_generator):
     ds = local_auth_ds_generator()
     with ds:
         ds.create_tensor("text", htype="text")
@@ -171,7 +171,7 @@ def test_inv_index_multiple_where_or_and(tmp_datasets_dir):
 
 
 @requires_libdeeplake
-def test_inv_index_multiple_keywords(tmp_datasets_dir):
+def test_inv_index_multiple_keywords(local_auth_ds_generator):
     ds = local_auth_ds_generator()
     with ds:
         ds.create_tensor("text", htype="text")
@@ -202,7 +202,7 @@ def test_inv_index_multiple_keywords(tmp_datasets_dir):
 
 
 @requires_libdeeplake
-def test_inv_index_case_insensitivity(tmp_datasets_dir):
+def test_inv_index_case_insensitivity(local_auth_ds_generator):
     ds = local_auth_ds_generator()
     with ds:
         ds.create_tensor("text", htype="text")
@@ -233,7 +233,7 @@ def test_inv_index_case_insensitivity(tmp_datasets_dir):
 
 
 @requires_libdeeplake
-def test_multiple_where_clauses_and_filters(tmp_datasets_dir):
+def test_multiple_where_clauses_and_filters(local_auth_ds_generator):
     ds = local_auth_ds_generator()
     with ds:
         ds.create_tensor("text", htype="text")
@@ -307,7 +307,7 @@ def test_multiple_where_clauses_and_filters(tmp_datasets_dir):
 
 
 @requires_libdeeplake
-def test_hnsw_order_by_clause(tmp_datasets_dir):
+def test_hnsw_order_by_clause(local_auth_ds_generator):
     ds = local_auth_ds_generator()
     with ds:
         ds.create_tensor("text", htype="text")
@@ -343,7 +343,7 @@ def test_hnsw_order_by_clause(tmp_datasets_dir):
 
 
 @requires_libdeeplake
-def test_where_condition_on_column_without_inverted_index(tmp_datasets_dir):
+def test_where_condition_on_column_without_inverted_index(local_auth_ds_generator):
     ds = local_auth_ds_generator()
     with ds:
         ds.create_tensor("text", htype="text")
@@ -382,7 +382,7 @@ def test_where_condition_on_column_without_inverted_index(tmp_datasets_dir):
 
 
 @requires_libdeeplake
-def test_multiple_where_clauses_and_filters_with_year_text(tmp_datasets_dir):
+def test_multiple_where_clauses_and_filters_with_year_text(local_auth_ds_generator):
     ds = local_auth_ds_generator()
     with ds:
         ds.create_tensor("text", htype="text")
@@ -446,7 +446,7 @@ def test_multiple_where_clauses_and_filters_with_year_text(tmp_datasets_dir):
 
 
 @requires_libdeeplake
-def test_inverted_index_on_year_column_with_text(tmp_datasets_dir):
+def test_inverted_index_on_year_column_with_text(local_auth_ds_generator):
     ds = local_auth_ds_generator()
     with ds:
         ds.create_tensor("text", htype="text")
@@ -479,6 +479,96 @@ def test_inverted_index_on_year_column_with_text(tmp_datasets_dir):
         )
         assert len(res) == 1
         assert res.index[0].values[0].value == 5
+
+        ds.year.unload_vdb_index_cache()
+        ds.embedding.unload_vdb_index_cache()
+
+
+@requires_libdeeplake
+def test_inverted_index_regeneration(local_auth_ds_generator):
+    ds = local_auth_ds_generator()
+    with ds:
+        ds.create_tensor("text", htype="text")
+        for statement in statements:
+            ds.text.append(statement)
+
+        # create inverted index.
+        ds.text.create_vdb_index("inv_1")
+
+        # query the inverted index.
+        res = ds.query(f"select * where CONTAINS(text, 'flickered')")
+        assert len(res) == 1
+        assert res.index[0].values[0].value == 3
+
+        for statement in statements1:
+            ds.text.append(statement)
+
+        # query the inverted index.
+        res = ds.query(f"select * where CONTAINS(text, 'flickered')")
+        assert len(res) == 1
+        assert res.index[0].values[0].value == 3
+
+        res = ds.query(f"select * where CONTAINS(text, 'searched')")
+        assert len(res) == 1
+        assert res.index[0].values[0].value == 11
+
+        ds.text.unload_vdb_index_cache()
+
+
+@requires_libdeeplake
+def test_inverted_index_multiple_tensor_maintenance(local_auth_ds_generator):
+    ds = local_auth_ds_generator()
+    with ds:
+        ds.create_tensor("text", htype="text")
+        ds.create_tensor("year", htype="text")
+        ds.create_tensor("embedding", htype="embedding", dtype=np.float32)
+
+        years = ["2015", "2016", "2017", "2018", "2019", "2020", "2021"]
+        years1 = ["2022", "2023"]
+
+        for i, statement in enumerate(statements):
+            random_embedding = np.random.random_sample(384).astype(np.float32)
+            ds.append(
+                {
+                    "text": statement,
+                    "year": years[
+                        i % len(years)
+                    ],  # cycles between 2015 and 2021 as strings
+                    "embedding": random_embedding,
+                }
+            )
+
+        # Create inverted index on year only
+        ds.year.create_vdb_index("inv_year")
+        ds.embedding.create_vdb_index("hnsw_1")
+
+        # Test: Multiple OR conditions on year and embedding column
+        v2 = ds.embedding[5].numpy(fetch_chunks=True)
+        s2 = ",".join(str(c) for c in v2)
+        res = ds.query(
+            f"select * where CONTAINS(year, '2019') or CONTAINS(year, '2020') or CONTAINS(year, '2021')  order by cosine_similarity(embedding, ARRAY[{s2}]) DESC limit 1"
+        )
+        assert len(res) == 1
+        assert res.index[0].values[0].value == 5
+
+        for i, statement in enumerate(statements1):
+            random_embedding = np.random.random_sample(384).astype(np.float32)
+            ds.append(
+                {
+                    "text": statement,
+                    "year": years1[i % len(years1)],
+                    "embedding": random_embedding,
+                }
+            )
+        v2 = ds.embedding[11].numpy(fetch_chunks=True)
+        s2 = ",".join(str(c) for c in v2)
+
+        res = ds.query(
+            f"select * where CONTAINS(year, '2023') order by cosine_similarity(embedding, ARRAY[{s2}]) DESC limit 1"
+        )
+
+        assert len(res) == 1
+        assert res.index[0].values[0].value == 11
 
         ds.year.unload_vdb_index_cache()
         ds.embedding.unload_vdb_index_cache()

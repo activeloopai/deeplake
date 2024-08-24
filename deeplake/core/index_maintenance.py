@@ -17,7 +17,7 @@ class INDEX_OP_TYPE(Enum):
     INCREMENTAL_INDEX = 3
 
 
-def is_embedding_tensor(tensor):
+def validate_embedding_tensor(tensor):
     """Check if a tensor is an embedding tensor."""
 
     valid_names = ["embedding", "embeddings"]
@@ -29,28 +29,10 @@ def is_embedding_tensor(tensor):
     )
 
 
-def validate_embedding_tensor(tensor):
-    """Check if a tensor is an embedding tensor."""
-
-    valid_names = ["embedding"]
-
-    return (
-        tensor.htype == "embedding"
-        or tensor.meta.name in valid_names
-        or tensor.key in valid_names
-    )
-
-
 def validate_text_tensor(tensor):
     """Check if a tensor is an embedding tensor."""
-
-    valid_names = ["text", "id", "metadata"]
-
-    return (
-        tensor.htype == "str"
-        or tensor.meta.name in valid_names
-        or tensor.key in valid_names
-    )
+    p = tensor.htype
+    return p == "text"
 
 
 def fetch_embedding_tensor(dataset):
@@ -61,38 +43,34 @@ def fetch_embedding_tensor(dataset):
     return None
 
 
-def fetch_text_tensor(dataset):
-    tensors = dataset.tensors
-    for _, tensor in tensors.items():
-        if validate_text_tensor(tensor):
-            return tensor
-    return None
-
-
-def index_exists(dataset):
+def index_exists_emb(emb_tensor):
     """Check if the Index already exists."""
-    emb_tensor = fetch_embedding_tensor(dataset)
-    txt_tensor = fetch_text_tensor(dataset)
-    if emb_tensor is not None:
+    emb = validate_embedding_tensor(emb_tensor)
+    if emb:
         vdb_indexes = emb_tensor.fetch_vdb_indexes()
         if len(vdb_indexes) == 0:
             return False
         else:
             return True
-    elif txt_tensor is not None:
+    return False
+
+
+def index_exists_txt(txt_tensor):
+    """Check if the Index already exists."""
+    txt = validate_text_tensor(txt_tensor)
+    if txt:
         vdb_indexes = txt_tensor.fetch_vdb_indexes()
         if len(vdb_indexes) == 0:
             return False
         else:
             return True
-
     return False
 
 
-def index_partition_count(dataset):
-    emb_tensor = fetch_embedding_tensor(dataset)
-    if emb_tensor is not None:
-        vdb_indexes = emb_tensor.fetch_vdb_indexes()
+def index_partition_count(tensor):
+    is_emb_tensor = validate_embedding_tensor(tensor)
+    if is_emb_tensor:
+        vdb_indexes = tensor.fetch_vdb_indexes()
         if len(vdb_indexes) == 0:
             return 1
         else:
@@ -160,32 +138,28 @@ def check_index_params(self):
     return False
 
 
-def check_index_params_text(self):
-    txt_tensor = fetch_text_tensor(self.dataset)
-    indexes = txt_tensor.get_vdb_indexes()
-    if len(indexes) == 0:
-        return False
+def index_operation_type_dataset(
+    tensor, dataset, num_rows, changed_data_len, is_embedding=False
+):
+    if is_embedding:
+        vdb_index_exists = index_exists_emb(tensor)
+        if not vdb_index_exists:
+            if dataset.index_params is None:
+                return INDEX_OP_TYPE.NOOP
+            if changed_data_len == 0:
+                return INDEX_OP_TYPE.NOOP
+            threshold = dataset.index_params.get("threshold", -1)
+            below_threshold = threshold <= 0 or num_rows < threshold
+            if not below_threshold:
+                return INDEX_OP_TYPE.CREATE_INDEX
+
+        return INDEX_OP_TYPE.INCREMENTAL_INDEX
     else:
-        return True
-
-
-def index_operation_type_dataset(self, num_rows, changed_data_len):
-    txt_tensor = fetch_text_tensor(self)
-    if txt_tensor is not None:
-        return INDEX_OP_TYPE.REGENERATE_INDEX
-
-    if not index_exists(self):
-        if self.index_params is None:
+        # for Text tensor i.e. inverted index,
+        vdb_index_exists = index_exists_txt(tensor)
+        if not vdb_index_exists or changed_data_len == 0:
             return INDEX_OP_TYPE.NOOP
-        threshold = self.index_params.get("threshold", -1)
-        below_threshold = threshold <= 0 or num_rows < threshold
-        if not below_threshold:
-            return INDEX_OP_TYPE.CREATE_INDEX
-
-    if not check_vdb_indexes(self) or changed_data_len == 0:
-        return INDEX_OP_TYPE.NOOP
-
-    return INDEX_OP_TYPE.INCREMENTAL_INDEX
+        return INDEX_OP_TYPE.REGENERATE_INDEX
 
 
 def get_index_metric(metric):
@@ -241,20 +215,16 @@ def normalize_additional_params(params: dict) -> dict:
     return result_dict
 
 
-def check_vdb_indexes(dataset):
-    tensors = dataset.tensors
+def check_embedding_vdb_indexes(tensor):
+    is_embedding = validate_embedding_tensor(tensor)
+    has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
+    try:
+        vdb_index_ids_present = len(tensor.meta.vdb_indexes) > 0
+    except AttributeError:
+        vdb_index_ids_present = False
 
-    vdb_index_present = False
-    for _, tensor in tensors.items():
-        is_embedding = is_embedding_tensor(tensor)
-        has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
-        try:
-            vdb_index_ids_present = len(tensor.meta.vdb_indexes) > 0
-        except AttributeError:
-            vdb_index_ids_present = False
-
-        if is_embedding and has_vdb_indexes and vdb_index_ids_present:
-            return True
+    if is_embedding and has_vdb_indexes and vdb_index_ids_present:
+        return True
     return False
 
 
@@ -282,140 +252,111 @@ def _incr_maintenance_vdb_indexes(
         raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
 
 
-# Routine to identify the index Operation.
 def index_operation_vectorstore(self):
     if not index_used(self.exec_option):
         return None
 
     emb_tensor = fetch_embedding_tensor(self.dataset)
-    txt_tensor = fetch_text_tensor(self.dataset)
 
-    index_ext = index_exists(self.dataset)
-
-    if index_ext and check_index_params(self):
+    if index_exists_emb(self.dataset) and check_index_params(self):
         return emb_tensor.get_vdb_indexes()[0]["distance"]
-    elif index_ext and check_index_params_text(self):
-        return txt_tensor.get_vdb_indexes()[0]["distance"]
 
     threshold = self.index_params.get("threshold", -1)
     below_threshold = threshold < 0 or len(self.dataset) < threshold
     if below_threshold:
         return None
 
-    if emb_tensor is not None and not check_index_params(self):
+    if not check_index_params(self):
         try:
             vdb_indexes = emb_tensor.get_vdb_indexes()
             for vdb_index in vdb_indexes:
                 emb_tensor.delete_vdb_index(vdb_index["id"])
         except Exception as e:
             raise Exception(f"An error occurred while removing VDB indexes: {e}")
-
-        distance_str = self.index_params.get("distance_metric", "COS")
-        additional_params_dict = self.index_params.get("additional_params", None)
-        distance = get_index_metric(distance_str.upper())
-        if additional_params_dict and len(additional_params_dict) > 0:
-            param_dict = normalize_additional_params(additional_params_dict)
-            emb_tensor.create_vdb_index(
-                "hnsw_1", distance=distance, additional_params=param_dict
-            )
-        else:
-            emb_tensor.create_vdb_index("hnsw_1", distance=distance)
-        return distance
-
-    if txt_tensor is not None and not check_index_params_text(self):
-        try:
-            vdb_indexes = txt_tensor.get_vdb_indexes()
-            for vdb_index in vdb_indexes:
-                txt_tensor.delete_vdb_index(vdb_index["id"])
-        except Exception as e:
-            raise Exception(f"An error occurred while removing VDB indexes: {e}")
-
-        txt_tensor.create_vdb_index("inverted_index1")
-        return None
+    distance_str = self.index_params.get("distance_metric", "COS")
+    additional_params_dict = self.index_params.get("additional_params", None)
+    distance = get_index_metric(distance_str.upper())
+    if additional_params_dict and len(additional_params_dict) > 0:
+        param_dict = normalize_additional_params(additional_params_dict)
+        emb_tensor.create_vdb_index(
+            "hnsw_1", distance=distance, additional_params=param_dict
+        )
+    else:
+        emb_tensor.create_vdb_index("hnsw_1", distance=distance)
+    return distance
 
 
 def index_operation_dataset(self, dml_type, rowids):
-    emb_tensor = fetch_embedding_tensor(self)
-    txt_tensor = fetch_text_tensor(self)
-    if emb_tensor is None and txt_tensor is None:
-        return
+    tensors = self.tensors
+    for _, tensor in tensors.items():
+        is_embedding_tensor = validate_embedding_tensor(tensor)
+        is_text_tensor = validate_text_tensor(tensor)
+        index_operation_type = INDEX_OP_TYPE.NOOP
 
-    if emb_tensor is not None:
-        index_operation_type = index_operation_type_dataset(
-            self,
-            emb_tensor.chunk_engine.num_samples,
-            len(rowids),
-        )
-    elif txt_tensor is not None:
-        index_operation_type = index_operation_type_dataset(
-            self,
-            txt_tensor.chunk_engine.num_samples,
-            len(rowids),
-        )
+        if is_embedding_tensor or is_text_tensor:
+            index_operation_type = index_operation_type_dataset(
+                tensor,
+                self,
+                tensor.chunk_engine.num_samples,
+                len(rowids),
+                is_embedding_tensor,
+            )
+        else:
+            continue
 
-    if index_operation_type == INDEX_OP_TYPE.NOOP:
-        return
-    if index_operation_type in [
-        INDEX_OP_TYPE.CREATE_INDEX,
-        INDEX_OP_TYPE.REGENERATE_INDEX,
-    ]:
-        saved_vdb_indexes = []
-
-        if index_operation_type == INDEX_OP_TYPE.REGENERATE_INDEX:
-            try:
-                if emb_tensor is not None:
-                    vdb_indexes = emb_tensor.get_vdb_indexes()
+        if index_operation_type == INDEX_OP_TYPE.NOOP:
+            continue
+        if (
+            index_operation_type == INDEX_OP_TYPE.CREATE_INDEX
+            or index_operation_type == INDEX_OP_TYPE.REGENERATE_INDEX
+        ):
+            saved_vdb_indexes = []
+            if index_operation_type == INDEX_OP_TYPE.REGENERATE_INDEX:
+                try:
+                    vdb_indexes = tensor.get_vdb_indexes()
                     for vdb_index in vdb_indexes:
                         saved_vdb_indexes.append(vdb_index)
-                        emb_tensor.delete_vdb_index(vdb_index["id"])
-                elif txt_tensor is not None:
-                    vdb_indexes = txt_tensor.get_vdb_indexes()
-                    for vdb_index in vdb_indexes:
-                        saved_vdb_indexes.append(vdb_index)
-                        txt_tensor.delete_vdb_index(vdb_index["id"])
-            except Exception as e:
-                raise Exception(
-                    f"An error occurred while regenerating VDB indexes: {e}"
-                )
-
-        if emb_tensor is not None:
-            distance_str = self.index_params.get("distance_metric", "COS")
-            additional_params_dict = self.index_params.get("additional_params", None)
-            distance = get_index_metric(distance_str.upper())
-            if additional_params_dict and len(additional_params_dict) > 0:
-                param_dict = normalize_additional_params(additional_params_dict)
-                emb_tensor.create_vdb_index(
-                    "hnsw_1", distance=distance, additional_params=param_dict
-                )
-            else:
-                emb_tensor.create_vdb_index("hnsw_1", distance=distance)
-        elif txt_tensor is not None:
-            if len(saved_vdb_indexes) > 0:
-                id = saved_vdb_indexes[0]["id"]
-                additional_params_dict = saved_vdb_indexes[0].index_params.get(
-                    "additional_params", None
-                )
-            else:
-                id = "inverted_index1"
+                        tensor.delete_vdb_index(vdb_index["id"])
+                except Exception as e:
+                    raise Exception(
+                        f"An error occurred while regenerating VDB indexes: {e}"
+                    )
+            if is_embedding_tensor:
+                distance_str = self.index_params.get("distance_metric", "COS")
                 additional_params_dict = self.index_params.get(
                     "additional_params", None
                 )
-            if additional_params_dict and len(additional_params_dict) > 0:
-                param_dict = normalize_additional_params(additional_params_dict)
-                txt_tensor.create_vdb_index(id, additional_params=param_dict)
-            else:
-                txt_tensor.create_vdb_index(id)
-
-    elif index_operation_type == INDEX_OP_TYPE.INCREMENTAL_INDEX:
-        if emb_tensor is not None:
-            partition_count = index_partition_count(self)
+                distance = get_index_metric(distance_str.upper())
+                if additional_params_dict and len(additional_params_dict) > 0:
+                    param_dict = normalize_additional_params(additional_params_dict)
+                    tensor.create_vdb_index(
+                        "hnsw_1", distance=distance, additional_params=param_dict
+                    )
+                else:
+                    tensor.create_vdb_index("hnsw_1", distance=distance)
+            elif is_text_tensor:
+                if len(saved_vdb_indexes) > 0:
+                    for vdb_index in saved_vdb_indexes:
+                        id = vdb_index["id"]
+                        additional_params_dict = vdb_index.get(
+                            "additional_params", None
+                        )
+                        if additional_params_dict and len(additional_params_dict) > 0:
+                            param_dict = normalize_additional_params(
+                                additional_params_dict
+                            )
+                            tensor.create_vdb_index(id, additional_params=param_dict)
+                        else:
+                            tensor.create_vdb_index(id)
+            continue
+        elif index_operation_type == INDEX_OP_TYPE.INCREMENTAL_INDEX:
+            partition_count = index_partition_count(tensor)
             if partition_count > 1:
                 _incr_maintenance_vdb_indexes(
-                    emb_tensor, rowids, dml_type, is_partitioned=True
+                    tensor, rowids, dml_type, is_partitioned=True
                 )
             else:
-                _incr_maintenance_vdb_indexes(emb_tensor, rowids, dml_type)
-        elif txt_tensor is not None:
-            _incr_maintenance_vdb_indexes(txt_tensor, rowids, dml_type)
-    else:
-        raise Exception("Unknown index operation")
+                _incr_maintenance_vdb_indexes(tensor, rowids, dml_type)
+            continue
+        else:
+            raise Exception("Unknown index operation")
