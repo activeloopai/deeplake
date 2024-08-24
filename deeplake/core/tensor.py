@@ -1801,7 +1801,7 @@ class Tensor:
             >>> ds.text.create_vdb_index(id="inverted_index1", additional_params={"bloom_filter_size": 1000000, "segment_size": 50})
 
         Notes:
-            Index creation is supported only for embedding tensors and text tensors.
+            Index creation is supported for embedding tensors and text tensors.
 
         Raises:
             Exception: If the tensor is not an embedding tensor or text tensor.
