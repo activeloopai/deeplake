@@ -19,20 +19,12 @@ class INDEX_OP_TYPE(Enum):
 
 def validate_embedding_tensor(tensor):
     """Check if a tensor is an embedding tensor."""
-
-    valid_names = ["embedding", "embeddings"]
-
-    return (
-        tensor.htype == "embedding"
-        or tensor.meta.name in valid_names
-        or tensor.key in valid_names
-    )
+    return tensor.htype == "embedding"
 
 
 def validate_text_tensor(tensor):
     """Check if a tensor is an embedding tensor."""
-    p = tensor.htype
-    return p == "text"
+    return tensor.htype == "text"
 
 
 def fetch_embedding_tensor(dataset):
@@ -235,7 +227,11 @@ def _incr_maintenance_vdb_indexes(
         is_embedding = tensor.htype == "embedding"
         has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
 
-        is_text = tensor.htype == "str"
+        is_text = tensor.htype == "text"
+        if is_text:
+            raise Exception(
+                "Inverted index does not support incremental index maintenance."
+            )
         try:
             vdb_index_ids_present = len(tensor.meta.vdb_indexes) > 0
         except AttributeError:

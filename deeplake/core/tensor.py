@@ -1571,18 +1571,13 @@ class Tensor:
 
         stream = BytesIO(serialized_data)
 
-        # Read number of partitions
-        num_partitions = int.from_bytes(
-            stream.read(8), "little"
-        )  # Assuming size_t is 8 bytes
+        num_partitions = int.from_bytes(stream.read(8), "little")
 
         partition_info = []
         for _ in range(num_partitions):
-            # Read partition name length and name
             name_length = int.from_bytes(stream.read(8), "little")
             name = stream.read(name_length).decode("utf-8")
 
-            # Read start and end indices
             start = int.from_bytes(stream.read(8), "little")
             end = int.from_bytes(stream.read(8), "little")
 
@@ -1590,7 +1585,6 @@ class Tensor:
 
         incr_info = []
         if incremental_dml == True:
-            # Check for incremental update info
             incr_info_size = int.from_bytes(stream.read(8), "little")
             for _ in range(incr_info_size):
                 name_length = int.from_bytes(stream.read(8), "little")
@@ -1601,7 +1595,6 @@ class Tensor:
 
                 incr_info.append({"name": name, "start": start, "end": end})
 
-        # Extract the actual data for each partition
         partitions_data = []
         while True:
             size_data = stream.read(8)
@@ -1645,6 +1638,8 @@ class Tensor:
         is_partitioned: bool = False,
     ):
         self.storage.check_readonly()
+        if self.meta.htype != "embedding":
+            raise Exception(f"Only supported for embedding tensors.")
         self.invalidate_libdeeplake_dataset()
         self.dataset.flush()
         from deeplake.enterprise.convert_to_libdeeplake import (
@@ -1815,6 +1810,7 @@ class Tensor:
             Index: Returns the index object.
         """
         self.storage.check_readonly()
+        self.check_supported_tensor()
         if not self.dataset.libdeeplake_dataset is None:
             ds = self.dataset.libdeeplake_dataset
         else:
@@ -1853,22 +1849,16 @@ class Tensor:
                 self.storage[inverted_meta_key] = metadata_bytes
                 temp_serialized_paths_count = len(temp_serialized_paths)
                 temp_serialized_paths = [str(path) for path in temp_serialized_paths]
-                # Pull the file the location specified in the path and store it in the storage
                 for i, path in enumerate(temp_serialized_paths):
-                    # extract the file name from the path which should after last "/"
                     file_name = pathlib.Path(path).name
-
-                    # read file and store it in the storage
                     with open(path, "rb") as f:
                         inv_key = get_tensor_vdb_index_key(
                             self.key, commit_id, f"{id}_{file_name}"
                         )
                         self.storage[inv_key] = f.read()
-                        # close the file
                         f.close()
 
                 self.invalidate_libdeeplake_dataset()
-                # self.storage.flush()
             except:
                 self.meta.remove_vdb_index(id=id)
                 raise
@@ -1922,6 +1912,8 @@ class Tensor:
 
     def delete_vdb_index(self, id: str):
         self.storage.check_readonly()
+        self.check_supported_tensor()
+
         commit_id = self.version_state["commit_id"]
         self.unload_vdb_index_cache()
         if self.is_partitioned_vdb_index():
@@ -2039,6 +2031,10 @@ class Tensor:
             if (not self.meta.vdb_indexes is None) and len(self.meta.vdb_indexes) > 0:
                 vdb_indexes.extend(self.meta.vdb_indexes)
         return vdb_indexes
+
+    def check_supported_tensor(self):
+        if self.meta.htype not in ["embedding", "text"]:
+            raise Exception(f"Only supported for embedding and text tensors.")
 
     def _check_compatibility_with_htype(self, htype):
         """Checks if the tensor is compatible with the given htype.
