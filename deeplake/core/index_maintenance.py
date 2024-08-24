@@ -19,7 +19,14 @@ class INDEX_OP_TYPE(Enum):
 
 def validate_embedding_tensor(tensor):
     """Check if a tensor is an embedding tensor."""
-    return tensor.htype == "embedding"
+
+    valid_names = ["embedding"]
+
+    return (
+        tensor.htype == "embedding"
+        or tensor.meta.name in valid_names
+        or tensor.key in valid_names
+    )
 
 
 def validate_text_tensor(tensor):
@@ -254,7 +261,7 @@ def index_operation_vectorstore(self):
 
     emb_tensor = fetch_embedding_tensor(self.dataset)
 
-    if index_exists_emb(self) and check_index_params(self):
+    if index_exists_emb(emb_tensor) and check_index_params(self):
         return emb_tensor.get_vdb_indexes()[0]["distance"]
 
     threshold = self.index_params.get("threshold", -1)
