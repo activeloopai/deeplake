@@ -254,7 +254,7 @@ def index_operation_vectorstore(self):
 
     emb_tensor = fetch_embedding_tensor(self.dataset)
 
-    if index_exists_emb(self.dataset) and check_index_params(self):
+    if index_exists_emb(self) and check_index_params(self):
         return emb_tensor.get_vdb_indexes()[0]["distance"]
 
     threshold = self.index_params.get("threshold", -1)
