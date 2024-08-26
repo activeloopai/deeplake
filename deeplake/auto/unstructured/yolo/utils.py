@@ -137,7 +137,7 @@ class YoloData:
 
         ann = self.get_annotation(file_name)
 
-        return read_yolo_coordinates(ann, is_box=is_box)
+        return read_yolo_coordinates(ann, is_box=is_box, file_name=file_name)
 
     def get_full_path_image(self, image_name: str) -> str:
         return os.path.join(self.root, image_name)
@@ -157,7 +157,7 @@ class YoloData:
         return self.provider_annotations.get_bytes(annotation).decode()
 
 
-def read_yolo_coordinates(ann_text: str, is_box: bool = True):
+def read_yolo_coordinates(ann_text: str, is_box: bool = True, file_name=None):
     """
     Function reads the yolo text annotation and returns a numpy array of labels,
     and an object containing the coordinates. If is_box is True, the coordinates
@@ -165,6 +165,8 @@ def read_yolo_coordinates(ann_text: str, is_box: bool = True):
     file. If is_box is Fales, we assume the coordinates represent a polygon, so the coordinates
     object is as list of length N, where each element is an Mx2 array, where M is the number
     points in each polygon, and N is the number of ploygons in the annotation file.
+
+    file_name is an option input for error handling purposes.
     """
 
     lines_split = ann_text.splitlines()
@@ -193,7 +195,7 @@ def read_yolo_coordinates(ann_text: str, is_box: bool = True):
 
             if coordinates.size % 2 != 0:
                 raise IngestionError(
-                    f"Error in annotation {file_name}. Polygons must have an even number of points."
+                    f"Error in annotation filename: {file_name}. Polygons must have an even number of points."
                 )
 
             yolo_coordinates_poly.append(

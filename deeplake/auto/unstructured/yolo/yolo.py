@@ -49,12 +49,15 @@ class YoloExport:
 
         self.progressbar = progressbar
 
-        if box_tensor is None and label_tensor is None and image_tensor is None:
-            image_tensor, label_tensor, box_tensor = self._find_yolo_tensors()
+        # Find tensors for export if any of them are not specified
+        if box_tensor is None or label_tensor is None or image_tensor is None:
+            image_tensor_auto, label_tensor_auto, box_tensor_auto = (
+                self._find_yolo_tensors()
+            )
 
-        self.box_tensor = box_tensor
-        self.label_tensor = label_tensor
-        self.image_tensor = image_tensor
+        self.box_tensor = box_tensor if box_tensor else box_tensor_auto
+        self.label_tensor = label_tensor if label_tensor else label_tensor_auto
+        self.image_tensor = image_tensor if image_tensor else image_tensor_auto
 
         image_compression = src_ds[image_tensor].meta.sample_compression
 
