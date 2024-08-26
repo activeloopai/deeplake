@@ -346,7 +346,7 @@ class DeepLakeBackendClient:
         """Get the username plus a list of user organizations from the backend. If user is not authenticated, returns ('public', ['public']).
 
         Returns:
-            (str, List[str]): user + organization namess
+            (str, List[str]): user + organization names
         """
 
         if self.auth_context.is_public_user():
