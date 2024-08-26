@@ -80,13 +80,13 @@ class YoloExport:
         if not box_format:
 
             inspect_boxes = self.src_ds[self.box_tensor][0:1000].numpy(aslist=True)
-            if np.mean(np.concatenate(inspect_boxes)) <= 1:
+            if np.mean(np.concatenate([box.ravel() for box in inspect_boxes])) <= 1:
                 box_format = {"type": "fractional", "mode": "CCWH"}
             else:
                 box_format = {"type": "pixel", "mode": "ltwh"}
 
             logger.warning(
-                f"The format of the bouding boxes is not specified in the Deep Lake dataset. The assumed bounding boxformat in the source dataset is: {box_format}."
+                f"The format of the bouding boxes is not specified in the Deep Lake dataset. The assumed bounding box format in the source dataset is: {box_format}."
             )
 
         box_mode = box_format.get("mode")
@@ -162,20 +162,20 @@ class YoloExport:
             )
         if len(image_tensors) == 0:
             raise ValueError(
-                "Cannot export data in Yolo Format because no image tensors were found in the dataset."
+                "Cannot export data in Yolo format because no image tensors were found in the dataset."
             )
 
         if len(box_tensors) > 1:
             raise ValueError(
-                "Cannot export data in Yolo Format because multiple bounding box tensors found in the dataset."
+                "Cannot export data in Yolo format because multiple bounding box tensors were found in the dataset."
             )
         if len(label_tensors) > 1:
             raise ValueError(
-                "Cannot export data in Yolo Format because multiple label tensors found in the dataset."
+                "Cannot export data in Yolo format because multiple label tensors were found in the dataset."
             )
         if len(image_tensors) > 1:
             raise ValueError(
-                "Cannot export data in Yolo Format because multiple image tensors found in the dataset."
+                "Cannot export data in Yolo format because multiple image tensors were found in the dataset."
             )
 
         return image_tensors[0], label_tensors[0], box_tensors[0]
@@ -244,7 +244,7 @@ class YoloDataset(UnstructuredDataset):
             while count < min(self.inspect_limit, len(self.ingestion_data)):
                 fn = self.ingestion_data[count][1]
                 if fn is not None:
-                    _, coordinates = self.data.read_yolo_coordinates(fn, is_box=False)
+                    _, coordinates = self.data.read_yolo_file(fn, is_box=False)
                     for c in coordinates:
                         coord_size = c.size
                         if coord_size > 0 and coord_size != 4:
@@ -394,7 +394,7 @@ class YoloDataset(UnstructuredDataset):
         def append_data_bbox(data, sample_out, tensor_meta: Dict = tensor_meta):
             # If the ingestion data is None, create empty annotations corresponding to the file
             if data[1]:
-                yolo_labels, yolo_coordinates = self.data.read_yolo_coordinates(
+                yolo_labels, yolo_coordinates = self.data.read_yolo_file(
                     data[1], is_box=True
                 )
             else:
@@ -421,7 +421,7 @@ class YoloDataset(UnstructuredDataset):
         def append_data_polygon(data, sample_out, tensor_meta: Dict = tensor_meta):
             # If the ingestion data is None, create empty annotations corresponding to the file
             if data[1]:
-                yolo_labels, yolo_coordinates = self.data.read_yolo_coordinates(
+                yolo_labels, yolo_coordinates = self.data.read_yolo_file(
                     data[1], is_box=False
                 )
             else:

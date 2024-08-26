@@ -2193,15 +2193,22 @@ class dataset:
             >>> view = ds[0:100]
             >>> deeplake.export_yolo(view, "./path/to/export/directory")
             >>>
+            >>> # Export a Deep Lake dataset in YOLO format from Deep Lake dataset view
+            >>> ds = deeplake.load("hub://<org_id>/<dataset_name>")
+            >>> ds.checkout(<commit_id>)
+            >>> view = ds.query("select * where ....")
+            >>> deeplake.export_yolo(view, "./path/to/export/directory")
+
+            >>>
 
         Args:
-            src (pd.DataFrame): The pandas dataframe to be converted.
-            dest (str, pathlib.Path, Dataset:
+            src (str, pathlib.Path, Dataset): The Deep Lake dataset to be exported to YOLO.
                 - A Dataset or The full path to the dataset. Can be:
                 - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            dest (str, pathlib.Path): Folder where the YOLO format files will be saved.
             src_creds (Optional[Union[str, Dict]]): Credentials to access the source data. If not provided, will be inferred from the environment.
             progressbar (Optional[bool]): Enables or disables export progress bar. Set to ``True`` by default.
             token (Optional[str]): The token to use for accessing the source dataset.
@@ -2209,10 +2216,6 @@ class dataset:
             label_tensor (Optional[str]): The name of the tensor containing the labels.
             box_tensor (Optional[str]): The name of the tensor containing the bounding boxes.
             limit (Optional[int]): The maximum number of samples to export. Unlimited by default
-            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
-
-        Returns:
-            None
 
         Raises:
             DatasetCorruptError: If loading source dataset fails with DatasetCorruptedError
