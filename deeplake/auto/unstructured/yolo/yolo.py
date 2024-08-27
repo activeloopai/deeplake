@@ -15,11 +15,173 @@ import numpy as np
 
 from random import shuffle as rshuffle
 
+import tqdm
+
+import warnings
+
 from .constants import (
     DEFAULT_YOLO_COORDINATES_TENSOR_PARAMS,
     DEFAULT_YOLO_LABEL_TENSOR_PARAMS,
     DEFAULT_IMAGE_TENSOR_PARAMS,
 )
+
+
+class YoloExport:
+    def __init__(
+        self,
+        src_ds: Dataset,
+        directory=str,
+        box_tensor=None,
+        label_tensor=None,
+        image_tensor=None,
+        progressbar=True,
+        limit=None,
+    ):
+        """Container exporting Deep Lake dataset in YOLO format."""
+
+        self.src_ds = src_ds[0:limit] if limit else src_ds
+        self.directory = Path(directory)
+        self.image_directory = self.directory / Path("images")
+        self.annotation_directory = self.directory / Path("annotations")
+
+        self.image_directory.mkdir(parents=True, exist_ok=True)
+        self.annotation_directory.mkdir(parents=True, exist_ok=True)
+
+        self.progressbar = progressbar
+
+        # Find tensors for export if any of them are not specified
+        if box_tensor is None or label_tensor is None or image_tensor is None:
+            image_tensor_auto, label_tensor_auto, box_tensor_auto = (
+                self._find_yolo_tensors()
+            )
+
+        self.box_tensor = box_tensor if box_tensor else box_tensor_auto
+        self.label_tensor = label_tensor if label_tensor else label_tensor_auto
+        self.image_tensor = image_tensor if image_tensor else image_tensor_auto
+
+        image_compression = src_ds[image_tensor].meta.sample_compression
+
+        self.export_image_compression = (
+            image_compression if image_compression else "png"
+        )
+
+    def export_data(self):
+        """TODO: Add multiprocessing."""
+
+        class_names = self.src_ds[self.label_tensor].info.get("class_names")
+
+        if not class_names:
+            raise ValueError("Class names are not defined in the Deep Lake dataset")
+
+        with open(self.directory / Path("classes.names"), "w") as f:
+            for i, name in enumerate(class_names):
+                f.write(f"{name}\n")
+
+        box_format = self.src_ds[self.box_tensor].info.get("coords", {})
+
+        # Warn about missing box format if not specified, which might cause issues with uploading
+        if not box_format:
+
+            inspect_boxes = self.src_ds[self.box_tensor][0:1000].numpy(aslist=True)
+            if np.mean(np.concatenate([box.ravel() for box in inspect_boxes])) <= 1:
+                box_format = {"type": "fractional", "mode": "CCWH"}
+            else:
+                box_format = {"type": "pixel", "mode": "ltwh"}
+
+            logger.warning(
+                f"The format of the bouding boxes is not specified in the Deep Lake dataset. The assumed bounding box format in the source dataset is: {box_format}."
+            )
+
+        box_mode = box_format.get("mode")
+        if box_mode.lower() == "ltrb":
+            box_converter = ltrb_2_yolo_box
+        elif box_mode.lower() == "ccwh":
+            box_converter = ccwh_2_yolo_box
+        elif box_mode.lower() == "ltwh":
+            box_converter = ltwh_2_yolo_box
+        else:
+            raise ValueError(
+                f"Bounding box format {box_format['mode']} is not supported for YOLO export."
+            )
+
+        box_fractional = box_format.get("type", "pixel").lower() == "fractional"
+
+        progress = (
+            tqdm.tqdm(enumerate(self.src_ds), desc="Exporting data in YOLO format.")
+            if self.progressbar
+            else enumerate(self.src_ds)
+        )
+
+        for i, sample in progress:
+            image = sample[self.image_tensor].tobytes()
+            box_array = sample[self.box_tensor].numpy(fetch_chunks=True)
+            label_array = sample[self.label_tensor].numpy(fetch_chunks=True)
+
+            # Image shape is needed only if the existing bounding box format is not fractional
+            if box_converter and box_fractional:
+                box_array = box_converter(box_array, fractional=True)
+            elif box_converter:
+
+                img_shape = sample[self.image_tensor].shape
+                box_array = box_converter(
+                    box_array,
+                    fractional=False,
+                    image_width=img_shape[1],
+                    image_height=img_shape[0],
+                )
+
+            with open(
+                Path(self.image_directory)
+                / Path(str(i) + "." + self.export_image_compression),
+                "wb",
+            ) as f:
+                f.write(image)
+
+            with open(
+                Path(self.annotation_directory) / Path(str(i) + ".txt"), "w"
+            ) as f:
+                for box, label in zip(box_array, label_array):
+                    f.write(f"{label} {' '.join(map(str, box))}\n")
+
+    def _find_yolo_tensors(self):
+        box_tensors = []
+        label_tensors = []
+        image_tensors = []
+        for k, v in self.src_ds.tensors.items():
+            if v.meta.htype == "bbox":
+                box_tensors.append(k)
+            elif v.meta.htype == "class_label":
+                label_tensors.append(k)
+            elif v.meta.htype == "image":
+                image_tensors.append(k)
+
+        if len(box_tensors) == 0:
+            raise ValueError(
+                "Cannot export data in Yolo Format because no bounding box tensors were found in the dataset."
+            )
+        if len(label_tensors) == 0:
+            raise ValueError(
+                "Cannot export data in Yolo Format because no class_label tensors were found in the dataset."
+            )
+        if len(image_tensors) == 0:
+            raise ValueError(
+                "Cannot export data in Yolo format because no image tensors were found in the dataset."
+            )
+
+        if len(box_tensors) > 1:
+            raise ValueError(
+                "Cannot export data in Yolo format because multiple bounding box tensors were found in the dataset."
+            )
+        if len(label_tensors) > 1:
+            raise ValueError(
+                "Cannot export data in Yolo format because multiple label tensors were found in the dataset."
+            )
+        if len(image_tensors) > 1:
+            raise ValueError(
+                "Cannot export data in Yolo format because multiple image tensors were found in the dataset."
+            )
+
+        return image_tensors[0], label_tensors[0], box_tensors[0]
 
 
 class YoloDataset(UnstructuredDataset):
@@ -85,7 +247,7 @@ class YoloDataset(UnstructuredDataset):
             while count < min(self.inspect_limit, len(self.ingestion_data)):
                 fn = self.ingestion_data[count][1]
                 if fn is not None:
-                    _, coordinates = self.data.read_yolo_coordinates(fn, is_box=False)
+                    _, coordinates = self.data.read_yolo_file(fn, is_box=False)
                     for c in coordinates:
                         coord_size = c.size
                         if coord_size > 0 and coord_size != 4:
@@ -235,7 +397,7 @@ class YoloDataset(UnstructuredDataset):
         def append_data_bbox(data, sample_out, tensor_meta: Dict = tensor_meta):
             # If the ingestion data is None, create empty annotations corresponding to the file
             if data[1]:
-                yolo_labels, yolo_coordinates = self.data.read_yolo_coordinates(
+                yolo_labels, yolo_coordinates = self.data.read_yolo_file(
                     data[1], is_box=True
                 )
             else:
@@ -262,7 +424,7 @@ class YoloDataset(UnstructuredDataset):
         def append_data_polygon(data, sample_out, tensor_meta: Dict = tensor_meta):
             # If the ingestion data is None, create empty annotations corresponding to the file
             if data[1]:
-                yolo_labels, yolo_coordinates = self.data.read_yolo_coordinates(
+                yolo_labels, yolo_coordinates = self.data.read_yolo_file(
                     data[1], is_box=False
                 )
             else:
@@ -326,3 +488,94 @@ class YoloDataset(UnstructuredDataset):
                 raise IngestionError(
                     "Dataset has been created but the largest numeric label in the annotations is inconsistent with the number of classes in the classes file."
                 )
+
+
+def box_normalizer(
+    x_center, y_center, width, height, image_width, image_height, fractional
+):
+
+    if not fractional:
+        x_center = x_center / image_width
+        y_center = y_center / image_height
+        width = width / image_width
+        height = height / image_height
+
+    return x_center, y_center, width, height
+
+
+def ccwh_2_yolo_box(ccwh_array, fractional=False, image_width=None, image_height=None):
+    """TODO: Vectorize the function to avoid for loop"""
+
+    yolo_bboxes = []
+
+    # Iterate through each bounding box in the input array
+    for bbox in ccwh_array:
+
+        # Extract center_x, center_y, width, and height from the array
+        x_center, y_center, width, height = bbox
+
+        # Normalize the coordinates and dimensions by the image size
+        x_center, y_center, width, height = box_normalizer(
+            x_center, y_center, width, height, image_width, image_height, fractional
+        )
+
+        # Append the YOLO format bounding box to the list
+        yolo_bboxes.append([x_center, y_center, width, height])
+
+    # Convert the list to a numpy array and return it
+    return np.array(yolo_bboxes)
+
+
+def ltwh_2_yolo_box(ltwh_array, image_width, image_height, fractional=False):
+    """TODO: Vectorize the function to avoid for loop"""
+
+    yolo_bboxes = []
+
+    # Iterate through each bounding box in the input array
+    for bbox in ltwh_array:
+        # Extract left, top, width, and height from the array
+        left, top, width, height = bbox
+
+        # Calculate the center of the bounding box
+        x_center = left + width / 2.0
+        y_center = top + height / 2.0
+
+        # Normalize the coordinates and dimensions by the image size
+        x_center, y_center, width, height = box_normalizer(
+            x_center, y_center, width, height, image_width, image_height, fractional
+        )
+
+        # Append the YOLO format bounding box to the list
+        yolo_bboxes.append([x_center, y_center, width, height])
+
+    # Convert the list to a numpy array and return it
+    return np.array(yolo_bboxes)
+
+
+def ltrb_2_yolo_box(ltrb_array, image_width, image_height, fractional=False):
+    """TODO: Vectorize the function to avoid for loop"""
+
+    yolo_bboxes = []
+
+    # Iterate through each bounding box in the input array
+    for bbox in ltrb_array:
+
+        # Extract left, top, right, and bottom from the array
+        left, top, right, bottom = bbox
+
+        # Calculate the center coordinates and dimensions
+        width = right - left
+        height = bottom - top
+        x_center = left + width / 2.0
+        y_center = top + height / 2.0
+
+        # Normalize the coordinates and dimensions by the image size
+        x_center, y_center, width, height = box_normalizer(
+            x_center, y_center, width, height, image_width, image_height, fractional
+        )
+
+        # Append the YOLO format bounding box to the list
+        yolo_bboxes.append([x_center, y_center, width, height])
+
+    # Convert the list to a numpy array and return it
+    return np.array(yolo_bboxes)

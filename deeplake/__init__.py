@@ -52,6 +52,7 @@ ingest_yolo = api_dataset.ingest_yolo
 ingest_kaggle = api_dataset.ingest_kaggle
 ingest_dataframe = api_dataset.ingest_dataframe
 ingest_huggingface = huggingface.ingest_huggingface
+export_yolo = api_dataset.export_yolo
 dataset = api_dataset.init  # type: ignore
 tensor = Tensor
 random = DeeplakeRandom()
@@ -78,6 +79,7 @@ __all__ = [
     "ingest_kaggle",
     "ingest_dataframe",
     "ingest_huggingface",
+    "export_yolo",
     "compressions",
     "htypes",
     "config",

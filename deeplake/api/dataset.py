@@ -10,7 +10,7 @@ from typing import Dict, Optional, Union, List
 from deeplake.auto.unstructured.kaggle import download_kaggle_dataset
 from deeplake.auto.unstructured.image_classification import ImageClassification
 from deeplake.auto.unstructured.coco.coco import CocoDataset
-from deeplake.auto.unstructured.yolo.yolo import YoloDataset
+from deeplake.auto.unstructured.yolo.yolo import YoloDataset, YoloExport
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
@@ -2168,6 +2168,95 @@ class dataset:
             return IndraDatasetView(indra_ds=ids)
 
         return ds  # type: ignore
+
+    @staticmethod
+    def export_yolo(
+        src: Union[str, pathlib.Path, Dataset],
+        dest: Union[str, pathlib.Path],
+        src_creds: Optional[Union[str, Dict]] = None,
+        token: Optional[str] = None,
+        progressbar: Optional[bool] = True,
+        image_tensor: Optional[str] = None,
+        label_tensor: Optional[str] = None,
+        box_tensor: Optional[str] = None,
+        limit: Optional[int] = None,
+    ):
+        """Export Deep Lake dataset as files in YOLO format. The dataset must contain 1 tensor with each of the following htypes: image, bbox, and class_label.
+
+        Examples:
+
+            >>> # Export a Deep Lake dataset in YOLO format from Deep Lake dataset path
+            >>> deeplake.export_yolo("hub://<org_id>/<dataset_name>", "./path/to/export/directory")
+            >>>
+            >>> # Export a Deep Lake dataset in YOLO format from Deep Lake dataset view
+            >>> ds = deeplake.load("hub://<org_id>/<dataset_name>")
+            >>> view = ds[0:100]
+            >>> deeplake.export_yolo(view, "./path/to/export/directory")
+            >>>
+            >>> # Export a Deep Lake dataset in YOLO format from Deep Lake dataset view
+            >>> ds = deeplake.load("hub://<org_id>/<dataset_name>")
+            >>> ds.checkout(<commit_id>)
+            >>> view = ds.query("select * where ....")
+            >>> deeplake.export_yolo(view, "./path/to/export/directory")
+
+            >>>
+
+        Args:
+            src (str, pathlib.Path, Dataset): The Deep Lake dataset to be exported to YOLO.
+                - A Dataset or The full path to the dataset. Can be:
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
+                - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
+                - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            dest (str, pathlib.Path): Folder where the YOLO format files will be saved.
+            src_creds (Optional[Union[str, Dict]]): Credentials to access the source data. If not provided, will be inferred from the environment.
+            progressbar (Optional[bool]): Enables or disables export progress bar. Set to ``True`` by default.
+            token (Optional[str]): The token to use for accessing the source dataset.
+            image_tensor (Optional[str]): The name of the tensor containing the images.
+            label_tensor (Optional[str]): The name of the tensor containing the labels.
+            box_tensor (Optional[str]): The name of the tensor containing the bounding boxes.
+            limit (Optional[int]): The maximum number of samples to export. Unlimited by default
+
+        Raises:
+            DatasetCorruptError: If loading source dataset fails with DatasetCorruptedError
+        """
+
+        feature_report_path(
+            dest,
+            "export_yolo",
+            {},
+            token=token,
+        )
+
+        os.makedirs(dest, exist_ok=True)
+
+        # Check if directory is empty and warn if it's not
+        if os.listdir(dest):
+            logger.warning(
+                f"Destination directory {dest} is not empty. Existing files are unknown and might cause issues when using the files in the destination directory for YOLO training."
+            )
+
+        if isinstance(src, (str, pathlib.Path)):
+            src = convert_pathlib_to_string_if_needed(src)
+            try:
+                src_ds = deeplake.load(
+                    src, read_only=True, creds=src_creds, token=token, verbose=False
+                )
+            except DatasetCorruptError as e:
+                raise DatasetCorruptError(
+                    "The source dataset is corrupted.",
+                    "You can try to fix this by loading the dataset with `reset=True` "
+                    "which will attempt to reset uncommitted HEAD changes and load the previous version.",
+                    e.__cause__,
+                )
+        else:
+            src_ds = src
+
+        export = YoloExport(
+            src_ds, dest, box_tensor, label_tensor, image_tensor, progressbar, limit
+        )
+
+        export.export_data()
 
     @staticmethod
     @spinner
