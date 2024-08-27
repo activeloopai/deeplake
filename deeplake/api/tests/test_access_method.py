@@ -81,6 +81,7 @@ def test_access_method(s3_ds_generator):
 
 
 @pytest.mark.slow
+@pytest.mark.flaky(reruns=3)
 def test_access_method_with_creds(
     hub_cloud_ds_generator, hub_cloud_dev_managed_creds_key
 ):
