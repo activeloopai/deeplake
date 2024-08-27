@@ -260,6 +260,8 @@ def index_operation_vectorstore(self):
         return None
 
     emb_tensor = fetch_embedding_tensor(self.dataset)
+    if emb_tensor is None:
+        return None
 
     if index_exists_emb(emb_tensor) and check_index_params(self):
         return emb_tensor.get_vdb_indexes()[0]["distance"]
