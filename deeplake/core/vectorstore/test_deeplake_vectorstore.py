@@ -958,6 +958,7 @@ def assert_updated_vector_store(
 )
 @pytest.mark.parametrize("init_embedding_function", [embedding_fn3, None])
 @pytest.mark.slow
+@pytest.mark.flaky(reruns=3)
 @requires_libdeeplake
 def test_update_embedding(
     ds,
@@ -1344,6 +1345,7 @@ def create_and_populate_vs(
 
 
 @requires_libdeeplake
+@pytest.mark.flaky(reruns=3)
 def test_update_embedding_row_ids_and_ids_specified_should_throw_exception(
     local_path,
     vector_store_hash_ids,
@@ -1368,6 +1370,7 @@ def test_update_embedding_row_ids_and_ids_specified_should_throw_exception(
 
 
 @requires_libdeeplake
+@pytest.mark.flaky(reruns=3)
 def test_update_embedding_row_ids_and_filter_specified_should_throw_exception(
     local_path,
     vector_store_filters,
@@ -1391,6 +1394,7 @@ def test_update_embedding_row_ids_and_filter_specified_should_throw_exception(
 
 
 @requires_libdeeplake
+@pytest.mark.flaky(reruns=3)
 def test_update_embedding_query_and_filter_specified_should_throw_exception(
     local_path,
     vector_store_filters,

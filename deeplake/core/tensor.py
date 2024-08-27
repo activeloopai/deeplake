@@ -81,6 +81,8 @@ from deeplake.htype import (
 )
 import warnings
 import webbrowser
+import pathlib
+import struct
 
 
 def create_tensor(
@@ -361,7 +363,9 @@ class Tensor:
             TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype.
         """
         self._extend(samples, progressbar=progressbar, ignore_errors=ignore_errors)
-        if index_maintenance.validate_embedding_tensor(self):
+        if index_maintenance.validate_embedding_tensor(
+            self
+        ) or index_maintenance.validate_text_tensor(self):
             row_ids = list(range(self.num_samples - len(samples), self.num_samples))
             index_maintenance.index_operation_dataset(  # TODO: this might pick the wrong tensor when we support
                 self.dataset,  #       index for multiple tensors in the future
@@ -453,7 +457,9 @@ class Tensor:
         """
         row_ids = [self.num_samples]
         self._extend([sample], progressbar=False)
-        if index_maintenance.validate_embedding_tensor(self):
+        if index_maintenance.validate_embedding_tensor(
+            self
+        ) or index_maintenance.validate_text_tensor(self):
             index_maintenance.index_operation_dataset(  # TODO: this might pick the wrong tensor when we support
                 self.dataset,  #       index for multiple tensors in the future
                 dml_type=_INDEX_OPERATION_MAPPING["ADD"],
@@ -805,7 +811,9 @@ class Tensor:
             (1, 3, 3)
         """
         self._update(item, value)
-        if index_maintenance.is_embedding_tensor(self):
+        if index_maintenance.validate_embedding_tensor(
+            self
+        ) or index_maintenance.validate_text_tensor(self):
             row_index = self.index[Index(item)]
             row_ids = list(row_index.values[0].indices(self.num_samples))
             index_maintenance.index_operation_dataset(
@@ -1214,7 +1222,9 @@ class Tensor:
         index = sorted(index, reverse=True)
 
         self._pop(index)
-        if index_maintenance.is_embedding_tensor(self):
+        if index_maintenance.validate_embedding_tensor(
+            self
+        ) or index_maintenance.validate_text_tensor(self):
             row_ids = index[:]
             index_maintenance.index_operation_dataset(
                 self.dataset,
@@ -1530,23 +1540,44 @@ class Tensor:
         """Invalidates the libdeeplake dataset object."""
         self.dataset.libdeeplake_dataset = None
 
-    def deserialize_partitions(self, serialized_data, incremental_dml=False):
+    def deserialize_inverted_index(self, serialized_data):
         from io import BytesIO
 
         stream = BytesIO(serialized_data)
 
         # Read number of partitions
-        num_partitions = int.from_bytes(
+        metadataSize = int.from_bytes(
             stream.read(8), "little"
         )  # Assuming size_t is 8 bytes
 
+        metadata_bytes = stream.read(metadataSize)
+        metadata = json.loads(metadata_bytes.decode("utf-8"))
+
+        temp_paths_size = int.from_bytes(stream.read(8), "little")
+
+        paths_string = stream.read().decode("utf-8")
+        temp_serialized_paths = paths_string.strip().split("\n")
+
+        # Check if the declared number of paths match the actual number
+        if temp_paths_size != len(temp_serialized_paths):
+            raise ValueError(
+                "Mismatch between declared count and actual number of paths"
+            )
+
+        return metadata, temp_serialized_paths
+
+    def deserialize_partitions(self, serialized_data, incremental_dml=False):
+        from io import BytesIO
+
+        stream = BytesIO(serialized_data)
+
+        num_partitions = int.from_bytes(stream.read(8), "little")
+
         partition_info = []
         for _ in range(num_partitions):
-            # Read partition name length and name
             name_length = int.from_bytes(stream.read(8), "little")
             name = stream.read(name_length).decode("utf-8")
 
-            # Read start and end indices
             start = int.from_bytes(stream.read(8), "little")
             end = int.from_bytes(stream.read(8), "little")
 
@@ -1554,7 +1585,6 @@ class Tensor:
 
         incr_info = []
         if incremental_dml == True:
-            # Check for incremental update info
             incr_info_size = int.from_bytes(stream.read(8), "little")
             for _ in range(incr_info_size):
                 name_length = int.from_bytes(stream.read(8), "little")
@@ -1565,7 +1595,6 @@ class Tensor:
 
                 incr_info.append({"name": name, "start": start, "end": end})
 
-        # Extract the actual data for each partition
         partitions_data = []
         while True:
             size_data = stream.read(8)
@@ -1578,6 +1607,8 @@ class Tensor:
         return partition_info, partitions_data, incr_info
 
     def is_partitioned_vdb_index(self):
+        if self.htype != "embedding":
+            return False
         vdb_indexes = self.get_vdb_indexes()
         if len(vdb_indexes) == 0:
             return False
@@ -1588,6 +1619,16 @@ class Tensor:
                 and vdb_index["additional_params"]["partitions"] > 1
             ):
                 return True
+        return False
+
+    def is_inverted_index(self):
+        if self.htype == "text":
+            vdb_indexes = self.get_vdb_indexes()
+            if len(vdb_indexes) == 0:
+                return False
+            for vdb_index in vdb_indexes:
+                if vdb_index["type"] == "inverted_index":
+                    return True
         return False
 
     def update_vdb_index(
@@ -1734,16 +1775,19 @@ class Tensor:
         additional_params: Optional[Dict[str, int]] = None,
     ):
         """
-        Create similarity search index for embedding tensor.
+        Create similarity search index for embedding tensor or inverted index for text tensor.
 
         Args:
-            id (str): Unique identifier for the index. Defaults to ``hnsw_1``.
+            id (str): Unique identifier for the index. Defaults to ``hnsw_1``. or ``inverted_index1``.
             distance (DistanceType, str): Distance metric to be used for similarity search. Possible values are "l2_norm", "cosine_similarity". Defaults to ``DistanceType.COSINE_SIMILARITY``.
             additional_params (Optional[Dict[str, int]]): Additional parameters for the index.
-                - Structure of additional params is:
+                - Structure of additional params is used for HNSW index:
                     :"M": Increasing this value will increase the index build time and memory usage but will improve the search accuracy. Defaults to ``16``.
                     :"efConstruction": Defaults to ``200``.
                     :"partitions": If tensors contain more than 45M samples, it is recommended to use partitions to create the index. Defaults to ``1``.
+                - Structure of additional params is used for Inverted index:
+                    :"bloom_filter_size": Size of the bloom filter. Defaults to ``100000``.
+                    :"segment_size": Size of the segment in MB. Defaults to ``25``.
 
         Example:
             >>> ds = deeplake.load("./test/my_embedding_ds")
@@ -1751,19 +1795,22 @@ class Tensor:
             >>> ds.embedding.create_vdb_index(id="hnsw_1", distance=DistanceType.COSINE_SIMILARITY)
             >>> # create cosine_similarity index on embedding tensor with additional params
             >>> ds.embedding.create_vdb_index(id="hnsw_1", distance=DistanceType.COSINE_SIMILARITY, additional_params={"M": 32, "partitions": 1, 'efConstruction': 200})
+            >>> # create inverted index on text tensor
+            >>> ds.text.create_vdb_index(id="inverted_index1")
+            >>> # create inverted index on text tensor with additional params
+            >>> ds.text.create_vdb_index(id="inverted_index1", additional_params={"bloom_filter_size": 1000000, "segment_size": 50})
 
         Notes:
-            Index creation is supported only for embedding tensors.
+            Index creation is supported for embedding tensors and text tensors.
 
         Raises:
-            Exception: If the tensor is not an embedding tensor.
+            Exception: If the tensor is not an embedding tensor or text tensor.
 
         Returns:
             Index: Returns the index object.
         """
         self.storage.check_readonly()
-        if self.meta.htype != "embedding":
-            raise Exception(f"Only supported for embedding tensors.")
+        self.check_supported_tensor()
         if not self.dataset.libdeeplake_dataset is None:
             ds = self.dataset.libdeeplake_dataset
         else:
@@ -1774,6 +1821,48 @@ class Tensor:
             ds = dataset_to_libdeeplake(self.dataset)
         ts = getattr(ds, self.meta.name)
         from indra import api  # type: ignore
+
+        if self.meta.htype == "text":
+            self.meta.add_vdb_index(
+                id=id,
+                type="inverted_index",
+                distance=None,
+                additional_params=additional_params,
+            )
+            try:
+                if additional_params is None:
+                    index = api.vdb.generate_index(ts, index_type="inverted_index")
+                else:
+                    index = api.vdb.generate_index(
+                        ts,
+                        index_type="inverted_index",
+                        param=additional_params,
+                    )
+                b = index.serialize()
+                commit_id = self.version_state["commit_id"]
+                metadata, temp_serialized_paths = self.deserialize_inverted_index(b)
+                inverted_meta_key = get_tensor_vdb_index_key(
+                    self.key, commit_id, f"{id}_inverted_metadata"
+                )
+                metadata_json = json.dumps(metadata)
+                metadata_bytes = metadata_json.encode("utf-8")
+                self.storage[inverted_meta_key] = metadata_bytes
+                temp_serialized_paths_count = len(temp_serialized_paths)
+                temp_serialized_paths = [str(path) for path in temp_serialized_paths]
+                for i, path in enumerate(temp_serialized_paths):
+                    file_name = pathlib.Path(path).name
+                    with open(path, "rb") as f:
+                        inv_key = get_tensor_vdb_index_key(
+                            self.key, commit_id, f"{id}_{file_name}"
+                        )
+                        self.storage[inv_key] = f.read()
+                        f.close()
+
+                self.invalidate_libdeeplake_dataset()
+            except:
+                self.meta.remove_vdb_index(id=id)
+                raise
+            return index
 
         if type(distance) == DistanceType:
             distance = distance.value
@@ -1823,8 +1912,8 @@ class Tensor:
 
     def delete_vdb_index(self, id: str):
         self.storage.check_readonly()
-        if self.meta.htype != "embedding":
-            raise Exception(f"Only supported for embedding tensors.")
+        self.check_supported_tensor()
+
         commit_id = self.version_state["commit_id"]
         self.unload_vdb_index_cache()
         if self.is_partitioned_vdb_index():
@@ -1846,6 +1935,28 @@ class Tensor:
                     self.key,
                     self.version_state["commit_id"],
                     f"{id}_partition_metadata",
+                )
+            )
+        elif self.is_inverted_index():
+            metadata_file = self.storage[
+                get_tensor_vdb_index_key(
+                    self.key,
+                    self.version_state["commit_id"],
+                    f"{id}_inverted_metadata",
+                )
+            ]
+            metadata = json.loads(metadata_file.decode("utf-8"))
+            segment_names = list(metadata.keys())
+            for name in segment_names:
+                partition_key = get_tensor_vdb_index_key(
+                    self.key, self.version_state["commit_id"], f"{id}_inv_{name}"
+                )
+                self.storage.pop(partition_key)
+            self.storage.pop(
+                get_tensor_vdb_index_key(
+                    self.key,
+                    self.version_state["commit_id"],
+                    f"{id}_inverted_metadata",
                 )
             )
         else:
@@ -1872,8 +1983,6 @@ class Tensor:
             raise Exception(f"An error occurred while deleting VDB indexes: {e}")
 
     def load_vdb_index(self, id: str):
-        if self.meta.htype != "embedding":
-            raise Exception(f"Only supported for embedding tensors.")
         if not self.meta.contains_vdb_index(id):
             raise ValueError(f"Tensor meta has no vdb index with name '{id}'.")
         if not self.dataset.libdeeplake_dataset is None:
@@ -1894,8 +2003,6 @@ class Tensor:
             raise ValueError(f"An error occurred while loading the VDB index {id}: {e}")
 
     def unload_vdb_index_cache(self):
-        if self.meta.htype != "embedding":
-            raise Exception(f"Only supported for embedding tensors.")
         if not self.dataset.libdeeplake_dataset is None:
             ds = self.dataset.libdeeplake_dataset
         else:
@@ -1914,16 +2021,20 @@ class Tensor:
             raise Exception(f"An error occurred while cleaning VDB Cache: {e}")
 
     def get_vdb_indexes(self) -> List[Dict[str, str]]:
-        if self.meta.htype != "embedding":
-            raise Exception(f"Only supported for embedding tensors.")
+        if self.meta.htype != "embedding" and self.meta.htype != "text":
+            raise Exception(f"Only supported for embedding and text tensors.")
         return self.meta.vdb_indexes
 
     def fetch_vdb_indexes(self) -> List[Dict[str, str]]:
         vdb_indexes = []
-        if self.meta.htype == "embedding":
+        if self.meta.htype == "embedding" or self.meta.htype == "text":
             if (not self.meta.vdb_indexes is None) and len(self.meta.vdb_indexes) > 0:
                 vdb_indexes.extend(self.meta.vdb_indexes)
         return vdb_indexes
+
+    def check_supported_tensor(self):
+        if self.meta.htype not in ["embedding", "text"]:
+            raise Exception(f"Only supported for embedding and text tensors.")
 
     def _check_compatibility_with_htype(self, htype):
         """Checks if the tensor is compatible with the given htype.
