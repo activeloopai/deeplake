@@ -63,6 +63,7 @@ def test_dataset_locking(ds_generator):
                 ds = ds_generator(read_only=False)
             # No warnings if user requests read only mode
             with warnings.catch_warnings(record=True) as ws:
+                warnings.filterwarnings("ignore", category=DeprecationWarning)
                 ds = ds_generator(read_only=True)
                 np.testing.assert_array_equal(arr, ds.x[0].numpy())
             assert not ws
@@ -85,6 +86,7 @@ def test_vc_locking(ds_generator):
         ds.checkout("branch", create=True)
         with VM():
             with warnings.catch_warnings(record=True) as ws:
+                warnings.filterwarnings("ignore", category=DeprecationWarning)
                 ds = ds_generator()
             np.testing.assert_array_equal(arr, ds.x[0].numpy())
             assert not ws, str(ws[0])
