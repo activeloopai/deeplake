@@ -59,7 +59,7 @@ class YoloExport:
         self.label_tensor = label_tensor if label_tensor else label_tensor_auto
         self.image_tensor = image_tensor if image_tensor else image_tensor_auto
 
-        image_compression = src_ds[image_tensor].meta.sample_compression
+        image_compression = src_ds[self.image_tensor].meta.sample_compression
 
         self.export_image_compression = (
             image_compression if image_compression else "png"
