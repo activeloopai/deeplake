@@ -516,7 +516,7 @@ def test_deepmemory_status(capsys, job_id, corpus_query_pair_path, hub_cloud_dev
         "--------------------------------------------------------------\n\n\n"
     )
 
-    corpus, query_path = corpus_query_pair_path
+    corpus, _ = corpus_query_pair_path
 
     db = VectorStore(
         corpus,
@@ -793,7 +793,7 @@ def test_db_deepmemory_status_should_show_best_model_with_deepmemory_v2_metadata
     corpus_query_pair_path,
     hub_cloud_dev_token,
 ):
-    corpus, queries = corpus_query_pair_path
+    corpus, _ = corpus_query_pair_path
 
     db = VectorStore(
         path=corpus,
@@ -836,7 +836,7 @@ def test_db_deepmemory_status_should_show_best_model_with_deepmemory_v1_metadata
     corpus_query_pair_path,
     hub_cloud_dev_token,
 ):
-    corpus, queries = corpus_query_pair_path
+    corpus, _ = corpus_query_pair_path
 
     db = VectorStore(
         path=corpus,
