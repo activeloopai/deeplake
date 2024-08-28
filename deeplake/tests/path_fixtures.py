@@ -534,7 +534,7 @@ def delete_if_exists(path, token):
 @pytest.fixture
 def corpus_query_pair_path(hub_cloud_dev_token):
     corpus = f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus_managed_2"
-    query = corpus + "_eval_queries"
+    query = corpus + "_eval_queries_2"
     delete_if_exists(query, hub_cloud_dev_token)
     yield corpus, query
 
