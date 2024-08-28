@@ -52,6 +52,7 @@ ingest_yolo = api_dataset.ingest_yolo
 ingest_kaggle = api_dataset.ingest_kaggle
 ingest_dataframe = api_dataset.ingest_dataframe
 ingest_huggingface = huggingface.ingest_huggingface
+export_yolo = api_dataset.export_yolo
 dataset = api_dataset.init  # type: ignore
 tensor = Tensor
 random = DeeplakeRandom()
@@ -78,6 +79,7 @@ __all__ = [
     "ingest_kaggle",
     "ingest_dataframe",
     "ingest_huggingface",
+    "export_yolo",
     "compressions",
     "htypes",
     "config",
@@ -89,7 +91,7 @@ __all__ = [
 ]
 
 
-__version__ = "3.9.19"
+__version__ = "3.9.20"
 warn_if_update_required(__version__)
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}

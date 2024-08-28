@@ -1,6 +1,58 @@
 import deeplake
 import pytest
 from deeplake.util.exceptions import IngestionError
+import numpy as np
+from click.testing import CliRunner
+
+
+def create_yolo_export_dataset_basic():
+    ds = deeplake.empty("mem://dummy")
+
+    image_shape = (100, 100, 3)
+
+    with ds:
+        ds.create_tensor("images", htype="image", sample_compression="png")
+        ds.create_tensor("boxes_ltwh", htype="bbox")
+        ds.create_tensor(
+            "labels", htype="class_label", class_names=["class_1", "class_2", "class_3"]
+        )
+
+        # Create numpy image array with random data
+        ds.extend(
+            {
+                "images": [
+                    np.random.randint(0, 255, image_shape, dtype=np.uint8),
+                    np.random.randint(0, 255, image_shape, dtype=np.uint8),
+                    np.random.randint(0, 255, image_shape, dtype=np.uint8),
+                ],
+                "boxes_ltwh": [
+                    np.array([[0, 0, 50, 50], [25, 25, 75, 75]], dtype=np.float32),
+                    np.array([[10, 10, 20, 20]], dtype=np.float32),
+                    None,
+                ],
+                "labels": [np.array([0, 1]), np.array([0]), None],
+            }
+        )
+
+    return ds
+
+
+def create_yolo_export_dataset_complex():
+
+    ds = create_yolo_export_dataset_basic()
+
+    with ds:
+        ds.create_tensor(
+            "boxes_ccwh", htype="bbox", coords={"type": "pixel", "mode": "ccwh"}
+        )
+        ds.boxes_ccwh.extend(
+            [
+                np.array([[25, 25, 50, 50], [50, 50, 75, 75]], dtype=np.float32),
+                np.array([[50, 50, 20, 20]], dtype=np.float32),
+                None,
+            ],
+        )
+    return ds
 
 
 @pytest.mark.parametrize("shuffle", [True, False])
@@ -176,3 +228,39 @@ def test_minimal_yolo_ingestion_with_linked_images(
     assert "labels" in ds.tensors
     assert len(ds.labels.info["class_names"]) > 0
     assert ds.linked_images.htype == "link[image]"
+
+
+def text_export_yolo_basic():
+    """Basic test for export_yolo function to see if it runs without errors"""
+
+    ds = create_yolo_export_dataset_basic()
+
+    with CliRunner().isolated_filesystem():
+        deeplake.export_yolo(ds, "/basic")
+
+
+def text_export_yolo_edge_cases():
+
+    ds = create_yolo_export_dataset_complex()
+
+    with CliRunner().isolated_filesystem():
+        deeplake.export_yolo(
+            ds,
+            "/custom_boxes",
+            box_tensor="boxes_ccwh",
+            label_tensor="labels",
+            image_tensor="images",
+            limit=1,
+        )
+
+    # Check for error about correct tensors not being found
+    ds_empty = deeplake.empty("mem://dummy")
+    with pytest.raises(ValueError):
+        with CliRunner().isolated_filesystem():
+            deeplake.export_yolo(ds_empty, "/no_tensors")
+
+    # Check for error about class names not being present
+    ds_empty = deeplake.empty("mem://dummy")
+    with pytest.raises(ValueError):
+        with CliRunner().isolated_filesystem():
+            deeplake.export_yolo(ds_empty, "/no_class_names")
