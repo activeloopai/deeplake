@@ -1235,6 +1235,8 @@ def _read_stl_data_meta(file: Union[bytes, memoryview, str]):
         "min_": mesh_data.min_,
         "max_": mesh_data.max_,
         "speedups": mesh_data.speedups,
+        "centroids": mesh_data.centroids,
+        "normals": mesh_data.normals,
         "extension": "stl",
     }
 

@@ -831,7 +831,8 @@ Mesh Htype
 
 A mesh tensor can be created using
 
->>> ds.create_tensor("mesh", htype="mesh", sample_compression="ply")
+>>> ds.create_tensor("mesh_ply", htype="mesh", sample_compression="ply")
+>>> ds.create_tensor("mesh_stl", htype="mesh", sample_compression="stl")
 
 - Optional args:
     - :ref:`sample_compression <sample_compression>`
@@ -853,6 +854,16 @@ Appending a ply file containing a mesh data to tensor
 >>> ds.mesh.shape
 >>> (1, 100, 3)
 
+Appending a stl file containing a mesh data to tensor
+
+>>> import deeplake as dp
+>>> sample = dp.read("example.stl")  # mesh with 100 triangles
+>>> ds.mesh.append(sample)
+>>> ds.mesh[0].numpy() # returns the mesh object vertices
+>>> ds.mesh[0].data # returns the mesh returns dict where the value is the object vertices and in sample info additionally shown the mesh objects centroids and normals and the deader data
+
+>>> ds.mesh.shape
+>>> (100, 3, 3)
 
 .. _embedding-htype:
 
