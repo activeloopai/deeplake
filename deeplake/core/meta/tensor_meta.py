@@ -9,6 +9,7 @@ from deeplake.util.exceptions import (
     TensorMetaInvalidHtypeOverwriteValue,
     TensorMetaInvalidHtypeOverwriteKey,
     TensorMetaMissingRequiredValue,
+    MeshTensorMetaMissingRequiredValue,
     TensorMetaMutuallyExclusiveKeysError,
     UnsupportedCompressionError,
     TensorInvalidSampleShapeError,
@@ -328,7 +329,16 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
         raise TensorMetaMissingRequiredValue(
             actual_htype, ["chunk_compression", "sample_compression"]  # type: ignore
         )
-    if htype in ("audio", "video", "point_cloud", "mesh", "nifti"):
+    if htype == "mesh":
+        supported_compressions = HTYPE_SUPPORTED_COMPRESSIONS.get(htype)
+        if sc == UNSPECIFIED:
+            raise MeshTensorMetaMissingRequiredValue(
+                actual_htype, "sample_compression", compr_list=supported_compressions  # type: ignore
+            )
+        if sc not in supported_compressions:
+            raise UnsupportedCompressionError(sc, htype=htype)
+
+    elif htype in ("audio", "video", "point_cloud", "nifti"):
         if cc not in (UNSPECIFIED, None):
             raise UnsupportedCompressionError("Chunk compression", htype=htype)
         elif sc == UNSPECIFIED:

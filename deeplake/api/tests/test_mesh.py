@@ -2,7 +2,11 @@ import pytest
 
 import deeplake
 import numpy as np
-from deeplake.util.exceptions import DynamicTensorNumpyError
+from deeplake.util.exceptions import (
+    DynamicTensorNumpyError,
+    MeshTensorMetaMissingRequiredValue,
+    UnsupportedCompressionError,
+)
 
 
 def test_mesh(local_ds, mesh_paths):
@@ -36,6 +40,12 @@ def test_mesh(local_ds, mesh_paths):
 
 def test_stl_mesh(local_ds, stl_mesh_paths):
     tensor = local_ds.create_tensor("stl_mesh", htype="mesh", sample_compression="stl")
+
+    with pytest.raises(UnsupportedCompressionError):
+        local_ds.create_tensor("unsupported", htype="mesh", sample_compression=None)
+
+    with pytest.raises(MeshTensorMetaMissingRequiredValue):
+        local_ds.create_tensor("unsupported", htype="mesh")
 
     for i, (_, path) in enumerate(stl_mesh_paths.items()):
         sample = deeplake.read(path)

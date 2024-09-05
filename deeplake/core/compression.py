@@ -494,6 +494,7 @@ def get_compression(header=None, path=None):
             ".ply",
             ".nii",
             ".nii.gz",
+            ".stl",
         ]
         path = str(path).lower().partition("?")[0].partition("#")[0].partition(";")[0]
         for fmt in file_formats:
