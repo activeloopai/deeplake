@@ -44,6 +44,7 @@ extras = {
         "google-auth-oauthlib",
     ],
     "point_cloud": ["laspy"],
+    "mesh": ["laspy", "numpy-stl"],
 }
 
 
