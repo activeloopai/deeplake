@@ -773,7 +773,7 @@ def test_deepmemory_evaluate_with_embedding_function_specified_in_constructor_sh
 
     queries_vs = VectorStore(
         path=queries,
-        runtime={"tensor_db": True},
+        # runtime={"tensor_db": True},
         token=hub_cloud_dev_token,
         embedding_function=embedding_fn,
     )
