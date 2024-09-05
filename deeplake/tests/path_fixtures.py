@@ -720,6 +720,19 @@ def mesh_paths():
 
 
 @pytest.fixture
+def stl_mesh_paths():
+    paths = {
+        "ascii": "ascii_eiffel_tower.stl",
+        "bin": "bin_eiffel_tower.stl",
+    }
+
+    parent = get_dummy_data_path("mesh")
+    for k in paths:
+        paths[k] = os.path.join(parent, paths[k])
+    return paths
+
+
+@pytest.fixture
 def vstream_path(request):
     """Used with parametrize to use all video stream test datasets."""
     return request.getfixturevalue(request.param)

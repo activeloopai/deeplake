@@ -837,7 +837,7 @@ A mesh tensor can be created using
     - :ref:`sample_compression <sample_compression>`
 - Supported compressions:
 
->>> ["ply"]
+>>> ["ply", "stl"]
 
 :blue:`Appending meshes`
 ------------------------

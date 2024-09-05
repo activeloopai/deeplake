@@ -9,6 +9,7 @@ from deeplake.core.compression import (
     _read_metadata_from_vstream,
     _read_audio_meta,
     _read_3d_data_meta,
+    _read_stl_data_meta,
     _open_nifti,
     HEADER_MAX_BYTES,
 )
@@ -273,6 +274,13 @@ class Sample:
             info = _read_3d_data_meta(self.path)
         else:
             info = _read_3d_data_meta(self.buffer)
+        return info
+
+    def _get_stl_meta(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            info = _read_stl_data_meta(self.path)
+        else:
+            info = _read_stl_data_meta(self.buffer)
         return info
 
     @property
@@ -552,6 +560,8 @@ class Sample:
         compression_type = get_compression_type(compression)
         if compression == "dcm":
             meta.update(self._get_dicom_meta())
+        elif compression == "stl":
+            meta.update(self._get_stl_meta())
         elif compression_type == NIFTI_COMPRESSION:
             meta.update(self._get_nifti_meta())
         elif compression_type == IMAGE_COMPRESSION:
