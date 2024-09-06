@@ -1194,7 +1194,7 @@ def _open_3d_data(file):
     return point_cloud
 
 
-def _open_mesh_data(file):
+def _open_mesh_data(file: Union[bytes, memoryview, str]):
     from stl import mesh
 
     if isinstance(file, str):
@@ -1213,12 +1213,12 @@ def _read_3d_data_shape_and_dtype(file: Union[bytes, BinaryIO]):
     return point_cloud.shape, point_cloud.dtype
 
 
-def _read_stl_shape_and_dtype(file: Union[bytes, memoryview, str]):
+def _read_stl_shape_and_dtype(file):
     mesh_data = _open_mesh_data(file)
     return mesh_data.vectors.shape, mesh_data.vectors.dtype
 
 
-def _decompress_stl(file: Union[bytes, memoryview, str]):
+def _decompress_stl(file: Union[bytes, str]):
     mesh_data = _open_mesh_data(file)
     return mesh_data.vectors
 
