@@ -722,8 +722,8 @@ def mesh_paths():
 @pytest.fixture
 def stl_mesh_paths():
     paths = {
-        "ascii": "ascii_eiffel_tower.stl",
-        "bin": "bin_eiffel_tower.stl",
+        "ascii": "box_freecad_ascii.stl",
+        "bin": "box_freecad_binary.stl",
     }
 
     parent = get_dummy_data_path("mesh")

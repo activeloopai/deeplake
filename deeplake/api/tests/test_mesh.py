@@ -53,7 +53,7 @@ def test_stl_mesh(local_ds, stl_mesh_paths):
         tensor.append(deeplake.read(path))
 
     tensor_numpy = tensor.numpy()
-    assert tensor_numpy.shape == (4, 139989, 3, 3)
+    assert tensor_numpy.shape == (4, 12, 3, 3)
     assert np.all(tensor_numpy[0] == tensor_numpy[1])
     assert np.all(tensor_numpy[1] == tensor_numpy[2])
     assert np.all(tensor_numpy[2] == tensor_numpy[3])
