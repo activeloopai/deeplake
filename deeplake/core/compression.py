@@ -721,7 +721,10 @@ def read_meta_from_compressed_file(
             except Exception as e:
                 raise CorruptedSampleError(compression, path) from e
         elif compression == "stl":
-            shape, typestr = _read_stl_shape_and_dtype(path)
+            try:
+                shape, typestr = _read_stl_shape_and_dtype(file)
+            except Exception as e:
+                raise CorruptedSampleError(compression, path) from e
         else:
             img = Image.open(f) if isfile else Image.open(BytesIO(f))  # type: ignore
             shape, typestr = Image._conv_type_shape(img)

@@ -116,8 +116,21 @@ def parse_mesh_to_dict(full_arr, sample_info):
     first_info = sample_info[0]
 
     if first_info["extension"] == "stl":
+        print("sample_info", sample_info)
+        centroids = (
+            first_info.pop("centroids")
+            if len(sample_info) == 1
+            else [info.pop("centroids") for info in sample_info]
+        )
+        normals = (
+            first_info.pop("normals")
+            if len(sample_info) == 1
+            else [info.pop("normals") for info in sample_info]
+        )
         return {
-            "value": full_arr,
+            "vertices": full_arr,
+            "centroids": centroids,
+            "normals": normals,
             "sample_info": first_info if len(sample_info) == 1 else sample_info,
         }
 

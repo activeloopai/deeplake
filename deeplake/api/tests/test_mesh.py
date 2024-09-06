@@ -60,4 +60,4 @@ def test_stl_mesh(local_ds, stl_mesh_paths):
 
     tensor_data = tensor.data()
     tensor_0_data = tensor[0].data()
-    assert np.all(tensor_data["value"][0] == tensor_0_data["value"])
+    assert np.all(tensor_data["vertices"][0] == tensor_0_data["vertices"])
