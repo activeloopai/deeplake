@@ -335,7 +335,7 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
             raise MeshTensorMetaMissingRequiredValue(
                 actual_htype, "sample_compression", compr_list=supported_compressions  # type: ignore
             )
-        if sc not in supported_compressions:
+        if sc not in supported_compressions:  # type: ignore
             raise UnsupportedCompressionError(sc, htype=htype)
 
     elif htype in ("audio", "video", "point_cloud", "nifti"):
