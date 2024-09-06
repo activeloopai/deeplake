@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import numpy as np
 
 from deeplake.util import exceptions
 from deeplake.util.exceptions import DynamicTensorNumpyError  # type: ignore
@@ -112,7 +113,7 @@ def parse_mesh_to_dict(full_arr, sample_info):
     if not sample_info:
         return {"value": full_arr, "sample_info": {}}
 
-    sample_info = sample_info if isinstance(sample_info, list) else [sample_info]
+    sample_info = sample_info if isinstance(sample_info, list) or isinstance(sample_info, np.ndarray) else [sample_info]
     first_info = sample_info[0]
 
     if first_info["extension"] == "stl":
