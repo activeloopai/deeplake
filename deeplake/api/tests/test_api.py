@@ -1159,6 +1159,7 @@ def test_compressions_list():
         "png",
         "ppm",
         "sgi",
+        "stl",
         "tga",
         "tiff",
         "wav",

@@ -11,7 +11,7 @@ pathos
 humbug>=0.3.1
 tqdm
 lz4
-av>=8.1.0; python_version >= '3.7' or sys_platform != 'win32'
+av>=8.1.0,<=12.3.0; python_version >= '3.7' or sys_platform != 'win32'
 pydicom
 IPython
 flask
@@ -24,3 +24,4 @@ azure-cli
 azure-identity
 azure-storage-blob
 pydantic
+numpy-stl

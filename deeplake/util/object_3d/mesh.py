@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import numpy as np
 
 from deeplake.util import exceptions
 from deeplake.util.exceptions import DynamicTensorNumpyError  # type: ignore
@@ -109,15 +110,49 @@ class MeshPly(ObjectBase3D):
 
 
 def parse_mesh_to_dict(full_arr, sample_info):
-    # we assume that the format of files that we append is the same
-    fmt = sample_info[0]["fmt"]
-    ext = sample_info[0]["extension"]
-    parser = mesh_parser.get_mesh_parser(ext)(fmt, full_arr, sample_info)
+    if not sample_info:
+        return {"value": full_arr, "sample_info": {}}
+
+    sample_info = (
+        sample_info
+        if isinstance(sample_info, list) or isinstance(sample_info, np.ndarray)
+        else [sample_info]
+    )
+    first_info = sample_info[0]
+
+    if first_info["extension"] == "stl":
+        print("sample_info", sample_info)
+        centroids = (
+            first_info.pop("centroids")
+            if len(sample_info) == 1
+            else [info.pop("centroids") for info in sample_info]
+        )
+        normals = (
+            first_info.pop("normals")
+            if len(sample_info) == 1
+            else [info.pop("normals") for info in sample_info]
+        )
+        return {
+            "vertices": full_arr,
+            "centroids": centroids,
+            "normals": normals,
+            "sample_info": first_info if len(sample_info) == 1 else sample_info,
+        }
+
+    parser = mesh_parser.get_mesh_parser(first_info["extension"])(
+        first_info["fmt"], full_arr, sample_info
+    )
     return parser.data
 
 
 def get_mesh_vertices(tensor_name, index, ret, sample_info, aslist):
     # we assume that the format of files that we append is the same
+    if not sample_info:
+        return ret
+    if isinstance(sample_info, dict):
+        sample_info = [sample_info]
+    if sample_info[0]["extension"] == "stl":
+        return ret
     fmt = sample_info[0]["fmt"]
     ext = sample_info[0]["extension"]
     parser = mesh_parser.get_mesh_parser(ext)(
