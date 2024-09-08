@@ -293,7 +293,7 @@ def decompress_array(
             return _decompress_audio(buffer)
         elif compr_type == VIDEO_COMPRESSION:
             return _decompress_video(buffer, start_idx, end_idx, step, reverse)  # type: ignore
-        elif compr_type in [POINT_CLOUD_COMPRESSION, MESH_COMPRESSION]:
+        elif compr_type in [POINT_CLOUD_COMPRESSION] or compression == "ply":
             return _decompress_3d_data(buffer)
 
         if compression == "apng":
@@ -304,6 +304,8 @@ def decompress_array(
             return _decompress_nifti(buffer)
         if compression == "nii.gz":
             return _decompress_nifti(buffer, gz=True)
+        if compression == "stl":
+            return _decompress_stl(buffer)
         if compression is None and isinstance(buffer, memoryview) and shape is not None:
             assert buffer is not None
             assert shape is not None
@@ -464,6 +466,8 @@ def verify_compressed_file(
             return _read_nifti_shape_and_dtype(file, gz=compression == "nii.gz")
         elif compression in ("las", "ply"):
             return _read_3d_data_shape_and_dtype(file)
+        elif compression == "stl":
+            return _read_stl_shape_and_dtype(file)
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -490,6 +494,7 @@ def get_compression(header=None, path=None):
             ".ply",
             ".nii",
             ".nii.gz",
+            ".stl",
         ]
         path = str(path).lower().partition("?")[0].partition("#")[0].partition(";")[0]
         for fmt in file_formats:
@@ -519,6 +524,10 @@ def get_compression(header=None, path=None):
             return "dcm"
         if header[0:4] == b"\x6e\x2b\x31\x00":
             return "nii"
+        if any(
+            header[: len(x)] == x for x in [b"\x73\x6F\x6C\x69", b"numpy-stl", b"solid"]
+        ):
+            return "stl"
         if not Image.OPEN:
             Image.init()
         for fmt in Image.OPEN:
@@ -709,6 +718,11 @@ def read_meta_from_compressed_file(
         elif compression in ("las", "ply"):
             try:
                 shape, typestr = _read_3d_data_shape_and_dtype(file)
+            except Exception as e:
+                raise CorruptedSampleError(compression, path) from e
+        elif compression == "stl":
+            try:
+                shape, typestr = _read_stl_shape_and_dtype(file)
             except Exception as e:
                 raise CorruptedSampleError(compression, path) from e
         else:
@@ -1183,6 +1197,15 @@ def _open_3d_data(file):
     return point_cloud
 
 
+def _open_mesh_data(file: Union[bytes, memoryview, str]):
+    from stl import mesh
+
+    if isinstance(file, str):
+        return mesh.Mesh.from_file(file)
+
+    return mesh.Mesh.from_file("", fh=BytesIO(file))
+
+
 def _decompress_3d_data(file: Union[bytes, memoryview, str]):
     point_cloud = _open_3d_data(file)
     return point_cloud.decompressed_3d_data
@@ -1193,9 +1216,32 @@ def _read_3d_data_shape_and_dtype(file: Union[bytes, BinaryIO]):
     return point_cloud.shape, point_cloud.dtype
 
 
+def _read_stl_shape_and_dtype(file):
+    mesh_data = _open_mesh_data(file)
+    return mesh_data.vectors.shape, mesh_data.vectors.dtype
+
+
+def _decompress_stl(file: Union[bytes, str]):
+    mesh_data = _open_mesh_data(file)
+    return mesh_data.vectors
+
+
 def _read_3d_data_meta(file: Union[bytes, memoryview, str]):
     point_cloud = _open_3d_data(file)
     return point_cloud.meta_data
+
+
+def _read_stl_data_meta(file: Union[bytes, memoryview, str]):
+    mesh_data = _open_mesh_data(file)
+    return {
+        "name": mesh_data.name,
+        "min_": mesh_data.min_,
+        "max_": mesh_data.max_,
+        "speedups": mesh_data.speedups,
+        "centroids": mesh_data.centroids,
+        "normals": mesh_data.normals,
+        "extension": "stl",
+    }
 
 
 def _open_nifti(file: Union[bytes, memoryview, str], gz: bool = False):

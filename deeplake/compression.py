@@ -73,7 +73,7 @@ VIDEO_COMPRESSIONS = ["mp4", "mkv", "avi"]
 AUDIO_COMPRESSIONS = ["mp3", "flac", "wav"]
 NIFTI_COMPRESSIONS = ["nii", "nii.gz"]
 POINT_CLOUD_COMPRESSIONS = ["las"]
-MESH_COMPRESSIONS = ["ply"]
+MESH_COMPRESSIONS = ["ply", "stl"]
 
 READONLY_COMPRESSIONS = [
     "mpo",

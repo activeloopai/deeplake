@@ -441,6 +441,19 @@ class TensorMetaInvalidHtypeOverwriteValue(MetaError):
         )
 
 
+class MeshTensorMetaMissingRequiredValue(MetaError):
+    def __init__(self, htype: str, key: Union[str, List[str]], compr_list: List[str]):
+        extra = ""
+        if key == "sample_compression":
+            extra = f"Available compressors: {compr_list}"
+
+        if isinstance(key, list):
+            message = f"Htype '{htype}' requires you to specify either one of {key} inside the `create_tensor` method call. {extra}"
+        else:
+            message = f"Htype '{htype}' requires you to specify '{key}' inside the `create_tensor` method call. {extra}"
+        super().__init__(message)
+
+
 class TensorMetaMissingRequiredValue(MetaError):
     def __init__(self, htype: str, key: Union[str, List[str]]):
         extra = ""
