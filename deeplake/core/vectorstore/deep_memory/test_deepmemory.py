@@ -776,7 +776,7 @@ def test_deepmemory_evaluate_with_embedding_function_specified_in_constructor_sh
         runtime={"tensor_db": True},
         token=hub_cloud_dev_token,
         embedding_function=embedding_fn,
-        overwrite=True,
+        read_only=True,
     )
 
     queries = queries_vs.dataset[:10].text.data()["value"]
