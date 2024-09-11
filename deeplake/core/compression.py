@@ -961,14 +961,9 @@ def _decompress_video(
     container, vstream = _open_video(file)
     nframes, height, width, _ = _read_metadata_from_vstream(container, vstream)[0]
 
-    if start is None:
-        start = 0
-
-    if stop is None:
-        stop = nframes
-
-    if step is None:
-        step = 1
+    start = start or 0
+    stop = stop or nframes
+    step = step or 1
 
     nframes = math.ceil((stop - start) / step)
 
@@ -977,37 +972,35 @@ def _decompress_video(
     seek_target = _frame_to_stamp(start, vstream)
     step_time = _frame_to_stamp(step, vstream)
 
-    gop_size = (
-        vstream.codec_context.gop_size
-    )  # gop size is distance (in frames) between 2 I-frames
-    if step > gop_size:
-        step_seeking = True
-    else:
-        step_seeking = False
+    gop_size = 1
+    if vstream.codec_context.is_encoder:
+        gop_size = vstream.codec_context.gop_size
+
+    step_seeking = step > gop_size
 
     seekable = True
     try:
         container.seek(seek_target, stream=vstream)
     except av.error.FFmpegError:
         seekable = False
-        container, vstream = _open_video(file)  # try again but this time don't seek
+        container, vstream = _open_video(file)  # Retry without seeking
         warning(
-            "Cannot seek. Possibly a corrupted video file. Retrying with seeking disabled..."
+            "Cannot seek. Possibly a corrupted video file. Retrying without seeking."
         )
 
     i = 0
     for packet in container.demux(video=0):
         for frame in packet.decode():
             if packet.pts and packet.pts >= seek_target:
-                arr = frame.to_ndarray(format="rgb24")
-                video[i] = arr
+                if (i % step) == 0:
+                    arr = frame.to_ndarray(format="rgb24")
+                    video[i // step] = arr
                 i += 1
                 seek_target += step_time
                 if step_seeking and seekable:
                     container.seek(seek_target, stream=vstream)
-
-        if i == nframes:
-            break
+            if i >= stop:
+                break
 
     if reverse:
         return video[::-1]
@@ -1031,25 +1024,20 @@ def _read_timestamps(
     step_time = _frame_to_stamp(step, vstream)
 
     stamps = []
-    if vstream.duration is None:
-        time_base = 1 / av.time_base  # type: ignore
-    else:
-        time_base = vstream.time_base.numerator / vstream.time_base.denominator
+    time_base = vstream.time_base.numerator / vstream.time_base.denominator
 
-    gop_size = (
-        vstream.codec_context.gop_size
-    )  # gop size is distance (in frames) between 2 I-frames
-    if step > gop_size:
-        step_seeking = True
-    else:
-        step_seeking = False
+    gop_size = 1
+    if vstream.codec_context.is_encoder:
+        gop_size = vstream.codec_context.gop_size
+
+    step_seeking = step > gop_size
 
     seekable = True
     try:
         container.seek(seek_target, stream=vstream)
     except av.error.FFmpegError:
         seekable = False
-        container, vstream = _open_video(file)  # try again but this time don't seek
+        container, vstream = _open_video(file)  # Retry without seeking
         warning(
             "Cannot seek. Possibly a corrupted video file. Retrying with seeking disabled..."
         )
@@ -1070,6 +1058,7 @@ def _read_timestamps(
     # need to sort because when demuxing, frames are in order of dts (decoder timestamp)
     # we need it in order of pts (presentation timestamp)
     stamps.sort()
+
     stamps_arr = np.zeros((nframes,), dtype=np.float32)
     stamps_arr[: len(stamps)] = stamps
 
