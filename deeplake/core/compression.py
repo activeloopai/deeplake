@@ -992,15 +992,14 @@ def _decompress_video(
     for packet in container.demux(video=0):
         for frame in packet.decode():
             if packet.pts and packet.pts >= seek_target:
-                if (i % step) == 0:
-                    arr = frame.to_ndarray(format="rgb24")
-                    video[i // step] = arr
+                arr = frame.to_ndarray(format="rgb24")
+                video[i] = arr
                 i += 1
                 seek_target += step_time
                 if step_seeking and seekable:
                     container.seek(seek_target, stream=vstream)
-            if i >= stop:
-                break
+        if i == nframes:
+            break
 
     if reverse:
         return video[::-1]
