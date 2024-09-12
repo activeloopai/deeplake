@@ -461,7 +461,7 @@ def test_deepmemory_evaluate_without_embedding_function(
     questions_embeddings_and_relevances,
     hub_cloud_dev_token,
 ):
-    corpus, _, _, query_path = corpus_query_relevances_copy
+    corpus, _, _, _ = corpus_query_relevances_copy
     (
         questions_embeddings,
         question_relevances,
@@ -618,7 +618,7 @@ def test_unsupported_deepmemory_users(local_ds):
 def test_deepmemory_list_jobs_with_no_jobs(
     corpus_query_relevances_copy, hub_cloud_dev_token
 ):
-    corpus, queries, relevances, _ = corpus_query_relevances_copy
+    corpus, _, _, _ = corpus_query_relevances_copy
 
     db = VectorStore(
         path=corpus,
@@ -749,7 +749,7 @@ def test_deepmemory_train_with_embedding_function_specified_in_constructor_shoul
         embedding_function=embedding_fn,
     )
 
-    job_id = db.deep_memory.train(
+    _ = db.deep_memory.train(
         queries=queries,
         relevance=relevances,
     )
@@ -776,13 +776,14 @@ def test_deepmemory_evaluate_with_embedding_function_specified_in_constructor_sh
         runtime={"tensor_db": True},
         token=hub_cloud_dev_token,
         embedding_function=embedding_fn,
+        read_only=True,
     )
 
     queries = queries_vs.dataset[:10].text.data()["value"]
     relevance = queries_vs.dataset[:10].metadata.data()["value"]
     relevance = [rel["relevance"] for rel in relevance]
 
-    recall = db.deep_memory.evaluate(
+    _ = db.deep_memory.evaluate(
         queries=queries,
         relevance=relevance,
     )
