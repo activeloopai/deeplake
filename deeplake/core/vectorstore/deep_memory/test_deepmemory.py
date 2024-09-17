@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 import sys
 from time import sleep
-from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import deeplake
 from deeplake import VectorStore
@@ -503,6 +503,25 @@ def test_deepmemory_list_jobs(jobs_list, corpus_query_pair_path, hub_cloud_dev_t
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_status(capsys, job_id, corpus_query_pair_path, hub_cloud_dev_token):
+    corpus, _ = corpus_query_pair_path
+    dataset_id = corpus.split("//")[1].strip("/")
+
+    class _response_mock:
+        @property
+        def status_code(self):
+            return 200
+
+        def json(self):
+            return {
+                "id": job_id,
+                "status": "completed",
+                "dataset_id": dataset_id,
+                "progress": {
+                    "eta": "2.5 seconds",
+                    "best_recall@10": "50.00% (+25.00%)",
+                },
+            }
+
     output_str = (
         "--------------------------------------------------------------\n"
         f"|                  {job_id}                  |\n"
@@ -516,20 +535,17 @@ def test_deepmemory_status(capsys, job_id, corpus_query_pair_path, hub_cloud_dev
         "--------------------------------------------------------------\n\n\n"
     )
 
-    corpus, _ = corpus_query_pair_path
-
     db = VectorStore(
         corpus,
         runtime={"tensor_db": True},
         token=hub_cloud_dev_token,
     )
 
-    jobs_list = db.deep_memory.status(job_id)
-    status = capsys.readouterr()
-    # TODO: The reason why index is added is because sometimes backends returns request
-    # parameters in different order need to address this issue either on a client side
-    # or on a backend side
-    assert status.out[511:] == output_str[511:]
+    with patch("deeplake.client.client.DeepMemoryBackendClient.request") as api_mock:
+        api_mock.return_value = _response_mock()
+        db.deep_memory.status(job_id)
+        status = capsys.readouterr()
+        assert status.out[511:] == output_str[511:]
 
 
 @pytest.mark.slow
