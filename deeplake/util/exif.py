@@ -1,4 +1,5 @@
 from fractions import Fraction
+from typing import Any, Dict
 
 from PIL import Image  # type: ignore
 import PIL.ExifTags  # type: ignore
@@ -41,22 +42,23 @@ _LOOKUPS = {
 }
 
 
-def getexif(image: Image):
-    raw_exif = image._getexif()
+def getexif(image: Image.Image) -> Dict[str, Any]:
+    raw_exif = image.getexif()
     if not raw_exif:
         return {}
+
     exif = {}
     for k, v in raw_exif.items():
         tag = k
-        k = PIL.ExifTags.TAGS.get(k, k)
-        v = _process_exif_value(k, v)
+        key = str(PIL.ExifTags.TAGS.get(k, k))
+        v = _process_exif_value(key, v)
         if v is None:
             continue
-        exif[k] = v
+        exif[key] = v
     return exif
 
 
-def _process_exif_value(k: str, v):
+def _process_exif_value(k: str, v: Any) -> Any:
     if hasattr(v, "numerator"):  # Rational
         v = v.numerator / v.denominator if v.denominator else 0
         if k == "ExposureTime":
@@ -67,12 +69,18 @@ def _process_exif_value(k: str, v):
             except ValueError:  # nan
                 pass
         return v
+
     elif k in _LOOKUPS:
-        return _LOOKUPS[k][v]
-    elif isinstance(v, bytes):
+        if isinstance(_LOOKUPS[k], dict):
+            return _LOOKUPS[k].get(v, v)
+        elif isinstance(_LOOKUPS[k], tuple):
+            return _LOOKUPS[k][v] if v < len(_LOOKUPS[k]) else v
+
+    elif isinstance(v, bytes):  # Handle byte data
         return str(v) if len(v) < 16 else "<bytes>"
     elif isinstance(v, (list, tuple)):
         return type(v)(_process_exif_value("_", x) for x in v)
     elif isinstance(v, dict):
-        return {k: _process_exif_value("_", x) for k, x in v.items()}
+        return {key: _process_exif_value("_", x) for key, x in v.items()}
+
     return str(v)

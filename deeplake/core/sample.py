@@ -392,10 +392,10 @@ class Sample:
                     compression=compression,
                     shape=self.shape,
                     dtype=self.dtype,
-                )
-                self._uncompressed_bytes = self._array.tobytes()
-                self._typestr = self._array.__array_interface__["typestr"]
-                self._dtype = np.dtype(self._typestr).name
+                )  # type: ignore
+                self._uncompressed_bytes = self._array.tobytes()  # type: ignore
+                self._typestr = self._array.__array_interface__["typestr"]  # type: ignore
+                self._dtype = np.dtype(self._typestr).name  # type: ignore
 
     def uncompressed_bytes(self) -> Optional[bytes]:
         """Returns uncompressed bytes."""
@@ -420,7 +420,7 @@ class Sample:
         return self._array  # type: ignore
 
     @property
-    def pil(self) -> Image.Image:  # type: ignore
+    def pil(self) -> Optional[Image.Image]:  # type: ignore
         """Return PIL image corresponding to the sample. Decompresses the sample if necessary.
 
         Example:

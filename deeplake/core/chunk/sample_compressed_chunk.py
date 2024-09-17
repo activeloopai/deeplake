@@ -158,11 +158,11 @@ class SampleCompressedChunk(BaseChunk):
             return sample
 
         if squeeze:
-            sample = sample.squeeze(0)
+            sample = sample.squeeze(0)  # type: ignore
 
-        if cast and sample.dtype != self.dtype:
-            sample = sample.astype(self.dtype)
-        elif copy and not sample.flags["WRITEABLE"]:
+        if cast and sample.dtype != self.dtype:  # type: ignore
+            sample = sample.astype(self.dtype)  # type: ignore
+        elif copy and not sample.flags["WRITEABLE"]:  # type: ignore
             sample = sample.copy()
         return sample
 
