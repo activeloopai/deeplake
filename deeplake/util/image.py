@@ -13,7 +13,7 @@ def convert_sample(image_sample: Sample, mode: str) -> Sample:
         image.close()
         return image_sample
 
-    image = image.convert(mode)
+    image = image.convert(mode)  # type: ignore
     image_bytes = BytesIO()
     image.save(image_bytes, format=image_sample.compression)
     converted = Sample(

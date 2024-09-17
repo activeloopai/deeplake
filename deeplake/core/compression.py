@@ -86,7 +86,7 @@ _STRUCT_HHB = struct.Struct(">HHB")
 _STRUCT_II = struct.Struct(">ii")
 
 
-def to_image(array: np.ndarray) -> Image:
+def to_image(array: np.ndarray) -> Image.Image:
     shape = array.shape
     if len(shape) == 3 and shape[0] != 1 and shape[2] == 1:
         # convert (X,Y,1) grayscale to (X,Y) for pillow compatibility
@@ -116,17 +116,22 @@ def _compress_apng(array: np.ndarray) -> bytes:
 
 def _decompress_apng(buffer: Union[bytes, memoryview]) -> np.ndarray:
     img = Image.open(BytesIO(buffer))
+
+    n_frames = getattr(img, "n_frames", 1)
+
+    if n_frames == 1:
+        raise ValueError("Image does not support multiple frames.")
     frame0 = np.array(img)
     if frame0.ndim == 2:
-        ret = np.zeros(frame0.shape + (img.n_frames,), dtype=frame0.dtype)
+        ret = np.zeros(frame0.shape + (n_frames,), dtype=frame0.dtype)
         ret[:, :, 0] = frame0
-        for i in range(1, img.n_frames):
+        for i in range(1, n_frames):
             img.seek(i)
             ret[:, :, i] = np.array(img)
     else:
-        ret = np.zeros((img.n_frames,) + frame0.shape, dtype=frame0.dtype)
+        ret = np.zeros((n_frames,) + frame0.shape, dtype=frame0.dtype)
         ret[0] = frame0
-        for i in range(1, img.n_frames):
+        for i in range(1, n_frames):
             img.seek(i)
             ret[i] = np.array(img)
     return ret
@@ -420,9 +425,9 @@ def decompress_multiple(
     next_x = 0
     for shape in shapes:
         if shape == (0, 0, 0):
-            arrays.append(np.zeros(shape, dtype=canvas.dtype))
+            arrays.append(np.zeros(shape, dtype=canvas.dtype))  # type: ignore
         else:
-            arrays.append(canvas[: shape[0], next_x : next_x + shape[1]])
+            arrays.append(canvas[: shape[0], next_x : next_x + shape[1]])  # type: ignore
             next_x += shape[1]
     return arrays
 
@@ -728,7 +733,7 @@ def read_meta_from_compressed_file(
         else:
             img = Image.open(f) if isfile else Image.open(BytesIO(f))  # type: ignore
             shape, typestr = Image._conv_type_shape(img)
-            compression = img.format.lower()
+            compression = None if img.format is None else img.format.lower()
         return compression, shape, typestr  # type: ignore
     finally:
         if close:

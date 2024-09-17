@@ -30,7 +30,7 @@ def needs_downsampling(sample, factor: int):
     if isinstance(sample, Image.Image):
         dimensions = sample.size
     elif isinstance(sample, np.ndarray):
-        dimensions = sample.shape
+        dimensions = sample.shape  # type: ignore
         if len(dimensions) == 3 and dimensions[2] == 0:
             return False
         dimensions = dimensions[:2]
@@ -62,7 +62,7 @@ def downsample_sample(
         elif isinstance(sample, SampleTiles):
             sample = sample.arr or PartialSample(
                 sample.sample_shape, sample.tile_shape, sample.dtype
-            )
+            )  # type: ignore
 
         if isinstance(sample, PartialSample):
             return sample.downsample(factor)
@@ -126,7 +126,7 @@ def downsample_link_tiled(
     if compression is None:
         return arr
     with io.BytesIO() as f:
-        Image.fromarray(arr).save(f, format=compression)
+        Image.fromarray(arr).save(f, format=compression)  # type: ignore
         image_bytes = f.getvalue()
         return deeplake.core.sample.Sample(buffer=image_bytes, compression=compression)
 
