@@ -72,7 +72,7 @@ def _process_exif_value(k: str, v: Any) -> Any:
 
     elif k in _LOOKUPS:
         if isinstance(_LOOKUPS[k], dict):
-            return _LOOKUPS[k].get(v, v)
+            return _LOOKUPS[k].get(v, v)  # type: ignore
         elif isinstance(_LOOKUPS[k], tuple):
             return _LOOKUPS[k][v] if v < len(_LOOKUPS[k]) else v
 
