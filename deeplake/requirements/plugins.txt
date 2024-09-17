@@ -1,5 +1,5 @@
 --find-links https://download.openmmlab.com/mmcv/dist/cpu/torch1.12/index.html
-torch
+torch~=1.12.0
 torchvision
 tensorflow
 tensorflow_datasets
