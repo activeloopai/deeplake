@@ -206,7 +206,7 @@ class UserNotLoggedInException(Exception):
 class InvalidHubPathException(Exception):
     def __init__(self, path):
         super().__init__(
-            f"The Dataset's path is an invalid Deep Lake cloud path. It should be of the form hub://username/dataset got {path}."
+            f"The Dataset's path is an invalid Deep Lake cloud path. It should be of the form hub://username/dataset, but got {path}."
         )
 
 
