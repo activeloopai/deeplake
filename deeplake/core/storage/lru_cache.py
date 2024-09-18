@@ -229,7 +229,7 @@ class LRUCache(StorageProvider):
                     continue
                 if _get_nbytes(result) <= self.cache_size:
                     self._insert_in_cache(key, result)
-                yield result
+                yield key, result
 
     def get_bytes(
         self,
