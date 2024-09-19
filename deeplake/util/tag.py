@@ -25,7 +25,7 @@ def process_hub_path(path: str) -> Tuple[str, str, str, str]:
         subdir = f".queries/{s[2]}"
     else:
         subdir = "/".join(s[2:])
-        if len(s) > 2:
+        if len(subdir) and len(s) > 2:
             if (
                 not (len(s) == 4 and s[2] == ".queries")
                 and not deeplake.constants._ENABLE_HUB_SUB_DATASETS
