@@ -108,7 +108,8 @@ def convert_pathlib_to_string_if_needed(path: Union[str, pathlib.Path]) -> str:
 
 
 def process_dataset_path(path: Union[str, pathlib.Path]) -> Tuple[str, Optional[str]]:
-    dataset_path, at, address = str(path).partition("@")
+    path = str(path).strip()
+    dataset_path, _, address = path.partition("@")
     if not address:
         address = None  # type: ignore
     return dataset_path, address
