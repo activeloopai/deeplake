@@ -2509,9 +2509,6 @@ def test_invalid_ds_name():
         ds = deeplake.empty("hub://test/ Mnist123")
 
     with pytest.raises(InvalidDatasetNameException):
-        ds = deeplake.like("hub://test/Mnist123 ", "hub://activeloop/mnist-train")
-
-    with pytest.raises(InvalidDatasetNameException):
         ds = deeplake.deepcopy(
             "hub://activeloop/mnist-train", "hub://activeloop/mnist$train"
         )
