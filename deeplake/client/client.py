@@ -40,6 +40,8 @@ from deeplake.client.log import logger
 from deeplake.client.auth import initialize_auth_context
 import jwt  # should add it to requirements.txt
 
+from deeplake.util.storage import get_dataset_credentials
+
 # for these codes, we will retry requests upto 3 times
 retry_status_codes = {502}
 
@@ -184,48 +186,59 @@ class DeepLakeBackendClient:
         """
         import json
 
-        db_engine = db_engine or {}
-        relative_url = GET_DATASET_CREDENTIALS_SUFFIX.format(org_id, ds_name)
-        try:
-            response = self.request(
-                "GET",
-                relative_url,
-                endpoint=self.endpoint(),
-                params={
-                    "mode": mode,
-                    "no_cache": no_cache,
-                    "db_engine": json.dumps(db_engine),
-                },
-            ).json()
-        except Exception as e:
-            if isinstance(e, AuthorizationException):
-                code = -1
-                if e.response is not None:
-                    response_data = e.response.json()
-                    code = response_data.get("code")
+        last_try_error = None
+        for try_num in range(0, 5):
+            db_engine = db_engine or {}
+            relative_url = GET_DATASET_CREDENTIALS_SUFFIX.format(org_id, ds_name)
+            try:
+                response = self.request(
+                    "GET",
+                    relative_url,
+                    endpoint=self.endpoint(),
+                    params={
+                        "mode": mode,
+                        "no_cache": no_cache,
+                        "db_engine": json.dumps(db_engine),
+                    },
+                ).json()
+            except Exception as e:
+                if isinstance(e, AuthorizationException):
+                    code = -1
+                    if e.response is not None:
+                        response_data = e.response.json()
+                        code = response_data.get("code")
 
-                if code == 1:
-                    agreements = response_data["agreements"]
-                    agreements = [agreement["text"] for agreement in agreements]
-                    raise AgreementNotAcceptedError(agreements) from e
-                elif code == 2:
-                    raise NotLoggedInAgreementError from e
-                else:
-                    try:
-                        jwt.decode(
-                            self.get_token(), options={"verify_signature": False}
-                        )
-                    except Exception:
-                        raise InvalidTokenException
+                    if code == 1:
+                        agreements = response_data["agreements"]
+                        agreements = [agreement["text"] for agreement in agreements]
+                        raise AgreementNotAcceptedError(agreements) from e
+                    elif code == 2:
+                        raise NotLoggedInAgreementError from e
+                    else:
+                        try:
+                            jwt.decode(
+                                self.get_token(), options={"verify_signature": False}
+                            )
+                        except Exception:
+                            raise InvalidTokenException
 
-                    raise TokenPermissionError(e.original_message)
-            raise
-        full_url = response.get("path")
-        repository = response.get("repository")
-        creds = response["creds"]
-        mode = response["mode"]
-        expiration = creds["expiration"] if creds else None
-        return full_url, creds, mode, expiration, repository
+                        raise TokenPermissionError(e.original_message)
+                if isinstance(e, requests.exceptions.ConnectionError):
+                    print("Connection error getting credentials. Retrying")
+                    last_try_error = e
+                    continue
+                raise
+            full_url = response.get("path")
+            repository = response.get("repository")
+            creds = response["creds"]
+            mode = response["mode"]
+            expiration = creds["expiration"] if creds else None
+            return full_url, creds, mode, expiration, repository
+
+        if last_try_error:
+            raise last_try_error
+        else:
+            raise "Unexpected error fetching credentials"
 
     def send_event(self, event_json: dict):
         """Sends an event to the backend.
