@@ -111,6 +111,10 @@ class DeepLakeBackendClient:
 
         Returns:
             requests.Response: The response received from the server.
+
+        Raises:
+            # noqa: DAR401
+            requests.exceptions.ConnectionError: If any exceptions are thrown during the request
         """
         params = params or {}
         data = data or None
@@ -126,7 +130,7 @@ class DeepLakeBackendClient:
 
         status_code = None
         tries = 0
-        last_exception = None
+        last_exception: requests.exceptions.ConnectionError | None = None
         while status_code is None or (status_code in retry_status_codes and tries < 3):
             last_exception = None
             try:
