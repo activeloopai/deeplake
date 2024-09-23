@@ -145,6 +145,7 @@ class DeepLakeBackendClient:
                     timeout=timeout,
                 )
             except requests.exceptions.ConnectionError as e:
+                print(f"Connection error on {request_url}. Retrying... Error:", e)
                 tries += 1
                 last_exception = e
                 continue
