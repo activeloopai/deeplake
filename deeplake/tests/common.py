@@ -78,7 +78,7 @@ def get_actual_compression_from_buffer(buffer: memoryview) -> Optional[str]:
     try:
         bio = BytesIO(buffer)
         img = Image.open(bio)
-        return img.format.lower()
+        return None if img.format is None else img.format.lower()
 
     except UnidentifiedImageError:
         return None

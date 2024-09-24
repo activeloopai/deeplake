@@ -134,6 +134,14 @@ Extending with multiple videos
 
 >>> ds.videos.extend([deeplake.read(f"videos/00{i}.mp4") for i in range(10)])
 
+Reading Video samples
+
+>>> ds.videos[0].numpy() # returns the video frames for the 1st video as a numpy array
+
+>>> ds.videos[0,9:20,].numpy() # returns the 10-20th frames of the first video as a numpy array
+
+>>> ds.videos[0].data() # returns a dictionary for the first video with the frame decoded as a numpy array, as well as other video metadata.
+
 .. _audio-htype:
 
 Audio Htype
@@ -797,7 +805,7 @@ A point cloud tensor can be created using
 
 :bluebold:`Examples`
 
-Appending point clouds with numpy arrays
+Appending point clouds with numpy arrays. This is only available when sample_compression is set to None.
 
 >>> import numpy as np
 >>> point_cloud1 = np.random.randint(0, 10, (5, 3))
@@ -807,13 +815,19 @@ Appending point clouds with numpy arrays
 >>> ds.point_clouds.shape
 >>> (2, None, 3)
 
-Or we can use :meth:`deeplake.read` method to add samples
+Or we can use :meth:`deeplake.read` method to add data as files
 
->>> import deeplake as dp
->>> sample = dp.read("example.las") # point cloud with 100 points
->>> ds.point_cloud.append(sample)
->>> ds.point_cloud.shape
->>> (1, 100, 3)
+>>> ds.point_cloud.append(deeplake.read("example.las"))
+>>> ds.point_cloud[0].shape
+>>> (100, 3)
+
+Reading data from a point_cloud
+
+>>> ds.point_cloud[0].numpy() # returns the point cloud points as a numpy array of shape (num_points, 3)
+
+>>> ds.point_cloud[0].data() # returns a dictionary with file-dependent keys represneding variety of different data such as: X, Y, Z, intensity, etc.
+
+
 
 .. _mesh-htype:
 
@@ -831,13 +845,14 @@ Mesh Htype
 
 A mesh tensor can be created using
 
->>> ds.create_tensor("mesh", htype="mesh", sample_compression="ply")
+>>> ds.create_tensor("mesh_ply", htype="mesh", sample_compression="ply")
+>>> ds.create_tensor("mesh_stl", htype="mesh", sample_compression="stl")
 
 - Optional args:
     - :ref:`sample_compression <sample_compression>`
 - Supported compressions:
 
->>> ["ply"]
+>>> ["ply", "stl"]
 
 :blue:`Appending meshes`
 ------------------------
@@ -846,12 +861,22 @@ A mesh tensor can be created using
 
 Appending a ply file containing a mesh data to tensor
 
->>> import deeplake as dp
->>> sample = dp.read("example.ply")  # mesh with 100 points and 200 faces
->>> ds.mesh.append(sample)
+>>> ds.mesh.append(deeplake.read("example.ply"))
+>>> ds.mesh[0].shape
+>>> (100, 3)
+
+Appending a stl file containing a mesh data to tensor
+
+>>> ds.mesh.append(deeplake.read("example.stl"))
 
 >>> ds.mesh.shape
->>> (1, 100, 3)
+>>> (100, 3, 3)
+
+Reading data from a mesh
+
+>>> ds.mesh[0].numpy() # returns the vertices of the mesh as a numpy array
+
+>>> ds.mesh[0].data() # returns a dictionary with the following keys: vertices (same as .numpy()), centroids, normals, and sample_info (other metadata)
 
 
 .. _embedding-htype:

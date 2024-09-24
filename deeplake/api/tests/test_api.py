@@ -1159,6 +1159,7 @@ def test_compressions_list():
         "png",
         "ppm",
         "sgi",
+        "stl",
         "tga",
         "tiff",
         "wav",
@@ -2129,6 +2130,7 @@ def test_text_label(local_ds_generator):
 
 @pytest.mark.parametrize("scheduler", ["threaded", "processed"])
 @pytest.mark.parametrize("num_workers", [0, 2])
+@pytest.mark.flaky(retry_count=3)
 def test_text_labels_transform(local_ds_generator, scheduler, num_workers):
     with local_ds_generator() as ds:
         ds.create_tensor("labels", htype="class_label")

@@ -251,7 +251,6 @@ class ChunkEngine:
         self.cache_range: range = range(0)
 
         self._chunk_args = None
-        self._num_samples_per_chunk: Optional[int] = None
         self.write_initialization_done = False
         self.start_chunk = None
         self.link_creds: Optional[LinkCreds] = None
@@ -1858,15 +1857,6 @@ class ChunkEngine:
         tensor_meta = self.tensor_meta
         return not self.is_text_like and tensor_meta.min_shape == tensor_meta.max_shape
 
-    @property
-    def num_samples_per_chunk(self):
-        # should only be called if self.is_fixed_shape
-        if self._num_samples_per_chunk is None:
-            self._num_samples_per_chunk = int(
-                self.chunk_id_encoder.array[0, LAST_SEEN_INDEX_COLUMN] + 1
-            )
-        return self._num_samples_per_chunk
-
     def read_sample_from_chunk(
         self,
         global_sample_index: int,
@@ -1877,13 +1867,7 @@ class ChunkEngine:
         to_pil: bool = False,
     ) -> Union[np.ndarray, Image.Image]:
         enc = self.chunk_id_encoder
-        if self.is_fixed_shape and self.sample_compression is None:
-            num_samples_per_chunk = self.num_samples_per_chunk
-            local_sample_index = global_sample_index % num_samples_per_chunk
-        else:
-            local_sample_index = enc.translate_index_relative_to_chunks(
-                global_sample_index
-            )
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         if to_pil:
             assert isinstance(chunk, SampleCompressedChunk)
             return chunk.read_sample(

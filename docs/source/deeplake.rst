@@ -13,6 +13,7 @@ deeplake
 .. autofunction:: ingest_kaggle
 .. autofunction:: ingest_dataframe
 .. autofunction:: ingest_huggingface
+.. autofunction:: export_yolo
 .. autofunction:: load
 .. autofunction:: delete
 .. autofunction:: rename

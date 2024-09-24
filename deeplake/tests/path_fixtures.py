@@ -534,7 +534,7 @@ def delete_if_exists(path, token):
 @pytest.fixture
 def corpus_query_pair_path(hub_cloud_dev_token):
     corpus = f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus_managed_2"
-    query = corpus + "_eval_queries"
+    query = corpus + "_eval_queries_2"
     delete_if_exists(query, hub_cloud_dev_token)
     yield corpus, query
 
@@ -711,6 +711,19 @@ def mesh_paths():
         "ascii1": "mesh_ascii.ply",
         "ascii2": "mesh_ascii_2.ply",
         "bin": "mesh_bin.ply",
+    }
+
+    parent = get_dummy_data_path("mesh")
+    for k in paths:
+        paths[k] = os.path.join(parent, paths[k])
+    return paths
+
+
+@pytest.fixture
+def stl_mesh_paths():
+    paths = {
+        "ascii": "box_freecad_ascii.stl",
+        "bin": "box_freecad_binary.stl",
     }
 
     parent = get_dummy_data_path("mesh")

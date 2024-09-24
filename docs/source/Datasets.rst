@@ -125,6 +125,14 @@ Dataset Version Control
     Dataset.commits
     Dataset.branches
 
+Exporting Datasets
+~~~~~~~~~~~~~~~~~~~~~~~
+.. autosummary::
+    :toctree:
+    :nosignatures:
+
+    deeplake.export_yolo
+
 Dataset Views
 ~~~~~~~~~~~~~
 A dataset view is a subset of a dataset that points to specific samples (indices) in an existing dataset. Dataset views

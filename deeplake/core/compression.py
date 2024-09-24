@@ -86,7 +86,7 @@ _STRUCT_HHB = struct.Struct(">HHB")
 _STRUCT_II = struct.Struct(">ii")
 
 
-def to_image(array: np.ndarray) -> Image:
+def to_image(array: np.ndarray) -> Image.Image:
     shape = array.shape
     if len(shape) == 3 and shape[0] != 1 and shape[2] == 1:
         # convert (X,Y,1) grayscale to (X,Y) for pillow compatibility
@@ -116,17 +116,22 @@ def _compress_apng(array: np.ndarray) -> bytes:
 
 def _decompress_apng(buffer: Union[bytes, memoryview]) -> np.ndarray:
     img = Image.open(BytesIO(buffer))
+
+    n_frames = getattr(img, "n_frames", 1)
+
+    if n_frames == 1:
+        raise ValueError("Image does not support multiple frames.")
     frame0 = np.array(img)
     if frame0.ndim == 2:
-        ret = np.zeros(frame0.shape + (img.n_frames,), dtype=frame0.dtype)
+        ret = np.zeros(frame0.shape + (n_frames,), dtype=frame0.dtype)
         ret[:, :, 0] = frame0
-        for i in range(1, img.n_frames):
+        for i in range(1, n_frames):
             img.seek(i)
             ret[:, :, i] = np.array(img)
     else:
-        ret = np.zeros((img.n_frames,) + frame0.shape, dtype=frame0.dtype)
+        ret = np.zeros((n_frames,) + frame0.shape, dtype=frame0.dtype)
         ret[0] = frame0
-        for i in range(1, img.n_frames):
+        for i in range(1, n_frames):
             img.seek(i)
             ret[i] = np.array(img)
     return ret
@@ -293,7 +298,7 @@ def decompress_array(
             return _decompress_audio(buffer)
         elif compr_type == VIDEO_COMPRESSION:
             return _decompress_video(buffer, start_idx, end_idx, step, reverse)  # type: ignore
-        elif compr_type in [POINT_CLOUD_COMPRESSION, MESH_COMPRESSION]:
+        elif compr_type in [POINT_CLOUD_COMPRESSION] or compression == "ply":
             return _decompress_3d_data(buffer)
 
         if compression == "apng":
@@ -304,6 +309,8 @@ def decompress_array(
             return _decompress_nifti(buffer)
         if compression == "nii.gz":
             return _decompress_nifti(buffer, gz=True)
+        if compression == "stl":
+            return _decompress_stl(buffer)
         if compression is None and isinstance(buffer, memoryview) and shape is not None:
             assert buffer is not None
             assert shape is not None
@@ -418,9 +425,9 @@ def decompress_multiple(
     next_x = 0
     for shape in shapes:
         if shape == (0, 0, 0):
-            arrays.append(np.zeros(shape, dtype=canvas.dtype))
+            arrays.append(np.zeros(shape, dtype=canvas.dtype))  # type: ignore
         else:
-            arrays.append(canvas[: shape[0], next_x : next_x + shape[1]])
+            arrays.append(canvas[: shape[0], next_x : next_x + shape[1]])  # type: ignore
             next_x += shape[1]
     return arrays
 
@@ -464,6 +471,8 @@ def verify_compressed_file(
             return _read_nifti_shape_and_dtype(file, gz=compression == "nii.gz")
         elif compression in ("las", "ply"):
             return _read_3d_data_shape_and_dtype(file)
+        elif compression == "stl":
+            return _read_stl_shape_and_dtype(file)
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -490,6 +499,7 @@ def get_compression(header=None, path=None):
             ".ply",
             ".nii",
             ".nii.gz",
+            ".stl",
         ]
         path = str(path).lower().partition("?")[0].partition("#")[0].partition(";")[0]
         for fmt in file_formats:
@@ -519,6 +529,10 @@ def get_compression(header=None, path=None):
             return "dcm"
         if header[0:4] == b"\x6e\x2b\x31\x00":
             return "nii"
+        if any(
+            header[: len(x)] == x for x in [b"\x73\x6F\x6C\x69", b"numpy-stl", b"solid"]
+        ):
+            return "stl"
         if not Image.OPEN:
             Image.init()
         for fmt in Image.OPEN:
@@ -711,10 +725,15 @@ def read_meta_from_compressed_file(
                 shape, typestr = _read_3d_data_shape_and_dtype(file)
             except Exception as e:
                 raise CorruptedSampleError(compression, path) from e
+        elif compression == "stl":
+            try:
+                shape, typestr = _read_stl_shape_and_dtype(file)
+            except Exception as e:
+                raise CorruptedSampleError(compression, path) from e
         else:
             img = Image.open(f) if isfile else Image.open(BytesIO(f))  # type: ignore
             shape, typestr = Image._conv_type_shape(img)
-            compression = img.format.lower()
+            compression = None if img.format is None else img.format.lower()
         return compression, shape, typestr  # type: ignore
     finally:
         if close:
@@ -947,14 +966,9 @@ def _decompress_video(
     container, vstream = _open_video(file)
     nframes, height, width, _ = _read_metadata_from_vstream(container, vstream)[0]
 
-    if start is None:
-        start = 0
-
-    if stop is None:
-        stop = nframes
-
-    if step is None:
-        step = 1
+    start = start or 0
+    stop = stop or nframes
+    step = step or 1
 
     nframes = math.ceil((stop - start) / step)
 
@@ -963,22 +977,20 @@ def _decompress_video(
     seek_target = _frame_to_stamp(start, vstream)
     step_time = _frame_to_stamp(step, vstream)
 
-    gop_size = (
-        vstream.codec_context.gop_size
-    )  # gop size is distance (in frames) between 2 I-frames
-    if step > gop_size:
-        step_seeking = True
-    else:
-        step_seeking = False
+    gop_size = 1
+    if vstream.codec_context.is_encoder:
+        gop_size = vstream.codec_context.gop_size
+
+    step_seeking = step > gop_size
 
     seekable = True
     try:
         container.seek(seek_target, stream=vstream)
     except av.error.FFmpegError:
         seekable = False
-        container, vstream = _open_video(file)  # try again but this time don't seek
+        container, vstream = _open_video(file)  # Retry without seeking
         warning(
-            "Cannot seek. Possibly a corrupted video file. Retrying with seeking disabled..."
+            "Cannot seek. Possibly a corrupted video file. Retrying without seeking."
         )
 
     i = 0
@@ -991,7 +1003,6 @@ def _decompress_video(
                 seek_target += step_time
                 if step_seeking and seekable:
                     container.seek(seek_target, stream=vstream)
-
         if i == nframes:
             break
 
@@ -1017,25 +1028,20 @@ def _read_timestamps(
     step_time = _frame_to_stamp(step, vstream)
 
     stamps = []
-    if vstream.duration is None:
-        time_base = 1 / av.time_base  # type: ignore
-    else:
-        time_base = vstream.time_base.numerator / vstream.time_base.denominator
+    time_base = vstream.time_base.numerator / vstream.time_base.denominator
 
-    gop_size = (
-        vstream.codec_context.gop_size
-    )  # gop size is distance (in frames) between 2 I-frames
-    if step > gop_size:
-        step_seeking = True
-    else:
-        step_seeking = False
+    gop_size = 1
+    if vstream.codec_context.is_encoder:
+        gop_size = vstream.codec_context.gop_size
+
+    step_seeking = step > gop_size
 
     seekable = True
     try:
         container.seek(seek_target, stream=vstream)
     except av.error.FFmpegError:
         seekable = False
-        container, vstream = _open_video(file)  # try again but this time don't seek
+        container, vstream = _open_video(file)  # Retry without seeking
         warning(
             "Cannot seek. Possibly a corrupted video file. Retrying with seeking disabled..."
         )
@@ -1056,6 +1062,7 @@ def _read_timestamps(
     # need to sort because when demuxing, frames are in order of dts (decoder timestamp)
     # we need it in order of pts (presentation timestamp)
     stamps.sort()
+
     stamps_arr = np.zeros((nframes,), dtype=np.float32)
     stamps_arr[: len(stamps)] = stamps
 
@@ -1183,6 +1190,15 @@ def _open_3d_data(file):
     return point_cloud
 
 
+def _open_mesh_data(file: Union[bytes, memoryview, str]):
+    from stl import mesh
+
+    if isinstance(file, str):
+        return mesh.Mesh.from_file(file)
+
+    return mesh.Mesh.from_file("", fh=BytesIO(file))
+
+
 def _decompress_3d_data(file: Union[bytes, memoryview, str]):
     point_cloud = _open_3d_data(file)
     return point_cloud.decompressed_3d_data
@@ -1193,9 +1209,32 @@ def _read_3d_data_shape_and_dtype(file: Union[bytes, BinaryIO]):
     return point_cloud.shape, point_cloud.dtype
 
 
+def _read_stl_shape_and_dtype(file):
+    mesh_data = _open_mesh_data(file)
+    return mesh_data.vectors.shape, mesh_data.vectors.dtype
+
+
+def _decompress_stl(file: Union[bytes, str]):
+    mesh_data = _open_mesh_data(file)
+    return mesh_data.vectors
+
+
 def _read_3d_data_meta(file: Union[bytes, memoryview, str]):
     point_cloud = _open_3d_data(file)
     return point_cloud.meta_data
+
+
+def _read_stl_data_meta(file: Union[bytes, memoryview, str]):
+    mesh_data = _open_mesh_data(file)
+    return {
+        "name": mesh_data.name,
+        "min_": mesh_data.min_,
+        "max_": mesh_data.max_,
+        "speedups": mesh_data.speedups,
+        "centroids": mesh_data.centroids,
+        "normals": mesh_data.normals,
+        "extension": "stl",
+    }
 
 
 def _open_nifti(file: Union[bytes, memoryview, str], gz: bool = False):

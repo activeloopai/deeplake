@@ -575,18 +575,19 @@ class DeepLakeDataLoader(DataLoader):
         Args:
             num_workers (int): Number of workers to use for transforming and processing the data. Defaults to 0.
             collate_fn (Callable, Optional): merges a list of samples to form a mini-batch of Tensor(s).
-            tensors (List[str], Optional): List of tensors to load. If None, all tensors are loaded. Defaults to ``None``.
+            tensors (List, Optional): List of tensors to load. If ``None``, all tensors are loaded. Defaults to ``None``.
+                For datasets with many tensors, its extremely important to stream only the data that is needed for training the model, in order to avoid bottlenecks associated with streaming unused data.
+                For example, if you have a dataset that has ``image``, ``label``, and ``metadata`` tensors, if ``tensors=["image", "label"]``, the Data Loader will only stream the ``image`` and ``label`` tensors.
             num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If ``None``, the number of threads is automatically determined. Defaults to ``None``.
             prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 2.
-            return_index (bool): Used to idnetify where loader needs to retur sample index or not. Defaults to ``True``.
+            return_index (bool): If ``True``, the returned dataloader will have a key "index" that contains the index of the sample(s) in the original dataset. Default value is True.
             persistent_workers (bool): If ``True``, the data loader will not shutdown the worker processes after a dataset has been consumed once. Defaults to ``False``.
-            decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to ``None``.
-
+            decode_method (Dict[str, str], Optional): The method for decoding the Deep Lake tensor data, the result of which is passed to the transform. Decoding occurs outside of the transform so that it can be performed in parallel and as rapidly as possible as per Deep Lake optimizations.
 
                 - Supported decode methods are:
-
-                    :'numpy': Default behaviour. Returns samples as numpy arrays.
-                    :'tobytes': Returns raw bytes of the samples.
+                    :'numpy': Default behaviour. Returns samples as numpy arrays, the same as ds.tensor[i].numpy()
+                    :'tobytes': Returns raw bytes of the samples the same as ds.tensor[i].tobytes()
+                    :'data': Returns a dictionary with keys,values depending on htype, the same as ds.tensor[i].data()
                     :'pil': Returns samples as PIL images. Especially useful when transformation use torchvision transforms, that
                             require PIL images as input. Only supported for tensors with ``sample_compression='jpeg'`` or ``'png'``.
 

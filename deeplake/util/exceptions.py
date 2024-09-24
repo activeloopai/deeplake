@@ -206,7 +206,7 @@ class UserNotLoggedInException(Exception):
 class InvalidHubPathException(Exception):
     def __init__(self, path):
         super().__init__(
-            f"The Dataset's path is an invalid Deep Lake cloud path. It should be of the form hub://username/dataset got {path}."
+            f"The Dataset's path is an invalid Deep Lake cloud path. It should be of the form hub://username/dataset, but got {path}."
         )
 
 
@@ -439,6 +439,19 @@ class TensorMetaInvalidHtypeOverwriteValue(MetaError):
         super().__init__(
             f"Invalid value '{value}' for tensor meta key '{key}'. {explanation}"
         )
+
+
+class MeshTensorMetaMissingRequiredValue(MetaError):
+    def __init__(self, htype: str, key: Union[str, List[str]], compr_list: List[str]):
+        extra = ""
+        if key == "sample_compression":
+            extra = f"Available compressors: {compr_list}"
+
+        if isinstance(key, list):
+            message = f"Htype '{htype}' requires you to specify either one of {key} inside the `create_tensor` method call. {extra}"
+        else:
+            message = f"Htype '{htype}' requires you to specify '{key}' inside the `create_tensor` method call. {extra}"
+        super().__init__(message)
 
 
 class TensorMetaMissingRequiredValue(MetaError):

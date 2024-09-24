@@ -1,5 +1,5 @@
 numpy<2.0
-pillow~=10.2.0
+pillow~=10.4.0
 boto3
 click
 google-cloud-storage~=1.42.0
@@ -24,3 +24,4 @@ azure-cli
 azure-identity
 azure-storage-blob
 pydantic
+numpy-stl
