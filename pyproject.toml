@@ -1,3 +1,59 @@
+[tool.poetry]
+name = "deeplake"
+version = "3.9.23"
+description = "Activeloop Deep Lake"
+authors = ["activeloop.ai <support@activeloop.ai>"]
+license = "MPL-2.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.6,<=3.13"
+
+# Platform-specific dependencies
+libdeeplake = {version = "==0.0.145", optional = true, markers = "sys_platform == 'linux' or (sys_platform == 'darwin' and python_version >= '3.7' and python_version < '3.13')"}
+
+[tool.poetry.extras]
+audio = ["av"]
+video = ["av"]
+av = ["av"]
+gcp = ["google-cloud-storage", "google-auth", "google-auth-oauthlib"]
+azure = ["azure-cli", "azure-identity", "azure-storage-blob"]
+dicom = ["pydicom", "nibabel"]
+medical = ["pydicom", "nibabel"]
+visualizer = ["IPython", "flask"]
+gdrive = [
+    "google-api-python-client",
+    "oauth2client",
+    "google-auth",
+    "google-auth-oauthlib"
+]
+point_cloud = ["laspy"]
+mesh = ["laspy", "numpy-stl"]
+enterprise = ["libdeeplake", "pyjwt"]
+all = [
+    "av",
+    "google-cloud-storage",
+    "google-auth",
+    "google-auth-oauthlib",
+    "azure-cli",
+    "azure-identity",
+    "azure-storage-blob",
+    "pydicom",
+    "nibabel",
+    "IPython",
+    "flask",
+    "google-api-python-client",
+    "oauth2client",
+    "laspy",
+    "numpy-stl",
+    "pyjwt",
+    "libdeeplake"
+]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
 [tool.coverage.run]
 relative_files = true
 source = ["deeplake"]
