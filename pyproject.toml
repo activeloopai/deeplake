@@ -6,18 +6,41 @@ authors = ["activeloop.ai <support@activeloop.ai>"]
 license = "MPL-2.0"
 readme = "README.md"
 
-[tool.poetry.dependencies]
-python = ">=3.6,<=3.13"
 
-# Platform-specific dependencies
-libdeeplake = {version = "==0.0.145", optional = true, markers = "sys_platform == 'linux' or (sys_platform == 'darwin' and python_version >= '3.7' and python_version < '3.13')"}
+homepage = "https://activeloop.ai/"
+repository = "https://github.com/activeloopai/deeplake"
+documentation = "https://docs.activeloop.ai/"
+
+classifiers = [
+    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)"
+]
+
+[tool.poetry.dependencies]
+virtualenv = [
+    { version = "^20.4.3,!=20.4.5,!=20.4.6" },
+    # see https://github.com/python-poetry/poetry/pull/6950 for details
+    { version = "<20.16.6", markers = "sys_platform == 'win32' and python_version == '3.9'" },
+]
+python = ">=3.9,<=3.13"
+pillow = "~10.4.0"
+numpy = "<2.0"
+boto3 = "*"
+click = "*"
+pathos = "*"
+humbug = ">=0.3.1"
+tqdm = "*"
+lz4 = "*"
+pyjwt = "*"
+pydantic = "*"
+libdeeplake = { version = "0.0.145", markers = "python_version >= '3.8' and sys_platform != 'win32'" }
+
+av = { version = ">=8.1.0", markers = "python_version >= '3.7' or sys_platform != 'win32'" }
+aioboto3 = { version = ">=10.4.0", markers = "python_version >= '3.7' and sys_platform != 'win32'" }
 
 [tool.poetry.extras]
-audio = ["av"]
-video = ["av"]
-av = ["av"]
+# You can also add optional dependencies like in setup.py
 gcp = ["google-cloud-storage", "google-auth", "google-auth-oauthlib"]
-azure = ["azure-cli", "azure-identity", "azure-storage-blob"]
+av = ["av"]
 dicom = ["pydicom", "nibabel"]
 medical = ["pydicom", "nibabel"]
 visualizer = ["IPython", "flask"]
@@ -29,7 +52,7 @@ gdrive = [
 ]
 point_cloud = ["laspy"]
 mesh = ["laspy", "numpy-stl"]
-enterprise = ["libdeeplake", "pyjwt"]
+enterprise = ["pyjwt"]
 all = [
     "av",
     "google-cloud-storage",
@@ -46,8 +69,7 @@ all = [
     "oauth2client",
     "laspy",
     "numpy-stl",
-    "pyjwt",
-    "libdeeplake"
+    "pyjwt"
 ]
 
 [build-system]
