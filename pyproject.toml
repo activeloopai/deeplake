@@ -1,11 +1,10 @@
 [tool.poetry]
 name = "deeplake"
-version = "3.9.23"
+version = "3.9.24"
 description = "Activeloop Deep Lake"
 authors = ["activeloop.ai <support@activeloop.ai>"]
 license = "MPL-2.0"
 readme = "README.md"
-
 
 homepage = "https://activeloop.ai/"
 repository = "https://github.com/activeloopai/deeplake"
@@ -38,7 +37,6 @@ av = { version = ">=8.1.0", markers = "python_version >= '3.7' or sys_platform !
 aioboto3 = { version = ">=10.4.0", markers = "python_version >= '3.7' and sys_platform != 'win32'" }
 
 [tool.poetry.extras]
-# You can also add optional dependencies like in setup.py
 gcp = ["google-cloud-storage", "google-auth", "google-auth-oauthlib"]
 av = ["av"]
 dicom = ["pydicom", "nibabel"]
