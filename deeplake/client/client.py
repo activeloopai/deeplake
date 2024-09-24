@@ -111,6 +111,10 @@ class DeepLakeBackendClient:
 
         Returns:
             requests.Response: The response received from the server.
+
+        Raises:
+            # noqa: DAR401
+            requests.exceptions.ConnectionError: If any exceptions are thrown during the request
         """
         params = params or {}
         data = data or None
@@ -126,19 +130,30 @@ class DeepLakeBackendClient:
 
         status_code = None
         tries = 0
+        last_exception: requests.exceptions.ConnectionError | None = None
         while status_code is None or (status_code in retry_status_codes and tries < 3):
-            response = requests.request(
-                method,
-                request_url,
-                params=params,
-                data=data,
-                json=json,
-                headers=headers,
-                files=files,
-                timeout=timeout,
-            )
+            last_exception = None
+            try:
+                response = requests.request(
+                    method,
+                    request_url,
+                    params=params,
+                    data=data,
+                    json=json,
+                    headers=headers,
+                    files=files,
+                    timeout=timeout,
+                )
+            except requests.exceptions.ConnectionError as e:
+                print(f"Connection error on {request_url}. Retrying... Error:", e)
+                tries += 1
+                last_exception = e
+                continue
             status_code = response.status_code
             tries += 1
+        if last_exception:
+            raise last_exception
+
         check_response_status(response)
         return response
 
