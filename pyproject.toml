@@ -29,7 +29,7 @@ tqdm = "*"
 lz4 = "*"
 pyjwt = "*"
 pydantic = "*"
-libdeeplake = { version = "0.0.145", markers = "python_version >= '3.8' and sys_platform != 'win32'" }
+libdeeplake = { version = "0.0.146", markers = "python_version >= '3.8' and sys_platform != 'win32'" }
 
 av = { version = ">=8.1.0", markers = "python_version >= '3.7' or sys_platform != 'win32'" }
 aioboto3 = { version = ">=10.4.0", markers = "python_version >= '3.7' and sys_platform != 'win32'" }
