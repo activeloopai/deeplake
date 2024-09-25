@@ -15,14 +15,12 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-virtualenv = [
-    { version = "^20.4.3,!=20.4.5,!=20.4.6" },
-    # see https://github.com/python-poetry/poetry/pull/6950 for details
-    { version = "<20.16.6", markers = "sys_platform == 'win32' and python_version == '3.9'" },
+numpy = [
+    { version = "^1.24.0", python = "<3.12" },
+    { version = "^1.26.0", python = ">=3.12" },
 ]
-python = ">=3.9,<=3.13"
+python = ">=3.8,<=3.13"
 pillow = "~10.4.0"
-numpy = "<2.0"
 boto3 = "*"
 click = "*"
 pathos = "*"
