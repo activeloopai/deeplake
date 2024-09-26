@@ -1775,7 +1775,7 @@ class ChunkEngine:
         samples: Union[np.ndarray, Sequence[InputSample], InputSample],
         operator: str,
     ):
-        """Update data at `index` with the output of elem-wise operatorion with samples"""
+        """Update data at `index` with the output of elem-wise operation with samples"""
         try:
             if isinstance(samples, deeplake.core.tensor.Tensor):
                 samples = samples.numpy()
@@ -1891,7 +1891,7 @@ class ChunkEngine:
         """
         threshold = 10
 
-        if type(index.values[0].value) == slice:
+        if isinstance(index.values[0].value, slice):
             start = index.values[0].value.start or 0
             stop = index.values[0].value.stop or self.num_samples
             step = index.values[0].value.step or 1
@@ -2218,11 +2218,10 @@ class ChunkEngine:
                     if exception:
                         raise exception
                     chunk, chunk_info = future.result()
-                    if chunk:
-                        if _get_nbytes(chunk) <= self.cache.cache_size:
-                            self.cache._insert_in_cache(
-                                self.get_chunk_key_for_id(chunk_info[0]), chunk
-                            )
+                    if chunk and _get_nbytes(chunk) <= self.cache.cache_size:
+                        self.cache._insert_in_cache(
+                            self.get_chunk_key_for_id(chunk_info[0]), chunk
+                        )
                     yield chunk_info
         else:
             with ThreadPoolExecutor() as executor:
@@ -2232,11 +2231,10 @@ class ChunkEngine:
                     repeat(storages),
                 ):
                     chunk, chunk_info = result
-                    if chunk:
-                        if _get_nbytes(chunk) <= self.cache.cache_size:
-                            self.cache._insert_in_cache(
-                                self.get_chunk_key_for_id(chunk_info[0]), chunk
-                            )
+                    if chunk and _get_nbytes(chunk) <= self.cache.cache_size:
+                        self.cache._insert_in_cache(
+                            self.get_chunk_key_for_id(chunk_info[0]), chunk
+                        )
                     yield chunk_info
 
     def _get_samples(

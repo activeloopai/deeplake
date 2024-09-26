@@ -164,6 +164,7 @@ from collections import OrderedDict
 from typing import Callable, Optional, List, Dict
 from prettytable import PrettyTable  # type: ignore
 from PIL import Image  # type: ignore
+from deeplake.util.exceptions import ValidationDatasetMissingError
 
 from mmseg.core import DistEvalHook, EvalHook  # type: ignore
 from mmseg.core import build_optimizer
@@ -611,7 +612,6 @@ def _train_segmentor(
     eval_cfg = cfg.get("evaluation", {})
     dl_impl = cfg.get("deeplake_dataloader_type", "auto").lower()
 
-    # TODO: check whether dataset is actually supported by enterprise dataloader if c++
     if dl_impl == "auto":
         dl_impl = "c++" if indra_available() else "python"
     elif dl_impl == "cpp":
@@ -733,9 +733,8 @@ def _train_segmentor(
         cfg.get("momentum_config", None),
     )
 
-    if distributed:
-        if isinstance(runner, EpochBasedRunner):
-            runner.register_hook(DistSamplerSeedHook())
+    if distributed and isinstance(runner, EpochBasedRunner):
+        runner.register_hook(DistSamplerSeedHook())
 
     # register eval hooks
     if validate:
@@ -764,14 +763,8 @@ def _train_segmentor(
 
         if ds_val is None:
             cfg_ds_val = cfg.data.get("val")
-            if cfg_ds_val is None:
-                raise Exception(
-                    "Validation dataset is not specified even though validate = True. Please set validate = False or specify a validation dataset."
-                )
-            elif cfg_ds_val.get("deeplake_path") is None:
-                raise Exception(
-                    "Validation dataset is not specified even though validate = True. Please set validate = False or specify a validation dataset."
-                )
+            if cfg_ds_val is None or cfg_ds_val.get("deeplake_path") is None:
+                raise ValidationDatasetMissingError()
 
             ds_val = load_ds_from_cfg(cfg.data.val)
             ds_val_tensors = cfg.data.val.get("deeplake_tensors", {})
@@ -779,13 +772,11 @@ def _train_segmentor(
             cfg_data = cfg.data.val.get("deeplake_path")
             if cfg_data is not None:
                 always_warn(
-                    "A Deep Lake dataset was specified in the cfg as well as inthe dataset input to train_segmentor. The dataset input to train_segmentor will be used in the workflow."
+                    "A Deep Lake dataset was specified in the cfg as well as in the dataset input to train_segmentor. The dataset input to train_segmentor will be used in the workflow."
                 )
 
         if ds_val is None:
-            raise Exception(
-                "Validation dataset is not specified even though validate = True. Please set validate = False or specify a validation dataset."
-            )
+            raise ValidationDatasetMissingError()
 
         if ds_val_tensors:
             val_images_tensor = ds_val_tensors["img"]
@@ -871,8 +862,8 @@ def build_dataloader(
     dataset.CLASSES = classes
     pipeline = build_pipeline(pipeline)
     persistent_workers = train_loader_config.get("persistent_workers", False)
-    ignore_index = train_loader_config.get("ignore_index")
-    reduce_zero_label = train_loader_config.get("reduce_zero_label")
+    _ = train_loader_config.get("ignore_index")
+    _ = train_loader_config.get("reduce_zero_label")
     dist = train_loader_config["dist"]
     if dist and implementation == "python":
         raise NotImplementedError(

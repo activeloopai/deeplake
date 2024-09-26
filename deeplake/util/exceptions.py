@@ -593,7 +593,7 @@ class SampleAppendError(Exception):
 
             if print_item:
                 msg += str(sample) + " "
-            elif print_path:
+            else:
                 msg += f"at path '{sample.path}' "
         else:
             msg = f"Failed to append a sample "
@@ -897,6 +897,7 @@ class SampleExtendingError(Exception):
             "`ds.extend({'image_tensor': samples, 'label_tensor': samples})` or you need to call `extend` method of the required tensor, "
             "like: `ds.image_tensor.extend(samples)`"
         )
+        super().__init__(message)
 
 
 class DatasetTooLargeToDelete(Exception):
@@ -1139,6 +1140,15 @@ class IncorrectQueriesTypeError(Exception):
         msg = (
             "Specified data type for queries isn't correct. "
             "Please make sure, that queries is of type List[str]"
+        )
+        super().__init__(msg)
+
+
+class ValidationDatasetMissingError(Exception):
+    def __init__(self):
+        msg = (
+            "Validation dataset is not specified even though validate = True. "
+            "Please set validate = False or specify a validation dataset."
         )
         super().__init__(msg)
 

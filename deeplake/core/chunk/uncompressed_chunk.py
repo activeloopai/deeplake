@@ -163,7 +163,7 @@ class UncompressedChunk(BaseChunk):
                 if shape is not None and not self.tensor_meta.is_link:
                     self.num_dims = self.num_dims or len(shape)
                     check_sample_shape(shape, self.num_dims)
-            except Exception as e:
+            except Exception:
                 if ignore_errors:
                     skipped.append(i)
                     continue

@@ -35,7 +35,7 @@ def normalize_index(index, nframes):
             start, stop = stop + 1, start + 1
     elif isinstance(index, list):
         raise IndexError(
-            f"Cannot specify a list video frames. You must specify a range with an optional step such as [5:10] or [0:100:5]"
+            "Cannot specify a list video frames. You must specify a range with an optional step such as [5:10] or [0:100:5]"
         )
     else:
         raise IndexError(
