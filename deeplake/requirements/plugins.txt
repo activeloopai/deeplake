@@ -1,5 +1,6 @@
 --find-links https://download.openmmlab.com/mmcv/dist/cpu/torch1.12/index.html
-torch
+torch==1.12.0; platform_system == "Linux" and python_version >= "3.7"
+torch; platform_system != "Linux" and python_version >= "3.7"
 torchvision
 tensorflow
 tensorflow_datasets

@@ -29,18 +29,6 @@ PENDING_STATUS = "not available yet"
 BEST_RECALL = "best_recall@10"
 
 
-def remove_username_from_config():
-    try:
-        config = {}
-        with open(REPORTING_CONFIG_FILE_PATH, "r") as f:
-            config = json.load(f)
-            config["username"] = "public"
-        with open(REPORTING_CONFIG_FILE_PATH, "w") as f:
-            json.dump(config, f)
-    except (FileNotFoundError, KeyError):
-        return
-
-
 def check_response_status(response: requests.Response):
     """Check response status and throw corresponding exception on failure."""
     code = response.status_code
