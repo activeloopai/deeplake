@@ -838,26 +838,27 @@ class ChunkEngine:
         incoming_num_samples = len(samples)
         enc_ids: List[Optional[str]] = []
         enc_count = [0]
-        if extending:
-            if self.tensor_meta.htype == "text" and (
-                self.chunk_class != SampleCompressedChunk
-            ):
-                lengths = np.zeros(len(samples), dtype=np.uint32)
-                for i, s in enumerate(samples):
+        if (
+            extending
+            and self.tensor_meta.htype == "text"
+            and (self.chunk_class != SampleCompressedChunk)
+        ):
+            lengths = np.zeros(len(samples), dtype=np.uint32)
+            for i, s in enumerate(samples):
+                try:
+                    s = s.numpy()
+                except AttributeError:
+                    pass
+                try:
+                    if s.dtype.name[:3] == "str":
+                        lengths[i] = len(str(s.reshape(())))
+                except AttributeError:
                     try:
-                        s = s.numpy()
-                    except AttributeError:
-                        pass
-                    try:
-                        if s.dtype.name[:3] == "str":
-                            lengths[i] = len(str(s.reshape(())))
-                    except AttributeError:
-                        try:
-                            lengths[i] = s.__len__()
-                        except AttributeError:  # None
-                            lengths[i] = 0
-                        except TypeError:  # Numpy scalar str
-                            lengths[i] = str(s).__len__()
+                        lengths[i] = s.__len__()
+                    except AttributeError:  # None
+                        lengths[i] = 0
+                    except TypeError:  # Numpy scalar str
+                        lengths[i] = str(s).__len__()
         extra_args = {"lengths": lengths}
         current_chunk = start_chunk
         updated_chunks: List[Optional[str]] = []
@@ -1039,12 +1040,11 @@ class ChunkEngine:
         lengths,
     ):
         sample = samples[0]
-        if sample.is_first_write:
-            if register:
-                if start_chunk_row is not None:
-                    enc.register_samples(1)
-                else:
-                    enc_count[-1] += 1
+        if sample.is_first_write and register:
+            if start_chunk_row is not None:
+                enc.register_samples(1)
+            else:
+                enc_count[-1] += 1
         if sample.is_last_write:
             tiles[
                 incoming_num_samples - len(samples) + bool(register) * orig_meta_length
@@ -1775,7 +1775,7 @@ class ChunkEngine:
         samples: Union[np.ndarray, Sequence[InputSample], InputSample],
         operator: str,
     ):
-        """Update data at `index` with the output of elem-wise operatorion with samples"""
+        """Update data at `index` with the output of elem-wise operation with samples"""
         try:
             if isinstance(samples, deeplake.core.tensor.Tensor):
                 samples = samples.numpy()
@@ -1891,7 +1891,7 @@ class ChunkEngine:
         """
         threshold = 10
 
-        if type(index.values[0].value) == slice:
+        if isinstance(index.values[0].value, slice):
             start = index.values[0].value.start or 0
             stop = index.values[0].value.stop or self.num_samples
             step = index.values[0].value.step or 1
@@ -2218,11 +2218,10 @@ class ChunkEngine:
                     if exception:
                         raise exception
                     chunk, chunk_info = future.result()
-                    if chunk:
-                        if _get_nbytes(chunk) <= self.cache.cache_size:
-                            self.cache._insert_in_cache(
-                                self.get_chunk_key_for_id(chunk_info[0]), chunk
-                            )
+                    if chunk and _get_nbytes(chunk) <= self.cache.cache_size:
+                        self.cache._insert_in_cache(
+                            self.get_chunk_key_for_id(chunk_info[0]), chunk
+                        )
                     yield chunk_info
         else:
             with ThreadPoolExecutor() as executor:
@@ -2232,11 +2231,10 @@ class ChunkEngine:
                     repeat(storages),
                 ):
                     chunk, chunk_info = result
-                    if chunk:
-                        if _get_nbytes(chunk) <= self.cache.cache_size:
-                            self.cache._insert_in_cache(
-                                self.get_chunk_key_for_id(chunk_info[0]), chunk
-                            )
+                    if chunk and _get_nbytes(chunk) <= self.cache.cache_size:
+                        self.cache._insert_in_cache(
+                            self.get_chunk_key_for_id(chunk_info[0]), chunk
+                        )
                     yield chunk_info
 
     def _get_samples(

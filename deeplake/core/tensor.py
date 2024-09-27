@@ -1546,11 +1546,11 @@ class Tensor:
         stream = BytesIO(serialized_data)
 
         # Read number of partitions
-        metadataSize = int.from_bytes(
+        metadata_size = int.from_bytes(
             stream.read(8), "little"
         )  # Assuming size_t is 8 bytes
 
-        metadata_bytes = stream.read(metadataSize)
+        metadata_bytes = stream.read(metadata_size)
         metadata = json.loads(metadata_bytes.decode("utf-8"))
 
         temp_paths_size = int.from_bytes(stream.read(8), "little")
@@ -1847,7 +1847,6 @@ class Tensor:
                 metadata_json = json.dumps(metadata)
                 metadata_bytes = metadata_json.encode("utf-8")
                 self.storage[inverted_meta_key] = metadata_bytes
-                temp_serialized_paths_count = len(temp_serialized_paths)
                 temp_serialized_paths = [str(path) for path in temp_serialized_paths]
                 for i, path in enumerate(temp_serialized_paths):
                     file_name = pathlib.Path(path).name
@@ -1985,7 +1984,7 @@ class Tensor:
     def load_vdb_index(self, id: str):
         if not self.meta.contains_vdb_index(id):
             raise ValueError(f"Tensor meta has no vdb index with name '{id}'.")
-        if not self.dataset.libdeeplake_dataset is None:
+        if self.dataset.libdeeplake_dataset is not None:
             ds = self.dataset.libdeeplake_dataset
         else:
             from deeplake.enterprise.convert_to_libdeeplake import (
@@ -2003,7 +2002,7 @@ class Tensor:
             raise ValueError(f"An error occurred while loading the VDB index {id}: {e}")
 
     def unload_vdb_index_cache(self):
-        if not self.dataset.libdeeplake_dataset is None:
+        if self.dataset.libdeeplake_dataset is not None:
             ds = self.dataset.libdeeplake_dataset
         else:
             from deeplake.enterprise.convert_to_libdeeplake import (
@@ -2028,7 +2027,7 @@ class Tensor:
     def fetch_vdb_indexes(self) -> List[Dict[str, str]]:
         vdb_indexes = []
         if self.meta.htype == "embedding" or self.meta.htype == "text":
-            if (not self.meta.vdb_indexes is None) and len(self.meta.vdb_indexes) > 0:
+            if (self.meta.vdb_indexes is not None) and len(self.meta.vdb_indexes) > 0:
                 vdb_indexes.extend(self.meta.vdb_indexes)
         return vdb_indexes
 

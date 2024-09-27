@@ -593,7 +593,7 @@ class SampleAppendError(Exception):
 
             if print_item:
                 msg += str(sample) + " "
-            elif print_path:
+            else:
                 msg += f"at path '{sample.path}' "
         else:
             msg = f"Failed to append a sample "
@@ -897,6 +897,7 @@ class SampleExtendingError(Exception):
             "`ds.extend({'image_tensor': samples, 'label_tensor': samples})` or you need to call `extend` method of the required tensor, "
             "like: `ds.image_tensor.extend(samples)`"
         )
+        super().__init__(message)
 
 
 class DatasetTooLargeToDelete(Exception):
@@ -1143,9 +1144,23 @@ class IncorrectQueriesTypeError(Exception):
         super().__init__(msg)
 
 
+class ValidationDatasetMissingError(Exception):
+    def __init__(self):
+        msg = (
+            "Validation dataset is not specified even though validate = True. "
+            "Please set validate = False or specify a validation dataset."
+        )
+        super().__init__(msg)
+
+
 class InvalidAuthContextError(Exception):
     def __init__(
         self,
         message: str = "Authentication failed due to invalid or insufficient configuration.",
     ):
         super().__init__(message)
+
+
+class InvalidPandasDataframeError(Exception):
+    def __init__(self):
+        super().__init__("Source provided is not a valid pandas dataframe object")

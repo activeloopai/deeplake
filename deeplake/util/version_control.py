@@ -412,7 +412,6 @@ def delete_branch(
     storage = dataset.storage
     storage.check_readonly()
 
-    # storage = dataset.storage
     version_state = dataset.version_state
     if version_state["branch"] == branch_name:
         raise VersionControlError(

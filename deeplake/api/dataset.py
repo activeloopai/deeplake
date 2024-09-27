@@ -72,6 +72,7 @@ from deeplake.util.exceptions import (
     LockedException,
     BadRequestException,
     RenameError,
+    InvalidPandasDataframeError,
 )
 from deeplake.util.storage import (
     get_storage_and_cache_chain,
@@ -81,6 +82,17 @@ from deeplake.util.compute import get_compute_provider
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.cache_chain import generate_chain
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
+
+allow_delete_error_message = "Dataset overwrite failed. The dataset is marked as allow_delete=false. To allow overwrite, you must first run `allow_delete = True` on the dataset."
+see_traceback_error_message = (
+    "Dataset overwrite failed. See traceback for more information."
+)
+
+dataset_corrupted_error_message = (
+    "The source dataset is corrupted."
+    "You can try to fix this by loading the dataset with `reset=True` "
+    "which will attempt to reset uncommitted HEAD changes and load the previous version."
+)
 
 
 def _check_indra_and_read_only_flags(indra: bool, read_only: Optional[bool]):
@@ -258,7 +270,7 @@ class dataset:
         db_engine = parse_runtime_parameters(path, runtime)["tensor_db"]
 
         try:
-            storage, cache_chain = get_storage_and_cache_chain(
+            _, cache_chain = get_storage_and_cache_chain(
                 path=path,
                 db_engine=db_engine,
                 read_only=read_only,
@@ -279,16 +291,12 @@ class dataset:
         if ds_exists:
             if overwrite:
                 if not dataset._allow_delete(cache_chain):
-                    raise DatasetHandlerError(
-                        "Dataset overwrite failed. The dataset is marked as allow_delete=false. To allow overwrite, you must first run `allow_delete = True` on the dataset."
-                    )
+                    raise DatasetHandlerError(allow_delete_error_message)
 
                 try:
                     cache_chain.clear()
                 except Exception as e:
-                    raise DatasetHandlerError(
-                        "Dataset overwrite failed. See traceback for more information."
-                    ) from e
+                    raise DatasetHandlerError(see_traceback_error_message) from e
                 create = True
             else:
                 create = False
@@ -403,7 +411,7 @@ class dataset:
         _fetch_creds_from_key(creds, org_id, token)
 
         try:
-            storage, cache_chain = get_storage_and_cache_chain(
+            storage, _ = get_storage_and_cache_chain(
                 path=path,
                 read_only=True,
                 creds=creds,
@@ -523,16 +531,12 @@ class dataset:
 
         if overwrite and dataset_exists(cache_chain):
             if not dataset._allow_delete(cache_chain):
-                raise DatasetHandlerError(
-                    "Dataset overwrite failed. The dataset is marked as allow_delete=false. To allow overwrite, you must first run `allow_delete = True` on the dataset."
-                )
+                raise DatasetHandlerError(allow_delete_error_message)
 
             try:
                 cache_chain.clear()
             except Exception as e:
-                raise DatasetHandlerError(
-                    "Dataset overwrite failed. See traceback for more information."
-                ) from e
+                raise DatasetHandlerError(see_traceback_error_message) from e
         elif dataset_exists(cache_chain):
             raise DatasetHandlerError(
                 f"A dataset already exists at the given path ({path}). If you want to create"
@@ -1143,11 +1147,11 @@ class dataset:
                 if dest_path == src_path:
                     # load tensor data to memory before deleting
                     # in case of in-place deeplake.like
-                    meta = source_tensor.meta
-                    info = source_tensor.info
-                    sample_shape_tensor = source_tensor._sample_shape_tensor
-                    sample_id_tensor = source_tensor._sample_id_tensor
-                    sample_info_tensor = source_tensor._sample_info_tensor
+                    _ = source_tensor.meta
+                    _ = source_tensor.info
+                    _ = source_tensor._sample_shape_tensor
+                    _ = source_tensor._sample_id_tensor
+                    _ = source_tensor._sample_info_tensor
                 destination_ds.delete_tensor(tensor_name)
             destination_ds.create_tensor_like(tensor_name, source_tensor, unlink=tensor_name in unlink)  # type: ignore
 
@@ -1218,9 +1222,7 @@ class dataset:
                 )
             except DatasetCorruptError as e:
                 raise DatasetCorruptError(
-                    "The source dataset is corrupted.",
-                    "You can try to fix this by loading the dataset with `reset=True` "
-                    "which will attempt to reset uncommitted HEAD changes and load the previous version.",
+                    dataset_corrupted_error_message,
                     e.__cause__,
                 )
         else:
@@ -1323,9 +1325,7 @@ class dataset:
                 )
             except DatasetCorruptError as e:
                 raise DatasetCorruptError(
-                    "The source dataset is corrupted.",
-                    "You can try to fix this by loading the dataset with `reset=True` "
-                    "which will attempt to reset uncommitted HEAD changes and load the previous version.",
+                    dataset_corrupted_error_message,
                     e.__cause__,
                 )
         else:
@@ -1364,16 +1364,12 @@ class dataset:
         if dataset_exists(cache_chain):
             if overwrite:
                 if not dataset._allow_delete(cache_chain):
-                    raise DatasetHandlerError(
-                        "Dataset overwrite failed. The dataset is marked as allow_delete=false. To allow overwrite, you must first run `allow_delete = True` on the dataset."
-                    )
+                    raise DatasetHandlerError(allow_delete_error_message)
 
                 try:
                     cache_chain.clear()
                 except Exception as e:
-                    raise DatasetHandlerError(
-                        "Dataset overwrite failed. See traceback for more information."
-                    ) from e
+                    raise DatasetHandlerError(see_traceback_error_message) from e
             else:
                 raise DatasetHandlerError(
                     f"A dataset already exists at the given path ({dest}). If you want to copy to a new dataset, either specify another path or use overwrite=True."
@@ -2125,7 +2121,7 @@ class dataset:
             Dataset: New dataset created from the dataframe.
 
         Raises:
-            Exception: If ``src`` is not a valid pandas dataframe object.
+            InvalidPandasDataframeError: If ``src`` is not a valid pandas dataframe object.
         """
         import pandas as pd
         from deeplake.auto.structured.dataframe import DataFrame
@@ -2138,7 +2134,7 @@ class dataset:
         )
 
         if not isinstance(src, pd.DataFrame):
-            raise Exception("Source provided is not a valid pandas dataframe object")
+            raise InvalidPandasDataframeError()
 
         structured = DataFrame(src, column_params, src_creds, creds_key)
 
@@ -2244,9 +2240,7 @@ class dataset:
                 )
             except DatasetCorruptError as e:
                 raise DatasetCorruptError(
-                    "The source dataset is corrupted.",
-                    "You can try to fix this by loading the dataset with `reset=True` "
-                    "which will attempt to reset uncommitted HEAD changes and load the previous version.",
+                    dataset_corrupted_error_message,
                     e.__cause__,
                 )
         else:

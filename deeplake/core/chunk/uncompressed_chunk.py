@@ -48,9 +48,8 @@ class UncompressedChunk(BaseChunk):
         num_data_bytes = self.num_data_bytes
         space_left = min_chunk_size - num_data_bytes
         idx = np.searchsorted(csum, space_left)
-        if not idx and csum[0] > space_left:
-            if self._data_bytes:
-                return 0
+        if not idx and csum[0] > space_left and self._data_bytes:
+            return 0
         num_samples = int(min(len(incoming_samples), idx + 1))  # type: ignore
         bts = list(
             map(self._text_sample_to_byte_string, incoming_samples[:num_samples])
@@ -131,13 +130,12 @@ class UncompressedChunk(BaseChunk):
         chunk_dtype = self.dtype
         samples_dtype = incoming_samples.dtype
         if samples_dtype != chunk_dtype:
-            if size:
-                if not np.can_cast(samples_dtype, chunk_dtype):
-                    raise TensorDtypeMismatchError(
-                        chunk_dtype,
-                        samples_dtype,
-                        self.htype,
-                    )
+            if size and not np.can_cast(samples_dtype, chunk_dtype):
+                raise TensorDtypeMismatchError(
+                    chunk_dtype,
+                    samples_dtype,
+                    self.htype,
+                )
             samples = samples.astype(chunk_dtype)
         self._data_bytes += samples.tobytes()  # type: ignore
         self.register_in_meta_and_headers(
@@ -163,7 +161,7 @@ class UncompressedChunk(BaseChunk):
                 if shape is not None and not self.tensor_meta.is_link:
                     self.num_dims = self.num_dims or len(shape)
                     check_sample_shape(shape, self.num_dims)
-            except Exception as e:
+            except Exception:
                 if ignore_errors:
                     skipped.append(i)
                     continue
