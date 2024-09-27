@@ -6,6 +6,7 @@ from deeplake.util.exceptions import (
     SamePathException,
     DatasetHandlerError,
     IngestionError,
+    InvalidPandasDataframeError,
 )
 import numpy as np
 import pytest

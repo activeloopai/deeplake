@@ -160,13 +160,12 @@ class ChunkCompressedChunk(BaseChunk):
             cast = False
             sample_nbytes = sample.nbytes
         else:
-            if sample.size:
-                if not np.can_cast(sample_dtype, chunk_dtype):
-                    raise TensorDtypeMismatchError(
-                        chunk_dtype,
-                        sample_dtype,
-                        self.htype,
-                    )
+            if sample.size and not np.can_cast(sample_dtype, chunk_dtype):
+                raise TensorDtypeMismatchError(
+                    chunk_dtype,
+                    sample_dtype,
+                    self.htype,
+                )
             cast = True
             sample_nbytes = np.dtype(chunk_dtype).itemsize * sample.size
         min_chunk_size = self.min_chunk_size

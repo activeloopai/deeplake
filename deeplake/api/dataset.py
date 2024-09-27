@@ -72,6 +72,7 @@ from deeplake.util.exceptions import (
     LockedException,
     BadRequestException,
     RenameError,
+    InvalidPandasDataframeError,
 )
 from deeplake.util.storage import (
     get_storage_and_cache_chain,
@@ -2120,7 +2121,7 @@ class dataset:
             Dataset: New dataset created from the dataframe.
 
         Raises:
-            Exception: If ``src`` is not a valid pandas dataframe object.
+            InvalidPandasDataframeError: If ``src`` is not a valid pandas dataframe object.
         """
         import pandas as pd
         from deeplake.auto.structured.dataframe import DataFrame
@@ -2133,7 +2134,7 @@ class dataset:
         )
 
         if not isinstance(src, pd.DataFrame):
-            raise Exception("Source provided is not a valid pandas dataframe object")
+            raise InvalidPandasDataframeError()
 
         structured = DataFrame(src, column_params, src_creds, creds_key)
 

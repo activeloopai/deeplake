@@ -1159,3 +1159,8 @@ class InvalidAuthContextError(Exception):
         message: str = "Authentication failed due to invalid or insufficient configuration.",
     ):
         super().__init__(message)
+
+
+class InvalidPandasDataframeError(Exception):
+    def __init__(self):
+        super().__init__("Source provided is not a valid pandas dataframe object")
