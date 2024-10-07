@@ -2227,43 +2227,64 @@ class dataset:
         os.makedirs(dest, exist_ok=True)
 
         # Check if directory is empty and warn if it's not
-        if os.listdir(dest):
-            logger.warning(
-                f"Destination directory {dest} is not empty. Existing files are unknown and might cause issues when using the files in the destination directory for YOLO training."
-            )
-
-        if isinstance(src, (str, pathlib.Path)):
-            src = convert_pathlib_to_string_if_needed(src)
-            try:
-                src_ds = deeplake.load(
-                    src, read_only=True, creds=src_creds, token=token, verbose=False
-                )
-            except DatasetCorruptError as e:
-                raise DatasetCorruptError(
-                    dataset_corrupted_error_message,
-                    e.__cause__,
-                )
-        else:
-            src_ds = src
-
-        export = YoloExport(
-            src_ds, dest, box_tensor, label_tensor, image_tensor, progressbar, limit
+        def check_directory_empty(dest):
+    """Check if a directory is empty and log a warning if it’s not."""
+    if any(os.scandir(dest)):  # More efficient than os.listdir()
+        logger.warning(
+            f"Destination directory '{dest}' is not empty. Existing files may cause issues during YOLO training."
         )
 
-        export.export_data()
+def load_dataset(src, src_creds=None, token=None):
+    """Load dataset from a source path or return the dataset object if already provided."""
+    if isinstance(src, (str, pathlib.Path)):
+        src = str(src)  # Convert Pathlib to string if necessary
+        try:
+            return deeplake.load(
+                src, read_only=True, creds=src_creds, token=token, verbose=False
+            )
+        except deeplake.DatasetCorruptError as e:
+            raise deeplake.DatasetCorruptError("Dataset corrupted. Unable to load.", e)
+    return src
+
+
+def export_yolo_data(src, dest, box_tensor, label_tensor, image_tensor, progressbar, limit, src_creds=None, token=None):
+    """
+    Export data for YOLO training.
+    Args:
+        src: Source dataset or path.
+        dest: Destination directory.
+        box_tensor, label_tensor, image_tensor: Tensors to be exported.
+        progressbar: Display progress bar or not.
+        limit: Limit the number of items.
+    """
+    # Check if destination directory is empty
+    check_directory_empty(dest)
+
+    # Load the dataset
+    src_ds = load_dataset(src, src_creds, token)
+
+    # Initialize the export
+    export = YoloExport(
+        src_ds, dest, box_tensor, label_tensor, image_tensor, progressbar, limit
+    )
+
+    # Perform the export
+    export.export_data()
+
+
+class DatasetUtility:
 
     @staticmethod
     @spinner
-    def query(query_string: str, token: Optional[str] = "") -> Dataset:
+    def query(query_string: str, token: Optional[str] = None) -> Dataset:
+        """Execute a universal query and return the dataset."""
         from deeplake.enterprise.libdeeplake_query import universal_query
-
         return universal_query(query_string=query_string, token=token)
 
     @staticmethod
     def _allow_delete(storage, commit_id=None) -> bool:
+        """Check if deletion is allowed based on dataset metadata."""
         meta = json.loads(
             storage[get_dataset_meta_key(commit_id or FIRST_COMMIT_ID)].decode("utf-8")
         )
-        if "allow_delete" in meta and not meta["allow_delete"]:
-            return False
-        return True
+        return meta.get("allow_delete", True)  # Simplified return logic
