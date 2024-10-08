@@ -21,7 +21,7 @@ from deeplake.client.config import (
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
     HUB_REST_ENDPOINT_DEV,
-    HUB_REST_ENDPOINT_TESTING,
+    HUB_REST_ENDPOINT_BETA,
     HUB_REST_ENDPOINT_STAGING,
     DEFAULT_REQUEST_TIMEOUT,
     GET_DATASET_CREDENTIALS_SUFFIX,
@@ -162,8 +162,8 @@ class DeepLakeBackendClient:
             return HUB_REST_ENDPOINT_LOCAL
         if deeplake.client.config.USE_DEV_ENVIRONMENT:
             return HUB_REST_ENDPOINT_DEV
-        if deeplake.client.config.USE_TESTING_ENVIRONMENT:
-            return HUB_REST_ENDPOINT_TESTING
+        if deeplake.client.config.USE_BETA_ENVIRONMENT:
+            return HUB_REST_ENDPOINT_BETA
         if deeplake.client.config.USE_STAGING_ENVIRONMENT:
             return HUB_REST_ENDPOINT_STAGING
 
