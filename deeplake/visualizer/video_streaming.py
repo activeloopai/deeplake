@@ -2,6 +2,8 @@
 
 from typing import Optional, Callable, Tuple
 from flask import Flask, request, Response
+from flask_wtf import CSRFProtect
+
 from deeplake.core.meta.encode.chunk_id import ChunkIdEncoder
 from deeplake.core.storage import StorageProvider
 from deeplake.core.meta.encode.byte_positions import BytePositionsEncoder
@@ -175,6 +177,8 @@ def _stop_server():
 
 
 _APP = Flask("video_stream")
+csrf = CSRFProtect()
+csrf.init_app(_APP)
 
 
 @_APP.after_request
