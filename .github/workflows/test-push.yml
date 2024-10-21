@@ -11,6 +11,7 @@ on:
   push:
     branches:
       - 'main'
+      - 'v3'
       - 'release/**'
   pull_request:
     types:
@@ -87,7 +88,7 @@ jobs:
                   ]
           
           elif "${{ github.event_name }}" == "push":
-              if "${{ github.ref_name == 'main' || startsWith( github.ref_name, 'release/' ) }}" == "true":
+              if "${{ github.ref_name == 'main' || github.ref_name == 'v3' || startsWith( github.ref_name, 'release/' ) }}" == "true":
                   matrix["os"] = [
                       "macos-latest",
                       "ubuntu-latest",
