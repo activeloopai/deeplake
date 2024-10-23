@@ -71,16 +71,16 @@ pip install deeplake
 
 ### Vector Store Applications
 Using Deep Lake as a Vector Store for building LLM applications:
-### - [Vector Store Quickstart](https://docs.deeplake.ai/latest/guide/rag/vector_search/)
+### - [Vector Store Quickstart](https://docs.deeplake.ai/latest/guide/rag/vector-search/)
 ### - [Vector Store Tutorials](https://docs.activeloop.ai/examples/rag/tutorials)
 ### - [LangChain Integration](https://docs.activeloop.ai/examples/rag/langchain-integration)
 ### - [LlamaIndex Integration](https://docs.activeloop.ai/examples/rag/llamaindex-integration)
-### - [Image Similarity Search with Deep Lake](https://docs.deeplake.ai/latest/guide/rag/image_similarity/)
+### - [Image Similarity Search with Deep Lake](https://docs.deeplake.ai/latest/guide/rag/image-similarity/)
 
 
 ### Deep Learning Applications
 Using Deep Lake for managing data while training Deep Learning models:
-### - [Deep Learning Quickstart](https://docs.deeplake.ai/latest/guide/deep_learning/)
+### - [Deep Learning Quickstart](https://docs.deeplake.ai/latest/guide/deep-learning/)
 ### - [Tutorials for Training Models](https://docs.activeloop.ai/examples/dl/tutorials/training-models)
 
 ## ⚙️ Integrations
