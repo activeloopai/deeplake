@@ -1,4 +1,0 @@
--r common.txt
--r plugins.txt
-sphinx-copybutton
-sphinx-rtd-theme==1.0.0

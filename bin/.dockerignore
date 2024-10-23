@@ -1,5 +1,0 @@
-.env
-*.pyc
-./data/
-.eggs/
-.git
