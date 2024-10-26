@@ -447,6 +447,7 @@ class Dataset:
             "_lock_timeout",
             "enabled_tensors",
             "is_iteration",
+            "index_params",
         ]
         state = {k: getattr(self, k) for k in keys}
         state["link_creds"] = self.link_creds
