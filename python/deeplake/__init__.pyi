@@ -11,8 +11,10 @@ __all__ = [
     "FutureVoid",
     "Future",
     "Tag",
+    "TagView",
     "TagNotFoundError",
     "Tags",
+    "TagsView",
     "ColumnDefinition",
     "ColumnDefinitionView",
     "ColumnView",
@@ -28,6 +30,7 @@ __all__ = [
     "UnevenUpdateError",
     "ColumnMissingAppendValueError",
     "ColumnAlreadyExistsError",
+    "ColumnDoesNotExistError",
     "InvalidColumnValueError",
     "GcsStorageProviderFailed",
     "History",
@@ -321,8 +324,52 @@ class Tag:
         """
         ...
 
+    def open_async(self) -> Future:
+        """
+        Asynchronously fetches the dataset corresponding to the tag and returns a Future object.
+        """
+        ...
+
     def __repr__(self) -> str: ...
 
+class TagView:
+    """
+    Describes a read-only tag within the dataset.
+
+    Tags are created using [deeplake.Dataset.tag][].
+    """
+
+    @property
+    def id(self) -> str:
+        """
+        The unique identifier of the tag
+        """
+
+    @property
+    def name(self) -> str:
+        """
+        The name of the tag
+        """
+
+    @property
+    def version(self) -> str:
+        """
+        The version that has been tagged
+        """
+
+    def open(self) -> ReadOnlyDataset:
+        """
+        Fetches the dataset corresponding to the tag
+        """
+        ...
+
+    def open_async(self) -> Future:
+        """
+        Asynchronously fetches the dataset corresponding to the tag and returns a Future object.
+        """
+        ...
+
+    def __repr__(self) -> str: ...
 
 class TagNotFoundError(Exception):
     pass
@@ -341,6 +388,34 @@ class Tags:
     """
 
     def __getitem__(self, name: str) -> Tag:
+        """
+        Return a tag by name
+        """
+        ...
+
+    def __len__(self) -> int:
+        """
+        The total number of tags in the dataset
+        """
+        ...
+
+    def __repr__(self) -> str: ...
+
+    def names(self) -> list[str]:
+        """
+        Return a list of tag names
+        """
+
+    ...
+
+class TagsView:
+    """
+    Provides access to the tags within a dataset.
+
+    It is returned by the [deeplake.Dataset.tags][] property on a [deeplake.ReadOnlyDataset][].
+    """
+
+    def __getitem__(self, name: str) -> TagView:
         """
         Return a tag by name
         """
@@ -1329,9 +1404,9 @@ class ReadOnlyDataset(DatasetView):
     def __repr__(self) -> str: ...
 
     @property
-    def tags(self) -> Tags:
+    def tags(self) -> TagsView:
         """
-        The collection of [deeplake.Tags][] within the dataset
+        The collection of [deeplake.TagsView][] within the dataset
         """
         ...
 
@@ -1434,6 +1509,10 @@ class ColumnMissingAppendValueError(Exception):
 
 
 class ColumnAlreadyExistsError(Exception):
+    pass
+
+
+class ColumnDoesNotExistError(Exception):
     pass
 
 

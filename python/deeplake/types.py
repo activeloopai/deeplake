@@ -26,6 +26,7 @@ __all__ = [
     "BoundingBox",
     "BinaryMask",
     "SegmentMask",
+    "TypeKind",
     "TextIndexType",
     "QuantizationType",
     "Binary",
