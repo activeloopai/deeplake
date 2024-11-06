@@ -1,19 +1,23 @@
 import os
 from typing import Callable, Any, Dict
 
+import numpy
+
 import deeplake
 from ._deeplake import *
 from ._deeplake import _deepcopy
 
-__version__ = "4.0.0"
+__version__ = "4.0.1"
 
 __all__ = [
     "__version__",
     "FutureVoid",
     "Future",
     "Tag",
+    "TagView",
     "TagNotFoundError",
     "Tags",
+    "TagsView",
     "ColumnDefinition",
     "ColumnDefinitionView",
     "ColumnView",
@@ -29,6 +33,7 @@ __all__ = [
     "UnevenUpdateError",
     "ColumnMissingAppendValueError",
     "ColumnAlreadyExistsError",
+    "ColumnDoesNotExistError",
     "InvalidColumnValueError",
     "GcsStorageProviderFailed",
     "History",

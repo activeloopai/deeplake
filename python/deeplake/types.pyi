@@ -28,6 +28,7 @@ __all__ = [
     "BoundingBox",
     "BinaryMask",
     "SegmentMask",
+    "TypeKind",
     "TextIndexType",
     "QuantizationType",
     "Binary",
@@ -145,10 +146,74 @@ class Type:
         ...
 
     @property
+    def kind(self) -> TypeKind:
+        ...
+
+    @property
     def shape(self) -> list[int] | None:
         """
         The shape of the data type if applicable. Otherwise none
         """
+        ...
+
+
+class TypeKind:
+    """
+    Members:
+    
+      Generic
+    
+      Text
+    
+      Dict
+    
+      Embedding
+    
+      Sequence
+    
+      Image
+    
+      BoundingBox
+    
+      BinaryMask
+    
+      SegmentMask
+    """
+    BinaryMask: typing.ClassVar[TypeKind]
+    BoundingBox: typing.ClassVar[TypeKind]
+    Dict: typing.ClassVar[TypeKind]
+    Embedding: typing.ClassVar[TypeKind]
+    Generic: typing.ClassVar[TypeKind]
+    Image: typing.ClassVar[TypeKind]
+    SegmentMask: typing.ClassVar[TypeKind]
+    Sequence: typing.ClassVar[TypeKind]
+    Text: typing.ClassVar[TypeKind]
+    __members__: typing.ClassVar[dict[str, TypeKind]]
+    def __eq__(self, other: typing.Any) -> bool:
+        ...
+    def __getstate__(self) -> int:
+        ...
+    def __hash__(self) -> int:
+        ...
+    def __index__(self) -> int:
+        ...
+    def __init__(self, value: int) -> None:
+        ...
+    def __int__(self) -> int:
+        ...
+    def __ne__(self, other: typing.Any) -> bool:
+        ...
+    def __repr__(self) -> str:
+        ...
+    def __setstate__(self, state: int) -> None:
+        ...
+    def __str__(self) -> str:
+        ...
+    @property
+    def name(self) -> str:
+        ...
+    @property
+    def value(self) -> int:
         ...
 
 
@@ -250,6 +315,7 @@ def Embedding(size: int, dtype: DataType | str = "float32", quantization: Quanti
         size: The size of the embedding
         dtype: The datatype of the embedding. Defaults to float32
         quantization: How to compress the embeddings in the index. Default uses no compression, but can be set to [deeplake.types.QuantizationType.Binary][]
+
     Examples:
          >>> ds.add_column("col1", types.Embedding(768))
          >>> ds.add_column("col2", types.Embedding(768, quantization=types.QuantizationType.Binary))
