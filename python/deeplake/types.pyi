@@ -425,16 +425,6 @@ def Image(dtype: DataType | str = "uint8", sample_compression: str = "png") -> T
     ...
 
 
-@typing.overload
-def BoundingBox(dtype: DataType | str = "float32") -> Type: ...
-
-
-@typing.overload
-def BoundingBox(
-        dtype: DataType | str, format: str, bbox_type: str | None = None
-) -> Type: ...
-
-
 def BoundingBox(
         dtype: DataType | str = "float32",
         format: str | None = None,
