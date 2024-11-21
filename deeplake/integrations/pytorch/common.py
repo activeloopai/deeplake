@@ -218,7 +218,11 @@ def get_htype_ndim_tensor_info_dicts(dataset, data_tensors, tensor_info_tensors)
         htype_dict[tensor_name] = tensor.htype
         ndim_dict[tensor_name] = tensor.ndim
         if tensor_name in tensor_info_tensors:
-            tensor_info_dict[tensor_name] = tensor.info._info
+            if "_info" in tensor.info:
+                tensor_info_dict[tensor_name] = tensor.info._info
+            else:
+                tensor_info_dict[tensor_name] = dict(tensor.info)
+
     return htype_dict, ndim_dict, tensor_info_dict
 
 
