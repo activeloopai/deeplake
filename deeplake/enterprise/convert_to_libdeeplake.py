@@ -169,10 +169,17 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
     path: str = hub2_dataset.path
 
     token = (
-        hub2_dataset.client.get_token()
-        if (hub2_dataset.token is None or hub2_dataset._token == "")
-        and hub2_dataset.client
-        else hub2_dataset.token
+        hub2_dataset.token
+        if hasattr(hub2_dataset, "token") and hub2_dataset.token is not None
+        else (
+            getattr(hub2_dataset, "_token", None)
+            if hasattr(hub2_dataset, "_token") and hub2_dataset._token != ""
+            else (
+                hub2_dataset.client.get_token()
+                if hasattr(hub2_dataset, "client") and hub2_dataset.client
+                else ""
+            )
+        )
     )
 
     if hub2_dataset.libdeeplake_dataset is not None:
@@ -239,15 +246,18 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
         hub2_dataset.libdeeplake_dataset = libdeeplake_dataset
 
     assert libdeeplake_dataset is not None
-    if hasattr(hub2_dataset.storage, "cache_size"):
-        libdeeplake_dataset._max_cache_size = max(
-            hub2_dataset.storage.cache_size, libdeeplake_dataset._max_cache_size
-        )
-    commit_id = hub2_dataset.pending_commit_id
-    libdeeplake_dataset.checkout(commit_id)
-    slice_ = hub2_dataset.index.values[0].value
-    if slice_ != slice(None):
-        if isinstance(slice_, tuple):
-            slice_ = list(slice_)
-        libdeeplake_dataset = libdeeplake_dataset[slice_]
+    try:
+        if hasattr(hub2_dataset.storage, "cache_size"):
+            libdeeplake_dataset._max_cache_size = max(
+                hub2_dataset.storage.cache_size, libdeeplake_dataset._max_cache_size
+            )
+        commit_id = hub2_dataset.pending_commit_id
+        libdeeplake_dataset.checkout(commit_id)
+        slice_ = hub2_dataset.index.values[0].value
+        if slice_ != slice(None):
+            if isinstance(slice_, tuple):
+                slice_ = list(slice_)
+            libdeeplake_dataset = libdeeplake_dataset[slice_]
+    except INDRA_API.api.NoStorageDatasetViewError:  # type: ignore
+        pass
     return libdeeplake_dataset
