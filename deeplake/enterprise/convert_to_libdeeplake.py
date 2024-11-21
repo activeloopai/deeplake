@@ -258,6 +258,6 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
             if isinstance(slice_, tuple):
                 slice_ = list(slice_)
             libdeeplake_dataset = libdeeplake_dataset[slice_]
-    except INDRA_API.api.NoStorageDatasetViewError:
+    except INDRA_API.api.NoStorageDatasetViewError:  # type: ignore
         pass
     return libdeeplake_dataset
