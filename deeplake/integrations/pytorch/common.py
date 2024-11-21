@@ -102,7 +102,8 @@ def check_tensors(dataset, tensors, verbose=True):
                 f" tensor."
             )
         meta = tensor.meta
-        if meta.sample_compression in supported_image_compressions:
+        comp = meta.sample_compression
+        if comp and meta.sample_compression in supported_image_compressions:
             jpeg_png_compressed_tensors.append(tensor_name)
         elif meta.htype == "json":
             json_tensors.append(tensor_name)
