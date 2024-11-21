@@ -6,7 +6,7 @@ import numpy
 import deeplake
 from ._deeplake import *
 
-__version__ = "4.0.2"
+__version__ = "4.0.3"
 
 __all__ = [
     "__version__",
@@ -34,6 +34,7 @@ __all__ = [
     "ColumnAlreadyExistsError",
     "ColumnDoesNotExistError",
     "InvalidColumnValueError",
+    "PushError",
     "GcsStorageProviderFailed",
     "History",
     "InvalidType",
