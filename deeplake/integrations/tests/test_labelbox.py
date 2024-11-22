@@ -10,7 +10,7 @@ def test_labelbox():
         API_KEY = os.environ['LABELBOX_API_TOKEN']
         client = lb.Client(api_key=API_KEY)
 
-        project_id = 'cm3rxazmh00nk07xx2xe2973u'
+        project_id = 'cm3svv2l400nl07xw6wdg298g'
         ds = create_dataset_from_video_annotation_project(ds_path, project_id, client, API_KEY, overwrite=True)
         def ds_provider(p):
             try:

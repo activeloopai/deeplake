@@ -1,10 +1,8 @@
 import deeplake
-
-import labelbox as lb
 import os
-
-from deeplake.integrations.labelbox.labelbox_converter import labelbox_type_converter
+import labelbox as lb
 from deeplake.integrations.labelbox.labelbox_utils import *
+from deeplake.integrations.labelbox.labelbox_converter import labelbox_type_converter
 from deeplake.integrations.labelbox.v3_converters import *
 
 def converter_for_video_project_with_id(project_id, client, deeplake_ds_loader, lb_api_key):
@@ -84,7 +82,7 @@ def create_dataset_for_video_annotation_with_custom_data_filler(deeplake_ds_path
 def create_dataset_for_video_annotation(deeplake_ds_path, video_paths, lb_client, overwrite=False, lb_ontology=None, lb_batch_priority=5):
     return create_dataset_for_video_annotation_with_custom_data_filler(deeplake_ds_path, video_paths, lb_client, data_filler={'create_tensors': create_tensors_default_, 'fill_data': fill_data_default_}, lb_ontology=lb_ontology, lb_batch_priority=lb_batch_priority, overwrite=overwrite)
 
-def create_dataset_from_video_annotation_project_with_custom_data_filler(deeplake_ds_path, project_id, lb_client, lb_api_key, data_filler, cache_dir=None, overwrite=False):
+def create_dataset_from_video_annotation_project_with_custom_data_filler(deeplake_ds_path, project_id, lb_client, lb_api_key, data_filler, overwrite=False):
     ds = deeplake.empty(deeplake_ds_path, overwrite=overwrite)
     data_filler['create_tensors'](ds)
 
@@ -100,14 +98,10 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(deeplak
 
     for idx, p in enumerate(proj):
         video_url = p["data_row"]["row_data"]
-        output_file_path = download_video_with_token_(video_url, lb_api_key, cache_dir)
-        if output_file_path is None:
-            raise Exception("Error downloading video")
-
-        video_files.append(p['data_row']['external_id'])
-
-        for frame_num, frame in frame_generator_(output_file_path):
+        for frame_num, frame in frame_generator_(video_url, f'Bearer {lb_api_key}'):
             data_filler['fill_data'](ds, idx, frame_num, frame)
+        
+        video_files.append(p['data_row']['external_id'])
 
     ds.info['labelbox_video_sources'] = video_files
     ds.info['labelbox_project_id'] = project_id
