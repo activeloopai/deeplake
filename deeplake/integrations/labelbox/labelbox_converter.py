@@ -3,7 +3,6 @@ class labelbox_type_converter:
         self.labelbox_feature_id_to_type_mapping = dict()
         self.regsistered_actions = dict()
         self.label_mappings = dict()
-        self.registered_interpolators = dict()
 
         self.project = project
         self.project_id = project_id
@@ -25,14 +24,14 @@ class labelbox_type_converter:
         idx_offset = 0
         for p in self.fixed_project_order_(self.project, self.dataset):
             print("parse project with video url", p["data_row"]["external_id"])
-            if not 'labels' in p["projects"][self.project_id]:
+            if 'labels' not in p["projects"][self.project_id]:
                 continue
             for lbl_idx, labels in enumerate(p["projects"][self.project_id]["labels"]):
                 if 'frames' not in labels["annotations"]:
                     continue
                 frames = labels["annotations"]["frames"]
                 if not len(frames):
-                    print('skip project:', p["data_row"]["external_id"], 'with label idx', lbl_idx, 'as it has no frames')
+                    print('skip', p["data_row"]["external_id"], 'with label idx', lbl_idx, 'as it has no frames')
                     continue
 
                 assert(len(frames) == p['media_attributes']['frame_count'])
@@ -151,8 +150,8 @@ class labelbox_type_converter:
                     new_obj = self.find_object_with_feature_id_(frames[str(i)], feature_id)
                     if new_obj:
                         obj = new_obj
+                        # no need to update the frame if the object is present in the frame
                         continue
-                    # update the frame if the object was not present in the frame
                     self.regsistered_actions[obj['feature_schema_id']](offset + i - 1, obj)
 
     def fixed_project_order_(self, project_j, ds):
