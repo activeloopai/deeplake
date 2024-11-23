@@ -24,4 +24,18 @@ def test_labelbox():
 
         ds.commit('add labelbox annotations')
 
-        print(ds.summary())
+        assert(set(ds.tensors) == set({
+            'bbox/bbox',
+            'bbox/fully_visible',
+            'checklist',
+            'frame_idx',
+            'frames',
+            'line',
+            'mask',
+            'point',
+            'radio_bttn',
+            'radio_bttn_scale',
+            'text',
+            'video_idx'
+        }))
+

@@ -22,8 +22,7 @@ class labelbox_type_converter:
 
     def dataset_with_applied_annotations(self):
         idx_offset = 0
-        for p in self.fixed_project_order_(self.project, self.dataset):
-            print("parse project with video url", p["data_row"]["external_id"])
+        for p in self.yield_projects_(self.project, self.dataset):
             if 'labels' not in p["projects"][self.project_id]:
                 continue
             for lbl_idx, labels in enumerate(p["projects"][self.project_id]["labels"]):
@@ -154,7 +153,18 @@ class labelbox_type_converter:
                         continue
                     self.regsistered_actions[obj['feature_schema_id']](offset + i - 1, obj)
 
-    def fixed_project_order_(self, project_j, ds):
-        order = [ds.info['labelbox_video_sources'].index(x["data_row"]["external_id"]) for x in project_j]
+    def yield_projects_(self, project_j, ds):
+        raise NotImplementedError('fixed_project_order_ is not implemented')
+
+
+class labelbox_video_converter(labelbox_type_converter):
+    def __init__(self, ontology, converters, project, project_id, dataset, context):
+        super().__init__(ontology, converters, project, project_id, dataset, context)
+
+    def yield_projects_(self, project_j, ds):
+        if 'labelbox_meta' not in ds.info:
+            raise ValueError('No labelbox meta data in dataset')
+        info = ds.info['labelbox_meta']
+        order = [info['sources'].index(x["data_row"]["external_id"]) for x in project_j]
         for idx in order:
             yield project_j[idx]

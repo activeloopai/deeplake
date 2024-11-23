@@ -3,7 +3,7 @@ import os
 import labelbox as lb
 
 from deeplake.integrations.labelbox.labelbox_utils import *
-from deeplake.integrations.labelbox.labelbox_converter import labelbox_type_converter
+from deeplake.integrations.labelbox.labelbox_converter import labelbox_video_converter
 from deeplake.integrations.labelbox.v3_converters import *
 
 def converter_for_video_project_with_id(project_id, client, deeplake_ds_loader, lb_api_key):
@@ -63,7 +63,7 @@ def converter_for_video_project_with_id(project_id, client, deeplake_ds_loader, 
         'raster-segmentation': raster_segmentation_converter_,
         'text': text_converter_
     }
-    return labelbox_type_converter(ontology, converters, project_json, project_id, deeplake_dataset, {'ds': deeplake_dataset, 'lb_api_key': lb_api_key})
+    return labelbox_video_converter(ontology, converters, project_json, project_id, deeplake_dataset, {'ds': deeplake_dataset, 'lb_api_key': lb_api_key})
 
 def create_dataset_for_video_annotation_with_custom_data_filler(deeplake_ds_path, video_paths, lb_client, data_filler, deeplake_token=None, overwrite=False, lb_ontology=None, lb_batch_priority=5, lb_dataset_name=None):
     """
@@ -111,8 +111,11 @@ def create_dataset_for_video_annotation_with_custom_data_filler(deeplake_ds_path
         media_type=lb.MediaType.Video           
     )
 
-    ds.info['labelbox_video_sources'] = video_paths
-    ds.info['labelbox_project_id'] = project.uid
+    ds.info['labelbox_meta'] = {
+        'project_id': project.uid,
+        'type': 'video',
+        'sources': video_paths
+    }
 
     task = project.create_batches_from_dataset(
         name_prefix=lb_dataset_name,
@@ -189,8 +192,11 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(deeplak
         
         video_files.append(p['data_row']['external_id'])
 
-    ds.info['labelbox_video_sources'] = video_files
-    ds.info['labelbox_project_id'] = project_id
+    ds.info['labelbox_meta'] = {
+        'project_id': project_id,
+        'type': 'video',
+        'sources': video_files
+    }
 
     ds.commit()
 

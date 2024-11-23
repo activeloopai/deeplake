@@ -35,10 +35,17 @@ def frame_generator_(
 
 
 def validate_video_project_data_impl_(project_j, deeplake_dataset, project_id):
-    if project_id != deeplake_dataset.info['labelbox_project_id']:
+    if 'labelbox_meta' not in deeplake_dataset.info:
+        return False
+    info = deeplake_dataset.info['labelbox_meta']
+
+    if info['type'] != 'video':
         return False
 
-    if len(project_j) != len(deeplake_dataset.info['labelbox_video_sources']):
+    if project_id != info['project_id']:
+        return False
+
+    if len(project_j) != len(info['sources']):
         return False
     
     if len(project_j) == 0:
@@ -47,7 +54,7 @@ def validate_video_project_data_impl_(project_j, deeplake_dataset, project_id):
     ontology_ids = set()
     
     for p in project_j:
-        if p["data_row"]["external_id"] not in deeplake_dataset.info['labelbox_video_sources']:
+        if p["data_row"]["external_id"] not in info['sources']:
             return False
         
         ontology_ids.add(p["projects"][project_id]["project_details"]["ontology_id"])
