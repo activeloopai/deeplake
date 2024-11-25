@@ -4,7 +4,7 @@ import labelbox as lb
 import av
 
 def frame_generator_(
-    video_path: str, token=None
+    video_path: str, token=None, retries: int = 5
 ) -> Generator[Tuple[int, np.ndarray], None, None]:
     """
     Generate frames from a video file.
@@ -18,20 +18,30 @@ def frame_generator_(
         - frame_number (int): The sequential number of the frame
         - frame_data (numpy.ndarray): The frame image data
     """
+    def get_video_container(current_retries):
+        try:
+            if token is None:
+                return av.open(video_path)
+            else:
+                return av.open(video_path, options={
+                "headers": f"Authorization: {token}\r\n"
+                })
+        except av.AVError as e:
+            if current_retries > 0:
+                print(f"Failed opening video: {e}. Retrying...")
+                return get_video_container(current_retries - 1)
+            else:
+                raise e
+
     try:
-        if token is None:
-            container = av.open(video_path)
-        else:
-            container = av.open(video_path, options={
-            "headers": f"Authorization: {token}\r\n"
-            })
+        container = get_video_container(retries)
         print(f'Start generating frames from {video_path}')
         frame_num = 0
         for frame in container.decode(video=0):
             yield frame_num, frame.to_ndarray(format='rgb24')
             frame_num += 1
     except av.AVError as e:
-        print(f"Failed generating frame: {e}")
+        print(f"Failed generating frames: {e}")
 
 
 def validate_video_project_data_impl_(project_j, deeplake_dataset, project_id):
