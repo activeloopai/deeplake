@@ -8,7 +8,7 @@ from deeplake.integrations.labelbox.v3_converters import *
 
 
 def converter_for_video_project_with_id(
-    project_id, client, deeplake_ds_loader, lb_api_key, group_mapping=None
+    project_id, client, deeplake_ds_loader, lb_api_key, group_mapping=None, fail_on_error=False
 ):
     """
     Creates a converter for Labelbox video project to a Deeplake dataset format based on annotation types.
@@ -19,6 +19,7 @@ def converter_for_video_project_with_id(
         deeplake_ds_loader (callable): A function that creates/loads a Deeplake dataset given a name.
         lb_api_key (str): Labelbox API key for authentication.
         group_mapping (dict, optional): A dictionary mapping annotation kinds (labelbox_kind) to the desired tensor group name (tensor_name). This mapping determines whether annotations of the same kind should be grouped into the same tensor or kept separate.
+        fail_on_error (bool, optional): Whether to raise an exception if data validation fails. Defaults to False.
 
     Returns:
         labelbox_type_converter or None: Returns a labelbox_type_converter if successful, None if no data is found.
@@ -44,7 +45,7 @@ def converter_for_video_project_with_id(
         - Supports Video ontology from labelbox.
         - The function first validates the project data before setting up converters.
     """
-    project_json = labelbox_get_project_json_with_id_(client, project_id)
+    project_json = labelbox_get_project_json_with_id_(client, project_id, fail_on_error)
 
     if len(project_json) == 0:
         print("no data")
@@ -54,7 +55,8 @@ def converter_for_video_project_with_id(
     deeplake_dataset = deeplake_ds_loader(ds_name)
 
     if not validate_project_data_(project_json, deeplake_dataset, project_id, "video"):
-        raise Exception("Data validation failed")
+        if fail_on_error:
+            raise Exception("Data validation failed")
 
     ontology_id = project_json[0]["projects"][project_id]["project_details"][
         "ontology_id"
@@ -86,11 +88,13 @@ def create_dataset_for_video_annotation_with_custom_data_filler(
     video_paths,
     lb_client,
     data_filler,
+    deeplake_creds=None,
     deeplake_token=None,
     overwrite=False,
     lb_ontology=None,
     lb_batch_priority=5,
     lb_dataset_name=None,
+    fail_on_error=False,
 ):
     """
     Creates a Deeplake dataset for video annotation and sets up corresponding Labelbox project.
@@ -106,6 +110,7 @@ def create_dataset_for_video_annotation_with_custom_data_filler(
                Creates necessary tensors in the dataset
            - 'fill_data': callable(ds, idx, frame_num, frame) -> None
                Fills dataset with processed frame data
+       deeplake_creds (dict): Dictionary containing credentials for deeplake
        deeplake_token (str, optional): Authentication token for Deeplake cloud storage.
        overwrite (bool, optional): Whether to overwrite existing dataset. Defaults to False
        lb_ontology (Ontology, optional): Labelbox ontology to connect to project. Defaults to None
@@ -116,7 +121,7 @@ def create_dataset_for_video_annotation_with_custom_data_filler(
     Returns:
        Dataset: Created Deeplake dataset containing processed video frames and metadata for Labelbox project
     """
-    ds = deeplake.empty(deeplake_ds_path, token=deeplake_token, overwrite=overwrite)
+    ds = deeplake.empty(deeplake_ds_path, creds=deeplake_creds, token=deeplake_token, overwrite=overwrite)
 
     data_filler["create_tensors"](ds)
 
@@ -147,7 +152,8 @@ def create_dataset_for_video_annotation_with_custom_data_filler(
     )
 
     if task.errors():
-        raise Exception(f"Error creating batches: {task.errors()}")
+        if fail_on_error:
+            raise Exception(f"Error creating batches: {task.errors()}")
 
     if lb_ontology:
         project.connect_ontology(lb_ontology)
@@ -161,10 +167,12 @@ def create_dataset_for_video_annotation(
     deeplake_ds_path,
     video_paths,
     lb_client,
+    deeplake_creds=None,
     deeplake_token=None,
     overwrite=False,
     lb_ontology=None,
     lb_batch_priority=5,
+    fail_on_error=False,
 ):
     """
     See create_dataset_for_video_annotation_with_custom_data_filler for complete documentation.
@@ -181,10 +189,12 @@ def create_dataset_for_video_annotation(
             "create_tensors": create_tensors_default_,
             "fill_data": fill_data_default_,
         },
+        deeplake_creds=deeplake_creds,
         deeplake_token=deeplake_token,
         lb_ontology=lb_ontology,
         lb_batch_priority=lb_batch_priority,
         overwrite=overwrite,
+        fail_on_error=fail_on_error,
     )
 
 
@@ -194,8 +204,10 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     lb_client,
     lb_api_key,
     data_filler,
+    deeplake_creds=None,
     deeplake_token=None,
     overwrite=False,
+    fail_on_error=False,
 ):
     """
     Creates a Deeplake dataset from an existing Labelbox video annotation project using custom data processing.
@@ -212,9 +224,11 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
                Creates necessary tensors in the dataset
            - 'fill_data': callable(ds, idx, frame_num, frame) -> None
                Fills dataset with processed frame data
+       deeplake_creds (dict): Dictionary containing credentials for deeplake
        deeplake_token (str, optional): Authentication token for Deeplake cloud storage.
            Required if using hub:// path. Defaults to None
        overwrite (bool, optional): Whether to overwrite existing dataset. Defaults to False
+       fail_on_error (bool, optional): Whether to raise an exception if data validation fails. Defaults to False
 
     Returns:
        Dataset: Created Deeplake dataset containing processed video frames and Labelbox metadata.
@@ -223,16 +237,17 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     Notes:
         - The function does not fetch the annotations from Labelbox, only the video frames. After creating the dataset, use the converter to apply annotations.
     """
-    ds = deeplake.empty(deeplake_ds_path, overwrite=overwrite, token=deeplake_token)
+    ds = deeplake.empty(deeplake_ds_path, overwrite=overwrite, creds=deeplake_creds, token=deeplake_token)
     data_filler["create_tensors"](ds)
 
-    proj = labelbox_get_project_json_with_id_(lb_client, project_id)
+    proj = labelbox_get_project_json_with_id_(lb_client, project_id, fail_on_error)
     if len(proj) == 0:
         print("no data")
         return ds
 
     if not validate_project_creation_data_(proj, project_id, "video"):
-        raise Exception("Data validation failed")
+        if fail_on_error:
+            raise Exception("Data validation failed")
 
     video_files = []
 
@@ -259,8 +274,10 @@ def create_dataset_from_video_annotation_project(
     project_id,
     lb_client,
     lb_api_key,
+    deeplake_creds=None,
     deeplake_token=None,
     overwrite=False,
+    fail_on_error=False,
 ):
     """
     See create_dataset_from_video_annotation_project_with_custom_data_filler for complete documentation.
@@ -278,6 +295,8 @@ def create_dataset_from_video_annotation_project(
             "create_tensors": create_tensors_default_,
             "fill_data": fill_data_default_,
         },
+        deeplake_creds=deeplake_creds,
         deeplake_token=deeplake_token,
         overwrite=overwrite,
+        fail_on_error=fail_on_error,
     )

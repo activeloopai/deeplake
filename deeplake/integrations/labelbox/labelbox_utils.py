@@ -112,7 +112,7 @@ def validate_project_creation_data_(proj, project_id, type):
     return PROJECT_DATA_CREATION_VALIDATION_MAP_[type](proj, project_id)
 
 
-def labelbox_get_project_json_with_id_(client, project_id):
+def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
     # Set the export params to include/exclude certain fields.
     export_params = {
         "attachments": False,
@@ -143,12 +143,16 @@ def labelbox_get_project_json_with_id_(client, project_id):
 
     # Callback used for JSON Converter
     def json_stream_handler(output: lb.BufferedJsonConverterOutput):
-        print("Received JSON output")
         projects.append(output.json)
+
+    def error_stream_handler(error):
+        if fail_on_error:
+            raise Exception(f"Error during export: {error}")
+        print(f"Error during export: {error}")
 
     if export_task.has_errors():
         export_task.get_buffered_stream(stream_type=lb.StreamType.ERRORS).start(
-            stream_handler=lambda error: print(error)
+            stream_handler=error_stream_handler
         )
 
     if export_task.has_result():
