@@ -1,5 +1,14 @@
 class labelbox_type_converter:
-    def __init__(self, ontology, converters, project, project_id, dataset, context, group_mapping=None):
+    def __init__(
+        self,
+        ontology,
+        converters,
+        project,
+        project_id,
+        dataset,
+        context,
+        group_mapping=None,
+    ):
         self.labelbox_feature_id_to_type_mapping = dict()
         self.regsistered_actions = dict()
         self.label_mappings = dict()
@@ -11,121 +20,138 @@ class labelbox_type_converter:
         self.group_mapping = group_mapping if group_mapping is not None else dict()
 
         self.labelbox_type_converters_ = converters
-        
+
         self.register_ontology_(ontology, context)
-        
+
     def register_feature_id_for_kind(self, kind, key, obj, tensor_name):
         self.labelbox_feature_id_to_type_mapping[obj.feature_schema_id] = {
-            'kind': kind,
-            'key': key,
-            'name': obj.name,
-            'tensor_name': tensor_name
+            "kind": kind,
+            "key": key,
+            "name": obj.name,
+            "tensor_name": tensor_name,
         }
 
     def dataset_with_applied_annotations(self):
         idx_offset = 0
         for p in self.yield_projects_(self.project, self.dataset):
-            if 'labels' not in p["projects"][self.project_id]:
+            if "labels" not in p["projects"][self.project_id]:
                 continue
             for lbl_idx, labels in enumerate(p["projects"][self.project_id]["labels"]):
-                if 'frames' not in labels["annotations"]:
+                if "frames" not in labels["annotations"]:
                     continue
                 frames = labels["annotations"]["frames"]
                 if not len(frames):
-                    print('skip', p["data_row"]["external_id"], 'with label idx', lbl_idx, 'as it has no frames')
+                    print(
+                        "skip",
+                        p["data_row"]["external_id"],
+                        "with label idx",
+                        lbl_idx,
+                        "as it has no frames",
+                    )
                     continue
-                    
-                assert(len(frames) <= p['media_attributes']['frame_count'])
 
-                for i in range(p['media_attributes']['frame_count']):
+                assert len(frames) <= p["media_attributes"]["frame_count"]
+
+                for i in range(p["media_attributes"]["frame_count"]):
                     if str(i + 1) not in frames:
                         continue
                     self.parse_frame_(frames[str(i + 1)], idx_offset + i)
 
-                if 'segments' not in labels["annotations"]:
+                if "segments" not in labels["annotations"]:
                     continue
                 segments = labels["annotations"]["segments"]
                 # the frames contain only the interpolated values
                 # iterate over segments and assign same value to all frames in the segment
                 self.parse_segments_(segments, frames, idx_offset)
 
-            idx_offset += p['media_attributes']['frame_count']
+            idx_offset += p["media_attributes"]["frame_count"]
 
         return self.dataset
 
     def register_tool_(self, tool, context):
         if tool.tool.value not in self.labelbox_type_converters_:
-            print('skip tool:', tool.tool.value)
+            print("skip tool:", tool.tool.value)
             return
-        
-        prefered_name = tool.name 
-        
+
+        prefered_name = tool.name
+
         if tool.tool.value in self.group_mapping:
             prefered_name = self.group_mapping[tool.tool.value]
         else:
             prefered_name = tool.name
-        
-        should_group_with_classifications = len(tool.classifications) > 0
-        tool_name = prefered_name + "/" + prefered_name if should_group_with_classifications else prefered_name
 
-        self.labelbox_type_converters_[tool.tool.value](tool, self, tool_name, context, tool.tool.value in self.group_mapping)
+        should_group_with_classifications = len(tool.classifications) > 0
+        tool_name = (
+            prefered_name + "/" + prefered_name
+            if should_group_with_classifications
+            else prefered_name
+        )
+
+        self.labelbox_type_converters_[tool.tool.value](
+            tool, self, tool_name, context, tool.tool.value in self.group_mapping
+        )
 
         for classification in tool.classifications:
             self.register_classification_(classification, context, parent=prefered_name)
 
-
-    def register_classification_(self, tool, context, parent=''):
+    def register_classification_(self, tool, context, parent=""):
         if tool.class_type.value not in self.labelbox_type_converters_:
             return
 
         if tool.class_type.value in self.group_mapping:
-            prefered_name = (parent + '/' if parent else '') + self.group_mapping[tool.class_type.value]
+            prefered_name = (parent + "/" if parent else "") + self.group_mapping[
+                tool.class_type.value
+            ]
         else:
-            prefered_name = (parent + '/' if parent else '') + tool.name
+            prefered_name = (parent + "/" if parent else "") + tool.name
 
-        self.labelbox_type_converters_[tool.class_type.value](tool, self, prefered_name, context, tool.class_type.value in self.group_mapping)
-
+        self.labelbox_type_converters_[tool.class_type.value](
+            tool,
+            self,
+            prefered_name,
+            context,
+            tool.class_type.value in self.group_mapping,
+        )
 
     def register_ontology_(self, ontology, context):
         for tool in ontology.tools():
             self.register_tool_(tool, context)
 
         for classification in ontology.classifications():
-            if classification.scope.value != 'index':
-                print('skip global classification:', classification.name)
+            if classification.scope.value != "index":
+                print("skip global classification:", classification.name)
                 continue
             self.register_classification_(classification, context)
 
-
     def parse_frame_(self, frame, idx):
-        if 'objects' in frame:
-            for _, obj  in frame['objects'].items():
+        if "objects" in frame:
+            for _, obj in frame["objects"].items():
                 self.parse_object_(obj, idx)
 
-        if 'classifications' in frame:
-            for obj in frame['classifications']:
+        if "classifications" in frame:
+            for obj in frame["classifications"]:
                 self.parse_classification_(obj, idx)
 
     def parse_object_(self, obj, idx):
-        if obj['feature_schema_id'] not in self.regsistered_actions:
-            print('skip object:', obj['feature_schema_id'])
+        if obj["feature_schema_id"] not in self.regsistered_actions:
+            print("skip object:", obj["feature_schema_id"])
             return
 
-        self.regsistered_actions[obj['feature_schema_id']](idx, obj)
+        self.regsistered_actions[obj["feature_schema_id"]](idx, obj)
 
-        if 'classifications' in obj:
-            for obj in obj['classifications']:
+        if "classifications" in obj:
+            for obj in obj["classifications"]:
                 self.parse_classification_(obj, idx)
 
     def parse_classification_(self, obj, idx):
-        if obj['feature_schema_id'] not in self.regsistered_actions:
-            print('skip classification:', obj['feature_schema_id'])
+        if obj["feature_schema_id"] not in self.regsistered_actions:
+            print("skip classification:", obj["feature_schema_id"])
             return
 
-        self.regsistered_actions[obj['feature_schema_id']](idx, obj)
+        self.regsistered_actions[obj["feature_schema_id"]](idx, obj)
 
-        if 'classifications' in obj:
-            for obj in obj['classifications']:
+        if "classifications" in obj:
+            for obj in obj["classifications"]:
                 self.parse_classification_(obj, idx)
 
     def find_object_with_feature_id_(self, frame, feature_id):
@@ -133,24 +159,26 @@ class labelbox_type_converter:
             for f in frame:
                 if ret := self.find_object_with_feature_id_(f, feature_id):
                     return ret
-        
-        if 'objects' in frame:
-            if feature_id in frame['objects']:
-                return frame['objects'][feature_id]
-            for _, obj in frame['objects'].items():
+
+        if "objects" in frame:
+            if feature_id in frame["objects"]:
+                return frame["objects"][feature_id]
+            for _, obj in frame["objects"].items():
                 if ret := self.find_object_with_feature_id_(obj, feature_id):
                     return ret
-                
-        if 'classifications' in frame:
-            for obj in frame['classifications']:
+
+        if "classifications" in frame:
+            for obj in frame["classifications"]:
                 if ret := self.find_object_with_feature_id_(obj, feature_id):
                     return ret
-                k = self.labelbox_feature_id_to_type_mapping[obj['feature_schema_id']]['key']
+                k = self.labelbox_feature_id_to_type_mapping[obj["feature_schema_id"]][
+                    "key"
+                ]
                 if k in obj:
                     if ret := self.find_object_with_feature_id_(obj[k], feature_id):
                         return ret
-                        
-        if 'feature_id' in frame and frame['feature_id'] == feature_id:
+
+        if "feature_id" in frame and frame["feature_id"] == feature_id:
             return frame
 
         return None
@@ -158,32 +186,49 @@ class labelbox_type_converter:
     def parse_segments_(self, segments, frames, offset):
         for feature_id, ranges in segments.items():
             for r in ranges:
-                assert(str(r[0]) in frames)
+                assert str(r[0]) in frames
                 obj = self.find_object_with_feature_id_(frames[str(r[0])], feature_id)
-                assert(obj is not None)
+                assert obj is not None
                 for i in range(r[0] + 1, r[1]):
                     if str(i) in frames:
-                        new_obj = self.find_object_with_feature_id_(frames[str(i)], feature_id)
+                        new_obj = self.find_object_with_feature_id_(
+                            frames[str(i)], feature_id
+                        )
                     else:
                         new_obj = None
                     if new_obj:
                         obj = new_obj
                         # no need to update the frame if the object is present in the frame
                         continue
-                    self.regsistered_actions[obj['feature_schema_id']](offset + i - 1, obj)
+                    self.regsistered_actions[obj["feature_schema_id"]](
+                        offset + i - 1, obj
+                    )
 
     def yield_projects_(self, project_j, ds):
-        raise NotImplementedError('fixed_project_order_ is not implemented')
+        raise NotImplementedError("fixed_project_order_ is not implemented")
 
 
 class labelbox_video_converter(labelbox_type_converter):
-    def __init__(self, ontology, converters, project, project_id, dataset, context, group_mapping=None):
-        super().__init__(ontology, converters, project, project_id, dataset, context, group_mapping)
+    def __init__(
+        self,
+        ontology,
+        converters,
+        project,
+        project_id,
+        dataset,
+        context,
+        group_mapping=None,
+    ):
+        super().__init__(
+            ontology, converters, project, project_id, dataset, context, group_mapping
+        )
 
     def yield_projects_(self, project_j, ds):
-        if 'labelbox_meta' not in ds.info:
-            raise ValueError('No labelbox meta data in dataset')
-        info = ds.info['labelbox_meta']
-        ordered_values = sorted(project_j, key=lambda x: info['sources'].index(x["data_row"]["external_id"]))
+        if "labelbox_meta" not in ds.info:
+            raise ValueError("No labelbox meta data in dataset")
+        info = ds.info["labelbox_meta"]
+        ordered_values = sorted(
+            project_j, key=lambda x: info["sources"].index(x["data_row"]["external_id"])
+        )
         for p in ordered_values:
             yield p
