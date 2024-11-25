@@ -32,12 +32,12 @@ class labelbox_type_converter:
                 if not len(frames):
                     print('skip', p["data_row"]["external_id"], 'with label idx', lbl_idx, 'as it has no frames')
                     continue
-
-                assert(len(frames) == p['media_attributes']['frame_count'])
+                    
+                assert(len(frames) <= p['media_attributes']['frame_count'])
 
                 for i in range(p['media_attributes']['frame_count']):
                     if str(i + 1) not in frames:
-                        print('skip frame:', i + 1)
+                        continue
                     self.parse_frame_(frames[str(i + 1)], idx_offset + i)
 
                 if 'segments' not in labels["annotations"]:
@@ -143,10 +143,14 @@ class labelbox_type_converter:
     def parse_segments_(self, segments, frames, offset):
         for feature_id, ranges in segments.items():
             for r in ranges:
+                assert(str(r[0]) in frames)
                 obj = self.find_object_with_feature_id_(frames[str(r[0])], feature_id)
                 assert(obj is not None)
                 for i in range(r[0] + 1, r[1]):
-                    new_obj = self.find_object_with_feature_id_(frames[str(i)], feature_id)
+                    if str(i) in frames:
+                        new_obj = self.find_object_with_feature_id_(frames[str(i)], feature_id)
+                    else:
+                        new_obj = None
                     if new_obj:
                         obj = new_obj
                         # no need to update the frame if the object is present in the frame
@@ -165,6 +169,6 @@ class labelbox_video_converter(labelbox_type_converter):
         if 'labelbox_meta' not in ds.info:
             raise ValueError('No labelbox meta data in dataset')
         info = ds.info['labelbox_meta']
-        order = [info['sources'].index(x["data_row"]["external_id"]) for x in project_j]
-        for idx in order:
-            yield project_j[idx]
+        ordered_values = sorted(project_j, key=lambda x: info['sources'].index(x["data_row"]["external_id"]))
+        for p in ordered_values:
+            yield p
