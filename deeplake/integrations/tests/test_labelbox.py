@@ -12,7 +12,7 @@ def test_labelbox():
         API_KEY = os.environ['LABELBOX_TOKEN']
         client = lb.Client(api_key=API_KEY)
 
-        project_id = 'cm3svv2l400nl07xw6wdg298g'
+        project_id = 'cm3x920j0002m07xy5ittaqj6'
         ds = create_dataset_from_video_annotation_project(ds_path, project_id, client, API_KEY, overwrite=True)
         def ds_provider(p):
             try:
@@ -21,7 +21,7 @@ def test_labelbox():
                 pass
             ds.checkout('labelbox', create=True)
             return ds
-        converter = converter_for_video_project_with_id(project_id, client, ds_provider, API_KEY)
+        converter = converter_for_video_project_with_id(project_id, client, ds_provider, API_KEY, group_mapping={'raster-segmentation': 'mask'})
         ds = converter.dataset_with_applied_annotations()
 
         ds.commit('add labelbox annotations')
@@ -34,6 +34,7 @@ def test_labelbox():
             'frames',
             'line',
             'mask',
+            'mask_labels',
             'point',
             'radio_bttn',
             'radio_bttn_scale',

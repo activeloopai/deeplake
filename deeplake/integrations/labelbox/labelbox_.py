@@ -6,7 +6,7 @@ from deeplake.integrations.labelbox.labelbox_utils import *
 from deeplake.integrations.labelbox.labelbox_converter import labelbox_video_converter
 from deeplake.integrations.labelbox.v3_converters import *
 
-def converter_for_video_project_with_id(project_id, client, deeplake_ds_loader, lb_api_key):
+def converter_for_video_project_with_id(project_id, client, deeplake_ds_loader, lb_api_key, group_mapping=None):
     """
     Creates a converter for Labelbox video project to a Deeplake dataset format based on annotation types.
 
@@ -63,7 +63,7 @@ def converter_for_video_project_with_id(project_id, client, deeplake_ds_loader, 
         'raster-segmentation': raster_segmentation_converter_,
         'text': text_converter_
     }
-    return labelbox_video_converter(ontology, converters, project_json, project_id, deeplake_dataset, {'ds': deeplake_dataset, 'lb_api_key': lb_api_key})
+    return labelbox_video_converter(ontology, converters, project_json, project_id, deeplake_dataset, {'ds': deeplake_dataset, 'lb_api_key': lb_api_key}, group_mapping=group_mapping)
 
 def create_dataset_for_video_annotation_with_custom_data_filler(deeplake_ds_path, video_paths, lb_client, data_filler, deeplake_token=None, overwrite=False, lb_ontology=None, lb_batch_priority=5, lb_dataset_name=None):
     """
@@ -130,8 +130,6 @@ def create_dataset_for_video_annotation_with_custom_data_filler(deeplake_ds_path
         project.connect_ontology(lb_ontology)
 
     ds.commit()
-    
-    print(ds.summary())
 
     return ds
 

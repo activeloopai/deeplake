@@ -1,5 +1,5 @@
 class labelbox_type_converter:
-    def __init__(self, ontology, converters, project, project_id, dataset, context):
+    def __init__(self, ontology, converters, project, project_id, dataset, context, group_mapping=None):
         self.labelbox_feature_id_to_type_mapping = dict()
         self.regsistered_actions = dict()
         self.label_mappings = dict()
@@ -7,6 +7,8 @@ class labelbox_type_converter:
         self.project = project
         self.project_id = project_id
         self.dataset = dataset
+
+        self.group_mapping = group_mapping if group_mapping is not None else dict()
 
         self.labelbox_type_converters_ = converters
         
@@ -56,19 +58,32 @@ class labelbox_type_converter:
             print('skip tool:', tool.tool.value)
             return
         
+        prefered_name = tool.name 
+        
+        if tool.tool.value in self.group_mapping:
+            prefered_name = self.group_mapping[tool.tool.value]
+        else:
+            prefered_name = tool.name
+        
         should_group_with_classifications = len(tool.classifications) > 0
-        self.labelbox_type_converters_[tool.tool.value](tool, self, tool.name + "/" + tool.name if should_group_with_classifications else tool.name, context)
+        tool_name = prefered_name + "/" + prefered_name if should_group_with_classifications else prefered_name
+
+        self.labelbox_type_converters_[tool.tool.value](tool, self, tool_name, context, tool.tool.value in self.group_mapping)
 
         for classification in tool.classifications:
-            self.register_classification_(classification, context, parent=tool.name)
+            self.register_classification_(classification, context, parent=prefered_name)
 
 
     def register_classification_(self, tool, context, parent=''):
         if tool.class_type.value not in self.labelbox_type_converters_:
             return
-        
-        tool_name = parent + '/' + tool.name if len(parent) else tool.name
-        self.labelbox_type_converters_[tool.class_type.value](tool, self, tool_name, context)
+
+        if tool.class_type.value in self.group_mapping:
+            prefered_name = (parent + '/' if parent else '') + self.group_mapping[tool.class_type.value]
+        else:
+            prefered_name = (parent + '/' if parent else '') + tool.name
+
+        self.labelbox_type_converters_[tool.class_type.value](tool, self, prefered_name, context, tool.class_type.value in self.group_mapping)
 
 
     def register_ontology_(self, ontology, context):
@@ -162,8 +177,8 @@ class labelbox_type_converter:
 
 
 class labelbox_video_converter(labelbox_type_converter):
-    def __init__(self, ontology, converters, project, project_id, dataset, context):
-        super().__init__(ontology, converters, project, project_id, dataset, context)
+    def __init__(self, ontology, converters, project, project_id, dataset, context, group_mapping=None):
+        super().__init__(ontology, converters, project, project_id, dataset, context, group_mapping)
 
     def yield_projects_(self, project_j, ds):
         if 'labelbox_meta' not in ds.info:

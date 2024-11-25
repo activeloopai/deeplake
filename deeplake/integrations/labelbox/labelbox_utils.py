@@ -24,7 +24,7 @@ def frame_generator_(
                 return av.open(video_path)
             else:
                 return av.open(video_path, options={
-                "headers": f"Authorization: {token}\r\n"
+                "headers": f"Authorization: {token}"
                 })
         except av.AVError as e:
             if current_retries > 0:
