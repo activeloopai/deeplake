@@ -1,4 +1,4 @@
-import labelbox as lb
+import labelbox as lb  # type: ignore
 import os
 import tempfile
 import pytest
