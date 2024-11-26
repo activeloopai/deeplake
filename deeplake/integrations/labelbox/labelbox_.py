@@ -1,6 +1,6 @@
 import deeplake
 import os
-import labelbox as lb # type: ignore
+import labelbox as lb  # type: ignore
 
 from deeplake.integrations.labelbox.labelbox_utils import *
 from deeplake.integrations.labelbox.labelbox_converter import labelbox_video_converter
@@ -8,7 +8,12 @@ from deeplake.integrations.labelbox.v3_converters import *
 
 
 def converter_for_video_project_with_id(
-    project_id, client, deeplake_ds_loader, lb_api_key, group_mapping=None, fail_on_error=False
+    project_id,
+    client,
+    deeplake_ds_loader,
+    lb_api_key,
+    group_mapping=None,
+    fail_on_error=False,
 ):
     """
     Creates a converter for Labelbox video project to a Deeplake dataset format based on annotation types.
@@ -121,7 +126,12 @@ def create_dataset_for_video_annotation_with_custom_data_filler(
     Returns:
        Dataset: Created Deeplake dataset containing processed video frames and metadata for Labelbox project
     """
-    ds = deeplake.empty(deeplake_ds_path, creds=deeplake_creds, token=deeplake_token, overwrite=overwrite)
+    ds = deeplake.empty(
+        deeplake_ds_path,
+        creds=deeplake_creds,
+        token=deeplake_token,
+        overwrite=overwrite,
+    )
 
     data_filler["create_tensors"](ds)
 
@@ -237,7 +247,12 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     Notes:
         - The function does not fetch the annotations from Labelbox, only the video frames. After creating the dataset, use the converter to apply annotations.
     """
-    ds = deeplake.empty(deeplake_ds_path, overwrite=overwrite, creds=deeplake_creds, token=deeplake_token)
+    ds = deeplake.empty(
+        deeplake_ds_path,
+        overwrite=overwrite,
+        creds=deeplake_creds,
+        token=deeplake_token,
+    )
     data_filler["create_tensors"](ds)
 
     proj = labelbox_get_project_json_with_id_(lb_client, project_id, fail_on_error)

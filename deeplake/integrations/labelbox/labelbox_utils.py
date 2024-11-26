@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Generator, Tuple
-import labelbox as lb # type: ignore
+import labelbox as lb  # type: ignore
 import av
 
 
