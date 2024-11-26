@@ -131,7 +131,7 @@ def create_dataset_for_video_annotation_with_custom_data_filler(
     ds = deeplake.empty(
         deeplake_ds_path,
         creds=deeplake_creds,
-        ord_id=deeplake_org_id,
+        org_id=deeplake_org_id,
         token=deeplake_token,
         overwrite=overwrite,
     )
@@ -258,7 +258,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
         deeplake_ds_path,
         overwrite=overwrite,
         creds=deeplake_creds,
-        ord_id=deeplake_org_id,
+        org_id=deeplake_org_id,
         token=deeplake_token,
     )
     data_filler["create_tensors"](ds)
