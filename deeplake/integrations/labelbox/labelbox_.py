@@ -94,7 +94,7 @@ def create_dataset_for_video_annotation_with_custom_data_filler(
     lb_client,
     data_filler,
     deeplake_creds=None,
-    deeplake_ord_id=None,
+    deeplake_org_id=None,
     deeplake_token=None,
     overwrite=False,
     lb_ontology=None,
@@ -117,7 +117,7 @@ def create_dataset_for_video_annotation_with_custom_data_filler(
            - 'fill_data': callable(ds, idx, frame_num, frame) -> None
                Fills dataset with processed frame data
        deeplake_creds (dict): Dictionary containing credentials for deeplake
-       deeplake_ord_id (str, optional): Organization ID for Deeplake cloud storage.
+       deeplake_org_id (str, optional): Organization ID for Deeplake cloud storage.
        deeplake_token (str, optional): Authentication token for Deeplake cloud storage.
        overwrite (bool, optional): Whether to overwrite existing dataset. Defaults to False
        lb_ontology (Ontology, optional): Labelbox ontology to connect to project. Defaults to None
@@ -131,7 +131,7 @@ def create_dataset_for_video_annotation_with_custom_data_filler(
     ds = deeplake.empty(
         deeplake_ds_path,
         creds=deeplake_creds,
-        ord_id=deeplake_ord_id,
+        ord_id=deeplake_org_id,
         token=deeplake_token,
         overwrite=overwrite,
     )
@@ -181,7 +181,7 @@ def create_dataset_for_video_annotation(
     video_paths,
     lb_client,
     deeplake_creds=None,
-    deeplake_ord_id=None,
+    deeplake_org_id=None,
     deeplake_token=None,
     overwrite=False,
     lb_ontology=None,
@@ -204,7 +204,7 @@ def create_dataset_for_video_annotation(
             "fill_data": fill_data_default_,
         },
         deeplake_creds=deeplake_creds,
-        deeplake_ord_id=deeplake_ord_id,
+        deeplake_org_id=deeplake_org_id,
         deeplake_token=deeplake_token,
         lb_ontology=lb_ontology,
         lb_batch_priority=lb_batch_priority,
@@ -220,7 +220,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     lb_api_key,
     data_filler,
     deeplake_creds=None,
-    deeplake_ord_id=None,
+    deeplake_org_id=None,
     deeplake_token=None,
     overwrite=False,
     fail_on_error=False,
@@ -241,7 +241,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
            - 'fill_data': callable(ds, idx, frame_num, frame) -> None
                Fills dataset with processed frame data
        deeplake_creds (dict): Dictionary containing credentials for deeplake
-       deeplake_ord_id (str, optional): Organization ID for Deeplake cloud storage.
+       deeplake_org_id (str, optional): Organization ID for Deeplake cloud storage.
        deeplake_token (str, optional): Authentication token for Deeplake cloud storage.
            Required if using hub:// path. Defaults to None
        overwrite (bool, optional): Whether to overwrite existing dataset. Defaults to False
@@ -258,7 +258,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
         deeplake_ds_path,
         overwrite=overwrite,
         creds=deeplake_creds,
-        ord_id=deeplake_ord_id,
+        ord_id=deeplake_org_id,
         token=deeplake_token,
     )
     data_filler["create_tensors"](ds)
@@ -298,7 +298,7 @@ def create_dataset_from_video_annotation_project(
     lb_client,
     lb_api_key,
     deeplake_creds=None,
-    deeplake_ord_id=None,
+    deeplake_org_id=None,
     deeplake_token=None,
     overwrite=False,
     fail_on_error=False,
@@ -320,7 +320,7 @@ def create_dataset_from_video_annotation_project(
             "fill_data": fill_data_default_,
         },
         deeplake_creds=deeplake_creds,
-        deeplake_ord_id=deeplake_ord_id,
+        deeplake_org_id=deeplake_org_id,
         deeplake_token=deeplake_token,
         overwrite=overwrite,
         fail_on_error=fail_on_error,
