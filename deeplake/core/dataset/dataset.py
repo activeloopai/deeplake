@@ -580,6 +580,7 @@ class Dataset:
                         return self.version_state["full_tensors"].get(key)
                     raise TensorDoesNotExistError(item)
 
+                splt = posixpath.split(item)
                 ret = (
                     self[splt[1]]
                     if splt[0] == self.group_index
