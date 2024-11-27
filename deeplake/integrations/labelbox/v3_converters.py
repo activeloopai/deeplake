@@ -204,16 +204,6 @@ def raster_segmentation_converter_(
                 headers={"Authorization": f'Bearer {context["lb_api_key"]}'},
             )
             with urllib.request.urlopen(r) as response:
-                mask = np.array(Image.open(response)).astype(np.bool_)
-                mask = mask[..., np.newaxis]
-
-                try:
-                    val = np.concatenate([ds[tensor_name][row].numpy(), mask], axis=-1)
-                except (KeyError, IndexError):
-                    val = mask
-
-                ds[tensor_name][row] = val
-
                 if generate_labels:
                     if (
                         tool_name
@@ -239,6 +229,23 @@ def raster_segmentation_converter_(
                         converter.label_mappings[f"{tensor_name}_labels"][tool_name]
                     )
                     ds[f"{tensor_name}_labels"][row] = val
+
+                    mask = np.array(Image.open(response)).astype(np.bool_)
+                    mask = mask[..., np.newaxis]
+                    try:
+                        if generate_labels:
+                            arr = ds[tensor_name][row].numpy()
+                            labels = ds[f"{tensor_name}_labels"].info['class_names']
+                            if labels != arr.shape[-1]:
+                                val = np.concatenate([ds[tensor_name][row].numpy(), np.zeros_like(mask)], axis=-1)
+                            idx = labels.index(tool_name)
+                            val[:,:,idx] = np.logical_or(val[:,:,idx], mask[:,:,0])
+                        else:
+                            val = np.logical_or(ds[tensor_name][row].numpy(), mask)
+                    except (KeyError, IndexError):
+                        val = mask
+
+                    ds[tensor_name][row] = val
         except Exception as e:
             print(f"Error downloading mask: {e}")
 

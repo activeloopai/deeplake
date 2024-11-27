@@ -1,4 +1,5 @@
 from deeplake.integrations.labelbox.labelbox_utils import *
+import tqdm
 
 class labelbox_type_converter:
     def __init__(
@@ -35,9 +36,13 @@ class labelbox_type_converter:
 
     def dataset_with_applied_annotations(self):
         idx_offset = 0
-        for p in self.yield_projects_(self.project, self.dataset):
+        print('total annotations projects count: ', len(self.project))
+
+        for p_idx, p in enumerate(self.yield_projects_(self.project, self.dataset)):
             if "labels" not in p["projects"][self.project_id]:
+                print('no labels for project with index: ', p_idx)
                 continue
+            print('parsing annotations for project with index: ', p_idx)
             for lbl_idx, labels in enumerate(p["projects"][self.project_id]["labels"]):
                 if "frames" not in labels["annotations"]:
                     continue
@@ -54,7 +59,8 @@ class labelbox_type_converter:
 
                 assert len(frames) <= p["media_attributes"]["frame_count"]
 
-                for i in range(p["media_attributes"]["frame_count"]):
+                print('parsing frames for label index: ', lbl_idx)
+                for i in tqdm.tqdm(range(p["media_attributes"]["frame_count"])):
                     if str(i + 1) not in frames:
                         continue
                     self.parse_frame_(frames[str(i + 1)], idx_offset + i)
@@ -186,8 +192,10 @@ class labelbox_type_converter:
         return None
 
     def parse_segments_(self, segments, frames, offset):
+        print('total segments count to parse:', len(segments))
         for feature_id, ranges in segments.items():
-            for r in ranges:
+            print('parsing segments with feature id: ', feature_id)
+            for r in tqdm.tqdm(ranges):
                 assert str(r[0]) in frames
                 obj = self.find_object_with_feature_id_(frames[str(r[0])], feature_id)
                 assert obj is not None

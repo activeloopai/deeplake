@@ -47,6 +47,18 @@ def frame_generator_(
     except Exception as e:
         print(f"Failed generating frames: {e}")
 
+def frames_batch_generator_(video_path: str, header: dict=None, batch_size=100, retries: int = 5):
+    frames, indexes = [], []
+    for frame_num, frame in frame_generator_(video_path, header, retries):
+        frames.append(frame)
+        indexes.append(frame_num)
+        if len(frames) < batch_size:
+            continue
+        yield indexes, frames
+        frames, indexes = [], []
+    
+    if len(frames):
+        yield indexes, frames
 
 def external_url_from_video_project_(p):
     if "external_id" in p["data_row"]:
@@ -121,6 +133,7 @@ def validate_project_creation_data_(proj, project_id, type):
 
 
 def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
+    print('requesting project info from labelbox with id', project_id)
     # Set the export params to include/exclude certain fields.
     export_params = {
         "attachments": False,
@@ -158,31 +171,28 @@ def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
             raise Exception(f"Error during export: {error}")
         print(f"Error during export: {error}")
 
-    try:
-        if export_task.has_errors():
-            export_task.get_buffered_stream(stream_type=lb.StreamType.ERRORS).start(
-                stream_handler=error_stream_handler
-            )
-    except Exception as e:
-        if fail_on_error:
-            raise Exception(f"labelbox project export failed with error: {e} taks errors: {export_task.errors}")
-        print("export tasks errors: ", export_task.errors)
+    if export_task.has_errors():
+        export_task.get_buffered_stream(stream_type=lb.StreamType.ERRORS).start(
+            stream_handler=error_stream_handler
+        )
 
     if export_task.has_result():
         export_json = export_task.get_buffered_stream(
             stream_type=lb.StreamType.RESULT
         ).start(stream_handler=json_stream_handler)
 
+    print('project info is ready for project with id', project_id)
+
     return projects
 
 
 def create_tensors_default_(ds):
-    ds.create_tensor("frames", htype="image", sample_compression="png")
+    ds.create_tensor("frames", htype="image", sample_compression="jpg")
     ds.create_tensor("frame_idx", htype="generic", dtype="int32")
     ds.create_tensor("video_idx", htype="generic", dtype="int32")
 
 
-def fill_data_default_(ds, group_id, index, frame):
-    ds["frames"].append(frame)
-    ds["video_idx"].append(group_id)
-    ds["frame_idx"].append(index)
+def fill_data_default_(ds, group_ids, indexes, frames):
+    ds["frames"].extend(frames)
+    ds["video_idx"].extend(group_ids)
+    ds["frame_idx"].extend(indexes)

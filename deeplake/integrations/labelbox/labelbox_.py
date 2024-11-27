@@ -101,6 +101,7 @@ def create_dataset_for_video_annotation_with_custom_data_filler(
     lb_batch_priority=5,
     lb_dataset_name=None,
     fail_on_error=False,
+    video_generator_batch_size=100
 ):
     """
     Creates a Deeplake dataset for video annotation and sets up corresponding Labelbox project.
@@ -140,8 +141,8 @@ def create_dataset_for_video_annotation_with_custom_data_filler(
     data_filler["create_tensors"](ds)
 
     for idx, video_path in enumerate(video_paths):
-        for frame_num, frame in frame_generator_(video_path):
-            data_filler["fill_data"](ds, idx, frame_num, frame)
+        for frame_indexes, frames in frames_batch_generator_(video_path, batch_size=video_generator_batch_size):
+            data_filler["fill_data"](ds, [idx] * len(frames), frame_indexes, frames)
 
     if lb_dataset_name is None:
         lb_dataset_name = os.path.basename(deeplake_ds_path) + "_from_deeplake"
@@ -210,6 +211,7 @@ def create_dataset_for_video_annotation(
     lb_ontology=None,
     lb_batch_priority=5,
     fail_on_error=False,
+    video_generator_batch_size=100,
 ):
     """
     See create_dataset_for_video_annotation_with_custom_data_filler for complete documentation.
@@ -233,6 +235,7 @@ def create_dataset_for_video_annotation(
         lb_batch_priority=lb_batch_priority,
         overwrite=overwrite,
         fail_on_error=fail_on_error,
+        video_generator_batch_size=video_generator_batch_size,
     )
 
 
@@ -247,7 +250,8 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     deeplake_token=None,
     overwrite=False,
     fail_on_error=False,
-    url_presigner=None
+    url_presigner=None,
+    video_generator_batch_size=100,
 ):
     """
     Creates a Deeplake dataset from an existing Labelbox video annotation project using custom data processing.
@@ -262,8 +266,8 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
        data_filler (dict): Dictionary containing two functions:
            - 'create_tensors': callable(ds) -> None
                Creates necessary tensors in the dataset
-           - 'fill_data': callable(ds, idx, frame_num, frame) -> None
-               Fills dataset with processed frame data
+           - 'fill_data': callable(ds, group_ids, indexes, frames) -> None
+               Fills dataset with processed frame batches
        deeplake_creds (dict): Dictionary containing credentials for deeplake
        deeplake_org_id (str, optional): Organization ID for Deeplake cloud storage.
        deeplake_token (str, optional): Authentication token for Deeplake cloud storage.
@@ -308,12 +312,13 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
 
     for idx, p in enumerate(proj):
         video_url = p["data_row"]["row_data"]
+        header = None
         if not os.path.exists(video_url):
-            headers = None
             if not is_remote_resource_public_(video_url):
-                video_url, headers = url_presigner(video_url)
-        for frame_num, frame in frame_generator_(video_url, headers):
-            data_filler["fill_data"](ds, idx, frame_num, frame)
+                video_url, header = url_presigner(video_url)
+
+        for frame_indexes, frames in frames_batch_generator_(video_url, header=header, batch_size=video_generator_batch_size):
+            data_filler["fill_data"](ds, [idx] * len(frames), frame_indexes, frames)
         video_files.append(external_url_from_video_project_(p))
 
     ds.info["labelbox_meta"] = {
@@ -337,7 +342,8 @@ def create_dataset_from_video_annotation_project(
     deeplake_token=None,
     overwrite=False,
     fail_on_error=False,
-    url_presigner=None
+    url_presigner=None,
+    video_generator_batch_size=100,
 ):
     """
     See create_dataset_from_video_annotation_project_with_custom_data_filler for complete documentation.
@@ -360,5 +366,6 @@ def create_dataset_from_video_annotation_project(
         deeplake_token=deeplake_token,
         overwrite=overwrite,
         fail_on_error=fail_on_error,
-        url_presigner=url_presigner
+        url_presigner=url_presigner,
+        video_generator_batch_size=video_generator_batch_size,
     )
