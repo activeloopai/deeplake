@@ -8,7 +8,6 @@ from deeplake.integrations.labelbox import (
     converter_for_video_project_with_id,
 )
 
-
 @pytest.mark.skip(reason="Sometimes fails due to Labelbox authentication issues")
 def test_labelbox():
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -16,7 +15,7 @@ def test_labelbox():
         API_KEY = os.environ["LABELBOX_TOKEN"]
         client = lb.Client(api_key=API_KEY)
 
-        project_id = "cm3x920j0002m07xy5ittaqj6"
+        project_id = "cm3z7w95q005n07y458gd2xaw"
         ds = create_dataset_from_video_annotation_project(
             ds_path, project_id, client, API_KEY, overwrite=True
         )
