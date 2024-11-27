@@ -109,7 +109,7 @@ def create_dataset_for_video_annotation_with_custom_data_filler(
     Args:
        deeplake_ds_path (str): Path where the Deeplake dataset will be created/stored.
            Can be local path or remote path (e.g. 'hub://org/dataset')
-       video_paths (List[str]): List of paths to video files to be processed can be local or pre-signed remote.
+       video_paths (List[str]): List of paths to video files to be processed can be either all local or all pre-signed remote. 
        lb_client (LabelboxClient): Authenticated Labelbox client instance
        data_filler (dict): Dictionary containing two functions:
            - 'create_tensors': callable(ds) -> None
@@ -145,9 +145,31 @@ def create_dataset_for_video_annotation_with_custom_data_filler(
     if lb_dataset_name is None:
         lb_dataset_name = os.path.basename(deeplake_ds_path) + "_from_deeplake"
 
+    assets = video_paths
+
+    # validate paths
+    all_local = [os.path.exists(p) for p in video_paths]
+    if any(all_local) and not all(all_local):
+        raise Exception(f'video paths must be all local or all remote: {video_paths}')
+
+    if len(all_local):
+        if not all_local[0]:
+            assets = [{
+            "row_data": p,
+            "media_type": "VIDEO",
+            "metadata_fields": [],
+            "attachments": []
+        } for p in video_paths]
+
+    print('uploading videos to labelbox')
     lb_ds = lb_client.create_dataset(name=lb_dataset_name)
-    task = lb_ds.create_data_rows(video_paths)
+    task = lb_ds.create_data_rows(assets)
     task.wait_till_done()
+
+    if task.errors:
+        raise Exception(f'failed to upload videos to labelbox: {task.errors}')
+
+    print('successfuly uploaded videos to labelbox')
 
     # Create a new project
     project = lb_client.create_project(
@@ -276,10 +298,9 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
 
     for idx, p in enumerate(proj):
         video_url = p["data_row"]["row_data"]
-        for frame_num, frame in frame_generator_(video_url, f"Bearer {lb_api_key}"):
+        for frame_num, frame in frame_generator_(video_url, f"Bearer {lb_api_key}" if not is_remote_resource_public_(video_url) else None):
             data_filler["fill_data"](ds, idx, frame_num, frame)
-
-        video_files.append(p["data_row"]["external_id"])
+        video_files.append(external_url_from_video_project_(p))
 
     ds.info["labelbox_meta"] = {
         "project_id": project_id,

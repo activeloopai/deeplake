@@ -2,7 +2,14 @@ import numpy as np
 from typing import Generator, Tuple
 import labelbox as lb  # type: ignore
 import av
+import requests
 
+def is_remote_resource_public_(url):
+    try:
+        response = requests.head(url, allow_redirects=True)
+        return response.status_code == 200
+    except requests.exceptions.RequestException as e:
+        return False
 
 def frame_generator_(
     video_path: str, token=None, retries: int = 5
@@ -46,6 +53,11 @@ def frame_generator_(
         print(f"Failed generating frames: {e}")
 
 
+def external_url_from_video_project_(p):
+    if "external_id" in p["data_row"]:
+        return  p["data_row"]["external_id"]
+    return p["data_row"]["row_data"]
+
 def validate_video_project_data_impl_(project_j, deeplake_dataset, project_id):
     if "labelbox_meta" not in deeplake_dataset.info:
         return False
@@ -66,7 +78,8 @@ def validate_video_project_data_impl_(project_j, deeplake_dataset, project_id):
     ontology_ids = set()
 
     for p in project_j:
-        if p["data_row"]["external_id"] not in info["sources"]:
+        url = external_url_from_video_project_(p)
+        if url not in info["sources"]:
             return False
 
         ontology_ids.add(p["projects"][project_id]["project_details"]["ontology_id"])
@@ -150,10 +163,15 @@ def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
             raise Exception(f"Error during export: {error}")
         print(f"Error during export: {error}")
 
-    if export_task.has_errors():
-        export_task.get_buffered_stream(stream_type=lb.StreamType.ERRORS).start(
-            stream_handler=error_stream_handler
-        )
+    try:
+        if export_task.has_errors():
+            export_task.get_buffered_stream(stream_type=lb.StreamType.ERRORS).start(
+                stream_handler=error_stream_handler
+            )
+    except Exception as e:
+        if fail_on_error:
+            raise Exception(f"labelbox project export failed with error: {e} taks errors: {export_task.errors}")
+        print("export tasks errors: ", export_task.errors)
 
     if export_task.has_result():
         export_json = export_task.get_buffered_stream(

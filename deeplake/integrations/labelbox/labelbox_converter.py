@@ -1,3 +1,5 @@
+from deeplake.integrations.labelbox.labelbox_utils import *
+
 class labelbox_type_converter:
     def __init__(
         self,
@@ -43,7 +45,7 @@ class labelbox_type_converter:
                 if not len(frames):
                     print(
                         "skip",
-                        p["data_row"]["external_id"],
+                        external_url_from_video_project_(p),
                         "with label idx",
                         lbl_idx,
                         "as it has no frames",
@@ -227,8 +229,9 @@ class labelbox_video_converter(labelbox_type_converter):
         if "labelbox_meta" not in ds.info:
             raise ValueError("No labelbox meta data in dataset")
         info = ds.info["labelbox_meta"]
-        ordered_values = sorted(
-            project_j, key=lambda x: info["sources"].index(x["data_row"]["external_id"])
-        )
+        def sorter(p):
+            url = external_url_from_video_project_(p)
+            return info["sources"].index(url)
+        ordered_values = sorted(project_j, key=sorter)
         for p in ordered_values:
             yield p
