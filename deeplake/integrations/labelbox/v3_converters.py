@@ -21,13 +21,12 @@ def bbox_converter_(obj, converter, tensor_name, context, generate_labels):
     converter.register_feature_id_for_kind("tool", "bounding_box", obj, tensor_name)
 
     def bbox_converter(row, obj):
-        vals = []
-        try:
-            vals = ds[tensor_name][row].numpy(aslist=True).tolist()
-        except (KeyError, IndexError):
-            pass
+        if tensor_name not in converter.values_cache:
+            converter.values_cache[tensor_name] = dict()
+        if row not in converter.values_cache[tensor_name]:
+            converter.values_cache[tensor_name][row] = []
 
-        vals.append(
+        converter.values_cache[tensor_name][row].append(
             [
                 int(v)
                 for v in [
@@ -38,8 +37,6 @@ def bbox_converter_(obj, converter, tensor_name, context, generate_labels):
                 ]
             ]
         )
-        ds[tensor_name][row] = vals
-
     converter.regsistered_actions[obj.feature_schema_id] = bbox_converter
 
 
@@ -68,7 +65,11 @@ def radio_converter_(obj, converter, tensor_name, context, generate_labels):
     )
 
     def radio_converter(row, o):
-        ds[tensor_name][row] = converter.label_mappings[tensor_name][o["value"]]
+        if tensor_name not in converter.values_cache:
+            converter.values_cache[tensor_name] = dict()
+        if row not in converter.values_cache[tensor_name]:
+            converter.values_cache[tensor_name][row] = []
+        converter.values_cache[tensor_name][row] = [converter.label_mappings[tensor_name][o["value"]]]
 
     for option in obj.options:
         converter.regsistered_actions[option.feature_schema_id] = radio_converter
@@ -104,14 +105,12 @@ def checkbox_converter_(obj, converter, tensor_name, context, generate_labels):
     )
 
     def checkbox_converter(row, obj):
-        vals = []
-        try:
-            vals = ds[tensor_name][row].numpy(aslist=True).tolist()
-        except (KeyError, IndexError):
-            pass
-        vals.append(converter.label_mappings[tensor_name][obj["value"]])
+        if tensor_name not in converter.values_cache:
+            converter.values_cache[tensor_name] = dict()
+        if row not in converter.values_cache[tensor_name]:
+            converter.values_cache[tensor_name][row] = []
 
-        ds[tensor_name][row] = vals
+        converter.values_cache[tensor_name][row].append(converter.label_mappings[tensor_name][obj["value"]])
 
     for option in obj.options:
         converter.regsistered_actions[option.feature_schema_id] = checkbox_converter
@@ -136,13 +135,12 @@ def point_converter_(obj, converter, tensor_name, context, generate_labels):
         print("point converter does not support generating labels")
 
     def point_converter(row, obj):
-        vals = []
-        try:
-            vals = ds[tensor_name][row].numpy(aslist=True).tolist()
-        except (KeyError, IndexError):
-            pass
-        vals.append([int(obj["point"]["x"]), int(obj["point"]["y"])])
-        ds[tensor_name][row] = vals
+        if tensor_name not in converter.values_cache:
+            converter.values_cache[tensor_name] = dict()
+        if row not in converter.values_cache[tensor_name]:
+            converter.values_cache[tensor_name][row] = []
+        
+        converter.values_cache[tensor_name][row].append([int(obj["point"]["x"]), int(obj["point"]["y"])])
 
     converter.regsistered_actions[obj.feature_schema_id] = point_converter
 
@@ -160,13 +158,12 @@ def line_converter_(obj, converter, tensor_name, context, generate_labels):
         print("line converter does not support generating labels")
 
     def polygon_converter(row, obj):
-        vals = []
-        try:
-            vals = ds[tensor_name][row].numpy(aslist=True)
-        except (KeyError, IndexError):
-            pass
-        vals.append([[int(l["x"]), int(l["y"])] for l in obj["line"]])
-        ds[tensor_name][row] = vals
+        if tensor_name not in converter.values_cache:
+            converter.values_cache[tensor_name] = dict()
+        if row not in converter.values_cache[tensor_name]:
+            converter.values_cache[tensor_name][row] = []
+        
+        converter.values_cache[tensor_name][row].append([[int(l["x"]), int(l["y"])] for l in obj["line"]])
 
     converter.regsistered_actions[obj.feature_schema_id] = polygon_converter
 
@@ -230,22 +227,22 @@ def raster_segmentation_converter_(
                     )
                     ds[f"{tensor_name}_labels"][row] = val
 
-                    mask = np.array(Image.open(response)).astype(np.bool_)
-                    mask = mask[..., np.newaxis]
-                    try:
-                        if generate_labels:
-                            arr = ds[tensor_name][row].numpy()
-                            labels = ds[f"{tensor_name}_labels"].info['class_names']
-                            if labels != arr.shape[-1]:
-                                val = np.concatenate([ds[tensor_name][row].numpy(), np.zeros_like(mask)], axis=-1)
-                            idx = labels.index(tool_name)
-                            val[:,:,idx] = np.logical_or(val[:,:,idx], mask[:,:,0])
-                        else:
-                            val = np.logical_or(ds[tensor_name][row].numpy(), mask)
-                    except (KeyError, IndexError):
-                        val = mask
+                mask = np.array(Image.open(response)).astype(np.bool_)
+                mask = mask[..., np.newaxis]
+                try:
+                    if generate_labels:
+                        arr = ds[tensor_name][row].numpy()
+                        labels = ds[f"{tensor_name}_labels"].info['class_names']
+                        if len(labels) != arr.shape[-1]:
+                            val = np.concatenate([ds[tensor_name][row].numpy(), np.zeros_like(mask)], axis=-1)
+                        idx = labels.index(tool_name)
+                        val[:,:,idx] = np.logical_or(val[:,:,idx], mask[:,:,0])
+                    else:
+                        val = np.logical_or(ds[tensor_name][row].numpy(), mask)
+                except (KeyError, IndexError):
+                    val = mask
 
-                    ds[tensor_name][row] = val
+                ds[tensor_name][row] = val
         except Exception as e:
             print(f"Error downloading mask: {e}")
 
@@ -265,6 +262,10 @@ def text_converter_(obj, converter, tensor_name, context, generate_labels):
         print("text converter does not support generating labels")
 
     def text_converter(row, obj):
-        ds[tensor_name][row] = obj["text_answer"]["content"]
+        if tensor_name not in converter.values_cache:
+            converter.values_cache[tensor_name] = dict()
+        if row not in converter.values_cache[tensor_name]:
+            converter.values_cache[tensor_name][row] = []
+        converter.values_cache[tensor_name][row] = obj["text_answer"]["content"]
 
     converter.regsistered_actions[obj.feature_schema_id] = text_converter
