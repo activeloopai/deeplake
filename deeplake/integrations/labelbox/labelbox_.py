@@ -124,6 +124,7 @@ def create_dataset_for_video_annotation_with_custom_data_filler(
        lb_batch_priority (int, optional): Priority for Labelbox batches. Defaults to 5
        lb_dataset_name (str, optional): Custom name for Labelbox dataset.
            Defaults to deeplake_ds_path basename + '_from_deeplake'
+       fail_on_error (bool, optional): Whether to raise an exception if data validation fails. Defaults to False
 
     Returns:
        Dataset: Created Deeplake dataset containing processed video frames and metadata for Labelbox project
@@ -246,6 +247,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     deeplake_token=None,
     overwrite=False,
     fail_on_error=False,
+    url_presigner=None
 ):
     """
     Creates a Deeplake dataset from an existing Labelbox video annotation project using custom data processing.
@@ -268,6 +270,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
            Required if using hub:// path. Defaults to None
        overwrite (bool, optional): Whether to overwrite existing dataset. Defaults to False
        fail_on_error (bool, optional): Whether to raise an exception if data validation fails. Defaults to False
+       url_presigner (callable, optional): Function that takes a URL and returns a pre-signed URL and headers (str, dict). Default will use labelbox access token to access the data. Is useful when used cloud storage integrations.
 
     Returns:
        Dataset: Created Deeplake dataset containing processed video frames and Labelbox metadata.
@@ -296,9 +299,20 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
 
     video_files = []
 
+    if url_presigner is None:
+        def default_presigner(url):
+            if lb_api_key is None:
+                return url, {}
+            return url, {"headers": {"Authorization": f"Bearer {lb_api_key}"}}
+        url_presigner = default_presigner
+
     for idx, p in enumerate(proj):
         video_url = p["data_row"]["row_data"]
-        for frame_num, frame in frame_generator_(video_url, f"Bearer {lb_api_key}" if not is_remote_resource_public_(video_url) else None):
+        if not os.path.exists(video_url):
+            headers = None
+            if not is_remote_resource_public_(video_url):
+                video_url, headers = url_presigner(video_url)
+        for frame_num, frame in frame_generator_(video_url, headers):
             data_filler["fill_data"](ds, idx, frame_num, frame)
         video_files.append(external_url_from_video_project_(p))
 
@@ -323,6 +337,7 @@ def create_dataset_from_video_annotation_project(
     deeplake_token=None,
     overwrite=False,
     fail_on_error=False,
+    url_presigner=None
 ):
     """
     See create_dataset_from_video_annotation_project_with_custom_data_filler for complete documentation.
@@ -345,4 +360,5 @@ def create_dataset_from_video_annotation_project(
         deeplake_token=deeplake_token,
         overwrite=overwrite,
         fail_on_error=fail_on_error,
+        url_presigner=url_presigner
     )

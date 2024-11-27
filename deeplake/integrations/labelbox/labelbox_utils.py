@@ -12,14 +12,14 @@ def is_remote_resource_public_(url):
         return False
 
 def frame_generator_(
-    video_path: str, token=None, retries: int = 5
+    video_path: str, header: dict, retries: int = 5
 ) -> Generator[Tuple[int, np.ndarray], None, None]:
     """
     Generate frames from a video file.
 
     Parameters:
     video_path (str): Path to the video file
-    token (str): Optional token for authorization
+    header (dict, optional): Optional request header for authorization
 
     Yields:
     tuple: (frame_number, frame_data)
@@ -29,12 +29,7 @@ def frame_generator_(
 
     def get_video_container(current_retries):
         try:
-            if token is None:
-                return av.open(video_path)
-            else:
-                return av.open(
-                    video_path, options={"headers": f"Authorization: {token}"}
-                )
+            return av.open(video_path, options=header)
         except av.AVError as e:
             if current_retries > 0:
                 print(f"Failed opening video: {e}. Retrying...")
