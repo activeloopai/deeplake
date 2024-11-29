@@ -16,9 +16,10 @@ def get_string(
             max_col = max_arr[col_no]
             length = len(row[col_no])
             starting_loc = (max_col - length) // 2
+            cell_value = "None" if row[col_no] == {} else row[col_no]
             temp_str += (
                 " " * starting_loc
-                + row[col_no]
+                + cell_value
                 + " " * (max_col - length - starting_loc)
             )
     return temp_str
