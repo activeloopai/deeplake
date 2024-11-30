@@ -11,4 +11,4 @@ jobs:
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
         env:
-          azure_creds_json:: ${{ secrets.AZURE_CREDS_JSON }}
+          azure_creds_json: ${{ secrets.AZURE_CREDS_JSON }}
