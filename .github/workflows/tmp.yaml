@@ -1,0 +1,16 @@
+name: Debug
+on:
+  push:
+    branches:
+      - sre-test
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+      - name: Use Azure Credentials
+        env:
+          azure_creds_json:: ${{ secrets.AZURE_CREDS_JSON }}
+        run: echo "Azure credentials loaded successfully"
