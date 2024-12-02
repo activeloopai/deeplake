@@ -41,7 +41,7 @@ def frame_generator_(
     def get_video_container(current_retries):
         try:
             return av.open(video_path, options=header)
-        except av.AVError as e:
+        except Exception as e:
             if current_retries > 0:
                 print(f"Failed opening video: {e}. Retrying...")
                 return get_video_container(current_retries - 1)
