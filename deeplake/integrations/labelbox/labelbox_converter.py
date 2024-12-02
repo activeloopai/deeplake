@@ -16,6 +16,7 @@ class labelbox_type_converter:
         self.regsistered_actions = dict()
         self.label_mappings = dict()
         self.values_cache = dict()
+        self.registered_interpolators = dict()
 
         self.project = project
         self.project_id = project_id
@@ -194,29 +195,49 @@ class labelbox_type_converter:
             return frame
 
         return None
+    
+    def existing_sub_ranges_(self, frames, range):
+        sub_ranges = [(range[0], range[1])]
+        for i in range[0], range[1]:
+            if str(i) in frames:
+                continue
+            sub_ranges[-1] = (sub_ranges[-1][0], i)
+            sub_ranges.append((i, range[1]))
+        return sub_ranges
+                
 
     def parse_segments_(self, segments, frames, offset):
         print('total segments count to parse:', len(segments))
         for feature_id, ranges in segments.items():
             print('parsing segments with feature id: ', feature_id)
             for r in tqdm.tqdm(ranges):
-                assert str(r[0]) in frames
-                obj = self.find_object_with_feature_id_(frames[str(r[0])], feature_id)
-                assert obj is not None
-                for i in range(r[0] + 1, r[1]):
-                    if str(i) in frames:
-                        new_obj = self.find_object_with_feature_id_(
-                            frames[str(i)], feature_id
-                        )
-                    else:
-                        new_obj = None
-                    if new_obj:
-                        obj = new_obj
-                        # no need to update the frame if the object is present in the frame
+                sub_ranges = self.existing_sub_ranges_(frames, r)
+                for st, en in sub_ranges:
+                    assert str(st) in frames
+                    assert str(en) in frames
+
+                    start = self.find_object_with_feature_id_(frames[str(st)], feature_id)
+                    end = self.find_object_with_feature_id_(frames[str(en)], feature_id)
+
+                    assert start
+                    assert end
+
+                    if start == end:
                         continue
-                    self.regsistered_actions[obj["feature_schema_id"]](
-                        offset + i - 1, obj
-                    )
+
+                    assert start["feature_schema_id"] == end["feature_schema_id"]
+
+                    for i in range(st + 1, en):
+                        if str(i) in frames:
+                            obj = self.find_object_with_feature_id_(frames[str(i)], feature_id)
+                        else:
+                            if st['feature_schema_id'] in self.registered_interpolators:
+                                obj = self.registered_interpolators[start["feature_schema_id"]](start, end, (i - st) / (en - st))
+                            else:
+                                obj = end
+                        
+                            self.regsistered_actions[obj["feature_schema_id"]](offset + i - 1, obj)
+
 
     def apply_cached_values_(self, cache):
         print('applying cached values')

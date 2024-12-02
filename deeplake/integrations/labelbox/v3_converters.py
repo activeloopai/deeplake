@@ -1,6 +1,7 @@
 from PIL import Image
 import urllib.request
 import numpy as np
+import copy
 
 
 def bbox_converter_(obj, converter, tensor_name, context, generate_labels):
@@ -38,6 +39,22 @@ def bbox_converter_(obj, converter, tensor_name, context, generate_labels):
             ]
         )
     converter.regsistered_actions[obj.feature_schema_id] = bbox_converter
+
+
+    def interpolator(start, end, progress):
+        start_box = start['bounding_box']
+        end_box = end['bounding_box']
+        bbox = copy.deepcopy(start)
+        bbox['bounding_box'] = {
+                'top': start_box['top'] + (end_box['top'] - start_box['top']) * progress,
+                'left': start_box['left'] + (end_box['left'] - start_box['left']) * progress,
+                'width': start_box['width'] + (end_box['width'] - start_box['width']) * progress,
+                'height': start_box['height'] + (end_box['height'] - start_box['height']) * progress,
+            }
+
+        return bbox
+    
+    converter.registered_interpolators[obj.feature_schema_id] = interpolator
 
 
 def radio_converter_(obj, converter, tensor_name, context, generate_labels):
@@ -144,6 +161,19 @@ def point_converter_(obj, converter, tensor_name, context, generate_labels):
 
     converter.regsistered_actions[obj.feature_schema_id] = point_converter
 
+    def interpolator(start, end, progress):
+        start_point = start['point']
+        end_point = end['point']
+        point = copy.deepcopy(start)
+        point['point'] = {
+                'x': start_point['x'] + (end_point['x'] - start_point['x']) * progress,
+                'y': start_point['y'] + (end_point['y'] - start_point['y']) * progress,
+            }
+
+        return point
+    
+    converter.registered_interpolators[obj.feature_schema_id] = interpolator
+
 
 def line_converter_(obj, converter, tensor_name, context, generate_labels):
     ds = context["ds"]
@@ -166,6 +196,22 @@ def line_converter_(obj, converter, tensor_name, context, generate_labels):
         converter.values_cache[tensor_name][row].append([[int(l["x"]), int(l["y"])] for l in obj["line"]])
 
     converter.regsistered_actions[obj.feature_schema_id] = polygon_converter
+
+    def interpolator(start, end, progress):
+        start_line = start['line']
+        end_line = end['line']
+        line = copy.deepcopy(start)
+        line['line'] = [
+            [
+                start_line[i]['x'] + (end_line[i]['x'] - start_line[i]['x']) * progress,
+                start_line[i]['y'] + (end_line[i]['y'] - start_line[i]['y']) * progress,
+            ]
+            for i in range(len(start_line))
+        ]
+
+        return line
+    
+    converter.registered_interpolators[obj.feature_schema_id] = interpolator
 
 
 def raster_segmentation_converter_(

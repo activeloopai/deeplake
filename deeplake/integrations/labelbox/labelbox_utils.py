@@ -153,7 +153,8 @@ def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
         "project_details": True,
         "label_details": False,
         "performance_details": False,
-        "interpolated_frames": True,
+        # interpolated_frames does not work with the latest version of the API 6.2.0
+        "interpolated_frames": False,
         "embeddings": False,
     }
 
