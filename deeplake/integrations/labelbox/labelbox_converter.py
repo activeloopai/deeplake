@@ -231,7 +231,7 @@ class labelbox_type_converter:
                         if str(i) in frames:
                             obj = self.find_object_with_feature_id_(frames[str(i)], feature_id)
                         else:
-                            if st['feature_schema_id'] in self.registered_interpolators:
+                            if start['feature_schema_id'] in self.registered_interpolators:
                                 obj = self.registered_interpolators[start["feature_schema_id"]](start, end, (i - st) / (en - st))
                             else:
                                 obj = end

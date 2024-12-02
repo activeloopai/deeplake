@@ -3,17 +3,6 @@ from typing import Generator, Tuple
 import labelbox as lb  # type: ignore
 import av
 import requests
-import urllib
-
-def download_file_(url, path, header=None):
-    request = urllib.request.Request(
-    url, 
-    headers=header
-    )
-    print(f"Downloading video from {url}")
-    with urllib.request.urlopen(request) as response, open(path, 'wb') as out_file:
-        while chunk := response.read(8192):
-            out_file.write(chunk)
 
 def is_remote_resource_public_(url):
     try:

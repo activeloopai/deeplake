@@ -314,31 +314,11 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     for idx, p in enumerate(proj):
         video_url = p["data_row"]["row_data"]
         header = None
-
-        tmp_path = None
         if not os.path.exists(video_url):
             if not is_remote_resource_public_(video_url):
                 video_url, header = url_presigner(video_url)
-
-                # temp solution for some cases when we can't download video directly
-                tmp_path = tempfile.NamedTemporaryFile(delete=True)
-                try:
-                    download_file_(video_url, tmp_path.name, header=header)
-                    header = None
-                    video_url = tmp_path.name
-                except Exception as e:
-                    tmp_path.close()
-                    tmp_path = None
-                    if fail_on_error:
-                        raise Exception(f"An error occurred: {e} while downloading video from {video_url}")
-                    print(f"An error occurred: {e} while downloading video from {video_url}")
-                    continue
-
         for frame_indexes, frames in frames_batch_generator_(video_url, header=header, batch_size=video_generator_batch_size):
             data_filler["fill_data"](ds, [idx] * len(frames), frame_indexes, frames)
-
-        if tmp_path:
-            tmp_path.close()
         video_files.append(external_url_from_video_project_(p))
 
     ds.info["labelbox_meta"] = {
