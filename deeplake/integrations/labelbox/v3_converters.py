@@ -231,9 +231,9 @@ def raster_segmentation_converter_(
                 mask = mask[..., np.newaxis]
                 try:
                     if generate_labels:
-                        arr = ds[tensor_name][row].numpy()
+                        val = ds[tensor_name][row].numpy()
                         labels = ds[f"{tensor_name}_labels"].info['class_names']
-                        if len(labels) != arr.shape[-1]:
+                        if len(labels) != val.shape[-1]:
                             val = np.concatenate([ds[tensor_name][row].numpy(), np.zeros_like(mask)], axis=-1)
                         idx = labels.index(tool_name)
                         val[:,:,idx] = np.logical_or(val[:,:,idx], mask[:,:,0])
