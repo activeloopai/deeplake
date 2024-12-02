@@ -196,13 +196,16 @@ class labelbox_type_converter:
 
         return None
     
-    def existing_sub_ranges_(self, frames, range):
-        sub_ranges = [(range[0], range[1])]
-        for i in range[0], range[1]:
-            if str(i) in frames:
+    def existing_sub_ranges_(self, frames, r, feature_id):
+        end = r[1]
+        sub_ranges = [(r[0], end)]
+        for i in range(r[0] + 1, end):
+            if str(i) not in frames:
+                continue
+            if self.find_object_with_feature_id_(frames[str(i)], feature_id) is None:
                 continue
             sub_ranges[-1] = (sub_ranges[-1][0], i)
-            sub_ranges.append((i, range[1]))
+            sub_ranges.append((i, end))
         return sub_ranges
                 
 
@@ -211,7 +214,7 @@ class labelbox_type_converter:
         for feature_id, ranges in segments.items():
             print('parsing segments with feature id: ', feature_id)
             for r in tqdm.tqdm(ranges):
-                sub_ranges = self.existing_sub_ranges_(frames, r)
+                sub_ranges = self.existing_sub_ranges_(frames, r, feature_id)
                 for st, en in sub_ranges:
                     assert str(st) in frames
                     assert str(en) in frames
@@ -222,21 +225,16 @@ class labelbox_type_converter:
                     assert start
                     assert end
 
-                    if start == end:
-                        continue
 
                     assert start["feature_schema_id"] == end["feature_schema_id"]
 
                     for i in range(st + 1, en):
-                        if str(i) in frames:
-                            obj = self.find_object_with_feature_id_(frames[str(i)], feature_id)
+                        if start['feature_schema_id'] in self.registered_interpolators:
+                            obj = self.registered_interpolators[start["feature_schema_id"]](start, end, (i - st) / (en - st))
                         else:
-                            if start['feature_schema_id'] in self.registered_interpolators:
-                                obj = self.registered_interpolators[start["feature_schema_id"]](start, end, (i - st) / (en - st))
-                            else:
-                                obj = end
+                            obj = end 
                         
-                            self.regsistered_actions[obj["feature_schema_id"]](offset + i - 1, obj)
+                        self.regsistered_actions[obj["feature_schema_id"]](offset + i - 1, obj)
 
 
     def apply_cached_values_(self, cache):
