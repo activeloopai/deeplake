@@ -75,7 +75,7 @@ class labelbox_type_converter:
                 # iterate over segments and assign same value to all frames in the segment
                 self.parse_segments_(segments, frames, idx_offset)
 
-                self.apply_cached_values_(self.values_cache)
+                self.apply_cached_values_(self.values_cache, idx_offset)
 
             idx_offset += p["media_attributes"]["frame_count"]
 
@@ -224,8 +224,6 @@ class labelbox_type_converter:
 
                     assert start
                     assert end
-
-
                     assert start["feature_schema_id"] == end["feature_schema_id"]
 
                     for i in range(st + 1, en):
@@ -237,15 +235,16 @@ class labelbox_type_converter:
                         self.regsistered_actions[obj["feature_schema_id"]](offset + i - 1, obj)
 
 
-    def apply_cached_values_(self, cache):
+    def apply_cached_values_(self, cache, offset):
         print('applying cached values')
         for tensor_name, row_map in cache.items():
             print('applying cached values for tensor: ', tensor_name)
-            max_val = max(row_map.keys())
+            max_val = max(row_map.keys()) - offset
             values = []
             for i in tqdm.tqdm(range(max_val + 1)):
-                if i in row_map:
-                    values.append(row_map[i])
+                key = i + offset
+                if key in row_map:
+                    values.append(row_map[key])
                 else:
                     values.append(None)
                 
