@@ -172,10 +172,16 @@ def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
             raise Exception(f"Error during export: {error}")
         print(f"Error during export: {error}")
 
-    if export_task.has_errors():
-        export_task.get_buffered_stream(stream_type=lb.StreamType.ERRORS).start(
-            stream_handler=error_stream_handler
-        )
+
+    try:
+        if export_task.has_errors():
+            export_task.get_buffered_stream(stream_type=lb.StreamType.ERRORS).start(
+                stream_handler=error_stream_handler
+            )
+    except Exception as e:
+        if fail_on_error:
+            raise e
+        print(f"Error during export: {e}")
 
     if export_task.has_result():
         export_json = export_task.get_buffered_stream(

@@ -15,6 +15,7 @@ def converter_for_video_project_with_id(
     lb_api_key,
     group_mapping=None,
     fail_on_error=False,
+    fail_on_labelbox_project_export_error=False,
 ):
     """
     Creates a converter for Labelbox video project to a Deeplake dataset format based on annotation types.
@@ -26,6 +27,7 @@ def converter_for_video_project_with_id(
         lb_api_key (str): Labelbox API key for authentication.
         group_mapping (dict, optional): A dictionary mapping annotation kinds (labelbox_kind) to the desired tensor group name (tensor_name). This mapping determines whether annotations of the same kind should be grouped into the same tensor or kept separate.
         fail_on_error (bool, optional): Whether to raise an exception if data validation fails. Defaults to False.
+        fail_on_labelbox_project_export_error (bool, optional): Whether to raise an exception if Labelbox project export fails. Defaults to False.
 
     Returns:
         labelbox_type_converter or None: Returns a labelbox_type_converter if successful, None if no data is found.
@@ -51,7 +53,7 @@ def converter_for_video_project_with_id(
         - Supports Video ontology from labelbox.
         - The function first validates the project data before setting up converters.
     """
-    project_json = labelbox_get_project_json_with_id_(client, project_id, fail_on_error)
+    project_json = labelbox_get_project_json_with_id_(client, project_id, fail_on_labelbox_project_export_error)
 
     if len(project_json) == 0:
         print("no data")
@@ -253,6 +255,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     fail_on_error=False,
     url_presigner=None,
     video_generator_batch_size=100,
+    fail_on_labelbox_project_export_error=False,
 ):
     """
     Creates a Deeplake dataset from an existing Labelbox video annotation project using custom data processing.
@@ -276,6 +279,8 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
        overwrite (bool, optional): Whether to overwrite existing dataset. Defaults to False
        fail_on_error (bool, optional): Whether to raise an exception if data validation fails. Defaults to False
        url_presigner (callable, optional): Function that takes a URL and returns a pre-signed URL and headers (str, dict). Default will use labelbox access token to access the data. Is useful when used cloud storage integrations.
+       video_generator_batch_size (int, optional): Number of frames to process in each batch. Defaults to 100
+       fail_on_labelbox_project_export_error (bool, optional): Whether to raise an exception if Labelbox project export fails. Defaults to False
 
     Returns:
        Dataset: Created Deeplake dataset containing processed video frames and Labelbox metadata.
@@ -293,7 +298,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     )
     data_filler["create_tensors"](ds)
 
-    proj = labelbox_get_project_json_with_id_(lb_client, project_id, fail_on_error)
+    proj = labelbox_get_project_json_with_id_(lb_client, project_id, fail_on_labelbox_project_export_error)
     if len(proj) == 0:
         print("no data")
         return ds
@@ -344,6 +349,7 @@ def create_dataset_from_video_annotation_project(
     fail_on_error=False,
     url_presigner=None,
     video_generator_batch_size=100,
+    fail_on_labelbox_project_export_error=False,
 ):
     """
     See create_dataset_from_video_annotation_project_with_custom_data_filler for complete documentation.
@@ -368,4 +374,5 @@ def create_dataset_from_video_annotation_project(
         fail_on_error=fail_on_error,
         url_presigner=url_presigner,
         video_generator_batch_size=video_generator_batch_size,
+        fail_on_labelbox_project_export_error=fail_on_labelbox_project_export_error,
     )
