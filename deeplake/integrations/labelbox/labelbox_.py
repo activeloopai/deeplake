@@ -185,6 +185,7 @@ def create_dataset_for_video_annotation_with_custom_data_filler(
         "project_id": project.uid,
         "type": "video",
         "sources": video_paths,
+        "project_name": os.path.basename(deeplake_ds_path),
     }
 
     task = project.create_batches_from_dataset(
@@ -330,6 +331,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
         "project_id": project_id,
         "type": "video",
         "sources": video_files,
+        "project_name": proj[0]["projects"][project_id]["name"],
     }
 
     ds.commit()

@@ -217,10 +217,12 @@ class labelbox_type_converter:
                 sub_ranges = self.existing_sub_ranges_(frames, r, feature_id)
                 for st, en in sub_ranges:
                     assert str(st) in frames
-                    assert str(en) in frames
 
                     start = self.find_object_with_feature_id_(frames[str(st)], feature_id)
-                    end = self.find_object_with_feature_id_(frames[str(en)], feature_id)
+                    if str(en) in frames:
+                        end = self.find_object_with_feature_id_(frames[str(en)], feature_id)
+                    else:
+                        end = start
 
                     assert start
                     assert end
