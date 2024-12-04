@@ -1536,6 +1536,15 @@ def test_ds_append(memory_ds, x_args, y_args, x_size, htype):
     assert len(ds) == 4
 
 
+def test_getting_root_tensor():
+    ds = deeplake.dataset("mem://x")
+    ds.create_tensor("/t")
+    _ = ds["/t"]
+
+    with pytest.raises(TensorDoesNotExistError):
+        t = ds["/ttt"]
+
+
 def test_ds_append_with_ds_view():
     ds1 = deeplake.dataset("mem://x")
     ds2 = deeplake.dataset("mem://y")
