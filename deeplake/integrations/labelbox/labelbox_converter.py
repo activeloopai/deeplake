@@ -151,9 +151,8 @@ class labelbox_type_converter:
             for _, obj in frame["objects"].items():
                 self.parse_object_(obj, idx)
 
-        if "classifications" in frame:
-            for obj in frame["classifications"]:
-                self.parse_classification_(obj, idx)
+        for obj in frame.get("classifications", []):
+            self.parse_classification_(obj, idx)
 
     def parse_object_(self, obj, idx):
         if obj["feature_schema_id"] not in self.regsistered_actions:
@@ -162,9 +161,8 @@ class labelbox_type_converter:
 
         self.regsistered_actions[obj["feature_schema_id"]](idx, obj)
 
-        if "classifications" in obj:
-            for obj in obj["classifications"]:
-                self.parse_classification_(obj, idx)
+        for obj in obj.get("classifications", []):
+            self.parse_classification_(obj, idx)
 
     def parse_classification_(self, obj, idx):
         if obj["feature_schema_id"] not in self.regsistered_actions:
@@ -173,9 +171,8 @@ class labelbox_type_converter:
 
         self.regsistered_actions[obj["feature_schema_id"]](idx, obj)
 
-        if "classifications" in obj:
-            for obj in obj["classifications"]:
-                self.parse_classification_(obj, idx)
+        for obj in obj.get("classifications", []):
+            self.parse_classification_(obj, idx)
 
     def find_object_with_feature_id_(self, frame, feature_id):
         if isinstance(frame, list):
@@ -238,13 +235,17 @@ class labelbox_type_converter:
                     assert end
                     assert start["feature_schema_id"] == end["feature_schema_id"]
 
-                    for i in range(st + 1, en):
+                    for i in range(st + 1, en + 1):
                         if start['feature_schema_id'] in self.registered_interpolators:
                             obj = self.registered_interpolators[start["feature_schema_id"]](start, end, (i - st) / (en - st))
                         else:
                             obj = end 
                         
                         self.regsistered_actions[obj["feature_schema_id"]](offset + i - 1, obj)
+                        # nested classifications are not in the segments
+                        for o in obj.get("classifications", []):
+                            self.regsistered_actions[o["feature_schema_id"]](offset + i - 1, o)
+                            
 
 
     def apply_cached_values_(self, cache, offset):
