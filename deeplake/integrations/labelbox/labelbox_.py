@@ -6,6 +6,7 @@ import tempfile
 from deeplake.integrations.labelbox.labelbox_utils import *
 from deeplake.integrations.labelbox.labelbox_converter import labelbox_video_converter
 from deeplake.integrations.labelbox.v3_converters import *
+from deeplake.integrations.labelbox.labelbox_metadata_utils import *
 
 
 def converter_for_video_project_with_id(
@@ -16,6 +17,8 @@ def converter_for_video_project_with_id(
     group_mapping=None,
     fail_on_error=False,
     fail_on_labelbox_project_export_error=False,
+    generate_metadata=True,
+    metadata_prefix="metadata",
 ):
     """
     Creates a converter for Labelbox video project to a Deeplake dataset format based on annotation types.
@@ -28,7 +31,8 @@ def converter_for_video_project_with_id(
         group_mapping (dict, optional): A dictionary mapping annotation kinds (labelbox_kind) to the desired tensor group name (tensor_name). This mapping determines whether annotations of the same kind should be grouped into the same tensor or kept separate.
         fail_on_error (bool, optional): Whether to raise an exception if data validation fails. Defaults to False.
         fail_on_labelbox_project_export_error (bool, optional): Whether to raise an exception if Labelbox project export fails. Defaults to False.
-
+        generate_metadata (bool, optional): Whether to generate metadata tensors. Defaults to True.
+        metadata_prefix (str, optional): Prefix for metadata tensors. Defaults to "metadata". Will be ignored if generate_metadata is False.
     Returns:
         labelbox_type_converter or None: Returns a labelbox_type_converter if successful, None if no data is found.
         The returned converter can be used to apply Labelbox annotations to a Deeplake dataset.
@@ -80,6 +84,72 @@ def converter_for_video_project_with_id(
         "raster-segmentation": raster_segmentation_converter_,
         "text": text_converter_,
     }
+
+    if generate_metadata:
+        tensor_name_generator = lambda name: f"{metadata_prefix}/{name}" if metadata_prefix else name
+
+        metadata_generators = {
+            tensor_name_generator("name"): {
+                "generator": get_video_name_from_video_project_,
+                "create_tensor_kwargs": {'htype': 'text'},
+                },
+            tensor_name_generator("data_row_id"): {
+                "generator": get_data_row_id_from_video_project_,
+                "create_tensor_kwargs": {'htype': 'text'},
+                },
+            tensor_name_generator("label_creator"): {
+                "generator": get_label_creator_from_video_project_,
+                "create_tensor_kwargs": {'htype': 'text'},
+                },
+            tensor_name_generator("frame_rate"): {
+                "generator": get_frame_rate_from_video_project_,
+                "create_tensor_kwargs": {'htype': 'generic', 'dtype': 'int32'},
+                },
+            tensor_name_generator("frame_count"): {
+                "generator": get_frame_count_from_video_project_,
+                "create_tensor_kwargs": {'htype': 'generic', 'dtype': 'int32'},
+                },
+            tensor_name_generator("width"): {
+                "generator": get_width_from_video_project_,
+                "create_tensor_kwargs": {'htype': 'generic', 'dtype': 'int32'},
+                },
+            tensor_name_generator("height"): {
+                "generator": get_height_from_video_project_,
+                "create_tensor_kwargs": {'htype': 'generic', 'dtype': 'int32'},
+                },
+            tensor_name_generator("ontology_id"): {
+                "generator": get_ontology_id_from_video_project_,
+                "create_tensor_kwargs": {'htype': 'text'},
+                },
+            tensor_name_generator("project_name"): {
+                "generator": get_project_name_from_video_project_,
+                "create_tensor_kwargs": {'htype': 'text'},
+                },
+            tensor_name_generator("dataset_name"): {
+                "generator": get_dataset_name_from_video_project_,
+                "create_tensor_kwargs": {'htype': 'text'},
+                },
+            tensor_name_generator("dataset_id"): {
+                "generator": get_dataset_id_from_video_project_,
+                "create_tensor_kwargs": {'htype': 'text'},
+                },
+            tensor_name_generator("global_key"): {
+                "generator": get_global_key_from_video_project_,
+                "create_tensor_kwargs": {'htype': 'text'},
+                },
+            tensor_name_generator("frame_number"): {
+                "generator": lambda project, ctx: ctx['frame_idx'],
+                "create_tensor_kwargs": {'htype': 'generic', 'dtype': 'int32'},
+                },
+            tensor_name_generator("current_frame_name"): {
+                "generator": lambda project, ctx: f"{get_video_name_from_video_project_(project, ctx)}_{ctx['frame_idx']:06d}",
+                "create_tensor_kwargs": {'htype': 'text'},
+                },
+            } 
+    else:
+        metadata_generators = None
+
+
     return labelbox_video_converter(
         ontology,
         converters,
@@ -87,6 +157,7 @@ def converter_for_video_project_with_id(
         project_id,
         deeplake_dataset,
         {"ds": deeplake_dataset, "lb_api_key": lb_api_key},
+        metadata_generators=metadata_generators,
         group_mapping=group_mapping,
     )
 

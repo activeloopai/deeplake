@@ -138,9 +138,9 @@ def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
     export_params = {
         "attachments": False,
         "metadata_fields": False,
-        "data_row_details": False,
+        "data_row_details": True,
         "project_details": True,
-        "label_details": False,
+        "label_details": True,
         "performance_details": False,
         # interpolated_frames does not work with the latest version of the API 6.2.0
         "interpolated_frames": False,

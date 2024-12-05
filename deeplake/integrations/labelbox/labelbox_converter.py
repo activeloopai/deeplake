@@ -1,5 +1,6 @@
 from deeplake.integrations.labelbox.labelbox_utils import *
 import tqdm
+from collections import defaultdict
 
 class labelbox_type_converter:
     def __init__(
@@ -10,6 +11,7 @@ class labelbox_type_converter:
         project_id,
         dataset,
         context,
+        metadata_generators=None,
         group_mapping=None,
     ):
         self.labelbox_feature_id_to_type_mapping = dict()
@@ -17,6 +19,8 @@ class labelbox_type_converter:
         self.label_mappings = dict()
         self.values_cache = dict()
         self.registered_interpolators = dict()
+
+        self.metadata_generators_ = metadata_generators
 
         self.project = project
         self.project_id = project_id
@@ -39,6 +43,9 @@ class labelbox_type_converter:
     def dataset_with_applied_annotations(self):
         idx_offset = 0
         print('total annotations projects count: ', len(self.project))
+
+        if self.metadata_generators_:
+            self.generate_metadata_tensors_(self.metadata_generators_, self.dataset)
 
         for p_idx, p in enumerate(self.yield_projects_(self.project, self.dataset)):
             if "labels" not in p["projects"][self.project_id]:
@@ -76,6 +83,9 @@ class labelbox_type_converter:
                 self.parse_segments_(segments, frames, idx_offset)
 
                 self.apply_cached_values_(self.values_cache, idx_offset)
+                if self.metadata_generators_:
+                    print('filling metadata for project with index: ', p_idx)
+                    self.fill_metadata_(self.metadata_generators_, self.dataset, p, self.project_id, p["media_attributes"]["frame_count"])
 
             idx_offset += p["media_attributes"]["frame_count"]
 
@@ -254,6 +264,24 @@ class labelbox_type_converter:
 
     def yield_projects_(self, project_j, ds):
         raise NotImplementedError("fixed_project_order_ is not implemented")
+    
+    def generate_metadata_tensors_(self, generators, ds):
+        for tensor_name, v in generators.items():
+            try:
+                ds.create_tensor(tensor_name, **v['create_tensor_kwargs'])
+            except:
+                pass
+
+    def fill_metadata_(self, generators, dataset, project, project_id, frames_count):
+        metadata_dict = defaultdict(list)
+        context = {'project_id': project_id}
+        for tensor_name, v in generators.items():
+            for i in range(frames_count):
+                context['frame_idx'] = i
+                metadata_dict[tensor_name].append(v["generator"](project, context))
+
+        for tensor_name, values in metadata_dict.items():
+            dataset[tensor_name].extend(values)
 
 
 class labelbox_video_converter(labelbox_type_converter):
@@ -265,10 +293,11 @@ class labelbox_video_converter(labelbox_type_converter):
         project_id,
         dataset,
         context,
+        metadata_generators=None,
         group_mapping=None,
     ):
         super().__init__(
-            ontology, converters, project, project_id, dataset, context, group_mapping
+            ontology, converters, project, project_id, dataset, context, metadata_generators, group_mapping
         )
 
     def yield_projects_(self, project_j, ds):
