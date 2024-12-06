@@ -1,7 +1,7 @@
 import deeplake
 import os
 import labelbox as lb  # type: ignore
-import tempfile
+import uuid
 
 from deeplake.integrations.labelbox.labelbox_utils import *
 from deeplake.integrations.labelbox.labelbox_converter import labelbox_video_converter
@@ -162,64 +162,31 @@ def converter_for_video_project_with_id(
     )
 
 
-def create_dataset_for_video_annotation_with_custom_data_filler(
-    deeplake_ds_path,
+def create_labelbox_annotation_project(
     video_paths,
+    lb_dataset_name,
+    lb_project_name,
     lb_client,
-    data_filler,
-    deeplake_creds=None,
-    deeplake_org_id=None,
-    deeplake_token=None,
-    overwrite=False,
     lb_ontology=None,
     lb_batch_priority=5,
-    lb_dataset_name=None,
-    fail_on_error=False,
-    video_generator_batch_size=100
+    data_upload_strategy="fail",
+    lb_batches_name=None,
 ):
     """
-    Creates a Deeplake dataset for video annotation and sets up corresponding Labelbox project.
-    Processes videos frame-by-frame using a custom data filler function.
+    Creates labelbox dataset for video annotation and sets up corresponding Labelbox project.
 
     Args:
-       deeplake_ds_path (str): Path where the Deeplake dataset will be created/stored.
-           Can be local path or remote path (e.g. 'hub://org/dataset')
        video_paths (List[str]): List of paths to video files to be processed can be either all local or all pre-signed remote. 
+       lb_dataset_name (str): Name for Labelbox dataset.
+       lb_project_name (str): Name for Labelbox project.
        lb_client (LabelboxClient): Authenticated Labelbox client instance
-       data_filler (dict): Dictionary containing two functions:
-           - 'create_tensors': callable(ds) -> None
-               Creates necessary tensors in the dataset
-           - 'fill_data': callable(ds, idx, frame_num, frame) -> None
-               Fills dataset with processed frame data
-       deeplake_creds (dict): Dictionary containing credentials for deeplake
-       deeplake_org_id (str, optional): Organization ID for Deeplake cloud storage.
-       deeplake_token (str, optional): Authentication token for Deeplake cloud storage.
-       overwrite (bool, optional): Whether to overwrite existing dataset. Defaults to False
        lb_ontology (Ontology, optional): Labelbox ontology to connect to project. Defaults to None
        lb_batch_priority (int, optional): Priority for Labelbox batches. Defaults to 5
-       lb_dataset_name (str, optional): Custom name for Labelbox dataset.
-           Defaults to deeplake_ds_path basename + '_from_deeplake'
-       fail_on_error (bool, optional): Whether to raise an exception if data validation fails. Defaults to False
-
-    Returns:
-       Dataset: Created Deeplake dataset containing processed video frames and metadata for Labelbox project
+       data_upload_strategy (str, optional): Strategy for uploading data to Labelbox. Can be 'fail', 'skip', or 'all'. Defaults to 'fail'
+       lb_batches_name (str, optional): Name for Labelbox batches. Defaults to None. If None, will use lb_dataset_name + '_batch-'
     """
-    ds = deeplake.empty(
-        deeplake_ds_path,
-        creds=deeplake_creds,
-        org_id=deeplake_org_id,
-        token=deeplake_token,
-        overwrite=overwrite,
-    )
 
-    data_filler["create_tensors"](ds)
-
-    for idx, video_path in enumerate(video_paths):
-        for frame_indexes, frames in frames_batch_generator_(video_path, batch_size=video_generator_batch_size):
-            data_filler["fill_data"](ds, [idx] * len(frames), frame_indexes, frames)
-
-    if lb_dataset_name is None:
-        lb_dataset_name = os.path.basename(deeplake_ds_path) + "_from_deeplake"
+    video_paths = filter_video_paths_(video_paths, data_upload_strategy)
 
     assets = video_paths
 
@@ -232,6 +199,7 @@ def create_dataset_for_video_annotation_with_custom_data_filler(
         if not all_local[0]:
             assets = [{
             "row_data": p,
+            "global_key": str(uuid.uuid4()),
             "media_type": "VIDEO",
             "metadata_fields": [],
             "attachments": []
@@ -244,74 +212,35 @@ def create_dataset_for_video_annotation_with_custom_data_filler(
 
     if task.errors:
         raise Exception(f'failed to upload videos to labelbox: {task.errors}')
+    
+    if len(all_local):
+        if all_local[0]:
+            print('assigning global keys to data rows')
+            rows = [{
+                    "data_row_id": lb_ds.data_row_for_external_id(p).uid,
+                    "global_key": str(uuid.uuid4()),
+                    }  for p in video_paths]
+            res = lb_client.assign_global_keys_to_data_rows(rows)
+            if res['status'] != 'SUCCESS':
+                raise Exception(f'failed to assign global keys to data rows: {res}')
 
     print('successfuly uploaded videos to labelbox')
 
     # Create a new project
-    project = lb_client.create_project(
-        name=os.path.basename(deeplake_ds_path), media_type=lb.MediaType.Video
-    )
+    project = lb_client.create_project(name=lb_project_name, media_type=lb.MediaType.Video)
 
-    ds.info["labelbox_meta"] = {
-        "project_id": project.uid,
-        "type": "video",
-        "sources": video_paths,
-        "project_name": os.path.basename(deeplake_ds_path),
-    }
-
+    if lb_batches_name is None:
+        lb_batches_name = lb_dataset_name + "_batch-"
+    
     task = project.create_batches_from_dataset(
-        name_prefix=lb_dataset_name, dataset_id=lb_ds.uid, priority=lb_batch_priority
+        name_prefix=lb_batches_name, dataset_id=lb_ds.uid, priority=lb_batch_priority
     )
 
     if task.errors():
-        if fail_on_error:
-            raise Exception(f"Error creating batches: {task.errors()}")
+        raise Exception(f"Error creating batches: {task.errors()}")
 
     if lb_ontology:
         project.connect_ontology(lb_ontology)
-
-    ds.commit()
-
-    return ds
-
-
-def create_dataset_for_video_annotation(
-    deeplake_ds_path,
-    video_paths,
-    lb_client,
-    deeplake_creds=None,
-    deeplake_org_id=None,
-    deeplake_token=None,
-    overwrite=False,
-    lb_ontology=None,
-    lb_batch_priority=5,
-    fail_on_error=False,
-    video_generator_batch_size=100,
-):
-    """
-    See create_dataset_for_video_annotation_with_custom_data_filler for complete documentation.
-
-    The only difference is this function uses default tensor creation and data filling functions:
-    - create_tensors_default_: Creates default tensor structure
-    - fill_data_default_: Fills tensors with default processing
-    """
-    return create_dataset_for_video_annotation_with_custom_data_filler(
-        deeplake_ds_path,
-        video_paths,
-        lb_client,
-        data_filler={
-            "create_tensors": create_tensors_default_,
-            "fill_data": fill_data_default_,
-        },
-        deeplake_creds=deeplake_creds,
-        deeplake_org_id=deeplake_org_id,
-        deeplake_token=deeplake_token,
-        lb_ontology=lb_ontology,
-        lb_batch_priority=lb_batch_priority,
-        overwrite=overwrite,
-        fail_on_error=fail_on_error,
-        video_generator_batch_size=video_generator_batch_size,
-    )
 
 
 def create_dataset_from_video_annotation_project_with_custom_data_filler(

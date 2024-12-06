@@ -252,6 +252,9 @@ class labelbox_type_converter:
         print('applying cached values')
         for tensor_name, row_map in cache.items():
             print('applying cached values for tensor: ', tensor_name)
+            if len(self.dataset[tensor_name]) < offset:
+                print('extending dataset for tensor: ', tensor_name, 'size: ', offset - len(self.dataset[tensor_name])) 
+                self.dataset[tensor_name].extend([None] * (offset - len(self.dataset[tensor_name])))
             max_val = max(row_map.keys()) - offset
             values = []
             for i in tqdm.tqdm(range(max_val + 1)):

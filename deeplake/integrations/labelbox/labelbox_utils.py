@@ -3,6 +3,7 @@ from typing import Generator, Tuple
 import labelbox as lb  # type: ignore
 import av
 import requests
+from collections import Counter
 
 def is_remote_resource_public_(url):
     try:
@@ -10,6 +11,25 @@ def is_remote_resource_public_(url):
         return response.status_code == 200
     except requests.exceptions.RequestException as e:
         return False
+    
+def filter_video_paths_(video_paths, strategy):
+    if strategy == "all":
+        return video_paths
+    unique_paths = set(video_paths)
+    if strategy == "fail":
+        if len(unique_paths) != len(video_paths):
+            counter = Counter(video_paths)
+            duplicates = [k for k, v in counter.items() if v > 1]
+            raise ValueError("Duplicate video paths detected: " + ", ".join(duplicates))
+    
+    if strategy == "skip":
+        if len(unique_paths) != len(video_paths):
+            counter = Counter(video_paths)
+            duplicates = [k for k, v in counter.items() if v > 1]
+            print("Duplicate video paths detected, filtering out duplicates: ", duplicates)
+        return list(unique_paths)
+    
+    raise ValueError(f"Invalid data upload strategy: {strategy}")
 
 def frame_generator_(
     video_path: str, header: dict, retries: int = 5
@@ -88,7 +108,7 @@ def validate_video_project_data_impl_(project_j, deeplake_dataset, project_id):
         url = external_url_from_video_project_(p)
         if url not in info["sources"]:
             return False
-
+        
         ontology_ids.add(p["projects"][project_id]["project_details"]["ontology_id"])
 
     if len(ontology_ids) != 1:
