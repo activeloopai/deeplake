@@ -236,6 +236,10 @@ class labelbox_type_converter:
                     assert start["feature_schema_id"] == end["feature_schema_id"]
 
                     for i in range(st + 1, en + 1):
+                        # skip if the frame already has the object
+                        if str(i) in frames and self.find_object_with_feature_id_(frames[str(i)], feature_id) is not None:
+                            continue
+
                         if start['feature_schema_id'] in self.registered_interpolators:
                             obj = self.registered_interpolators[start["feature_schema_id"]](start, end, (i - st) / (en - st))
                         else:
