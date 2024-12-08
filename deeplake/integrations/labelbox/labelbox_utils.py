@@ -1,9 +1,10 @@
 import numpy as np
-from typing import Generator, Tuple
+from typing import Generator, Tuple, Optional, Any
 import labelbox as lb  # type: ignore
 import av
 import requests
 from collections import Counter
+
 
 
 def is_remote_resource_public_(url):
@@ -37,7 +38,7 @@ def filter_video_paths_(video_paths, strategy):
 
 
 def frame_generator_(
-    video_path: str, header: dict, retries: int = 5
+    video_path: str, header: Optional[dict[str, Any]] = None, retries: int = 5
 ) -> Generator[Tuple[int, np.ndarray], None, None]:
     """
     Generate frames from a video file.
@@ -74,7 +75,7 @@ def frame_generator_(
 
 
 def frames_batch_generator_(
-    video_path: str, header: dict = None, batch_size=100, retries: int = 5
+    video_path: str, header: Optional[dict[str, Any]] = None, batch_size=100, retries: int = 5
 ):
     frames, indexes = [], []
     for frame_num, frame in frame_generator_(video_path, header, retries):
