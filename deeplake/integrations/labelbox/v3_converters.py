@@ -38,22 +38,25 @@ def bbox_converter_(obj, converter, tensor_name, context, generate_labels):
                 ]
             ]
         )
+
     converter.regsistered_actions[obj.feature_schema_id] = bbox_converter
 
-
     def interpolator(start, end, progress):
-        start_box = start['bounding_box']
-        end_box = end['bounding_box']
+        start_box = start["bounding_box"]
+        end_box = end["bounding_box"]
         bbox = copy.deepcopy(start)
-        bbox['bounding_box'] = {
-                'top': start_box['top'] + (end_box['top'] - start_box['top']) * progress,
-                'left': start_box['left'] + (end_box['left'] - start_box['left']) * progress,
-                'width': start_box['width'] + (end_box['width'] - start_box['width']) * progress,
-                'height': start_box['height'] + (end_box['height'] - start_box['height']) * progress,
-            }
+        bbox["bounding_box"] = {
+            "top": start_box["top"] + (end_box["top"] - start_box["top"]) * progress,
+            "left": start_box["left"]
+            + (end_box["left"] - start_box["left"]) * progress,
+            "width": start_box["width"]
+            + (end_box["width"] - start_box["width"]) * progress,
+            "height": start_box["height"]
+            + (end_box["height"] - start_box["height"]) * progress,
+        }
 
         return bbox
-    
+
     converter.registered_interpolators[obj.feature_schema_id] = interpolator
 
 
@@ -86,7 +89,9 @@ def radio_converter_(obj, converter, tensor_name, context, generate_labels):
             converter.values_cache[tensor_name] = dict()
         if row not in converter.values_cache[tensor_name]:
             converter.values_cache[tensor_name][row] = []
-        converter.values_cache[tensor_name][row] = [converter.label_mappings[tensor_name][o["value"]]]
+        converter.values_cache[tensor_name][row] = [
+            converter.label_mappings[tensor_name][o["value"]]
+        ]
 
     for option in obj.options:
         converter.regsistered_actions[option.feature_schema_id] = radio_converter
@@ -127,7 +132,9 @@ def checkbox_converter_(obj, converter, tensor_name, context, generate_labels):
         if row not in converter.values_cache[tensor_name]:
             converter.values_cache[tensor_name][row] = []
 
-        converter.values_cache[tensor_name][row].append(converter.label_mappings[tensor_name][obj["value"]])
+        converter.values_cache[tensor_name][row].append(
+            converter.label_mappings[tensor_name][obj["value"]]
+        )
 
     for option in obj.options:
         converter.regsistered_actions[option.feature_schema_id] = checkbox_converter
@@ -156,22 +163,24 @@ def point_converter_(obj, converter, tensor_name, context, generate_labels):
             converter.values_cache[tensor_name] = dict()
         if row not in converter.values_cache[tensor_name]:
             converter.values_cache[tensor_name][row] = []
-        
-        converter.values_cache[tensor_name][row].append([int(obj["point"]["x"]), int(obj["point"]["y"])])
+
+        converter.values_cache[tensor_name][row].append(
+            [int(obj["point"]["x"]), int(obj["point"]["y"])]
+        )
 
     converter.regsistered_actions[obj.feature_schema_id] = point_converter
 
     def interpolator(start, end, progress):
-        start_point = start['point']
-        end_point = end['point']
+        start_point = start["point"]
+        end_point = end["point"]
         point = copy.deepcopy(start)
-        point['point'] = {
-                'x': start_point['x'] + (end_point['x'] - start_point['x']) * progress,
-                'y': start_point['y'] + (end_point['y'] - start_point['y']) * progress,
-            }
+        point["point"] = {
+            "x": start_point["x"] + (end_point["x"] - start_point["x"]) * progress,
+            "y": start_point["y"] + (end_point["y"] - start_point["y"]) * progress,
+        }
 
         return point
-    
+
     converter.registered_interpolators[obj.feature_schema_id] = interpolator
 
 
@@ -192,25 +201,27 @@ def line_converter_(obj, converter, tensor_name, context, generate_labels):
             converter.values_cache[tensor_name] = dict()
         if row not in converter.values_cache[tensor_name]:
             converter.values_cache[tensor_name][row] = []
-        
-        converter.values_cache[tensor_name][row].append([[int(l["x"]), int(l["y"])] for l in obj["line"]])
+
+        converter.values_cache[tensor_name][row].append(
+            [[int(l["x"]), int(l["y"])] for l in obj["line"]]
+        )
 
     converter.regsistered_actions[obj.feature_schema_id] = polygon_converter
 
     def interpolator(start, end, progress):
-        start_line = start['line']
-        end_line = end['line']
+        start_line = start["line"]
+        end_line = end["line"]
         line = copy.deepcopy(start)
-        line['line'] = [
+        line["line"] = [
             [
-                start_line[i]['x'] + (end_line[i]['x'] - start_line[i]['x']) * progress,
-                start_line[i]['y'] + (end_line[i]['y'] - start_line[i]['y']) * progress,
+                start_line[i]["x"] + (end_line[i]["x"] - start_line[i]["x"]) * progress,
+                start_line[i]["y"] + (end_line[i]["y"] - start_line[i]["y"]) * progress,
             ]
             for i in range(len(start_line))
         ]
 
         return line
-    
+
     converter.registered_interpolators[obj.feature_schema_id] = interpolator
 
 
@@ -278,11 +289,14 @@ def raster_segmentation_converter_(
                 try:
                     if generate_labels:
                         val = ds[tensor_name][row].numpy()
-                        labels = ds[f"{tensor_name}_labels"].info['class_names']
+                        labels = ds[f"{tensor_name}_labels"].info["class_names"]
                         if len(labels) != val.shape[-1]:
-                            val = np.concatenate([ds[tensor_name][row].numpy(), np.zeros_like(mask)], axis=-1)
+                            val = np.concatenate(
+                                [ds[tensor_name][row].numpy(), np.zeros_like(mask)],
+                                axis=-1,
+                            )
                         idx = labels.index(tool_name)
-                        val[:,:,idx] = np.logical_or(val[:,:,idx], mask[:,:,0])
+                        val[:, :, idx] = np.logical_or(val[:, :, idx], mask[:, :, 0])
                     else:
                         val = np.logical_or(ds[tensor_name][row].numpy(), mask)
                 except (KeyError, IndexError):

@@ -2,6 +2,7 @@ from deeplake.integrations.labelbox.labelbox_utils import *
 import tqdm
 from collections import defaultdict
 
+
 class labelbox_type_converter:
     def __init__(
         self,
@@ -42,16 +43,16 @@ class labelbox_type_converter:
 
     def dataset_with_applied_annotations(self):
         idx_offset = 0
-        print('total annotations projects count: ', len(self.project))
+        print("total annotations projects count: ", len(self.project))
 
         if self.metadata_generators_:
             self.generate_metadata_tensors_(self.metadata_generators_, self.dataset)
 
         for p_idx, p in enumerate(self.yield_projects_(self.project, self.dataset)):
             if "labels" not in p["projects"][self.project_id]:
-                print('no labels for project with index: ', p_idx)
+                print("no labels for project with index: ", p_idx)
                 continue
-            print('parsing annotations for project with index: ', p_idx)
+            print("parsing annotations for project with index: ", p_idx)
             for lbl_idx, labels in enumerate(p["projects"][self.project_id]["labels"]):
                 self.values_cache = dict()
                 if "frames" not in labels["annotations"]:
@@ -69,7 +70,7 @@ class labelbox_type_converter:
 
                 assert len(frames) <= p["media_attributes"]["frame_count"]
 
-                print('parsing frames for label index: ', lbl_idx)
+                print("parsing frames for label index: ", lbl_idx)
                 for i in tqdm.tqdm(range(p["media_attributes"]["frame_count"])):
                     if str(i + 1) not in frames:
                         continue
@@ -84,8 +85,14 @@ class labelbox_type_converter:
 
                 self.apply_cached_values_(self.values_cache, idx_offset)
                 if self.metadata_generators_:
-                    print('filling metadata for project with index: ', p_idx)
-                    self.fill_metadata_(self.metadata_generators_, self.dataset, p, self.project_id, p["media_attributes"]["frame_count"])
+                    print("filling metadata for project with index: ", p_idx)
+                    self.fill_metadata_(
+                        self.metadata_generators_,
+                        self.dataset,
+                        p,
+                        self.project_id,
+                        p["media_attributes"]["frame_count"],
+                    )
 
             idx_offset += p["media_attributes"]["frame_count"]
 
@@ -202,7 +209,7 @@ class labelbox_type_converter:
             return frame
 
         return None
-    
+
     def existing_sub_ranges_(self, frames, r, feature_id):
         end = r[1]
         sub_ranges = [(r[0], end)]
@@ -214,20 +221,23 @@ class labelbox_type_converter:
             sub_ranges[-1] = (sub_ranges[-1][0], i)
             sub_ranges.append((i, end))
         return sub_ranges
-                
 
     def parse_segments_(self, segments, frames, offset):
-        print('total segments count to parse:', len(segments))
+        print("total segments count to parse:", len(segments))
         for feature_id, ranges in segments.items():
-            print('parsing segments with feature id: ', feature_id)
+            print("parsing segments with feature id: ", feature_id)
             for r in tqdm.tqdm(ranges):
                 sub_ranges = self.existing_sub_ranges_(frames, r, feature_id)
                 for st, en in sub_ranges:
                     assert str(st) in frames
 
-                    start = self.find_object_with_feature_id_(frames[str(st)], feature_id)
+                    start = self.find_object_with_feature_id_(
+                        frames[str(st)], feature_id
+                    )
                     if str(en) in frames:
-                        end = self.find_object_with_feature_id_(frames[str(en)], feature_id)
+                        end = self.find_object_with_feature_id_(
+                            frames[str(en)], feature_id
+                        )
                     else:
                         end = start
 
@@ -237,28 +247,45 @@ class labelbox_type_converter:
 
                     for i in range(st + 1, en + 1):
                         # skip if the frame already has the object
-                        if str(i) in frames and self.find_object_with_feature_id_(frames[str(i)], feature_id) is not None:
+                        if (
+                            str(i) in frames
+                            and self.find_object_with_feature_id_(
+                                frames[str(i)], feature_id
+                            )
+                            is not None
+                        ):
                             continue
 
-                        if start['feature_schema_id'] in self.registered_interpolators:
-                            obj = self.registered_interpolators[start["feature_schema_id"]](start, end, (i - st) / (en - st))
+                        if start["feature_schema_id"] in self.registered_interpolators:
+                            obj = self.registered_interpolators[
+                                start["feature_schema_id"]
+                            ](start, end, (i - st) / (en - st))
                         else:
-                            obj = end 
-                        
-                        self.regsistered_actions[obj["feature_schema_id"]](offset + i - 1, obj)
+                            obj = end
+
+                        self.regsistered_actions[obj["feature_schema_id"]](
+                            offset + i - 1, obj
+                        )
                         # nested classifications are not in the segments
                         for o in obj.get("classifications", []):
-                            self.regsistered_actions[o["feature_schema_id"]](offset + i - 1, o)
-                            
-
+                            self.regsistered_actions[o["feature_schema_id"]](
+                                offset + i - 1, o
+                            )
 
     def apply_cached_values_(self, cache, offset):
-        print('applying cached values')
+        print("applying cached values")
         for tensor_name, row_map in cache.items():
-            print('applying cached values for tensor: ', tensor_name)
+            print("applying cached values for tensor: ", tensor_name)
             if len(self.dataset[tensor_name]) < offset:
-                print('extending dataset for tensor: ', tensor_name, 'size: ', offset - len(self.dataset[tensor_name])) 
-                self.dataset[tensor_name].extend([None] * (offset - len(self.dataset[tensor_name])))
+                print(
+                    "extending dataset for tensor: ",
+                    tensor_name,
+                    "size: ",
+                    offset - len(self.dataset[tensor_name]),
+                )
+                self.dataset[tensor_name].extend(
+                    [None] * (offset - len(self.dataset[tensor_name]))
+                )
             max_val = max(row_map.keys()) - offset
             values = []
             for i in tqdm.tqdm(range(max_val + 1)):
@@ -267,25 +294,25 @@ class labelbox_type_converter:
                     values.append(row_map[key])
                 else:
                     values.append(None)
-                
+
             self.dataset[tensor_name].extend(values)
 
     def yield_projects_(self, project_j, ds):
         raise NotImplementedError("fixed_project_order_ is not implemented")
-    
+
     def generate_metadata_tensors_(self, generators, ds):
         for tensor_name, v in generators.items():
             try:
-                ds.create_tensor(tensor_name, **v['create_tensor_kwargs'])
+                ds.create_tensor(tensor_name, **v["create_tensor_kwargs"])
             except:
                 pass
 
     def fill_metadata_(self, generators, dataset, project, project_id, frames_count):
         metadata_dict = defaultdict(list)
-        context = {'project_id': project_id}
+        context = {"project_id": project_id}
         for tensor_name, v in generators.items():
             for i in range(frames_count):
-                context['frame_idx'] = i
+                context["frame_idx"] = i
                 metadata_dict[tensor_name].append(v["generator"](project, context))
 
         for tensor_name, values in metadata_dict.items():
@@ -305,16 +332,25 @@ class labelbox_video_converter(labelbox_type_converter):
         group_mapping=None,
     ):
         super().__init__(
-            ontology, converters, project, project_id, dataset, context, metadata_generators, group_mapping
+            ontology,
+            converters,
+            project,
+            project_id,
+            dataset,
+            context,
+            metadata_generators,
+            group_mapping,
         )
 
     def yield_projects_(self, project_j, ds):
         if "labelbox_meta" not in ds.info:
             raise ValueError("No labelbox meta data in dataset")
         info = ds.info["labelbox_meta"]
+
         def sorter(p):
             url = external_url_from_video_project_(p)
             return info["sources"].index(url)
+
         ordered_values = sorted(project_j, key=sorter)
         for p in ordered_values:
             yield p

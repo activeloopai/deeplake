@@ -5,13 +5,15 @@ import av
 import requests
 from collections import Counter
 
+
 def is_remote_resource_public_(url):
     try:
         response = requests.head(url, allow_redirects=True)
         return response.status_code == 200
     except requests.exceptions.RequestException as e:
         return False
-    
+
+
 def filter_video_paths_(video_paths, strategy):
     if strategy == "all":
         return video_paths
@@ -21,15 +23,18 @@ def filter_video_paths_(video_paths, strategy):
             counter = Counter(video_paths)
             duplicates = [k for k, v in counter.items() if v > 1]
             raise ValueError("Duplicate video paths detected: " + ", ".join(duplicates))
-    
+
     if strategy == "skip":
         if len(unique_paths) != len(video_paths):
             counter = Counter(video_paths)
             duplicates = [k for k, v in counter.items() if v > 1]
-            print("Duplicate video paths detected, filtering out duplicates: ", duplicates)
+            print(
+                "Duplicate video paths detected, filtering out duplicates: ", duplicates
+            )
         return list(unique_paths)
-    
+
     raise ValueError(f"Invalid data upload strategy: {strategy}")
+
 
 def frame_generator_(
     video_path: str, header: dict, retries: int = 5
@@ -67,7 +72,10 @@ def frame_generator_(
     except Exception as e:
         print(f"Failed generating frames: {e}")
 
-def frames_batch_generator_(video_path: str, header: dict=None, batch_size=100, retries: int = 5):
+
+def frames_batch_generator_(
+    video_path: str, header: dict = None, batch_size=100, retries: int = 5
+):
     frames, indexes = [], []
     for frame_num, frame in frame_generator_(video_path, header, retries):
         frames.append(frame)
@@ -76,14 +84,16 @@ def frames_batch_generator_(video_path: str, header: dict=None, batch_size=100, 
             continue
         yield indexes, frames
         frames, indexes = [], []
-    
+
     if len(frames):
         yield indexes, frames
 
+
 def external_url_from_video_project_(p):
     if "external_id" in p["data_row"]:
-        return  p["data_row"]["external_id"]
+        return p["data_row"]["external_id"]
     return p["data_row"]["row_data"]
+
 
 def validate_video_project_data_impl_(project_j, deeplake_dataset, project_id):
     if "labelbox_meta" not in deeplake_dataset.info:
@@ -108,7 +118,7 @@ def validate_video_project_data_impl_(project_j, deeplake_dataset, project_id):
         url = external_url_from_video_project_(p)
         if url not in info["sources"]:
             return False
-        
+
         ontology_ids.add(p["projects"][project_id]["project_details"]["ontology_id"])
 
     if len(ontology_ids) != 1:
@@ -153,7 +163,7 @@ def validate_project_creation_data_(proj, project_id, type):
 
 
 def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
-    print('requesting project info from labelbox with id', project_id)
+    print("requesting project info from labelbox with id", project_id)
     # Set the export params to include/exclude certain fields.
     export_params = {
         "attachments": False,
@@ -192,7 +202,6 @@ def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
             raise Exception(f"Error during export: {error}")
         print(f"Error during export: {error}")
 
-
     try:
         if export_task.has_errors():
             export_task.get_buffered_stream(stream_type=lb.StreamType.ERRORS).start(
@@ -208,7 +217,7 @@ def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
             stream_type=lb.StreamType.RESULT
         ).start(stream_handler=json_stream_handler)
 
-    print('project info is ready for project with id', project_id)
+    print("project info is ready for project with id", project_id)
 
     return projects
 

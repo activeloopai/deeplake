@@ -57,7 +57,9 @@ def converter_for_video_project_with_id(
         - Supports Video ontology from labelbox.
         - The function first validates the project data before setting up converters.
     """
-    project_json = labelbox_get_project_json_with_id_(client, project_id, fail_on_labelbox_project_export_error)
+    project_json = labelbox_get_project_json_with_id_(
+        client, project_id, fail_on_labelbox_project_export_error
+    )
 
     if len(project_json) == 0:
         print("no data")
@@ -86,69 +88,70 @@ def converter_for_video_project_with_id(
     }
 
     if generate_metadata:
-        tensor_name_generator = lambda name: f"{metadata_prefix}/{name}" if metadata_prefix else name
+        tensor_name_generator = lambda name: (
+            f"{metadata_prefix}/{name}" if metadata_prefix else name
+        )
 
         metadata_generators = {
             tensor_name_generator("name"): {
                 "generator": get_video_name_from_video_project_,
-                "create_tensor_kwargs": {'htype': 'text'},
-                },
+                "create_tensor_kwargs": {"htype": "text"},
+            },
             tensor_name_generator("data_row_id"): {
                 "generator": get_data_row_id_from_video_project_,
-                "create_tensor_kwargs": {'htype': 'text'},
-                },
+                "create_tensor_kwargs": {"htype": "text"},
+            },
             tensor_name_generator("label_creator"): {
                 "generator": get_label_creator_from_video_project_,
-                "create_tensor_kwargs": {'htype': 'text'},
-                },
+                "create_tensor_kwargs": {"htype": "text"},
+            },
             tensor_name_generator("frame_rate"): {
                 "generator": get_frame_rate_from_video_project_,
-                "create_tensor_kwargs": {'htype': 'generic', 'dtype': 'int32'},
-                },
+                "create_tensor_kwargs": {"htype": "generic", "dtype": "int32"},
+            },
             tensor_name_generator("frame_count"): {
                 "generator": get_frame_count_from_video_project_,
-                "create_tensor_kwargs": {'htype': 'generic', 'dtype': 'int32'},
-                },
+                "create_tensor_kwargs": {"htype": "generic", "dtype": "int32"},
+            },
             tensor_name_generator("width"): {
                 "generator": get_width_from_video_project_,
-                "create_tensor_kwargs": {'htype': 'generic', 'dtype': 'int32'},
-                },
+                "create_tensor_kwargs": {"htype": "generic", "dtype": "int32"},
+            },
             tensor_name_generator("height"): {
                 "generator": get_height_from_video_project_,
-                "create_tensor_kwargs": {'htype': 'generic', 'dtype': 'int32'},
-                },
+                "create_tensor_kwargs": {"htype": "generic", "dtype": "int32"},
+            },
             tensor_name_generator("ontology_id"): {
                 "generator": get_ontology_id_from_video_project_,
-                "create_tensor_kwargs": {'htype': 'text'},
-                },
+                "create_tensor_kwargs": {"htype": "text"},
+            },
             tensor_name_generator("project_name"): {
                 "generator": get_project_name_from_video_project_,
-                "create_tensor_kwargs": {'htype': 'text'},
-                },
+                "create_tensor_kwargs": {"htype": "text"},
+            },
             tensor_name_generator("dataset_name"): {
                 "generator": get_dataset_name_from_video_project_,
-                "create_tensor_kwargs": {'htype': 'text'},
-                },
+                "create_tensor_kwargs": {"htype": "text"},
+            },
             tensor_name_generator("dataset_id"): {
                 "generator": get_dataset_id_from_video_project_,
-                "create_tensor_kwargs": {'htype': 'text'},
-                },
+                "create_tensor_kwargs": {"htype": "text"},
+            },
             tensor_name_generator("global_key"): {
                 "generator": get_global_key_from_video_project_,
-                "create_tensor_kwargs": {'htype': 'text'},
-                },
+                "create_tensor_kwargs": {"htype": "text"},
+            },
             tensor_name_generator("frame_number"): {
-                "generator": lambda project, ctx: ctx['frame_idx'],
-                "create_tensor_kwargs": {'htype': 'generic', 'dtype': 'int32'},
-                },
+                "generator": lambda project, ctx: ctx["frame_idx"],
+                "create_tensor_kwargs": {"htype": "generic", "dtype": "int32"},
+            },
             tensor_name_generator("current_frame_name"): {
                 "generator": lambda project, ctx: f"{get_video_name_from_video_project_(project, ctx)}_{ctx['frame_idx']:06d}",
-                "create_tensor_kwargs": {'htype': 'text'},
-                },
-            } 
+                "create_tensor_kwargs": {"htype": "text"},
+            },
+        }
     else:
         metadata_generators = None
-
 
     return labelbox_video_converter(
         ontology,
@@ -176,7 +179,7 @@ def create_labelbox_annotation_project(
     Creates labelbox dataset for video annotation and sets up corresponding Labelbox project.
 
     Args:
-       video_paths (List[str]): List of paths to video files to be processed can be either all local or all pre-signed remote. 
+       video_paths (List[str]): List of paths to video files to be processed can be either all local or all pre-signed remote.
        lb_dataset_name (str): Name for Labelbox dataset.
        lb_project_name (str): Name for Labelbox project.
        lb_client (LabelboxClient): Authenticated Labelbox client instance
@@ -193,45 +196,53 @@ def create_labelbox_annotation_project(
     # validate paths
     all_local = [os.path.exists(p) for p in video_paths]
     if any(all_local) and not all(all_local):
-        raise Exception(f'video paths must be all local or all remote: {video_paths}')
+        raise Exception(f"video paths must be all local or all remote: {video_paths}")
 
     if len(all_local):
         if not all_local[0]:
-            assets = [{
-            "row_data": p,
-            "global_key": str(uuid.uuid4()),
-            "media_type": "VIDEO",
-            "metadata_fields": [],
-            "attachments": []
-        } for p in video_paths]
+            assets = [
+                {
+                    "row_data": p,
+                    "global_key": str(uuid.uuid4()),
+                    "media_type": "VIDEO",
+                    "metadata_fields": [],
+                    "attachments": [],
+                }
+                for p in video_paths
+            ]
 
-    print('uploading videos to labelbox')
+    print("uploading videos to labelbox")
     lb_ds = lb_client.create_dataset(name=lb_dataset_name)
     task = lb_ds.create_data_rows(assets)
     task.wait_till_done()
 
     if task.errors:
-        raise Exception(f'failed to upload videos to labelbox: {task.errors}')
-    
+        raise Exception(f"failed to upload videos to labelbox: {task.errors}")
+
     if len(all_local):
         if all_local[0]:
-            print('assigning global keys to data rows')
-            rows = [{
+            print("assigning global keys to data rows")
+            rows = [
+                {
                     "data_row_id": lb_ds.data_row_for_external_id(p).uid,
                     "global_key": str(uuid.uuid4()),
-                    }  for p in video_paths]
+                }
+                for p in video_paths
+            ]
             res = lb_client.assign_global_keys_to_data_rows(rows)
-            if res['status'] != 'SUCCESS':
-                raise Exception(f'failed to assign global keys to data rows: {res}')
+            if res["status"] != "SUCCESS":
+                raise Exception(f"failed to assign global keys to data rows: {res}")
 
-    print('successfuly uploaded videos to labelbox')
+    print("successfuly uploaded videos to labelbox")
 
     # Create a new project
-    project = lb_client.create_project(name=lb_project_name, media_type=lb.MediaType.Video)
+    project = lb_client.create_project(
+        name=lb_project_name, media_type=lb.MediaType.Video
+    )
 
     if lb_batches_name is None:
         lb_batches_name = lb_dataset_name + "_batch-"
-    
+
     task = project.create_batches_from_dataset(
         name_prefix=lb_batches_name, dataset_id=lb_ds.uid, priority=lb_batch_priority
     )
@@ -299,7 +310,9 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     )
     data_filler["create_tensors"](ds)
 
-    proj = labelbox_get_project_json_with_id_(lb_client, project_id, fail_on_labelbox_project_export_error)
+    proj = labelbox_get_project_json_with_id_(
+        lb_client, project_id, fail_on_labelbox_project_export_error
+    )
     if len(proj) == 0:
         print("no data")
         return ds
@@ -311,10 +324,12 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     video_files = []
 
     if url_presigner is None:
+
         def default_presigner(url):
             if lb_api_key is None:
                 return url, {}
             return url, {"headers": {"Authorization": f"Bearer {lb_api_key}"}}
+
         url_presigner = default_presigner
 
     for idx, p in enumerate(proj):
@@ -323,7 +338,9 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
         if not os.path.exists(video_url):
             if not is_remote_resource_public_(video_url):
                 video_url, header = url_presigner(video_url)
-        for frame_indexes, frames in frames_batch_generator_(video_url, header=header, batch_size=video_generator_batch_size):
+        for frame_indexes, frames in frames_batch_generator_(
+            video_url, header=header, batch_size=video_generator_batch_size
+        ):
             data_filler["fill_data"](ds, [idx] * len(frames), frame_indexes, frames)
         video_files.append(external_url_from_video_project_(p))
 
