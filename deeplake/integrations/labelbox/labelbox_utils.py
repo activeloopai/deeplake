@@ -24,6 +24,7 @@ def filter_video_paths_(video_paths, strategy):
             counter = Counter(video_paths)
             duplicates = [k for k, v in counter.items() if v > 1]
             raise ValueError("Duplicate video paths detected: " + ", ".join(duplicates))
+        return video_paths
 
     if strategy == "skip":
         if len(unique_paths) != len(video_paths):
