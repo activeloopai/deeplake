@@ -6,7 +6,6 @@ import requests
 from collections import Counter
 
 
-
 def is_remote_resource_public_(url):
     try:
         response = requests.head(url, allow_redirects=True)
@@ -76,7 +75,10 @@ def frame_generator_(
 
 
 def frames_batch_generator_(
-    video_path: str, header: Optional[dict[str, Any]] = None, batch_size=100, retries: int = 5
+    video_path: str,
+    header: Optional[dict[str, Any]] = None,
+    batch_size=100,
+    retries: int = 5,
 ):
     frames, indexes = [], []
     for frame_num, frame in frame_generator_(video_path, header, retries):
@@ -174,8 +176,7 @@ def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
         "project_details": True,
         "label_details": True,
         "performance_details": False,
-        # interpolated_frames does not work with the latest version of the API 6.2.0
-        "interpolated_frames": False,
+        "interpolated_frames": True,
         "embeddings": False,
     }
 

@@ -28,6 +28,7 @@ class labelbox_type_converter:
         self.dataset = dataset
 
         self.group_mapping = group_mapping if group_mapping is not None else dict()
+        self.groupped_tensor_overrides = dict()
 
         self.labelbox_type_converters_ = converters
 
@@ -98,7 +99,7 @@ class labelbox_type_converter:
 
         return self.dataset
 
-    def register_tool_(self, tool, context):
+    def register_tool_(self, tool, context, fix_grouping_only):
         if tool.tool.value not in self.labelbox_type_converters_:
             print("skip tool:", tool.tool.value)
             return
@@ -111,20 +112,33 @@ class labelbox_type_converter:
             prefered_name = tool.name
 
         should_group_with_classifications = len(tool.classifications) > 0
-        tool_name = (
-            prefered_name + "/" + prefered_name
-            if should_group_with_classifications
-            else prefered_name
-        )
+        if should_group_with_classifications:
+            tool_name = prefered_name + "/" + prefered_name
+            if fix_grouping_only:
+                if tool.tool.value in self.group_mapping:
+                    self.groupped_tensor_overrides[tool.tool.value] = tool_name
+        else:
+            tool_name = prefered_name
+
+        for classification in tool.classifications:
+            self.register_classification_(
+                classification,
+                context,
+                fix_grouping_only=fix_grouping_only,
+                parent=prefered_name,
+            )
+
+        if fix_grouping_only:
+            return
+
+        if tool.tool.value in self.groupped_tensor_overrides:
+            tool_name = self.groupped_tensor_overrides[tool.tool.value]
 
         self.labelbox_type_converters_[tool.tool.value](
             tool, self, tool_name, context, tool.tool.value in self.group_mapping
         )
 
-        for classification in tool.classifications:
-            self.register_classification_(classification, context, parent=prefered_name)
-
-    def register_classification_(self, tool, context, parent=""):
+    def register_classification_(self, tool, context, fix_grouping_only, parent=""):
         if tool.class_type.value not in self.labelbox_type_converters_:
             return
 
@@ -135,6 +149,9 @@ class labelbox_type_converter:
         else:
             prefered_name = (parent + "/" if parent else "") + tool.name
 
+        if fix_grouping_only:
+            return
+
         self.labelbox_type_converters_[tool.class_type.value](
             tool,
             self,
@@ -143,15 +160,20 @@ class labelbox_type_converter:
             tool.class_type.value in self.group_mapping,
         )
 
-    def register_ontology_(self, ontology, context):
+    def register_ontology_(self, ontology, context, fix_grouping_only=True):
         for tool in ontology.tools():
-            self.register_tool_(tool, context)
+            self.register_tool_(tool, context, fix_grouping_only=fix_grouping_only)
 
         for classification in ontology.classifications():
             if classification.scope.value != "index":
                 print("skip global classification:", classification.name)
                 continue
-            self.register_classification_(classification, context)
+            self.register_classification_(
+                classification, context, fix_grouping_only=fix_grouping_only
+            )
+
+        if fix_grouping_only:
+            self.register_ontology_(ontology, context, fix_grouping_only=False)
 
     def parse_frame_(self, frame, idx):
         if "objects" in frame:
@@ -317,6 +339,7 @@ class labelbox_type_converter:
 
         for tensor_name, values in metadata_dict.items():
             dataset[tensor_name].extend(values)
+
 
 # if changes are made to the labelbox_video_converter class, check if labelbox_video_converter_debug class should be updated as well
 class labelbox_video_converter(labelbox_type_converter):

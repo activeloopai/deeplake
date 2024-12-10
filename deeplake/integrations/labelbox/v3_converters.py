@@ -233,6 +233,10 @@ def raster_segmentation_converter_(
         ds.create_tensor(
             tensor_name, htype="binary_mask", dtype="bool", sample_compression="lz4"
         )
+    except:
+        pass
+
+    try:
         if generate_labels:
             ds.create_tensor(
                 f"{tensor_name}_labels",
@@ -292,7 +296,7 @@ def raster_segmentation_converter_(
                         labels = ds[f"{tensor_name}_labels"].info["class_names"]
                         if len(labels) != val.shape[-1]:
                             val = np.concatenate(
-                                [ds[tensor_name][row].numpy(), np.zeros_like(mask)],
+                                [val, np.zeros_like(mask)],
                                 axis=-1,
                             )
                         idx = labels.index(tool_name)

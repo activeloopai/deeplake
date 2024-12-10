@@ -7,6 +7,7 @@ from deeplake.integrations.labelbox import (
     converter_for_video_project_with_id,
 )
 
+
 def validate_ds(ds):
     assert set(ds.tensors) == set(
         {
@@ -41,94 +42,102 @@ def validate_ds(ds):
         }
     )
 
-    # TODO: update the values to match the new labelbox project
+    assert ds.max_len == 876
 
-    # assert np.all(
-    #     ds["bbox/bbox"][0:3].numpy()
-    #     == [[[1096, 9, 362, 369]], [[1096, 8, 362, 368]], [[1097, 8, 362, 368]]]
-    # )
-    # assert np.all(ds["bbox/fully_visible"][0:3].numpy() == [[0], [0], [0]])
+    assert len(ds["radio_bttn"]) == 474
+    assert np.all(ds["radio_bttn"][0].numpy() == [[0]])
+    assert np.all(ds["radio_bttn"][20].numpy() == [[0]])
+    assert np.all(ds["radio_bttn"][23].numpy() == [[1]])
 
-    # assert np.all(ds["bbox/bbox"][499].numpy() == [[1455, 0, 305, 78]])
-    # assert len(ds["bbox/bbox"]) == 500
+    assert np.all(
+        ds["bbox/bbox"][0:3].numpy()
+        == [[[1092, 9, 361, 361]], [[1092, 8, 360, 361]], [[1093, 8, 361, 360]]]
+    )
+    assert np.all(ds["bbox/fully_visible"][0:3].numpy() == [[0], [0], [0]])
 
-    # assert np.all(ds["bbox/fully_visible"][499].numpy() == [[1]])
-    # assert len(ds["bbox/fully_visible"]) == 500
+    assert np.all(ds["bbox/bbox"][499].numpy() == [[1463, 0, 287, 79]])
+    assert len(ds["bbox/bbox"]) == 500
 
-    # assert np.all(ds["checklist"][498:501].numpy() == [[], [], []])
-    # assert np.all(ds["checklist"][634].numpy() == [[]])
-    # assert np.all(ds["checklist"][635].numpy() == [[]])
-    # assert np.all(ds["checklist"][636].numpy() == [[0]])
+    assert np.all(ds["bbox/fully_visible"][499].numpy() == [[1]])
+    assert len(ds["bbox/fully_visible"]) == 500
 
-    # assert np.all(ds["checklist"][668].numpy() == [[0]])
-    # assert np.all(ds["checklist"][669].numpy() == [[1, 0]])
+    assert np.all(ds["radio_bttn"][0].numpy() == [[0]])
+    assert np.all(ds["radio_bttn"][0].numpy() == [[0]])
 
-    # assert np.all(
-    #     ds["frame_idx"][245:255].numpy()
-    #     == [[245], [246], [247], [248], [249], [250], [251], [252], [253], [254]]
-    # )
+    assert np.all(ds["checklist"][499].numpy() == [[]])
+    assert np.all(ds["checklist"][500].numpy() == [[0, 1]])
+    assert np.all(ds["checklist"][598].numpy() == [[1, 0]])
+    assert np.all(ds["checklist"][599].numpy() == [[0]])
+    assert np.all(ds["checklist"][698].numpy() == [[0]])
+    assert np.all(ds["checklist"][699].numpy() == [[1]])
+    assert len(ds["checklist"]) == 739
 
-    # assert np.all(
-    #     ds["frame_idx"][495:505].numpy()
-    #     == [[495], [496], [497], [498], [499], [0], [1], [2], [3], [4]]
-    # )
+    assert np.all(
+        ds["frame_idx"][245:255].numpy()
+        == [[245], [246], [247], [248], [249], [250], [251], [252], [253], [254]]
+    )
 
-    # assert np.all(ds["line"][245:255].numpy() == [])
+    assert np.all(
+        ds["frame_idx"][495:505].numpy()
+        == [[495], [496], [497], [498], [499], [0], [1], [2], [3], [4]]
+    )
 
-    # assert np.all(ds["mask/mask_label"][500].numpy() == [0, 1])
+    assert np.all(ds["line"][245:255].numpy() == [])
 
-    # assert np.all(ds["mask/mask_labels"][500].numpy() == [0])
+    assert np.all(ds["mask/mask_label"][500].numpy() == [1])
+    assert np.all(ds["mask/mask_label"][739].numpy() == [0])
 
-    # assert np.all(
-    #     ds["metadata/current_frame_name"][245:255].numpy()
-    #     == [
-    #         ["output005_000245"],
-    #         ["output005_000246"],
-    #         ["output005_000247"],
-    #         ["output005_000248"],
-    #         ["output005_000249"],
-    #         ["output005_000250"],
-    #         ["output005_000251"],
-    #         ["output005_000252"],
-    #         ["output005_000253"],
-    #         ["output005_000254"],
-    #     ]
-    # )
+    assert np.all(ds["mask/mask_labels"][500].numpy() == [0, 1])
+    assert np.all(ds["mask/mask_labels"][739].numpy() == [0])
 
-    # assert np.all(
-    #     ds["metadata/current_frame_name"][495:505].numpy()
-    #     == [
-    #         ["output005_000495"],
-    #         ["output005_000496"],
-    #         ["output005_000497"],
-    #         ["output005_000498"],
-    #         ["output005_000499"],
-    #         ["output006_000000"],
-    #         ["output006_000001"],
-    #         ["output006_000002"],
-    #         ["output006_000003"],
-    #         ["output006_000004"],
-    #     ]
-    # )
+    assert np.all(
+        ds["metadata/current_frame_name"][245:255].numpy()
+        == [
+            ["output005_000245"],
+            ["output005_000246"],
+            ["output005_000247"],
+            ["output005_000248"],
+            ["output005_000249"],
+            ["output005_000250"],
+            ["output005_000251"],
+            ["output005_000252"],
+            ["output005_000253"],
+            ["output005_000254"],
+        ]
+    )
 
-    # assert np.all(
-    #     ds["video_idx"][245:255].numpy()
-    #     == [[0], [0], [0], [0], [0], [0], [0], [0], [0], [0]]
-    # )
+    assert np.all(
+        ds["metadata/current_frame_name"][495:505].numpy()
+        == [
+            ["output005_000495"],
+            ["output005_000496"],
+            ["output005_000497"],
+            ["output005_000498"],
+            ["output005_000499"],
+            ["output004_000000"],
+            ["output004_000001"],
+            ["output004_000002"],
+            ["output004_000003"],
+            ["output004_000004"],
+        ]
+    )
 
-    # assert np.all(
-    #     ds["video_idx"][495:505].numpy()
-    #     == [[0], [0], [0], [0], [0], [1], [1], [1], [1], [1]]
-    # )
+    assert np.all(
+        ds["video_idx"][245:255].numpy()
+        == [[0], [0], [0], [0], [0], [0], [0], [0], [0], [0]]
+    )
 
-    # assert len(ds["point"]) == 626
-    # assert np.all(ds["point"][0].numpy() == [[]])
-    # assert np.all(ds["point"][499].numpy() == [[]])
-    # assert np.all(ds["point"][500].numpy() == [[1612, 76]])
-    # assert np.all(ds["point"][501].numpy() == [[1613, 75]])
-    # assert np.all(ds["point"][625].numpy() == [[1662, 0]])
+    assert np.all(
+        ds["video_idx"][495:505].numpy()
+        == [[0], [0], [0], [0], [0], [1], [1], [1], [1], [1]]
+    )
 
-    # print("dataset is valid!")
+    assert len(ds["point"]) == 857
+    assert np.all(ds["point"][0].numpy() == [[]])
+    assert np.all(ds["point"][499].numpy() == [[]])
+    assert np.all(ds["point"][800].numpy() == [[1630, 49]])
+
+    print("dataset is valid!")
 
 
 def get_azure_sas_token():
@@ -141,34 +150,36 @@ def get_azure_sas_token():
         generate_container_sas,
     )
 
-
     # Construct the blob endpoint from the account name
     account_url = "https://activeloopgen2.blob.core.windows.net"
 
-    #Create a BlobServiceClient object using DefaultAzureCredential
-    blob_service_client = BlobServiceClient(account_url, credential=DefaultAzureCredential())
+    # Create a BlobServiceClient object using DefaultAzureCredential
+    blob_service_client = BlobServiceClient(
+        account_url, credential=DefaultAzureCredential()
+    )
     # Get a user delegation key that's valid for 1 day
     delegation_key_start_time = datetime.datetime.now(datetime.timezone.utc)
     delegation_key_expiry_time = delegation_key_start_time + datetime.timedelta(days=1)
 
     user_delegation_key = blob_service_client.get_user_delegation_key(
         key_start_time=delegation_key_start_time,
-        key_expiry_time=delegation_key_expiry_time
+        key_expiry_time=delegation_key_expiry_time,
     )
 
     start_time = datetime.datetime.now(datetime.timezone.utc)
     expiry_time = start_time + datetime.timedelta(days=1)
 
     sas_token = generate_container_sas(
-        account_name='activeloopgen2',
-        container_name='deeplake-tests',
+        account_name="activeloopgen2",
+        container_name="deeplake-tests",
         user_delegation_key=user_delegation_key,
         permission=ContainerSasPermissions(read=True),
         expiry=expiry_time,
-        start=start_time
+        start=start_time,
     )
 
     return sas_token
+
 
 def test_connect_to_labelbox():
     # the path where we want to create the dataset
