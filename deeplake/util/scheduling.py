@@ -38,7 +38,7 @@ def create_fetching_schedule(
         index_struct = set(range(start, stop, step))
     elif isinstance(slice_, (list, tuple)):
         index_struct = defaultdict(lambda: 0)
-        for item in slice_:
+        for item, _ in enumerate(slice_):
             index_struct[item] += 1
     primary_tensor = dataset[primary_tensor_name]
     try:
