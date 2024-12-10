@@ -351,3 +351,7 @@ def test_forced_htypes(
 
     for sample in rgb_png:
         assert len(sample.shape) == 3
+
+    ds.commit()
+
+    ds[:3].save_view(optimize=True)
