@@ -45,6 +45,7 @@ extras = {
     ],
     "point_cloud": ["laspy"],
     "mesh": ["laspy", "numpy-stl"],
+    "labelbox": ["labelbox", "av", "pillow"],
 }
 
 
