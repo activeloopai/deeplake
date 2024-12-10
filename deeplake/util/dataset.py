@@ -7,6 +7,8 @@ def try_flushing(ds):
         ds.storage.flush()
     except ReadOnlyModeError:
         pass
+    except:
+        pass
 
 
 def map_tensor_keys(dataset, tensor_keys: Optional[Sequence[str]] = None) -> List[str]:

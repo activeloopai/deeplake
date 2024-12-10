@@ -573,6 +573,13 @@ class Dataset:
                     index_params=self.index_params,
                 )
             elif "/" in item:
+                if item.startswith("/"):
+                    name = filter_name(item, self.group_index)
+                    key = self.version_state["tensor_names"].get(name)
+                    if key:
+                        return self.version_state["full_tensors"].get(key)
+                    raise TensorDoesNotExistError(item)
+
                 splt = posixpath.split(item)
                 ret = (
                     self[splt[1]]
