@@ -235,6 +235,7 @@ def test_connect_to_labelbox():
     validate_ds(ds)
 
 
+@pytest.mark.skip(reason="somemtimes fails with timeout")
 def test_labelbox_azure_utils():
     files = load_blob_file_paths_from_azure(
         "activeloopgen2",
