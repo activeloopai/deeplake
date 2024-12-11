@@ -33,8 +33,10 @@ def converter_for_video_project_with_id(
         fail_on_labelbox_project_export_error (bool, optional): Whether to raise an exception if Labelbox project export fails. Defaults to False.
         generate_metadata (bool, optional): Whether to generate metadata tensors. Defaults to True.
         metadata_prefix (str, optional): Prefix for metadata tensors. Defaults to "metadata". Will be ignored if generate_metadata is False.
+
+
     Returns:
-        Optional[labelbox_type_converter]: Returns a labelbox_type_converter if successful, None if no data is found.
+        Optional[labelbox_video_converter]: Returns a labelbox_type_converter if successful, None if no data is found.
         The returned converter can be used to apply Labelbox annotations to a Deeplake dataset.
 
     Raises:
