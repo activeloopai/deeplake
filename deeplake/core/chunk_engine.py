@@ -757,6 +757,8 @@ class ChunkEngine:
                         converted.append(convert_sample(sample, mode))
                     elif isinstance(sample, np.ndarray):
                         converted.append(convert_img_arr(sample, mode))
+                    elif isinstance(sample, deeplake.Tensor):
+                        converted.append(sample.numpy())
                     else:
                         raise SampleHtypeMismatchError(tensor_meta.htype, type(sample))
                 except Exception:
