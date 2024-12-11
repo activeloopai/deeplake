@@ -1,10 +1,11 @@
 # classes in this file are needed to debug the ontology and labelbox projects when there's no access to the labelbox workspace
-from deeplake.integrations.labelbox.labelbox_converter import labelbox_video_converter
+
 
 # helper classes to support same accessors as labelbox instances for accessing the ontology
 class ontology_list_for_debug(list):
     def __call__(self):
         return self
+
 
 class ontology_for_debug:
     def __init__(self, data):
@@ -15,16 +16,19 @@ class ontology_for_debug:
                 setattr(
                     self,
                     key,
-                    ontology_list_for_debug([
-                        ontology_for_debug(item) if isinstance(item, dict) else item
-                        for item in value
-                    ]),
+                    ontology_list_for_debug(
+                        [
+                            ontology_for_debug(item) if isinstance(item, dict) else item
+                            for item in value
+                        ]
+                    ),
                 )
             else:
                 setattr(self, key, value)
 
     def __call__(self):
         return self
+
 
 # Creates ontology object from the final exported labelbox project.
 # This function shall replace `client.get_ontology(ontology_id)` in the converter script.
@@ -44,9 +48,7 @@ def ontology_for_debug_from_json(projects, project_id):
         d = {
             "feature_schema_id": classification["feature_schema_id"],
             "name": classification["name"],
-            "scope": {
-                "value": "index"
-            },
+            "scope": {"value": "index"},
             "options": [],
         }
 
@@ -89,9 +91,7 @@ def ontology_for_debug_from_json(projects, project_id):
         tools[tool["feature_schema_id"]] = {
             "feature_schema_id": tool["feature_schema_id"],
             "name": tool["name"],
-            "tool": {
-                "value": annotation_kind_map[tool["annotation_kind"]]
-            },
+            "tool": {"value": annotation_kind_map[tool["annotation_kind"]]},
         }
 
         classifications = []

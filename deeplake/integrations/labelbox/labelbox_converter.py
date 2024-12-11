@@ -341,7 +341,7 @@ class labelbox_type_converter:
             dataset[tensor_name].extend(values)
 
 
-# if changes are made to the labelbox_video_converter class, check if labelbox_video_converter_debug class should be updated as well
+# if changes are made to the labelbox_video_converter class, check if ontology_for_debug works correctly
 class labelbox_video_converter(labelbox_type_converter):
     def __init__(
         self,
