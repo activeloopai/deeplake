@@ -49,7 +49,14 @@ def test_multi_source_query(hub_cloud_dev_token):
         'SELECT * FROM (SELECT * FROM "hub://activeloop/mnist-train" UNION (SELECT images, labels FROM "hub://activeloop/cifar100-train")) WHERE labels == 0',
         token=hub_cloud_dev_token,
     )
-    assert len(ds) == 6423
+
+    assert len(ds) == 5923
     assert len(ds.tensors) == 2
     d = ds.labels.numpy()
     assert np.all(d == 0)
+
+    ds = deeplake.query(
+        'SELECT * FROM "hub://activeloop/mnist-train" WHERE labels == 0 UNION (SELECT images, labels FROM "hub://activeloop/cifar100-train" WHERE labels == 0)',
+        token=hub_cloud_dev_token,
+    )
+    assert len(ds) == 6423

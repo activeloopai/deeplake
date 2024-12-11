@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "deeplake"
-version = "3.9.30"
+version = "3.9.32"
 description = "Activeloop Deep Lake"
 authors = ["activeloop.ai <support@activeloop.ai>"]
 license = "MPL-2.0"
@@ -11,7 +11,7 @@ repository = "https://github.com/activeloopai/deeplake"
 documentation = "https://docs.activeloop.ai/"
 
 classifiers = [
-    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)"
+    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
 ]
 
 [tool.poetry.dependencies]
@@ -30,10 +30,10 @@ tqdm = "*"
 lz4 = "*"
 pyjwt = "*"
 pydantic = "*"
-libdeeplake = { version = "0.0.146", markers = "python_version >= '3.8' and sys_platform != 'win32'" }
+libdeeplake = { version = "0.0.150", markers = "python_version >= '3.8' and sys_platform != 'win32'" }
 av = { version = ">=8.1.0", markers = "python_version >= '3.7' or sys_platform != 'win32'" }
 aioboto3 = { version = ">=10.4.0", markers = "python_version >= '3.7' and sys_platform != 'win32'" }
-nest_asyncio = { version="*", markers = "python_version >= '3.7' and sys_platform != 'win32'" }
+nest_asyncio = { version = "*", markers = "python_version >= '3.7' and sys_platform != 'win32'" }
 google-cloud-storage = { version = "~1.42.0", optional = true }
 google-auth = { version = "~2.0.1", optional = true }
 google-auth-oauthlib = { version = "~0.4.5", optional = true }
@@ -44,11 +44,7 @@ labelbox = { optional = true }
 [tool.poetry.extras]
 audio = ["av"]
 video = ["av"]
-gcp = [
-    "google-cloud-storage",
-    "google-auth",
-    "google-auth-oauthlib"
-]
+gcp = ["google-cloud-storage", "google-auth", "google-auth-oauthlib"]
 azure = ["azure-cli", "azure-identity", "azure-storage-blob"]
 dicom = ["pydicom", "nibabel"]
 medical = ["pydicom", "nibabel"]
@@ -57,7 +53,7 @@ gdrive = [
     "google-api-python-client",
     "oauth2client",
     "google-auth",
-    "google-auth-oauthlib"
+    "google-auth-oauthlib",
 ]
 point_cloud = ["laspy"]
 mesh = ["laspy", "numpy-stl"]
