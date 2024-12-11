@@ -17,7 +17,7 @@ def converter_for_video_project_with_id(project_id, client, deeplake_ds_loader, 
         lb_api_key (str): Labelbox API key for authentication.
 
     Returns:
-        labelbox_type_converter or None: Returns a labelbox_type_converter if successful, None if no data is found.
+        Optional[labelbox_type_converter]: Returns a labelbox_type_converter if successful, None if no data is found.
         The returned converter can be used to apply Labelbox annotations to a Deeplake dataset.
 
     Raises:
