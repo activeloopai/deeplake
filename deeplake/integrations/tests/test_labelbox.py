@@ -1,6 +1,7 @@
 import labelbox as lb  # type: ignore
 import os
 import numpy as np
+import pytest
 
 from deeplake.integrations.labelbox import (
     create_dataset_from_video_annotation_project,
@@ -181,7 +182,7 @@ def get_azure_sas_token():
 
     return sas_token
 
-
+@pytest.mark.skip(reason="labelbox api sometimes freezes")
 def test_connect_to_labelbox():
     # the path where we want to create the dataset
     ds_path = "mem://labelbox_connect_test"
