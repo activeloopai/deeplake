@@ -1,10 +1,11 @@
-import labelbox as lb # type: ignore
+import labelbox as lb  # type: ignore
 import os
 import numpy as np
 
 from deeplake.integrations.labelbox import (
     create_dataset_from_video_annotation_project,
     converter_for_video_project_with_id,
+    load_blob_file_paths_from_azure,
 )
 
 
@@ -173,7 +174,7 @@ def get_azure_sas_token():
         account_name="activeloopgen2",
         container_name="deeplake-tests",
         user_delegation_key=user_delegation_key,
-        permission=ContainerSasPermissions(read=True),
+        permission=ContainerSasPermissions(read=True, list=True),
         expiry=expiry_time,
         start=start_time,
     )
@@ -230,3 +231,18 @@ def test_connect_to_labelbox():
     ds.commit("add labelbox annotations")
 
     validate_ds(ds)
+
+
+def test_labelbox_azure_utils():
+    files = load_blob_file_paths_from_azure(
+        "activeloopgen2",
+        "deeplake-tests",
+        "video_chunks",
+        get_azure_sas_token(),
+        lambda x: x.endswith(".mp4"),
+    )
+    assert set([os.path.basename(f.partition("?")[0]) for f in files]) == {
+        "output004.mp4",
+        "output005.mp4",
+        "output006.mp4",
+    }

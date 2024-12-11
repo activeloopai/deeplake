@@ -19,7 +19,7 @@ def converter_for_video_project_with_id(
     fail_on_labelbox_project_export_error=False,
     generate_metadata=True,
     metadata_prefix="metadata",
-):
+) -> Optional[labelbox_video_converter]:
     """
     Creates a converter for Labelbox video project to a Deeplake dataset format based on annotation types.
 
@@ -268,7 +268,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     url_presigner=None,
     video_generator_batch_size=100,
     fail_on_labelbox_project_export_error=False,
-):
+) -> deeplake.Dataset:
     """
     Creates a Deeplake dataset from an existing Labelbox video annotation project using custom data processing.
     Downloads video frames from Labelbox and processes them using provided data filler functions.
@@ -369,7 +369,7 @@ def create_dataset_from_video_annotation_project(
     url_presigner=None,
     video_generator_batch_size=100,
     fail_on_labelbox_project_export_error=False,
-):
+) -> deeplake.Dataset:
     """
     See create_dataset_from_video_annotation_project_with_custom_data_filler for complete documentation.
 
