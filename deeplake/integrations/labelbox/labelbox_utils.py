@@ -192,7 +192,9 @@ def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
 
     if export_task.errors:
         if fail_on_error:
-            raise ValueError("Labelbox export task failed with errors")
+            raise ValueError(
+                f"Labelbox export task failed with errors: {export_task.errors}"
+            )
         print("Labelbox export task failed with errors:", export_task.errors)
 
     print("project info is ready for project with id", project_id)
