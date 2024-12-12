@@ -1,9 +1,12 @@
 import numpy as np
+
 try:
     import tensorflow as tf
     from tensorflow.data import Dataset
 except ImportError:
-    raise ImportError("TensorFlow is not installed. Please install tensorflow to use this feature.")
+    raise ImportError(
+        "TensorFlow is not installed. Please install tensorflow to use this feature."
+    )
 
 import deeplake
 

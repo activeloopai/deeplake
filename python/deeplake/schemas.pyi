@@ -8,7 +8,6 @@ __all__ = [
     "SchemaTemplate",
 ]
 
-
 def TextEmbeddings(embedding_size: int, quantize: bool = False) -> SchemaTemplate:
     """
     A schema for storing embedded text from documents.
@@ -25,22 +24,28 @@ def TextEmbeddings(embedding_size: int, quantize: bool = False) -> SchemaTemplat
          quantize: If true, quantize the embeddings to slightly decrease accuracy while greatly increasing query speed
 
     Examples:
-        >>> # Create a dataset with the standard schema
-        >>> ds = deeplake.create("ds_path",
-        >>>         schema=deeplake.schemas.TextEmbeddings(768).build())
+        ```python
+        # Create a dataset with the standard schema
+        ds = deeplake.create("ds_path",
+                schema=deeplake.schemas.TextEmbeddings(768).build())
 
-        >>> # Customize the schema before creating the dataset
-        >>> ds = deeplake.create("ds_path", schema=deeplake.schemas.TextEmbeddings(768)
-        >>>         .rename("embedding", "text_embed")
-        >>>         .add("author", types.Text())
-        >>>         .build())
+        # Customize the schema before creating the dataset
+        ds = deeplake.create("ds_path", schema=deeplake.schemas.TextEmbeddings(768)
+                .rename("embedding", "text_embed")
+                .add("author", types.Text())
+                .build())
+        ```
 
     """
     ...
 
-
-def COCOImages(embedding_size: int, quantize: bool = False, objects: bool = True, keypoints: bool = False,
-               stuffs: bool = False) -> SchemaTemplate:
+def COCOImages(
+    embedding_size: int,
+    quantize: bool = False,
+    objects: bool = True,
+    keypoints: bool = False,
+    stuffs: bool = False,
+) -> SchemaTemplate:
     """
     A schema for storing COCO-based image data.
 
@@ -76,19 +81,20 @@ def COCOImages(embedding_size: int, quantize: bool = False, objects: bool = True
          quantize: If true, quantize the embeddings to slightly decrease accuracy while greatly increasing query speed
 
     Examples:
-        >>> # Create a dataset with the standard schema
-        >>> ds = deeplake.create("ds_path",
-        >>>     schema=deeplake.schemas.COCOImages(768).build())
+        ```python
+        # Create a dataset with the standard schema
+        ds = deeplake.create("ds_path",
+            schema=deeplake.schemas.COCOImages(768).build())
 
-        >>> # Customize the schema before creating the dataset
-        >>> ds = deeplake.create("ds_path", schema=deeplake.schemas.COCOImages(768,
-        >>>         objects=True, keypoints=True)
-        >>>     .rename("embedding", "image_embed")
-        >>>     .add("author", types.Text()).build())
+        # Customize the schema before creating the dataset
+        ds = deeplake.create("ds_path", schema=deeplake.schemas.COCOImages(768,
+                objects=True, keypoints=True)
+            .rename("embedding", "image_embed")
+            .add("author", types.Text()).build())
+        ```
 
     """
     ...
-
 
 class SchemaTemplate:
     """
@@ -96,15 +102,22 @@ class SchemaTemplate:
     """
 
     # Temporary workaround. Need to remove `deeplake._deeplake` from the return type.
-    def __init__(self,
-                 schema: dict[str, deeplake._deeplake.types.DataType | str | deeplake._deeplake.types.Type]) -> None:
+    def __init__(
+        self,
+        schema: dict[
+            str, deeplake._deeplake.types.DataType | str | deeplake._deeplake.types.Type
+        ],
+    ) -> None:
         """
         Constructs a new SchemaTemplate from the given dict
         """
         ...
 
-    def add(self, name: str,
-            dtype: deeplake._deeplake.types.DataType | str | deeplake._deeplake.types.Type) -> SchemaTemplate:
+    def add(
+        self,
+        name: str,
+        dtype: deeplake._deeplake.types.DataType | str | deeplake._deeplake.types.Type,
+    ) -> SchemaTemplate:
         """
         Adds a new column to the template
 

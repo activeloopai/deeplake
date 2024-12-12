@@ -17,10 +17,12 @@ def register_function(function: typing.Callable) -> None:
     to be used in TQL should accept input arguments as numpy arrays and return numpy array.
 
     Examples:
-        >>> def next_number(a):
-        >>>     return a + 1
-        >>>
-        >>> deeplake.tql.register_function(next_number)
-        >>>
-        >>> r = ds.query("SELECT * WHERE next_number(column_name) > 10")
+        ```python
+        def next_number(a):
+            return a + 1
+
+        deeplake.tql.register_function(next_number)
+
+        r = ds.query("SELECT * WHERE next_number(column_name) > 10")
+        ```
     """
