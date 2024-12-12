@@ -149,3 +149,5 @@ jobs:
       oauth_client_secret: ${{ secrets.GDRIVE_CLIENT_SECRET }}
       oauth_refresh_token: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
       sonar_token: ${{ secrets.SONAR_TOKEN }}
+      labelbox_token: ${{ secrets.LABELBOX_TOKEN }}
+

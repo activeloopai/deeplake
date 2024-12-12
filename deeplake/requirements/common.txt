@@ -25,3 +25,4 @@ azure-identity
 azure-storage-blob
 pydantic
 numpy-stl
+labelbox
