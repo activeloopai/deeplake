@@ -20,7 +20,6 @@ __all__ = [
     "ColumnView",
     "Column",
     "Version",
-    "Prefetcher",
     "DatasetView",
     "Dataset",
     "ReadOnlyDataset",
@@ -32,6 +31,8 @@ __all__ = [
     "ColumnAlreadyExistsError",
     "ColumnDoesNotExistError",
     "InvalidColumnValueError",
+    "InvalidPolygonShapeError",
+    "InvalidLinkDataError",
     "PushError",
     "GcsStorageProviderFailed",
     "History",
@@ -40,6 +41,7 @@ __all__ = [
     "LogNotexistsError",
     "IncorrectDeeplakePathError",
     "AuthenticationError",
+    "BadRequestError",
     "AuthorizationError",
     "NotFoundError",
     "AgreementError",
@@ -54,13 +56,15 @@ __all__ = [
     "InvalidChunkStrategyType",
     "InvalidSequenceOfSequence",
     "InvalidTypeAndFormatPair",
+    "InvalidLinkType",
     "UnknownType",
     "InvalidTextType",
     "UnsupportedPythonType",
     "UnsupportedSampleCompression",
     "UnsupportedChunkCompression",
     "InvalidImageCompression",
-    "InvalidMaskCompression",
+    "InvalidSegmentMaskCompression",
+    "InvalidBinaryMaskCompression",
     "DtypeMismatch",
     "UnspecifiedDtype",
     "DimensionsMismatch",
@@ -88,6 +92,8 @@ __all__ = [
     "StorageInternalError",
     "WriteFailedError",
     "QuantizationType",
+    "InvalidCredsKeyAssignmentError",
+    "CredsKeyAlreadyAssignedError",
     "core",
     "create",
     "create_async",
@@ -117,12 +123,11 @@ __all__ = [
     "__parent_atfork",
 ]
 
-
 class Future:
     """
     A future that represents a value that will be resolved in the future.
 
-    Once the Future is resolved, it will hold the result, and you can retrieve it 
+    Once the Future is resolved, it will hold the result, and you can retrieve it
     using either a blocking call (`result()`) or via asynchronous mechanisms (`await`).
 
     The future will resolve automatically even if you do not explicitly wait for it.
@@ -130,10 +135,10 @@ class Future:
     Methods:
         result() -> typing.Any:
             Blocks until the Future is resolved and returns the object.
-        
+
         __await__() -> typing.Any:
             Awaits the future asynchronously and returns the object once it's ready.
-        
+
         is_completed() -> bool:
             Returns True if the Future is already resolved, False otherwise.
     """
@@ -152,8 +157,10 @@ class Future:
         Awaits the resolution of the Future asynchronously.
 
         Examples:
-            >>> result = await future
-        
+            ```python
+            result = await future
+            ```
+
         Returns:
             typing.Any: The result when the Future is resolved.
         """
@@ -177,10 +184,10 @@ class FutureVoid:
     Methods:
         wait() -> None:
             Blocks until the FutureVoid is resolved and then returns `None`.
-        
+
         __await__() -> None:
             Awaits the FutureVoid asynchronously and returns `None` once the operation is complete.
-        
+
         is_completed() -> bool:
             Returns True if the FutureVoid is already resolved, False otherwise.
     """
@@ -190,7 +197,9 @@ class FutureVoid:
         Blocks until the FutureVoid is resolved, then returns `None`.
 
         Examples:
-            >>> future_void.wait()  # Blocks until the operation completes.
+            ```python
+            future_void.wait()  # Blocks until the operation completes.
+            ```
 
         Returns:
             None: Indicates the operation has completed.
@@ -202,8 +211,10 @@ class FutureVoid:
         Awaits the resolution of the FutureVoid asynchronously.
 
         Examples:
-            >>> await future_void  # Waits for the completion of the async operation.
-        
+            ```python
+            await future_void  # Waits for the completion of the async operation.
+            ```
+
         Returns:
             None: Indicates the operation has completed.
         """
@@ -246,7 +257,6 @@ class Metadata(ReadOnlyMetadata):
         """
         ...
 
-
 def query(query: str, token: str | None = None) -> DatasetView:
     """
     Executes the given TQL query and returns a DatasetView.
@@ -255,7 +265,9 @@ def query(query: str, token: str | None = None) -> DatasetView:
     or query a single dataset without opening it first.
 
     Examples:
-        >>> r = deeplake.query("select * from \\"al://my_org/dataset\\" where id > 30")
+        ```python
+        r = deeplake.query("select * from \\"al://my_org/dataset\\" where id > 30")
+        ```
     """
 
     ...
@@ -265,22 +277,23 @@ def query_async(query: str, token: str | None = None) -> Future:
     Asynchronously executes the given TQL query and returns a Future that will resolve into DatasetView.
 
     Examples:
-            >>> future = deeplake.query_async("select * where category == 'active'")
-            >>> result = future.result()
-            >>> for row in result:
-            >>>     print("Id is: ", row["id"])
+        ```python
+        future = deeplake.query_async("select * where category == 'active'")
+        result = future.result()
+        for row in result:
+            print("Id is: ", row["id"])
 
-            >>> # or use the Future in an await expression
-            >>> future = deeplake.query_async("select * where category == 'active'")
-            >>> result = await future
-            >>> for row in result:
-            >>>     print("Id is: ", row["id"])
+        # or use the Future in an await expression
+        future = deeplake.query_async("select * where category == 'active'")
+        result = await future
+        for row in result:
+            print("Id is: ", row["id"])
+        ```
     """
     ...
 
 class Client:
     endpoint: str
-
 
 class Tag:
     """
@@ -319,7 +332,7 @@ class Tag:
         """
         ...
 
-    def open(self) -> ReadOnlyDataset:
+    def open(self) -> DatasetView:
         """
         Fetches the dataset corresponding to the tag
         """
@@ -331,7 +344,7 @@ class Tag:
         """
         ...
 
-    def __repr__(self) -> str: ...
+    def __str__(self) -> str: ...
 
 class TagView:
     """
@@ -358,7 +371,7 @@ class TagView:
         The version that has been tagged
         """
 
-    def open(self) -> ReadOnlyDataset:
+    def open(self) -> DatasetView:
         """
         Fetches the dataset corresponding to the tag
         """
@@ -370,7 +383,7 @@ class TagView:
         """
         ...
 
-    def __repr__(self) -> str: ...
+    def __str__(self) -> str: ...
 
 class TagNotFoundError(Exception):
     pass
@@ -403,13 +416,11 @@ class Tags:
         """
         ...
 
-    def __repr__(self) -> str: ...
-
+    def __str__(self) -> str: ...
     def names(self) -> list[str]:
         """
         Return a list of tag names
         """
-
     ...
 
 class TagsView:
@@ -431,19 +442,15 @@ class TagsView:
         """
         ...
 
-    def __repr__(self) -> str: ...
-
+    def __str__(self) -> str: ...
     def names(self) -> list[str]:
         """
         Return a list of tag names
         """
-
     ...
 
-
 class ColumnDefinition:
-    def __repr__(self) -> str: ...
-
+    def __str__(self) -> str: ...
     @property
     def name(self) -> str:
         """
@@ -474,14 +481,12 @@ class ColumnDefinition:
         """
         ...
 
-
 class ColumnDefinitionView:
     """
     A read-only view of a [deeplake.ColumnDefinition][]
     """
 
-    def __repr__(self) -> str: ...
-
+    def __str__(self) -> str: ...
     @property
     def name(self) -> str:
         """
@@ -496,42 +501,33 @@ class ColumnDefinitionView:
         """
         ...
 
-
 class ColumnView:
     """
     Provides access to a column in a dataset.
     """
 
-    def __getitem__(self, index: int | slice) -> typing.Any: ...
-
-    def get_async(self, index: int | slice) -> Future: ...
-
+    def __getitem__(self, index: int | slice | list | tuple) -> typing.Any: ...
+    def get_async(self, index: int | slice | list | tuple) -> Future: ...
     def __len__(self) -> int: ...
-
-    def __repr__(self) -> str: ...
-
+    def __str__(self) -> str: ...
+    def _links_info(self) -> dict: ...
     @property
     def metadata(self) -> ReadOnlyMetadata: ...
-
     @property
     def name(self) -> str: ...
-
 
 class Column(ColumnView):
     def __setitem__(self, index: int | slice, value: typing.Any) -> None: ...
     def set_async(self, index: int | slice, value: typing.Any) -> FutureVoid: ...
-
     @property
     def metadata(self) -> Metadata: ...
-
 
 class Version:
     """
     An atomic change within [deeplake.Dataset][]'s history
     """
 
-    def __repr__(self) -> str: ...
-
+    def __str__(self) -> str: ...
     @property
     def client_timestamp(self) -> datetime.datetime:
         """
@@ -566,7 +562,6 @@ class Version:
         """
         ...
 
-
 class Row:
     """
     Provides mutable access to a particular row in a dataset.
@@ -580,7 +575,7 @@ class Row:
     def get_async(self, column: str) -> Future:
         """
         Asynchronously retrieves data for the specified column and returns a Future object.
-    
+
         Args:
             column (str): The name of the column to retrieve data for.
 
@@ -588,13 +583,15 @@ class Row:
             Future: A Future object that will resolve to the value containing the column data.
 
         Examples:
-            >>> future = row.get_async("column_name")
-            >>> column = future.result()  # Blocking call to get the result when it's ready.
-        
+            ```python
+            future = row.get_async("column_name")
+            column = future.result()  # Blocking call to get the result when it's ready.
+            ```
+
         Notes:
-            - The Future will resolve asynchronously, meaning the method will not block execution 
+            - The Future will resolve asynchronously, meaning the method will not block execution
             while the data is being retrieved.
-            - You can either wait for the result using `future.result()` (a blocking call) 
+            - You can either wait for the result using `future.result()` (a blocking call)
             or use the Future in an `await` expression.
         """
 
@@ -615,23 +612,23 @@ class Row:
             FutureVoid: A FutureVoid object that will resolve when the operation is complete.
 
         Examples:
-            >>> future_void = row.set_async("column_name", new_value)
-            >>> future_void.wait()  # Blocks until the operation is complete.
-        
+            ```python
+            future_void = row.set_async("column_name", new_value)
+            future_void.wait()  # Blocks until the operation is complete.
+            ```
+
         Notes:
             - The method sets the value asynchronously and immediately returns a FutureVoid.
-            - You can either block and wait for the operation to complete using `wait()` 
+            - You can either block and wait for the operation to complete using `wait()`
             or await the FutureVoid object in an asynchronous context.
         """
 
-    def __repr__(self) -> str: ...
-
+    def __str__(self) -> str: ...
     @property
     def row_id(self) -> int:
         """
         The row_id of the row
         """
-
 
 class RowRange:
     """
@@ -652,11 +649,11 @@ class RowRange:
         """
         The value for the given column
         """
-    
+
     def get_async(self, column: str) -> Future:
         """
         Asynchronously retrieves data for the specified column and returns a Future object.
-    
+
         Args:
             column (str): The name of the column to retrieve data for.
 
@@ -664,13 +661,15 @@ class RowRange:
             Future: A Future object that will resolve to the value containing the column data.
 
         Examples:
-            >>> future = row_range.get_async("column_name")
-            >>> column = future.result()  # Blocking call to get the result when it's ready.
-        
+            ```python
+            future = row_range.get_async("column_name")
+            column = future.result()  # Blocking call to get the result when it's ready.
+            ```
+
         Notes:
-            - The Future will resolve asynchronously, meaning the method will not block execution 
+            - The Future will resolve asynchronously, meaning the method will not block execution
             while the data is being retrieved.
-            - You can either wait for the result using `future.result()` (a blocking call) 
+            - You can either wait for the result using `future.result()` (a blocking call)
             or use the Future in an `await` expression.
         """
 
@@ -691,17 +690,21 @@ class RowRange:
             FutureVoid: A FutureVoid object that will resolve when the operation is complete.
 
         Examples:
-            >>> future_void = row_range.set_async("column_name", new_value)
-            >>> future_void.wait()  # Blocks until the operation is complete.
-        
+            ```python
+            future_void = row_range.set_async("column_name", new_value)
+            future_void.wait()  # Blocks until the operation is complete.
+            ```
+
         Notes:
             - The method sets the value asynchronously and immediately returns a FutureVoid.
-            - You can either block and wait for the operation to complete using `wait()` 
+            - You can either block and wait for the operation to complete using `wait()`
             or await the FutureVoid object in an asynchronous context.
         """
 
-    def __repr__(self) -> str: ...
-
+    def summary(self) -> None:
+        """
+        Prints a summary of the RowRange.
+        """
 
 class RowRangeView:
     """
@@ -723,10 +726,15 @@ class RowRangeView:
         The value for the given column
         """
 
+    def summary(self) -> None:
+        """
+        Prints a summary of the RowRange.
+        """
+
     def get_async(self, column: str) -> Future:
         """
         Asynchronously retrieves data for the specified column and returns a Future object.
-    
+
         Args:
             column (str): The name of the column to retrieve data for.
 
@@ -734,18 +742,17 @@ class RowRangeView:
             Future: A Future object that will resolve to the value containing the column data.
 
         Examples:
-            >>> future = row_range_view.get_async("column_name")
-            >>> column = future.result()  # Blocking call to get the result when it's ready.
-        
+            ```python
+            future = row_range_view.get_async("column_name")
+            column = future.result()  # Blocking call to get the result when it's ready.
+            ```
+
         Notes:
-            - The Future will resolve asynchronously, meaning the method will not block execution 
+            - The Future will resolve asynchronously, meaning the method will not block execution
             while the data is being retrieved.
-            - You can either wait for the result using `future.result()` (a blocking call) 
+            - You can either wait for the result using `future.result()` (a blocking call)
             or use the Future in an `await` expression.
         """
-
-    def __repr__(self) -> str: ...
-
 
 class RowView:
     """
@@ -760,7 +767,7 @@ class RowView:
     def get_async(self, column: str) -> Future:
         """
         Asynchronously retrieves data for the specified column and returns a Future object.
-    
+
         Args:
             column (str): The name of the column to retrieve data for.
 
@@ -768,32 +775,31 @@ class RowView:
             Future: A Future object that will resolve to the value containing the column data.
 
         Examples:
-            >>> future = row_view.get_async("column_name")
-            >>> column = future.result()  # Blocking call to get the result when it's ready.
-        
+            ```python
+            future = row_view.get_async("column_name")
+            column = future.result()  # Blocking call to get the result when it's ready.
+            ```
+
         Notes:
-            - The Future will resolve asynchronously, meaning the method will not block execution 
+            - The Future will resolve asynchronously, meaning the method will not block execution
             while the data is being retrieved.
-            - You can either wait for the result using `future.result()` (a blocking call) 
+            - You can either wait for the result using `future.result()` (a blocking call)
             or use the Future in an `await` expression.
         """
 
-    def __repr__(self) -> str: ...
-
+    def __str__(self) -> str: ...
     @property
     def row_id(self) -> int:
         """
         The row_id of the row
         """
 
-
 class DatasetView:
     """
     A DatasetView is a dataset-like structure. It has a defined schema and contains data which can be queried.
     """
 
-    def __repr__(self) -> str: ...
-
+    def __str__(self) -> str: ...
     @typing.overload
     def __getitem__(self, offset: int) -> RowView:
         """
@@ -809,6 +815,20 @@ class DatasetView:
         ...
 
     @typing.overload
+    def __getitem__(self, indices: list) -> RowRangeView:
+        """
+        Get a range of rows by the given list of indices within the DatasetView.
+        """
+        ...
+
+    @typing.overload
+    def __getitem__(self, indices: tuple) -> RowRangeView:
+        """
+        Get a range of rows by the given tuple of indices within the DatasetView.
+        """
+        ...
+
+    @typing.overload
     def __getitem__(self, column: str) -> ColumnView:
         """
         Get a column by name within the DatasetView.
@@ -816,7 +836,7 @@ class DatasetView:
         ...
 
     def __getitem__(
-            self, input: int | slice | str
+        self, input: int | slice | list | tuple | str
     ) -> RowView | RowRangeView | ColumnView:
         """
         Returns a subset of data from the DatasetView.
@@ -825,32 +845,38 @@ class DatasetView:
 
         - `int`: The zero-based offset of the single row to return. Returns a [deeplake.RowView][]
         - `slice`: A slice specifying the range of rows to return. Returns a [deeplake.RowRangeView][]
+        - `list`: A list of indices specifying the rows to return. Returns a [deeplake.RowRangeView][]
+        - `tuple`: A tuple of indices specifying the rows to return. Returns a [deeplake.RowRangeView
         - `str`: A string specifying column to return all values from. Returns a [deeplake.ColumnView][]
 
         Examples:
-            >>> ds = deeplake.create("mem://")
-            >>> ds.add_column("id", int)
-            >>> ds.add_column("name", str)
-            >>> ds.append({"id": [1,2,3], "name": ["Mary", "Joe", "Bill"]})
-            >>>
-            >>> row = ds[1]
-            >>> print("Id:", row["id"], "Name:", row["name"])
-            Id: 2 Name: Joe
-            >>> rows = ds[1:2]
-            >>> print(rows["id"])
+            ```python
+            ds = deeplake.create("mem://")
+            ds.add_column("id", int)
+            ds.add_column("name", str)
+            ds.append({"id": [1,2,3], "name": ["Mary", "Joe", "Bill"]})
 
-            >>> column_data = ds["id"]
+            row = ds[1]
+            print("Id:", row["id"], "Name:", row["name"]) # Output: 2 Name: Joe
+            rows = ds[1:2]
+            print(rows["id"])
 
+            column_data = ds["id"]
+            ```
         """
 
+    def __getstate__(self) -> tuple: ...
+    def __setstate__(self, arg0: tuple) -> None: ...
     def __iter__(self) -> typing.Iterator[RowView]:
         """
         Row based iteration over the dataset.
 
         Examples:
-            >>> for row in ds:
-            >>>     # process row
-            >>>     pass
+            ```python
+            for row in ds:
+                # process row
+                pass
+            ```
 
         """
         ...
@@ -866,18 +892,18 @@ class DatasetView:
         Prints a summary of the dataset.
 
         Examples:
-            >>> ds.summary()
-            Dataset(columns=(id,title,embedding), length=51611356)
-            +---------+-------------------------------------------------------+
-            | column  |                         type                          |
-            +---------+-------------------------------------------------------+
-            |   id    |               kind=generic, dtype=int32               |
-            +---------+-------------------------------------------------------+
-            |  title  |                         text                          |
-            +---------+-------------------------------------------------------+
-            |embedding|kind=embedding, dtype=array(dtype=float32, shape=[768])|
-            +---------+-------------------------------------------------------+
+            ```python
+            ds.summary()
+            ```
 
+            Example Output:
+            ```
+            Dataset length: 5
+            Columns:
+              id       : int64
+              title    : text
+              embedding: embedding(768)
+            ```
         """
         ...
 
@@ -886,9 +912,11 @@ class DatasetView:
         Executes the given TQL query against the dataset and return the results as a [deeplake.DatasetView][].
 
         Examples:
-            >>> result = ds.query("select * where category == 'active'")
-            >>> for row in result:
-            >>>     print("Id is: ", row["id"])
+            ```python
+            result = ds.query("select * where category == 'active'")
+            for row in result:
+                print("Id is: ", row["id"])
+            ```
 
         """
         ...
@@ -898,16 +926,24 @@ class DatasetView:
         Asynchronously executes the given TQL query against the dataset and return a future that will resolve into [deeplake.DatasetView][].
 
         Examples:
-            >>> future = ds.query_async("select * where category == 'active'")
-            >>> result = future.result()
-            >>> for row in result:
-            >>>     print("Id is: ", row["id"])
+            ```python
+            future = ds.query_async("select * where category == 'active'")
+            result = future.result()
+            for row in result:
+                print("Id is: ", row["id"])
 
-            >>> # or use the Future in an await expression
-            >>> future = ds.query_async("select * where category == 'active'")
-            >>> result = await future
-            >>> for row in result:
-            >>>     print("Id is: ", row["id"])
+            # or use the Future in an await expression
+            future = ds.query_async("select * where category == 'active'")
+            result = await future
+            for row in result:
+                print("Id is: ", row["id"])
+            ```
+        """
+        ...
+
+    def tag(self, name: str | None = None) -> Tag:
+        """
+        Saves the current view as a tag to its source dataset and returns the tag.
         """
         ...
 
@@ -917,7 +953,6 @@ class DatasetView:
         The schema of the dataset.
         """
 
-
     def tensorflow(self) -> typing.Any:
         """
         Returns a TensorFlow `tensorflow.data.Dataset` wrapper around this DatasetView.
@@ -926,14 +961,15 @@ class DatasetView:
             ImportError: If TensorFlow is not installed
 
         Examples:
-            >>> ds = deeplake.open("path/to/dataset")
-            >>> dl = ds.tensorflow().shuffle(500).batch(32).
-            >>> for i_batch, sample_batched in enumerate(dataloader):
-            >>>      process_batch(sample_batched)
+            ```python
+            ds = deeplake.open("path/to/dataset")
+            dl = ds.tensorflow().shuffle(500).batch(32).
+            for i_batch, sample_batched in enumerate(dataloader):
+                 process_batch(sample_batched)
+            ```
 
         """
         ...
-
 
     def pytorch(self, transform: typing.Callable[[typing.Any], typing.Any] = None):
         """
@@ -948,77 +984,36 @@ class DatasetView:
             ImportError: If pytorch is not installed
 
         Examples:
-            >>> from torch.utils.data import DataLoader
-            >>>
-            >>> ds = deeplake.open("path/to/dataset")
-            >>> dataloader = DataLoader(ds.pytorch(), batch_size=60,
-            >>>                             shuffle=True, num_workers=10)
-            >>> for i_batch, sample_batched in enumerate(dataloader):
-            >>>      process_batch(sample_batched)
+            ```python
+            from torch.utils.data import DataLoader
+
+            ds = deeplake.open("path/to/dataset")
+            dataloader = DataLoader(ds.pytorch(), batch_size=60,
+                                        shuffle=True, num_workers=10)
+            for i_batch, sample_batched in enumerate(dataloader):
+                 process_batch(sample_batched)
+            ```
 
         """
         ...
 
-    def batches(self, batch_size: int, drop_last: bool = False) -> Prefetcher:
+    def batches(self, batch_size: int, drop_last: bool = False) -> typing.Iterable:
         """
-        Return a [deeplake.Prefetcher][] for this DatasetView
+        The batches can be used to more efficiently stream large amounts of data from a DeepLake dataset, such as to the DataLoader then to the training framework.
 
         Parameters:
             batch_size: Number of rows in each batch
             drop_last: Whether to drop the final batch if it is incomplete
+
+         Examples:
+            ```python
+            ds = deeplake.open("al://my_org/dataset")
+            batches = ds.batches(batch_size=2000, drop_last=True)
+            for batch in batches:
+                process_batch(batch["images"])
+            ```
         """
         ...
-
-class Prefetcher:
-    """
-    The Prefetcher can be used to more efficiently stream large amounts of data from a DeepLake dataset, such as to the DataLoader then to the training framework.
-
-    Examples:
-        >>> ds = deeplake.open("al://my_org/dataset")
-        >>> fetcher = deeplake.Prefetcher(view, batch_size=2000)
-        >>> for batch in dl:
-        >>>     process_batch(batch["images"])
-
-    """
-
-    def __init__(
-            self,
-            dataset: DatasetView,
-            batch_size: int = 1,
-            drop_last: bool = False,
-    ) -> None:
-        """
-        Parameters:
-             dataset: The [deeplake.DatasetView][] to stream from
-             batch_size: The numer of rows to return in each iteration
-             drop_last: If true, do not return a non-full final batch
-        """
-        ...
-
-    def __iter__(self) -> Prefetcher:
-        """
-        Iterate over the dataset view
-        """
-        ...
-
-    def __len__(self) -> int:
-        """
-        The number of batches in the Prefetcher
-        """
-        ...
-
-    def __next__(self) -> dict:
-        """
-        Returns the next batch of dataset
-        """
-        ...
-
-    def reset(self) -> None:
-        """
-        Reset the iterator
-        """
-        ...
-
 
 class Dataset(DatasetView):
     """
@@ -1027,8 +1022,7 @@ class Dataset(DatasetView):
     Unlike [deeplake.ReadOnlyDataset][], instances of `Dataset` can be modified.
     """
 
-    def __repr__(self) -> str: ...
-
+    def __str__(self) -> str: ...
     def tag(self, name: str, version: str | None = None) -> Tag:
         """
         Tags a version of the dataset. If no version is given, the current version is tagged.
@@ -1044,7 +1038,6 @@ class Dataset(DatasetView):
         """
         The collection of [deeplake.Tag][]s within the dataset
         """
-
     name: str
     """
     The name of the dataset. Setting the value will immediately persist the change without requiring a commit().
@@ -1109,13 +1102,29 @@ class Dataset(DatasetView):
         ...
 
     @typing.overload
+    def __getitem__(self, indices: list) -> RowRange:
+        """
+        Get a range of rows by the given list of indices within the dataset.
+        """
+        ...
+
+    @typing.overload
+    def __getitem__(self, indices: tuple) -> RowRange:
+        """
+        Get a range of rows by the given tuple of indices within the dataset.
+        """
+        ...
+
+    @typing.overload
     def __getitem__(self, column: str) -> Column:
         """
         Get a column by name within the dataset.
         """
         ...
 
-    def __getitem__(self, input: int | slice | str) -> Row | RowRange | Column:
+    def __getitem__(
+        self, input: int | slice | list | tuple | str
+    ) -> Row | RowRange | Column:
         """
         Returns a subset of data from the Dataset
 
@@ -1123,17 +1132,26 @@ class Dataset(DatasetView):
 
         - `int`: The zero-based offset of the single row to return. Returns a [deeplake.Row][]
         - `slice`: A slice specifying the range of rows to return. Returns a [deeplake.RowRange][]
+        - `list`: A list of indices specifying the rows to return. Returns a [deeplake.RowRange][]
+        - `tuple`: A tuple of indices specifying the rows to return. Returns a [deeplake.RowRange][]
         - `str`: A string specifying column to return all values from. Returns a [deeplake.Column][]
 
         Examples:
-            >>> row = ds[318]
+            ```python
+            row = ds[318]
 
-            >>> rows = ds[931:1038]
+            rows = ds[931:1038]
 
-            >>> column_data = ds["id"]
+            rows = ds[931:1038:3]
+
+            rows = ds[[1, 3, 5, 7]]
+
+            rows = ds[(1, 3, 5, 7)]
+
+            column_data = ds["id"]
+            ```
 
         """
-
     ...
 
     def __iter__(self) -> typing.Iterator[Row]:
@@ -1141,9 +1159,11 @@ class Dataset(DatasetView):
         Row based iteration over the dataset.
 
         Examples:
-            >>> for row in ds:
-            >>>     # process row
-            >>>     pass
+            ```python
+            for row in ds:
+                # process row
+                pass
+            ```
 
         """
         ...
@@ -1163,10 +1183,10 @@ class Dataset(DatasetView):
         """
 
     def add_column(
-            self,
-            name: str,
-            dtype: types.DataType | str | types.Type | type | typing.Callable,
-            format: formats.DataFormat | None = None,
+        self,
+        name: str,
+        dtype: types.DataType | str | types.Type | type | typing.Callable,
+        format: formats.DataFormat | None = None,
     ) -> None:
         """
         Add a new column to the dataset.
@@ -1184,26 +1204,25 @@ class Dataset(DatasetView):
             format (DataFormat, optional): The format of the column, if applicable. Only required when the dtype is [deeplake.types.DataType][].
 
         Examples:
-            >>> ds.add_column("labels", deeplake.types.Int32)
+            ```python
+            ds.add_column("labels", deeplake.types.Int32)
 
-            >>> ds.add_column("labels", "int32")
+            ds.add_column("labels", "int32")
 
-            >>> ds.add_column("name", deeplake.types.Text())
+            ds.add_column("name", deeplake.types.Text())
 
-            >>> ds.add_column("json_data", deeplake.types.Dict())
+            ds.add_column("json_data", deeplake.types.Dict())
 
-            >>> ds.add_column("images", deeplake.types.Image(dtype=deeplake.types.UInt8(), sample_compression="jpeg"))
+            ds.add_column("images", deeplake.types.Image(dtype=deeplake.types.UInt8(), sample_compression="jpeg"))
 
-            >>> ds.add_column("embedding", deeplake.types.Embedding(dtype=deeplake.types.Float32(), dimensions=768))
+            ds.add_column("embedding", deeplake.types.Embedding(dtype=deeplake.types.Float32(), dimensions=768))
+            ```
 
         Raises:
             deeplake.ColumnAlreadyExistsError: If a column with the same name already exists.
         """
 
-    def remove_column(
-            self,
-            name: str
-    ) -> None:
+    def remove_column(self, name: str) -> None:
         """
         Remove the existing column from the dataset.
 
@@ -1211,17 +1230,15 @@ class Dataset(DatasetView):
             name: The name of the column to remove
 
         Examples:
-            >>> ds.remove_column("name")
+            ```python
+            ds.remove_column("name")
+            ```
 
         Raises:
             deeplake.ColumnDoesNotExistsError: If a column with the specified name does not exists.
         """
 
-    def rename_column(
-            self,
-            name: str,
-            new_name: str
-    ) -> None:
+    def rename_column(self, name: str, new_name: str) -> None:
         """
         Renames the existing column in the dataset.
 
@@ -1230,7 +1247,9 @@ class Dataset(DatasetView):
             new_name: The new name to set to column
 
         Examples:
-            >>> ds.rename_column("old_name", "new_name")
+            ```python
+            ds.rename_column("old_name", "new_name")
+            ```
 
         Raises:
             deeplake.ColumnDoesNotExistsError: If a column with the specified name does not exists.
@@ -1239,15 +1258,12 @@ class Dataset(DatasetView):
 
     @typing.overload
     def append(self, data: list[dict[str, typing.Any]]) -> None: ...
-
     @typing.overload
     def append(self, data: dict[str, typing.Any]) -> None: ...
-
     @typing.overload
     def append(self, data: DatasetView) -> None: ...
-
     def append(
-            self, data: list[dict[str, typing.Any]] | dict[str, typing.Any] | DatasetView
+        self, data: list[dict[str, typing.Any]] | dict[str, typing.Any] | DatasetView
     ) -> None:
         """
         Adds data to the dataset.
@@ -1262,17 +1278,21 @@ class Dataset(DatasetView):
             data: The data to insert into the dataset.
 
         Examples:
-            >>> ds.append({"name": ["Alice", "Bob"], "age": [25, 30]})
+            ```python
+            ds.append({"name": ["Alice", "Bob"], "age": [25, 30]})
 
-            >>> ds.append([{"name": "Alice", "age": 25}, {"name": "Bob", "age": 30}])
+            ds.append([{"name": "Alice", "age": 25}, {"name": "Bob", "age": 30}])
 
-            >>> ds.append({
-            >>>     "embedding": np.random.rand(4, 768),
-            >>>     "text": ["Hello World"] * 4})
+            ds.append({
+                "embedding": np.random.rand(4, 768),
+                "text": ["Hello World"] * 4})
 
-            >>> ds.append([{"embedding": np.random.rand(768), "text": "Hello World"}] * 4)
+            ds.append([{"embedding": np.random.rand(768), "text": "Hello World"}] * 4)
+            ```
 
-            >>> ds.append(deeplake.from_parquet("./file.parquet"))
+            ```python
+            ds.append(deeplake.from_parquet("./file.parquet"))
+            ```
 
         Raises:
             deeplake.ColumnMissingAppendValueError: If any column is missing from the input data.
@@ -1297,9 +1317,13 @@ class Dataset(DatasetView):
             message (str, optional): A message to store in history describing the changes made in the version
 
         Examples:
-            >>> ds.commit()
+            ```python
+            ds.commit()
+            ```
 
-            >>> ds.commit("Added data from updated documents")
+            ```python
+            ds.commit("Added data from updated documents")
+            ```
 
         """
 
@@ -1313,16 +1337,25 @@ class Dataset(DatasetView):
             message (str, optional): A message to store in history describing the changes made in the commit
 
         Examples:
-            >>> ds.commit_async().wait()
+            ```python
+            ds.commit_async().wait()
+            ```
 
-            >>> ds.commit_async("Added data from updated documents").wait()
+            ```python
+            ds.commit_async("Added data from updated documents").wait()
+            ```
 
-            >>> await ds.commit_async()
+            ```python
+            await ds.commit_async()
+            ```
 
-            >>> await ds.commit_async("Added data from updated documents")
+            ```python
+            await ds.commit_async("Added data from updated documents")
+            ```
 
-            >>> future = ds.commit_async() # then you can check if the future is completed using future.is_completed()
-
+            ```python
+            future = ds.commit_async() # then you can check if the future is completed using future.is_completed()
+            ```
         """
 
     def rollback(self) -> None:
@@ -1335,7 +1368,21 @@ class Dataset(DatasetView):
         Asynchronously reverts any in-progress changes to the dataset you have made. Does not revert any changes that have been committed.
         """
 
-    def push(self, url: str, creds: dict[str, str] | None = None, token: str | None = None) -> None:
+    def set_creds_key(self, key: str, token: str | None = None) -> None:
+        """
+        Sets the key used to store the credentials for the dataset.
+        """
+        pass
+
+    @property
+    def creds_key(self) -> str | None:
+        """
+        The key used to store the credentials for the dataset.
+        """
+
+    def push(
+        self, url: str, creds: dict[str, str] | None = None, token: str | None = None
+    ) -> None:
         """
         Pushes any new history from this dataset to the dataset at the given url
 
@@ -1347,7 +1394,10 @@ class Dataset(DatasetView):
             token: Optional deeplake token
         """
         ...
-    def push_async(self, url: str, creds: dict[str, str] | None = None, token: str | None = None) -> FutureVoid:
+
+    def push_async(
+        self, url: str, creds: dict[str, str] | None = None, token: str | None = None
+    ) -> FutureVoid:
         """
         Asynchronously Pushes new any history from this dataset to the dataset at the given url
 
@@ -1360,7 +1410,9 @@ class Dataset(DatasetView):
         """
         ...
 
-    def pull(self, url: str, creds: dict[str, str] | None = None, token: str | None = None) -> None:
+    def pull(
+        self, url: str, creds: dict[str, str] | None = None, token: str | None = None
+    ) -> None:
         """
         Pulls any new history from the dataset at the passed url into this dataset.
 
@@ -1372,7 +1424,10 @@ class Dataset(DatasetView):
             token: Optional deeplake token
         """
         ...
-    def pull_async(self, url: str, creds: dict[str, str] | None = None, token: str | None = None) -> FutureVoid:
+
+    def pull_async(
+        self, url: str, creds: dict[str, str] | None = None, token: str | None = None
+    ) -> FutureVoid:
         """
         Asynchronously pulls any new history from the dataset at the passed url into this dataset.
 
@@ -1384,7 +1439,6 @@ class Dataset(DatasetView):
             token: Optional deeplake token
         """
         ...
-
 
     @property
     def history(self) -> History:
@@ -1399,65 +1453,22 @@ class Dataset(DatasetView):
         """
         ...
 
-
 class ReadOnlyDataset(DatasetView):
-    @typing.overload
-    def __getitem__(self, offset: int) -> RowView:
-        """
-        Get a row by offset within the dataset.
-        """
-        ...
-
-    @typing.overload
-    def __getitem__(self, range: slice) -> RowRangeView:
-        """
-        Get a range of rows by offset within the dataset.
-        """
-        ...
-
-    @typing.overload
-    def __getitem__(self, column: str) -> ColumnView:
-        """
-        Get a column by name within the dataset.
-        """
-        ...
-
-    def __getitem__(
-            self, input: int | slice | str
-    ) -> RowView | RowRangeView | ColumnView:
-        """
-        Returns a subset of data from the dataset.
-
-        The result will depend on the type of value passed to the `[]` operator.
-
-        - `int`: The zero-based offset of the single row to return. Returns a [deeplake.RowView][]
-        - `slice`: A slice specifying the range of rows to return. Returns a [deeplake.RowRangeView][]
-        - `str`: A string specifying column to return all values from. Returns a [deeplake.ColumnView][]
-
-        Examples:
-            >>> row = ds[318]
-
-            >>> rows = ds[931:1038]
-
-            >>> column_data = ds["id"]
-
-        """
-        ...
-
     def __iter__(self) -> typing.Iterator[RowView]:
         """
         Row based iteration over the dataset.
 
         Examples:
-            >>> for row in ds:
-            >>>     # process row
-            >>>     pass
+            ```python
+            for row in ds:
+                # process row
+                pass
+            ```
 
         """
         ...
 
-    def __repr__(self) -> str: ...
-
+    def __str__(self) -> str: ...
     @property
     def tags(self) -> TagsView:
         """
@@ -1529,7 +1540,9 @@ class ReadOnlyDataset(DatasetView):
         """
         ...
 
-    def push(self, url: str, creds: dict[str, str] | None = None, token: str | None = None) -> None:
+    def push(
+        self, url: str, creds: dict[str, str] | None = None, token: str | None = None
+    ) -> None:
         """
         Pushes any history from this dataset to the dataset at the given url
 
@@ -1539,7 +1552,10 @@ class ReadOnlyDataset(DatasetView):
             token: Optional deeplake token
         """
         ...
-    def push_async(self, url: str, creds: dict[str, str] | None = None, token: str | None = None) -> FutureVoid:
+
+    def push_async(
+        self, url: str, creds: dict[str, str] | None = None, token: str | None = None
+    ) -> FutureVoid:
         """
         Asynchronously Pushes any history from this dataset to the dataset at the given url
 
@@ -1567,38 +1583,35 @@ class ReadOnlyDataset(DatasetView):
 class ExpiredTokenError(Exception):
     pass
 
-
 class FormatNotSupportedError(Exception):
     pass
-
 
 class UnevenColumnsError(Exception):
     pass
 
-
 class UnevenUpdateError(Exception):
     pass
-
 
 class ColumnMissingAppendValueError(Exception):
     pass
 
-
 class ColumnAlreadyExistsError(Exception):
     pass
-
 
 class ColumnDoesNotExistError(Exception):
     pass
 
-
 class InvalidColumnValueError(Exception):
     pass
 
+class InvalidPolygonShapeError(Exception):
+    pass
+
+class InvalidLinkDataError(Exception):
+    pass
 
 class GcsStorageProviderFailed(Exception):
     pass
-
 
 class History:
     """
@@ -1606,15 +1619,10 @@ class History:
     """
 
     @typing.overload
-    def __getitem__(self, offset: int) -> Version:
-        ...
+    def __getitem__(self, offset: int) -> Version: ...
     @typing.overload
-    def __getitem__(self, version: str) -> Version:
-        ...
-
-    def __getitem__(self, input: int | str) -> Version:
-        ...
-
+    def __getitem__(self, version: str) -> Version: ...
+    def __getitem__(self, input: int | str) -> Version: ...
     def __iter__(self) -> typing.Iterator[Version]:
         """
         Iterate over the history, starting at the initial version
@@ -1627,152 +1635,130 @@ class History:
         """
         ...
 
-    def __repr__(self) -> str: ...
-
+    def __str__(self) -> str: ...
 
 class InvalidType(Exception):
     pass
 
-
 class LogExistsError(Exception):
     pass
-
 
 class LogNotexistsError(Exception):
     pass
 
-
 class IncorrectDeeplakePathError(Exception):
     pass
-
 
 class AuthenticationError(Exception):
     pass
 
+class BadRequestError(Exception):
+    pass
 
 class AuthorizationError(Exception):
     pass
 
-
 class NotFoundError(Exception):
     pass
-
 
 class AgreementError(Exception):
     pass
 
-
 class AgreementNotAcceptedError(Exception):
     pass
-
 
 class NotLoggedInAgreementError(Exception):
     pass
 
-
 class JSONKeyNotFound(Exception):
     pass
-
 
 class JSONIndexNotFound(Exception):
     pass
 
-
 class UnknownFormat(Exception):
     pass
-
 
 class UnknownStringType(Exception):
     pass
 
-
 class InvalidChunkStrategyType(Exception):
     pass
-
 
 class InvalidSequenceOfSequence(Exception):
     pass
 
-
 class InvalidTypeAndFormatPair(Exception):
     pass
 
+class InvalidLinkType(Exception):
+    pass
 
 class UnknownType(Exception):
     pass
 
-
 class InvalidTextType(Exception):
     pass
-
 
 class UnsupportedPythonType(Exception):
     pass
 
-
 class UnsupportedSampleCompression(Exception):
     pass
-
 
 class UnsupportedChunkCompression(Exception):
     pass
 
-
 class InvalidImageCompression(Exception):
     pass
 
-
-class InvalidMaskCompression(Exception):
+class InvalidCredsKeyAssignmentError(Exception):
     pass
 
+class CredsKeyAlreadyAssignedError(Exception):
+    pass
+
+class InvalidSegmentMaskCompression(Exception):
+    pass
+
+class InvalidBinaryMaskCompression(Exception):
+    pass
 
 class DtypeMismatch(Exception):
     pass
 
-
 class UnspecifiedDtype(Exception):
     pass
-
 
 class DimensionsMismatch(Exception):
     pass
 
-
 class ShapeIndexOutOfChunk(Exception):
     pass
-
 
 class BytePositionIndexOutOfChunk(Exception):
     pass
 
-
 class TensorAlreadyExists(Exception):
     pass
-
 
 class CanNotCreateTensorWithProvidedCompressions(Exception):
     pass
 
-
 class WrongChunkCompression(Exception):
     pass
-
 
 class WrongSampleCompression(Exception):
     pass
 
-
 class UnknownBoundingBoxCoordinateFormat(Exception):
     pass
-
 
 class UnknownBoundingBoxPixelFormat(Exception):
     pass
 
-
 class InvalidTypeDimensions(Exception):
     pass
-
 
 class SchemaView:
     """
@@ -1798,8 +1784,7 @@ class SchemaView:
         """
         ...
 
-    def __repr__(self) -> str: ...
-
+    def __str__(self) -> str: ...
 
 class Schema:
     """
@@ -1825,35 +1810,32 @@ class Schema:
         """
         ...
 
-    def __repr__(self) -> str: ...
-
+    def __str__(self) -> str: ...
 
 class StorageAccessDenied(Exception):
     pass
 
-
 class StorageKeyAlreadyExists(Exception):
     pass
-
 
 class StorageKeyNotFound(Exception):
     pass
 
-
 class StorageNetworkConnectionError(Exception):
     pass
-
 
 class StorageInternalError(Exception):
     pass
 
-
 class WriteFailedError(Exception):
     pass
 
-
-def create(url: str, creds: dict[str, str] | None = None, token: str | None = None,
-           schema: schemas.SchemaTemplate | None = None) -> Dataset:
+def create(
+    url: str,
+    creds: dict[str, str] | None = None,
+    token: str | None = None,
+    schema: schemas.SchemaTemplate | None = None,
+) -> Dataset:
     """
     Creates a new dataset at the given URL.
 
@@ -1882,101 +1864,135 @@ def create(url: str, creds: dict[str, str] | None = None, token: str | None = No
         schema (dict): The initial schema to use for the dataset. See `deeplake.schema` such as [deeplake.schemas.TextEmbeddings][] for common starting schemas.
 
     Examples:
-        >>> import deeplake
-        >>> from deeplake import types
-        >>>
-        >>> # Create a dataset in your local filesystem:
-        >>> ds = deeplake.create("directory_path")
-        >>> ds.add_column("id", types.Int32())
-        >>> ds.add_column("url", types.Text())
-        >>> ds.add_column("embedding", types.Embedding(768))
-        >>> ds.commit()
-        >>> ds.summary()
-        Dataset(columns=(id,url,embedding), length=0)
-        +---------+-------------------------------------------------------+
-        | column  |                         type                          |
-        +---------+-------------------------------------------------------+
-        |   id    |               kind=generic, dtype=int32               |
-        +---------+-------------------------------------------------------+
-        |   url   |                         text                          |
-        +---------+-------------------------------------------------------+
-        |embedding|kind=embedding, dtype=array(dtype=float32, shape=[768])|
-        +---------+-------------------------------------------------------+
+        ```python
+        import deeplake
+        from deeplake import types
 
+        # Create a dataset in your local filesystem:
+        ds = deeplake.create("directory_path")
+        ds.add_column("id", types.Int32())
+        ds.add_column("url", types.Text())
+        ds.add_column("embedding", types.Embedding(768))
+        ds.commit()
+        ds.summary()
+        ```
+        Output:
+        ```
+        Dataset length: 0
+        Columns:
+          id       : int32
+          url      : text
+          embedding: embedding(768)
+        ```
 
-        >>> # Create dataset in your app.activeloop.ai organization:
-        >>> ds = deeplake.create("al://organization_id/dataset_name")
+        ```python
+        # Create dataset in your app.activeloop.ai organization:
+        ds = deeplake.create("al://organization_id/dataset_name")
+        ```
 
-        >>> # Create a dataset stored in your cloud using specified credentials:
-        >>> ds = deeplake.create("s3://mybucket/my_dataset",
-        >>>     creds = {"aws_access_key_id": ..., ...})
+        ```python
+        # Create a dataset stored in your cloud using specified credentials:
+        ds = deeplake.create("s3://mybucket/my_dataset",
+            creds = {"aws_access_key_id": ..., ...})
+        ```
 
-        >>> # Create dataset stored in your cloud using app.activeloop.ai managed credentials.
-        >>> ds = deeplake.create("s3://mybucket/my_dataset",
-        >>>     creds = {"creds_key": "managed_creds_key"}, org_id = "my_org_id")
+        ```python
+        # Create dataset stored in your cloud using app.activeloop.ai managed credentials.
+        ds = deeplake.create("s3://mybucket/my_dataset",
+            creds = {"creds_key": "managed_creds_key"}, org_id = "my_org_id")
+        ```
 
-        >>> # Create dataset stored in your cloud using app.activeloop.ai managed credentials.
-        >>> ds = deeplake.create("azure://bucket/path/to/dataset")
+        ```python
+        # Create dataset stored in your cloud using app.activeloop.ai managed credentials.
+        ds = deeplake.create("azure://bucket/path/to/dataset")
+        ```
 
-        >>> ds = deeplake.create("gcs://bucket/path/to/dataset")
+        ```python
+        ds = deeplake.create("gcs://bucket/path/to/dataset")
+        ```
 
-        >>> ds = deeplake.create("mem://in-memory")
-
+        ```python
+        ds = deeplake.create("mem://in-memory")
+        ```
 
     Raises:
         ValueError: if a dataset already exists at the given URL
     """
 
-
-def create_async(url: str, creds: dict[str, str] | None = None, token: str | None = None,
-                 schema: schemas.SchemaTemplate | None = None) -> Future:
+def create_async(
+    url: str,
+    creds: dict[str, str] | None = None,
+    token: str | None = None,
+    schema: schemas.SchemaTemplate | None = None,
+) -> Future:
     """
     Asynchronously creates a new dataset at the given URL.
 
     See [deeplake.create][] for more information.
 
     To open an existing dataset, use [deeplake.open_async][].
-    
+
     Examples:
-        >>> import deeplake
-        >>> from deeplake import types
-        >>>
-        >>> # Asynchronously create a dataset in your local filesystem:
-        >>> ds = await deeplake.create_async("directory_path")
-        >>> await ds.add_column("id", types.Int32())
-        >>> await ds.add_column("url", types.Text())
-        >>> await ds.add_column("embedding", types.Embedding(768))
-        >>> await ds.commit()
-        >>> await ds.summary()  # Example of usage in an async context
+        ```python
+        import deeplake
+        from deeplake import types
 
-        >>> # Alternatively, create a dataset using .result().
-        >>> future_ds = deeplake.create_async("directory_path")
-        >>> ds = future_ds.result()  # Blocks until the dataset is created
+        # Asynchronously create a dataset in your local filesystem:
+        ds = await deeplake.create_async("directory_path")
+        await ds.add_column("id", types.Int32())
+        await ds.add_column("url", types.Text())
+        await ds.add_column("embedding", types.Embedding(768))
+        await ds.commit()
+        await ds.summary()  # Example of usage in an async context
+        ```
 
-        >>> # Create a dataset in your app.activeloop.ai organization:
-        >>> ds = await deeplake.create_async("al://organization_id/dataset_name")
+        ```python
+        # Alternatively, create a dataset using .result().
+        future_ds = deeplake.create_async("directory_path")
+        ds = future_ds.result()  # Blocks until the dataset is created
+        ```
 
-        >>> # Create a dataset stored in your cloud using specified credentials:
-        >>> ds = await deeplake.create_async("s3://mybucket/my_dataset",
-        >>>     creds={"aws_access_key_id": ..., ...})
+        ```python
+        # Create a dataset in your app.activeloop.ai organization:
+        ds = await deeplake.create_async("al://organization_id/dataset_name")
+        ```
 
-        >>> # Create dataset stored in your cloud using app.activeloop.ai managed credentials.
-        >>> ds = await deeplake.create_async("s3://mybucket/my_dataset",
-        >>>     creds={"creds_key": "managed_creds_key"}, org_id="my_org_id")
+        ```python
+        # Create a dataset stored in your cloud using specified credentials:
+        ds = await deeplake.create_async("s3://mybucket/my_dataset",
+            creds={"aws_access_key_id": ..., ...})
+        ```
 
-        >>> # Create dataset stored in your cloud using app.activeloop.ai managed credentials.
-        >>> ds = await deeplake.create_async("azure://bucket/path/to/dataset")
+        ```python
+        # Create dataset stored in your cloud using app.activeloop.ai managed credentials.
+        ds = await deeplake.create_async("s3://mybucket/my_dataset",
+            creds={"creds_key": "managed_creds_key"}, org_id="my_org_id")
+        ```
 
-        >>> ds = await deeplake.create_async("gcs://bucket/path/to/dataset")
+        ```python
+        # Create dataset stored in your cloud using app.activeloop.ai managed credentials.
+        ds = await deeplake.create_async("azure://bucket/path/to/dataset")
+        ```
 
-        >>> ds = await deeplake.create_async("mem://in-memory")
+        ```python
+        ds = await deeplake.create_async("gcs://bucket/path/to/dataset")
+        ```
+
+        ```python
+        ds = await deeplake.create_async("mem://in-memory")
+        ```
 
     Raises:
         ValueError: if a dataset already exists at the given URL (will be raised when the future is awaited)
     """
 
-def copy(src: str, dst: str, src_creds: dict[str, str] | None = None, dst_creds: dict[str, str] | None = None,
-             token: str | None = None,) -> None:
+def copy(
+    src: str,
+    dst: str,
+    src_creds: dict[str, str] | None = None,
+    dst_creds: dict[str, str] | None = None,
+    token: str | None = None,
+) -> None:
     """
     Copies the dataset at the source URL to the destination URL.
 
@@ -1990,15 +2006,15 @@ def copy(src: str, dst: str, src_creds: dict[str, str] | None = None, dst_creds:
         token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
 
     Examples:
-        >>> deeplake.copy("al://organization_id/source_dataset", "al://organization_id/destination_dataset")
+        ```python
+        deeplake.copy("al://organization_id/source_dataset", "al://organization_id/destination_dataset")
+        ```
 
     """
 
-
 def delete(
-        url: str,
-        creds: dict[str, str] | None = None,
-        token: str | None = None) -> None:
+    url: str, creds: dict[str, str] | None = None, token: str | None = None
+) -> None:
     """
     Deletes an existing dataset.
 
@@ -2010,7 +2026,7 @@ def delete(
     """
 
 def exists(
-        url: str, creds: dict[str, str] | None = None, token: str | None = None
+    url: str, creds: dict[str, str] | None = None, token: str | None = None
 ) -> bool:
     """
     Check if a dataset exists at the given URL
@@ -2022,7 +2038,7 @@ def exists(
     """
 
 def open(
-        url: str, creds: dict[str, str] | None = None, token: str | None = None
+    url: str, creds: dict[str, str] | None = None, token: str | None = None
 ) -> Dataset:
     """
     Opens an existing dataset, potenitally for modifying its content.
@@ -2052,23 +2068,34 @@ def open(
         token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
 
     Examples:
-        >>> # Load dataset managed by Deep Lake.
-        >>> ds = deeplake.open("al://organization_id/dataset_name")
+        ```python
+        # Load dataset managed by Deep Lake.
+        ds = deeplake.open("al://organization_id/dataset_name")
+        ```
 
-        >>> # Load dataset stored in your cloud using your own credentials.
-        >>> ds = deeplake.open("s3://bucket/my_dataset",
-        >>>     creds = {"aws_access_key_id": ..., ...})
+        ```python
+        # Load dataset stored in your cloud using your own credentials.
+        ds = deeplake.open("s3://bucket/my_dataset",
+            creds = {"aws_access_key_id": ..., ...})
+        ```
 
-        >>> # Load dataset stored in your cloud using Deep Lake managed credentials.
-        >>> ds = deeplake.open("s3://bucket/my_dataset",
-        >>>     ...creds = {"creds_key": "managed_creds_key"}, org_id = "my_org_id")
+        ```python
+        # Load dataset stored in your cloud using Deep Lake managed credentials.
+        ds = deeplake.open("s3://bucket/my_dataset",
+            ...creds = {"creds_key": "managed_creds_key"}, org_id = "my_org_id")
+        ```
 
-        >>> ds = deeplake.open("s3://bucket/path/to/dataset")
+        ```python
+        ds = deeplake.open("s3://bucket/path/to/dataset")
+        ```
 
-        >>> ds = deeplake.open("azure://bucket/path/to/dataset")
+        ```python
+        ds = deeplake.open("azure://bucket/path/to/dataset")
+        ```
 
-        >>> ds = deeplake.open("gcs://bucket/path/to/dataset")
-
+        ```python
+        ds = deeplake.open("gcs://bucket/path/to/dataset")
+        ```
     """
 
 def open_async(
@@ -2080,33 +2107,47 @@ def open_async(
     See [deeplake.open][] for opening the dataset synchronously.
 
     Examples:
-        >>> # Asynchronously load dataset managed by Deep Lake using await.
-        >>> ds = await deeplake.open_async("al://organization_id/dataset_name")
+        ```python
+        # Asynchronously load dataset managed by Deep Lake using await.
+        ds = await deeplake.open_async("al://organization_id/dataset_name")
+        ```
 
-        >>> # Asynchronously load dataset stored in your cloud using your own credentials.
-        >>> ds = await deeplake.open_async("s3://bucket/my_dataset",
-        >>>     creds={"aws_access_key_id": ..., ...})
+        ```python
+        # Asynchronously load dataset stored in your cloud using your own credentials.
+        ds = await deeplake.open_async("s3://bucket/my_dataset",
+            creds={"aws_access_key_id": ..., ...})
+        ```
 
-        >>> # Asynchronously load dataset stored in your cloud using Deep Lake managed credentials.
-        >>> ds = await deeplake.open_async("s3://bucket/my_dataset",
-        >>>     creds={"creds_key": "managed_creds_key"}, org_id="my_org_id")
+        ```python
+        # Asynchronously load dataset stored in your cloud using Deep Lake managed credentials.
+        ds = await deeplake.open_async("s3://bucket/my_dataset",
+            creds={"creds_key": "managed_creds_key"}, org_id="my_org_id")
+        ```
 
-        >>> ds = await deeplake.open_async("s3://bucket/path/to/dataset")
+        ```python
+        ds = await deeplake.open_async("s3://bucket/path/to/dataset")
+        ```
 
-        >>> ds = await deeplake.open_async("azure://bucket/path/to/dataset")
+        ```python
+        ds = await deeplake.open_async("azure://bucket/path/to/dataset")
+        ```
 
-        >>> ds = await deeplake.open_async("gcs://bucket/path/to/dataset")
+        ```python
+        ds = await deeplake.open_async("gcs://bucket/path/to/dataset")
+        ```
 
-        >>> # Alternatively, load the dataset using .result().
-        >>> future_ds = deeplake.open_async("al://organization_id/dataset_name")
-        >>> ds = future_ds.result()  # Blocks until the dataset is loaded
+        ```python
+        # Alternatively, load the dataset using .result().
+        future_ds = deeplake.open_async("al://organization_id/dataset_name")
+        ds = future_ds.result()  # Blocks until the dataset is loaded
+        ```
     """
 
 def like(
-        src: DatasetView,
-        dest: str,
-        creds: dict[str, str] | None = None,
-        token: str | None = None,
+    src: DatasetView,
+    dest: str,
+    creds: dict[str, str] | None = None,
+    token: str | None = None,
 ) -> Dataset:
     """
     Creates a new dataset by copying the ``source`` dataset's structure to a new location.
@@ -2126,18 +2167,19 @@ def like(
         token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
 
     Examples:
-        >>> ds = deeplake.like(src="az://bucket/existing/to/dataset",
-        >>>     dest="s3://bucket/new/dataset")
+        ```python
+        ds = deeplake.like(src="az://bucket/existing/to/dataset",
+           dest="s3://bucket/new/dataset")
+        ```
 
     """
 
-
 def connect(
-        src: str,
-        dest: str | None = None,
-        org_id: str | None = None,
-        creds_key: str | None = None,
-        token: str | None = None,
+    src: str,
+    dest: str | None = None,
+    org_id: str | None = None,
+    creds_key: str | None = None,
+    token: str | None = None,
 ) -> Dataset:
     """
     Connects an existing dataset your [app.activeloop.ai](https://app.activeloop.ai) account.
@@ -2154,24 +2196,33 @@ def connect(
         token (str, optional): Activeloop token used to fetch the managed credentials.
 
     Examples:
-        >>> ds = deeplake.connect("s3://bucket/path/to/dataset",
-        >>>     "al://my_org/dataset")
+        ```python
+        ds = deeplake.connect("s3://bucket/path/to/dataset",
+            "al://my_org/dataset")
+        ```
 
-        >>> ds = deeplake.connect("s3://bucket/path/to/dataset",
-        >>>     "al://my_org/dataset", creds_key="my_key")
+        ```python
+        ds = deeplake.connect("s3://bucket/path/to/dataset",
+            "al://my_org/dataset", creds_key="my_key")
+        ```
 
-        >>> # Connect the dataset as al://my_org/dataset
-        >>> ds = deeplake.connect("s3://bucket/path/to/dataset",
-        >>>     org_id="my_org")
+        ```python
+        # Connect the dataset as al://my_org/dataset
+        ds = deeplake.connect("s3://bucket/path/to/dataset",
+            org_id="my_org")
+        ```
 
-        >>> ds = deeplake.connect("az://bucket/path/to/dataset",
-        >>>     "al://my_org/dataset", creds_key="my_key")
+        ```python
+        ds = deeplake.connect("az://bucket/path/to/dataset",
+            "al://my_org/dataset", creds_key="my_key")
+        ```
 
-        >>> ds = deeplake.connect("gcs://bucket/path/to/dataset",
-        >>>     "al://my_org/dataset", creds_key="my_key")
+        ```python
+        ds = deeplake.connect("gcs://bucket/path/to/dataset",
+            "al://my_org/dataset", creds_key="my_key")
+        ```
 
     """
-
 
 def disconnect(url: str, token: str | None = None) -> None:
     """
@@ -2187,13 +2238,14 @@ def disconnect(url: str, token: str | None = None) -> None:
         token (str, optional): Activeloop token to authenticate user.
 
     Examples:
-        >>> deeplake.disconnect("al://my_org/dataset_name")
+        ```python
+        deeplake.disconnect("al://my_org/dataset_name")
+        ```
 
     """
 
-
 def open_read_only(
-        url: str, creds: dict[str, str] | None = None, token: str | None = None
+    url: str, creds: dict[str, str] | None = None, token: str | None = None
 ) -> ReadOnlyDataset:
     """
     Opens an existing dataset in read-only mode.
@@ -2223,30 +2275,39 @@ def open_read_only(
         token (str, optional): Activeloop token to authenticate user.
 
     Examples:
-        >>> ds = deeplake.open_read_only("directory_path")
-        >>> ds.summary()
-        Dataset(columns=(id,url,embedding), length=0)
-        +---------+-------------------------------------------------------+
-        | column  |                         type                          |
-        +---------+-------------------------------------------------------+
-        |   id    |               kind=generic, dtype=int32               |
-        +---------+-------------------------------------------------------+
-        |   url   |                         text                          |
-        +---------+-------------------------------------------------------+
-        |embedding|kind=embedding, dtype=array(dtype=float32, shape=[768])|
-        +---------+-------------------------------------------------------+
+        ```python
+        ds = deeplake.open_read_only("directory_path")
+        ds.summary()
+        ```
 
+        Example Output:
+        ```
+        Dataset length: 5
+        Columns:
+          id       : int32
+          url      : text
+          embedding: embedding(768)
+        ```
 
-        >>> ds = deeplake.open_read_only("file:///path/to/dataset")
+        ```python
+        ds = deeplake.open_read_only("file:///path/to/dataset")
+        ```
 
-        >>> ds = deeplake.open_read_only("s3://bucket/path/to/dataset")
+        ```python
+        ds = deeplake.open_read_only("s3://bucket/path/to/dataset")
+        ```
 
-        >>> ds = deeplake.open_read_only("azure://bucket/path/to/dataset")
+        ```python
+        ds = deeplake.open_read_only("azure://bucket/path/to/dataset")
+        ```
 
-        >>> ds = deeplake.open_read_only("gcs://bucket/path/to/dataset")
+        ```python
+        ds = deeplake.open_read_only("gcs://bucket/path/to/dataset")
+        ```
 
-        >>> ds = deeplake.open_read_only("mem://in-memory")
-
+        ```python
+        ds = deeplake.open_read_only("mem://in-memory")
+        ```
     """
 
 def open_read_only_async(
@@ -2258,22 +2319,36 @@ def open_read_only_async(
     See [deeplake.open_async][] for opening datasets for modification and [deeplake.open_read_only][] for sync open.
 
     Examples:
-        >>> # Asynchronously open a dataset in read-only mode:
-        >>> ds = await deeplake.open_read_only_async("directory_path")
+        ```python
+        # Asynchronously open a dataset in read-only mode:
+        ds = await deeplake.open_read_only_async("directory_path")
+        ```
 
-        >>> # Alternatively, open the dataset using .result().
-        >>> future_ds = deeplake.open_read_only_async("directory_path")
-        >>> ds = future_ds.result()  # Blocks until the dataset is loaded
+        ```python
+        # Alternatively, open the dataset using .result().
+        future_ds = deeplake.open_read_only_async("directory_path")
+        ds = future_ds.result()  # Blocks until the dataset is loaded
+        ```
 
-        >>> ds = await deeplake.open_read_only_async("file:///path/to/dataset")
+        ```python
+        ds = await deeplake.open_read_only_async("file:///path/to/dataset")
+        ```
 
-        >>> ds = await deeplake.open_read_only_async("s3://bucket/path/to/dataset")
+        ```python
+        ds = await deeplake.open_read_only_async("s3://bucket/path/to/dataset")
+        ```
 
-        >>> ds = await deeplake.open_read_only_async("azure://bucket/path/to/dataset")
+        ```python
+        ds = await deeplake.open_read_only_async("azure://bucket/path/to/dataset")
+        ```
 
-        >>> ds = await deeplake.open_read_only_async("gcs://bucket/path/to/dataset")
+        ```python
+        ds = await deeplake.open_read_only_async("gcs://bucket/path/to/dataset")
+        ```
 
-        >>> ds = await deeplake.open_read_only_async("mem://in-memory")
+        ```python
+        ds = await deeplake.open_read_only_async("mem://in-memory")
+        ```
     """
 
 def from_parquet(url: str) -> ReadOnlyDataset:
@@ -2284,13 +2359,6 @@ def from_parquet(url: str) -> ReadOnlyDataset:
         url: The URL of the Parquet dataset. If no protocol is specified, it assumes `file://`
     """
 
-
-def __child_atfork() -> None:
-    ...
-
-
-def __parent_atfork() -> None:...
-
-
-
-def __prepare_atfork() -> None:...
+def __child_atfork() -> None: ...
+def __parent_atfork() -> None: ...
+def __prepare_atfork() -> None: ...

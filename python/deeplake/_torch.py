@@ -1,7 +1,9 @@
 try:
     from torch.utils.data import Dataset
 except ImportError:
-    raise ImportError("Torch is not installed. Please install torch to use this feature.")
+    raise ImportError(
+        "Torch is not installed. Please install torch to use this feature."
+    )
 
 import deeplake
 

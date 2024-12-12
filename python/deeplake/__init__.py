@@ -1,12 +1,20 @@
 import os
 from typing import Callable, Any, Dict
 
+try:
+    from tqdm import tqdm as progress_bar
+except ImportError:
+
+    def progress_bar(iterable, *args, **kwargs):
+        return iterable
+
+
 import numpy
 
 import deeplake
 from ._deeplake import *
 
-__version__ = "4.0.3"
+__version__ = "4.1.0"
 
 __all__ = [
     "__version__",
@@ -22,7 +30,6 @@ __all__ = [
     "ColumnView",
     "Column",
     "Version",
-    "Prefetcher",
     "DatasetView",
     "Dataset",
     "ReadOnlyDataset",
@@ -34,6 +41,8 @@ __all__ = [
     "ColumnAlreadyExistsError",
     "ColumnDoesNotExistError",
     "InvalidColumnValueError",
+    "InvalidPolygonShapeError",
+    "InvalidLinkDataError",
     "PushError",
     "GcsStorageProviderFailed",
     "History",
@@ -42,6 +51,7 @@ __all__ = [
     "LogNotexistsError",
     "IncorrectDeeplakePathError",
     "AuthenticationError",
+    "BadRequestError",
     "AuthorizationError",
     "NotFoundError",
     "AgreementError",
@@ -56,13 +66,15 @@ __all__ = [
     "InvalidChunkStrategyType",
     "InvalidSequenceOfSequence",
     "InvalidTypeAndFormatPair",
+    "InvalidLinkType",
     "UnknownType",
     "InvalidTextType",
     "UnsupportedPythonType",
     "UnsupportedSampleCompression",
     "UnsupportedChunkCompression",
     "InvalidImageCompression",
-    "InvalidMaskCompression",
+    "InvalidSegmentMaskCompression",
+    "InvalidBinaryMaskCompression",
     "DtypeMismatch",
     "UnspecifiedDtype",
     "DimensionsMismatch",
@@ -90,6 +102,8 @@ __all__ = [
     "StorageInternalError",
     "WriteFailedError",
     "QuantizationType",
+    "InvalidCredsKeyAssignmentError",
+    "CredsKeyAlreadyAssignedError",
     "core",
     "create",
     "create_async",
@@ -122,65 +136,158 @@ __all__ = [
 
 def _tensorflow(self) -> Any:
     from deeplake._tensorflow import _from_dataset
+
     return _from_dataset(self)
 
 
 def _pytorch(self, transform: Callable[[Any], Any] = None):
     from deeplake._torch import TorchDataset
+
     return TorchDataset(self, transform=transform)
 
 
 DatasetView.pytorch = _pytorch
 DatasetView.tensorflow = _tensorflow
 
+
 def load(*args, **kwargs):
     """
     .. deprecated:: 4.0.0
     """
-    raise Exception("""
+    raise Exception(
+        """
 The API for Deep Lake 4.0 has changed significantly, including the `load` method being replaced by `open`.
 To continue using Deep Lake 3.x, use `pip install "deeplake<4"`.
 For information on migrating your code, see https://docs.deeplake.ai/latest/details/v3_conversion/
-    """.replace("\n", " ").strip())
+    """.replace(
+            "\n", " "
+        ).strip()
+    )
+
 
 def empty(*args, **kwargs):
     """
     .. deprecated:: 4.0.0
     """
-    raise Exception("""
+    raise Exception(
+        """
 The API for Deep Lake 4.0 has changed significantly, including the `empty` method being replaced by `create`.
 To continue using Deep Lake 3.x, use `pip install "deeplake<4"`.
 For information on migrating your code, see https://docs.deeplake.ai/latest/details/v3_conversion/
-    """.replace("\n", " ").strip())
+    """.replace(
+            "\n", " "
+        ).strip()
+    )
+
 
 def convert(src: str, dst: str, dst_creds: Dict[str, str] = None):
     """
     Copies the v3 dataset at src into a new dataset in the new v4 format.
     """
 
+    def commit_data(dataset, message="Committing data"):
+        dataset.commit()
+
+    def get_raw_columns(source):
+        return [
+            col.name
+            for col in source.schema.columns
+            if not col.dtype.is_link
+            and col.dtype.kind
+            in {
+                deeplake.types.TypeKind.Image,
+                deeplake.types.TypeKind.SegmentMask,
+                deeplake.types.TypeKind.BinaryMask,
+            }
+        ]
+
+    def transfer_non_link_data(source, dest, batch_size):
+        dl = deeplake._deeplake._Prefetcher(
+            source,
+            batch_size=batch_size,
+            adaptive=True,
+            raw_columns=set(get_raw_columns(source)),
+        )
+        for counter, batch in enumerate(progress_bar(dl), start=1):
+            dest.append(batch)
+            if counter % 100 == 0:
+                commit_data(dest)
+        commit_data(dest, "Final commit of non-link data")
+
+    def transfer_with_links(source, dest, links, column_names, batch_size):
+        iterable_cols = [col for col in column_names if col not in links]
+        link_sample_info = {link: source[link]._links_info() for link in links}
+        dest.set_creds_key(link_sample_info[links[0]]["key"])
+        pref_ds = source.query(f"SELECT {','.join(iterable_cols)}")
+        dl = deeplake._deeplake._Prefetcher(
+            pref_ds,
+            batch_size=batch_size,
+            adaptive=True,
+            raw_columns=set(get_raw_columns(source)),
+        )
+
+        for counter, batch in enumerate(progress_bar(dl), start=1):
+            for link in links:
+                link_data = link_sample_info[link]["data"]
+                start_index = (counter - 1) * batch_size
+                end_index = min((counter) * batch_size, len(link_data))
+                batch[link] = link_data[start_index:end_index]
+
+            dest.append(batch)
+            if counter % 100 == 0:
+                commit_data(dest)
+        commit_data(dest, "Final commit of linked data")
+
     source_ds = deeplake.query(f'select * from "{src}"')
     dest_ds = deeplake.like(source_ds, dst, dst_creds)
-    dest_ds.commit("Created dataset")
+    commit_data(dest_ds, "Created dataset")
 
-    dl = deeplake.Prefetcher(source_ds, batch_size=10000)
-    counter = 0
+    column_names = [col.name for col in source_ds.schema.columns]
+    links = [
+        col.name
+        for col in source_ds.schema.columns
+        if source_ds.schema[col.name].dtype.is_link
+    ]
+    batch_size = 10000
+
     print(f"Transferring {len(source_ds)} rows to {dst}...")
-    for b in dl:
-        dest_ds.append(b)
-        counter += 1
-        if counter > 0 and counter % 100 == 0:
-            dest_ds.commit()
-    dest_ds.commit()
-    print(f"Transferring data.... to {dst}... DONE")
+    if not links:
+        transfer_non_link_data(source_ds, dest_ds, batch_size)
+    else:
+        transfer_with_links(source_ds, dest_ds, links, column_names, batch_size)
 
+    for column in column_names:
+        meta = dict(source_ds[column].metadata)
+        if meta:
+            for key, value in meta.items():
+                dest_ds[column].metadata[key] = value
+
+    commit_data(dest_ds, "Final commit of metadata")
+    print(f"Data transfer to {dst} complete.")
 
 
 def __register_at_fork():
     from ._deeplake import __prepare_atfork, __parent_atfork, __child_atfork
 
     UNSAFE_TYPES = (
-    Dataset, DatasetView, ReadOnlyDataset, Column, ColumnView, ColumnDefinition, ColumnDefinitionView, Row, RowView,
-    RowRange, RowRangeView, Schema, SchemaView, Version, History, Prefetcher,Tag,Tags)
+        Dataset,
+        DatasetView,
+        ReadOnlyDataset,
+        Column,
+        ColumnView,
+        ColumnDefinition,
+        ColumnDefinitionView,
+        Row,
+        RowView,
+        RowRange,
+        RowRangeView,
+        Schema,
+        SchemaView,
+        Version,
+        History,
+        Tag,
+        Tags,
+    )
 
     def check_main_globals_for_unsafe_types():
         import inspect
