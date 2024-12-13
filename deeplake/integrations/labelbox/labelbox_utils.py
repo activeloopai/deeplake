@@ -210,9 +210,10 @@ def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
         # Start export stream
         stream = export_task.get_buffered_stream()
 
-    print("project info is ready for project with id", project_id)
+        print("project info is ready for project with id", project_id)
+        return [data_row.json for data_row in stream]
 
-    return [data_row.json for data_row in stream]
+    raise ValueError("This should not happen")
 
 
 def create_tensors_default_(ds):
