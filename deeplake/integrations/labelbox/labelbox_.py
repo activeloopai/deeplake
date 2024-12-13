@@ -95,7 +95,7 @@ def converter_for_video_project_with_id(
         )
 
         metadata_generators = {
-            tensor_name_generator("name"): {
+            tensor_name_generator("video_name"): {
                 "generator": get_video_name_from_video_project_,
                 "create_tensor_kwargs": {"htype": "text"},
             },
@@ -103,7 +103,7 @@ def converter_for_video_project_with_id(
                 "generator": get_data_row_id_from_video_project_,
                 "create_tensor_kwargs": {"htype": "text"},
             },
-            tensor_name_generator("url"): {
+            tensor_name_generator("row_data"): {
                 "generator": lambda project, ctx: get_data_row_url_from_video_project_(
                     project, ctx
                 ),

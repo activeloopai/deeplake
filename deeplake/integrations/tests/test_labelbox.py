@@ -24,7 +24,7 @@ def validate_ds(ds):
             "mask/mask_labels",
             "lb_meta/current_frame_name",
             "lb_meta/id",
-            "lb_meta/url",
+            "lb_meta/row_data",
             "lb_meta/dataset_id",
             "lb_meta/dataset_name",
             "lb_meta/frame_count",
@@ -33,7 +33,7 @@ def validate_ds(ds):
             "lb_meta/global_key",
             "lb_meta/height",
             "lb_meta/label_creator",
-            "lb_meta/name",
+            "lb_meta/video_name",
             "lb_meta/ontology_id",
             "lb_meta/project_name",
             "lb_meta/width",
@@ -128,21 +128,21 @@ def validate_ds(ds):
     assert np.all(
         ds["lb_meta/global_key"][495:505].numpy()
         == [
-            ['42e8ee3b-92dd-4205-987d-257f961227b4'],
-            ['42e8ee3b-92dd-4205-987d-257f961227b4'],
-            ['42e8ee3b-92dd-4205-987d-257f961227b4'],
-            ['42e8ee3b-92dd-4205-987d-257f961227b4'],
-            ['42e8ee3b-92dd-4205-987d-257f961227b4'],
-            ['0fb82d86-0130-4b4f-bba4-5c4c3f250c93'],
-            ['0fb82d86-0130-4b4f-bba4-5c4c3f250c93'],
-            ['0fb82d86-0130-4b4f-bba4-5c4c3f250c93'],
-            ['0fb82d86-0130-4b4f-bba4-5c4c3f250c93'],
-            ['0fb82d86-0130-4b4f-bba4-5c4c3f250c93']
+            ["42e8ee3b-92dd-4205-987d-257f961227b4"],
+            ["42e8ee3b-92dd-4205-987d-257f961227b4"],
+            ["42e8ee3b-92dd-4205-987d-257f961227b4"],
+            ["42e8ee3b-92dd-4205-987d-257f961227b4"],
+            ["42e8ee3b-92dd-4205-987d-257f961227b4"],
+            ["0fb82d86-0130-4b4f-bba4-5c4c3f250c93"],
+            ["0fb82d86-0130-4b4f-bba4-5c4c3f250c93"],
+            ["0fb82d86-0130-4b4f-bba4-5c4c3f250c93"],
+            ["0fb82d86-0130-4b4f-bba4-5c4c3f250c93"],
+            ["0fb82d86-0130-4b4f-bba4-5c4c3f250c93"],
         ]
     )
 
     assert np.all(
-        ds["lb_meta/url"][495:505].numpy()
+        ds["lb_meta/row_data"][495:505].numpy()
         == [
             [
                 "https://activeloopgen2.blob.core.windows.net/deeplake-tests/video_chunks/output005.mp4"
