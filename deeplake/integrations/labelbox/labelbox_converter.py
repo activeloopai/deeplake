@@ -97,6 +97,8 @@ class labelbox_type_converter:
 
             idx_offset += p["media_attributes"]["frame_count"]
 
+        self.pad_all_tensors(self.dataset)
+
         return self.dataset
 
     def register_tool_(self, tool, context, fix_grouping_only):
@@ -339,6 +341,12 @@ class labelbox_type_converter:
 
         for tensor_name, values in metadata_dict.items():
             dataset[tensor_name].extend(values)
+
+    def pad_all_tensors(self, dataset):
+        ml = dataset.max_len
+        for tensor_name in dataset.tensors:
+            if len(dataset[tensor_name]) < ml:
+                dataset[tensor_name].extend([None] * (ml - len(dataset[tensor_name])))
 
 
 # if changes are made to the labelbox_video_converter class, check if ontology_for_debug works correctly

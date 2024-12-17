@@ -47,10 +47,11 @@ def validate_ds(ds):
 
     assert ds.max_len == 876
 
-    assert len(ds["radio_bttn"]) == 474
+    assert len(ds["radio_bttn"]) == 876
     assert np.all(ds["radio_bttn"][0].numpy() == [[0]])
     assert np.all(ds["radio_bttn"][20].numpy() == [[0]])
     assert np.all(ds["radio_bttn"][23].numpy() == [[1]])
+    assert np.all(ds["radio_bttn"][800].numpy() == [[]])
 
     assert np.all(
         ds["bbox/bbox"][0:3].numpy()
@@ -59,10 +60,11 @@ def validate_ds(ds):
     assert np.all(ds["bbox/fully_visible"][0:3].numpy() == [[0], [0], [0]])
 
     assert np.all(ds["bbox/bbox"][499].numpy() == [[1463, 0, 287, 79]])
-    assert len(ds["bbox/bbox"]) == 500
+    assert np.all(ds["bbox/bbox"][500].numpy() == [])
+    assert len(ds["bbox/bbox"]) == 876
 
     assert np.all(ds["bbox/fully_visible"][499].numpy() == [[1]])
-    assert len(ds["bbox/fully_visible"]) == 500
+    assert len(ds["bbox/fully_visible"]) == 876
 
     assert np.all(ds["radio_bttn"][0].numpy() == [[0]])
     assert np.all(ds["radio_bttn"][0].numpy() == [[0]])
@@ -73,7 +75,8 @@ def validate_ds(ds):
     assert np.all(ds["checklist"][599].numpy() == [[0]])
     assert np.all(ds["checklist"][698].numpy() == [[0]])
     assert np.all(ds["checklist"][699].numpy() == [[1]])
-    assert len(ds["checklist"]) == 739
+    assert np.all(ds["checklist"][800].numpy() == [])
+    assert len(ds["checklist"]) == 876
 
     assert np.all(
         ds["frame_idx"][245:255].numpy()
@@ -85,7 +88,7 @@ def validate_ds(ds):
         == [[495], [496], [497], [498], [499], [0], [1], [2], [3], [4]]
     )
 
-    assert np.all(ds["line"][245:255].numpy() == [])
+    assert np.all(ds["line"][245:255].numpy() == [[]] * 10)
 
     assert np.all(ds["mask/mask_label"][500].numpy() == [1])
     assert np.all(ds["mask/mask_label"][739].numpy() == [0])
@@ -187,10 +190,12 @@ def validate_ds(ds):
         == [[0], [0], [0], [0], [0], [1], [1], [1], [1], [1]]
     )
 
-    assert len(ds["point"]) == 857
+    assert len(ds["point"]) == 876
     assert np.all(ds["point"][0].numpy() == [[]])
     assert np.all(ds["point"][499].numpy() == [[]])
     assert np.all(ds["point"][800].numpy() == [[1630, 49]])
+
+    print(ds.summary())
 
     print("dataset is valid!")
 
