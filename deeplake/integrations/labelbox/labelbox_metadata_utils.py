@@ -18,6 +18,13 @@ def get_data_row_id_from_video_project_(project, ctx):
         return None
 
 
+def get_data_row_url_from_video_project_(project, ctx):
+    try:
+        return project["data_row"]["row_data"]
+    except:
+        return None
+
+
 def get_label_creator_from_video_project_(project, ctx):
     try:
         return project["projects"][ctx["project_id"]]["labels"][0]["label_details"][
@@ -85,6 +92,6 @@ def get_dataset_id_from_video_project_(project, ctx):
 
 def get_global_key_from_video_project_(project, ctx):
     try:
-        return project["data_row"]["details"]["global_key"]
+        return project["data_row"]["global_key"]
     except:
         return None

@@ -22,20 +22,21 @@ def validate_ds(ds):
             "mask/mask",
             "mask/mask_label",
             "mask/mask_labels",
-            "metadata/current_frame_name",
-            "metadata/data_row_id",
-            "metadata/dataset_id",
-            "metadata/dataset_name",
-            "metadata/frame_count",
-            "metadata/frame_number",
-            "metadata/frame_rate",
-            "metadata/global_key",
-            "metadata/height",
-            "metadata/label_creator",
-            "metadata/name",
-            "metadata/ontology_id",
-            "metadata/project_name",
-            "metadata/width",
+            "lb_meta/current_frame_name",
+            "lb_meta/id",
+            "lb_meta/row_data",
+            "lb_meta/dataset_id",
+            "lb_meta/dataset_name",
+            "lb_meta/frame_count",
+            "lb_meta/frame_number",
+            "lb_meta/frame_rate",
+            "lb_meta/global_key",
+            "lb_meta/height",
+            "lb_meta/label_creator",
+            "lb_meta/video_name",
+            "lb_meta/ontology_id",
+            "lb_meta/project_name",
+            "lb_meta/width",
             "point",
             "radio_bttn",
             "radio_bttn_scale",
@@ -46,10 +47,11 @@ def validate_ds(ds):
 
     assert ds.max_len == 876
 
-    assert len(ds["radio_bttn"]) == 474
+    assert len(ds["radio_bttn"]) == 876
     assert np.all(ds["radio_bttn"][0].numpy() == [[0]])
     assert np.all(ds["radio_bttn"][20].numpy() == [[0]])
     assert np.all(ds["radio_bttn"][23].numpy() == [[1]])
+    assert np.all(ds["radio_bttn"][800].numpy() == [[]])
 
     assert np.all(
         ds["bbox/bbox"][0:3].numpy()
@@ -58,10 +60,11 @@ def validate_ds(ds):
     assert np.all(ds["bbox/fully_visible"][0:3].numpy() == [[0], [0], [0]])
 
     assert np.all(ds["bbox/bbox"][499].numpy() == [[1463, 0, 287, 79]])
-    assert len(ds["bbox/bbox"]) == 500
+    assert np.all(ds["bbox/bbox"][500].numpy() == [])
+    assert len(ds["bbox/bbox"]) == 876
 
     assert np.all(ds["bbox/fully_visible"][499].numpy() == [[1]])
-    assert len(ds["bbox/fully_visible"]) == 500
+    assert len(ds["bbox/fully_visible"]) == 876
 
     assert np.all(ds["radio_bttn"][0].numpy() == [[0]])
     assert np.all(ds["radio_bttn"][0].numpy() == [[0]])
@@ -72,7 +75,8 @@ def validate_ds(ds):
     assert np.all(ds["checklist"][599].numpy() == [[0]])
     assert np.all(ds["checklist"][698].numpy() == [[0]])
     assert np.all(ds["checklist"][699].numpy() == [[1]])
-    assert len(ds["checklist"]) == 739
+    assert np.all(ds["checklist"][800].numpy() == [])
+    assert len(ds["checklist"]) == 876
 
     assert np.all(
         ds["frame_idx"][245:255].numpy()
@@ -84,7 +88,7 @@ def validate_ds(ds):
         == [[495], [496], [497], [498], [499], [0], [1], [2], [3], [4]]
     )
 
-    assert np.all(ds["line"][245:255].numpy() == [])
+    assert np.all(ds["line"][245:255].numpy() == [[]] * 10)
 
     assert np.all(ds["mask/mask_label"][500].numpy() == [1])
     assert np.all(ds["mask/mask_label"][739].numpy() == [0])
@@ -93,9 +97,8 @@ def validate_ds(ds):
     assert np.all(ds["mask/mask_labels"][739].numpy() == [0])
 
     assert np.all(
-        ds["metadata/current_frame_name"][245:255].numpy()
+        ds["lb_meta/current_frame_name"][245:255].numpy()
         == [
-            ["output005_000245"],
             ["output005_000246"],
             ["output005_000247"],
             ["output005_000248"],
@@ -105,22 +108,75 @@ def validate_ds(ds):
             ["output005_000252"],
             ["output005_000253"],
             ["output005_000254"],
+            ["output005_000255"],
         ]
     )
 
     assert np.all(
-        ds["metadata/current_frame_name"][495:505].numpy()
+        ds["lb_meta/current_frame_name"][495:505].numpy()
         == [
-            ["output005_000495"],
             ["output005_000496"],
             ["output005_000497"],
             ["output005_000498"],
             ["output005_000499"],
-            ["output004_000000"],
+            ["output005_000500"],
             ["output004_000001"],
             ["output004_000002"],
             ["output004_000003"],
             ["output004_000004"],
+            ["output004_000005"],
+        ]
+    )
+
+    assert np.all(
+        ds["lb_meta/global_key"][495:505].numpy()
+        == [
+            ["42e8ee3b-92dd-4205-987d-257f961227b4"],
+            ["42e8ee3b-92dd-4205-987d-257f961227b4"],
+            ["42e8ee3b-92dd-4205-987d-257f961227b4"],
+            ["42e8ee3b-92dd-4205-987d-257f961227b4"],
+            ["42e8ee3b-92dd-4205-987d-257f961227b4"],
+            ["0fb82d86-0130-4b4f-bba4-5c4c3f250c93"],
+            ["0fb82d86-0130-4b4f-bba4-5c4c3f250c93"],
+            ["0fb82d86-0130-4b4f-bba4-5c4c3f250c93"],
+            ["0fb82d86-0130-4b4f-bba4-5c4c3f250c93"],
+            ["0fb82d86-0130-4b4f-bba4-5c4c3f250c93"],
+        ]
+    )
+
+    assert np.all(
+        ds["lb_meta/row_data"][495:505].numpy()
+        == [
+            [
+                "https://activeloopgen2.blob.core.windows.net/deeplake-tests/video_chunks/output005.mp4"
+            ],
+            [
+                "https://activeloopgen2.blob.core.windows.net/deeplake-tests/video_chunks/output005.mp4"
+            ],
+            [
+                "https://activeloopgen2.blob.core.windows.net/deeplake-tests/video_chunks/output005.mp4"
+            ],
+            [
+                "https://activeloopgen2.blob.core.windows.net/deeplake-tests/video_chunks/output005.mp4"
+            ],
+            [
+                "https://activeloopgen2.blob.core.windows.net/deeplake-tests/video_chunks/output005.mp4"
+            ],
+            [
+                "https://activeloopgen2.blob.core.windows.net/deeplake-tests/video_chunks/output004.mp4"
+            ],
+            [
+                "https://activeloopgen2.blob.core.windows.net/deeplake-tests/video_chunks/output004.mp4"
+            ],
+            [
+                "https://activeloopgen2.blob.core.windows.net/deeplake-tests/video_chunks/output004.mp4"
+            ],
+            [
+                "https://activeloopgen2.blob.core.windows.net/deeplake-tests/video_chunks/output004.mp4"
+            ],
+            [
+                "https://activeloopgen2.blob.core.windows.net/deeplake-tests/video_chunks/output004.mp4"
+            ],
         ]
     )
 
@@ -134,10 +190,12 @@ def validate_ds(ds):
         == [[0], [0], [0], [0], [0], [1], [1], [1], [1], [1]]
     )
 
-    assert len(ds["point"]) == 857
+    assert len(ds["point"]) == 876
     assert np.all(ds["point"][0].numpy() == [[]])
     assert np.all(ds["point"][499].numpy() == [[]])
     assert np.all(ds["point"][800].numpy() == [[1630, 49]])
+
+    print(ds.summary())
 
     print("dataset is valid!")
 

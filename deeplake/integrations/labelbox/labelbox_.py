@@ -18,7 +18,7 @@ def converter_for_video_project_with_id(
     fail_on_error=False,
     fail_on_labelbox_project_export_error=False,
     generate_metadata=True,
-    metadata_prefix="metadata",
+    metadata_prefix="lb_meta",
 ) -> Optional[labelbox_video_converter]:
     """
     Creates a converter for Labelbox video project to a Deeplake dataset format based on annotation types.
@@ -32,7 +32,7 @@ def converter_for_video_project_with_id(
         fail_on_error (bool, optional): Whether to raise an exception if data validation fails. Defaults to False.
         fail_on_labelbox_project_export_error (bool, optional): Whether to raise an exception if Labelbox project export fails. Defaults to False.
         generate_metadata (bool, optional): Whether to generate metadata tensors. Defaults to True.
-        metadata_prefix (str, optional): Prefix for metadata tensors. Defaults to "metadata". Will be ignored if generate_metadata is False.
+        metadata_prefix (str, optional): Prefix for metadata tensors. Defaults to "lb_meta". Will be ignored if generate_metadata is False.
 
 
     Returns:
@@ -95,12 +95,18 @@ def converter_for_video_project_with_id(
         )
 
         metadata_generators = {
-            tensor_name_generator("name"): {
+            tensor_name_generator("video_name"): {
                 "generator": get_video_name_from_video_project_,
                 "create_tensor_kwargs": {"htype": "text"},
             },
-            tensor_name_generator("data_row_id"): {
+            tensor_name_generator("id"): {
                 "generator": get_data_row_id_from_video_project_,
+                "create_tensor_kwargs": {"htype": "text"},
+            },
+            tensor_name_generator("row_data"): {
+                "generator": lambda project, ctx: get_data_row_url_from_video_project_(
+                    project, ctx
+                ),
                 "create_tensor_kwargs": {"htype": "text"},
             },
             tensor_name_generator("label_creator"): {
@@ -144,11 +150,12 @@ def converter_for_video_project_with_id(
                 "create_tensor_kwargs": {"htype": "text"},
             },
             tensor_name_generator("frame_number"): {
-                "generator": lambda project, ctx: ctx["frame_idx"],
+                "generator": lambda project, ctx: ctx["frame_idx"]
+                + 1,  # 1-indexed frame number
                 "create_tensor_kwargs": {"htype": "generic", "dtype": "int32"},
             },
             tensor_name_generator("current_frame_name"): {
-                "generator": lambda project, ctx: f"{get_video_name_from_video_project_(project, ctx)}_{ctx['frame_idx']:06d}",
+                "generator": lambda project, ctx: f"{get_video_name_from_video_project_(project, ctx)}_{(ctx['frame_idx'] + 1):06d}",  # 1-indexed frame number
                 "create_tensor_kwargs": {"htype": "text"},
             },
         }

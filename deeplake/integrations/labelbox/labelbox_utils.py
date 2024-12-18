@@ -169,18 +169,22 @@ def validate_project_creation_data_(proj, project_id, type):
 def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
     # Set the export params to include/exclude certain fields.
     export_params = {
-        "attachments": False,
-        "metadata_fields": False,
+        "attachments": True,
+        "metadata_fields": True,
         "data_row_details": True,
         "project_details": True,
         "label_details": True,
-        "performance_details": False,
+        "performance_details": True,
         "interpolated_frames": True,
-        "embeddings": False,
+    }
+
+    # Note: Filters follow AND logic, so typically using one filter is sufficient.
+    filters = {
+        "last_activity_at": ["2000-01-01 00:00:00", "2050-01-01 00:00:00"],
     }
 
     project = client.get_project(project_id)
-    export_task = project.export_v2(params=export_params)
+    export_task = project.export(params=export_params, filters=filters)
 
     print(
         "requesting project info from labelbox with id",
@@ -190,16 +194,26 @@ def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
     )
     export_task.wait_till_done()
 
-    if export_task.errors:
-        if fail_on_error:
-            raise ValueError(
-                f"Labelbox export task failed with errors: {export_task.errors}"
-            )
-        print("Labelbox export task failed with errors:", export_task.errors)
+    # Stream results and errors
+    if export_task.has_errors():
 
-    print("project info is ready for project with id", project_id)
+        def error_handler(error):
+            if fail_on_error:
+                raise ValueError(f"Labelbox export task failed with errors: {error}")
+            print("Labelbox export task failed with errors:", error)
 
-    return export_task.result
+        export_task.get_buffered_stream(stream_type=lb.StreamType.ERRORS).start(
+            stream_handler=error_handler
+        )
+
+    if export_task.has_result():
+        # Start export stream
+        stream = export_task.get_buffered_stream()
+
+        print("project info is ready for project with id", project_id)
+        return [data_row.json for data_row in stream]
+
+    raise ValueError("This should not happen")
 
 
 def create_tensors_default_(ds):
