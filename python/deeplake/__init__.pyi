@@ -259,35 +259,158 @@ class Metadata(ReadOnlyMetadata):
 
 def query(query: str, token: str | None = None) -> DatasetView:
     """
-    Executes the given TQL query and returns a DatasetView.
+    Executes a TQL (Tensor Query Language) query and returns a filtered DatasetView.
+    
+    TQL provides SQL-like querying capabilities specifically designed for ML datasets, allowing you 
+    to filter, sort, and select data based on various criteria including vector similarity.
 
-    Compared to [deeplake.Dataset.query][], this version of query can join multiple datasets together
-    or query a single dataset without opening it first.
+    Args:
+        query: A TQL query string. The query can:
+            - Filter rows using WHERE clauses
+            - Sort results using ORDER BY
+            - Select specific columns using SELECT
+            - Perform vector similarity search using BM25_SIMILARITY
+            - Join multiple datasets
+        token: Optional Activeloop token for authentication. Not required if using environment 
+            credentials.
+
+    Returns:
+        DatasetView: A view containing the query results. The view can be:
+            - Used directly for ML training
+            - Further filtered with additional queries
+            - Converted to PyTorch/TensorFlow dataloaders
+            - Materialized into a new dataset
 
     Examples:
+        Basic filtering:
         ```python
-        r = deeplake.query("select * from \\"al://my_org/dataset\\" where id > 30")
+        # Select images with high confidence labels
+        view = deeplake.query(f'SELECT * FROM "{ds_path}" WHERE confidence > 0.9')
+        
+        # Get samples from specific classes
+        cats = deeplake.query(f'SELECT * FROM "{ds_path}" WHERE label IN (\'cat\', \'kitten\')')
+        ```
+
+        Text similarity search:
+        ```python
+        # Find semantically similar text using BM25
+        similar = deeplake.query(f'''
+            SELECT * FROM "{ds_path}"
+            ORDER BY BM25_SIMILARITY(text_column, 'query text') DESC 
+            LIMIT 100
+        ''')
+        ```
+
+        Vector similarity search:
+        ```python
+        # Find nearest neighbor embeddings
+        neighbors = deeplake.query(f'''
+            SELECT * FROM "{ds_path}"
+            ORDER BY COSINE_SIMILARITY(embedding, ARRAY[0.1, 0.2, ...]) DESC
+            LIMIT 10
+        ''')
+        ```
+
+        Joins across datasets:
+        ```python
+        # Join images with their metadata
+        results = deeplake.query(f'''
+            SELECT i.image, m.label, m.bbox 
+            FROM "{image_ds_path}" AS i
+            JOIN "{metadata_ds_path}" AS m ON i.id = m.image_id
+            WHERE m.verified = true
+        ''')
+        ```
+
+        Using with ML frameworks:
+        ```python
+        # Filter dataset and create PyTorch dataloader
+        train_data = deeplake.query("SELECT * FROM dataset WHERE split = 'train'")
+        train_loader = train_data.pytorch().dataloader(batch_size=32)
         ```
     """
-
     ...
 
 def query_async(query: str, token: str | None = None) -> Future:
     """
-    Asynchronously executes the given TQL query and returns a Future that will resolve into DatasetView.
+    Asynchronously executes a TQL (Tensor Query Language) query and returns a Future that will resolve into DatasetView.
+    
+    TQL provides SQL-like querying capabilities specifically designed for ML datasets, allowing you 
+    to filter, sort, and select data based on various criteria including vector similarity.
+
+    Args:
+        query: A TQL query string. The query can:
+            - Filter rows using WHERE clauses
+            - Sort results using ORDER BY
+            - Select specific columns using SELECT
+            - Perform vector similarity search using BM25_SIMILARITY
+            - Join multiple datasets
+        token: Optional Activeloop token for authentication. Not required if using environment 
+            credentials.
+
+    Returns:
+        Future: A Future object that resolves to a DatasetView. The resulting view can be:
+            - Used directly for ML training
+            - Further filtered with additional queries
+            - Converted to PyTorch/TensorFlow dataloaders
+            - Materialized into a new dataset
 
     Examples:
+        Basic filtering with await:
         ```python
-        future = deeplake.query_async("select * where category == 'active'")
-        result = future.result()
-        for row in result:
-            print("Id is: ", row["id"])
+        # Select images with high confidence labels
+        view = await deeplake.query_async(f'SELECT * FROM "{ds_path}" WHERE confidence > 0.9')
+        
+        # Get samples from specific classes
+        cats = await deeplake.query_async(f'SELECT * FROM "{ds_path}" WHERE label IN (\'cat\', \'kitten\')')
+        ```
 
-        # or use the Future in an await expression
-        future = deeplake.query_async("select * where category == 'active'")
-        result = await future
-        for row in result:
-            print("Id is: ", row["id"])
+        Text similarity search with Future.result():
+        ```python
+        # Find semantically similar text using BM25
+        future = deeplake.query_async(f'''
+            SELECT * FROM "{ds_path}"
+            ORDER BY BM25_SIMILARITY(text_column, 'query text') DESC 
+            LIMIT 100
+        ''')
+        similar = future.result()  # Blocks until query completes
+        ```
+
+        Vector similarity search:
+        ```python
+        # Find nearest neighbor embeddings
+        neighbors = await deeplake.query_async(f'''
+            SELECT * FROM "{ds_path}"
+            ORDER BY COSINE_SIMILARITY(embedding, ARRAY[0.1, 0.2, ...]) DESC
+            LIMIT 10
+        ''')
+        ```
+
+        Joins across datasets:
+        ```python
+        # Join images with their metadata
+        results = await deeplake.query_async(f'''
+            SELECT i.image, m.label, m.bbox 
+            FROM "{image_ds_path}" AS i
+            JOIN "{metadata_ds_path}" AS m ON i.id = m.image_id
+            WHERE m.verified = true
+        ''')
+        ```
+
+        Using with ML frameworks:
+        ```python
+        # Filter dataset and create PyTorch dataloader
+        future = deeplake.query_async(f'SELECT * FROM "{ds_path}" WHERE split = \'train\'')
+        train_data = future.result()
+        train_loader = train_data.pytorch().dataloader(batch_size=32)
+        ```
+
+        Non-blocking check:
+        ```python
+        # Check if query is complete without blocking
+        future = deeplake.query_async(f'SELECT * FROM "{ds_path}"')
+        if future.is_completed():
+            results = future.result()
         ```
     """
     ...
@@ -503,24 +626,245 @@ class ColumnDefinitionView:
 
 class ColumnView:
     """
-    Provides access to a column in a dataset.
+    Provides read-only access to a column in a dataset. ColumnView is designed for efficient 
+    data access in ML workflows, supporting both synchronous and asynchronous operations.
+
+    The ColumnView class allows you to:
+    - Access column data using integer indices, slices, or lists of indices
+    - Retrieve data asynchronously for better performance in ML pipelines
+    - Access column metadata and properties
+    - Get information about linked data if the column contains references
+
+    Examples:
+        Load image data from a column for training
+        ```python
+        # Access a single image
+        image = dataset["images"][0]
+        
+        # Load a batch of images
+        batch = dataset["images"][0:32]
+        
+        # Async load for better performance
+        images_future = dataset["images"].get_async(0:32)
+        images = images_future.result()
+        ```
+
+        Access embeddings for similarity search
+        ```python
+        # Get all embeddings
+        embeddings = dataset["embeddings"][:]
+        
+        # Get specific embeddings by indices
+        selected = dataset["embeddings"][[1, 5, 10]]
+        ```
+
+        Check column properties
+        ```python
+        # Get column name
+        name = dataset["images"].name
+        
+        # Access metadata
+        if "mean" in dataset["images"].metadata:
+            mean = dataset["images"].metadata["mean"]
+        ```
     """
 
-    def __getitem__(self, index: int | slice | list | tuple) -> typing.Any: ...
-    def get_async(self, index: int | slice | list | tuple) -> Future: ...
-    def __len__(self) -> int: ...
+    def __getitem__(self, index: int | slice | list | tuple) -> typing.Any:
+        """
+        Retrieve data from the column at the specified index or range.
+
+        Parameters:
+            index: Can be:
+                - int: Single item index
+                - slice: Range of indices (e.g., 0:10)
+                - list/tuple: Multiple specific indices
+
+        Returns:
+            The data at the specified index/indices. Type depends on the column's data type.
+
+        Examples:
+            ```python
+            # Get single item
+            image = column[0]
+            
+            # Get range
+            batch = column[0:32]
+            
+            # Get specific indices
+            items = column[[1, 5, 10]]
+            ```
+        """
+        ...
+
+    def get_async(self, index: int | slice | list | tuple) -> Future:
+        """
+        Asynchronously retrieve data from the column. Useful for large datasets or when 
+        loading multiple items in ML pipelines.
+
+        Parameters:
+            index: Can be:
+                - int: Single item index
+                - slice: Range of indices
+                - list/tuple: Multiple specific indices
+
+        Returns:
+            Future: A Future object that resolves to the requested data.
+
+        Examples:
+            ```python
+            # Async batch load
+            future = column.get_async(0:32)
+            batch = future.result()
+            
+            # Using with async/await
+            batch = await column.get_async(0:32)
+            ```
+        """
+        ...
+
+    def __len__(self) -> int:
+        """
+        Get the number of items in the column.
+
+        Returns:
+            int: Number of items in the column.
+        """
+        ...
+
     def __str__(self) -> str: ...
-    def _links_info(self) -> dict: ...
+
+    def _links_info(self) -> dict:
+        """
+        Get information about linked data if this column contains references to other datasets.
+        
+        Internal method used primarily for debugging and advanced operations.
+
+        Returns:
+            dict: Information about linked data.
+        """
+        ...
+
     @property
-    def metadata(self) -> ReadOnlyMetadata: ...
+    def metadata(self) -> ReadOnlyMetadata:
+        """
+        Access the column's metadata. Useful for storing statistics, preprocessing parameters,
+        or other information about the column data.
+
+        Examples:
+            ```python
+            # Access preprocessing parameters
+            mean = column.metadata["mean"]
+            std = column.metadata["std"]
+            
+            # Check available metadata
+            for key in column.metadata.keys():
+                print(f"{key}: {column.metadata[key]}")
+            ```
+        """
+        ...
+
     @property
-    def name(self) -> str: ...
+    def name(self) -> str:
+        """
+        Get the name of the column.
+
+        Returns:
+            str: The column name.
+        """
+        ...
+
 
 class Column(ColumnView):
-    def __setitem__(self, index: int | slice, value: typing.Any) -> None: ...
-    def set_async(self, index: int | slice, value: typing.Any) -> FutureVoid: ...
+    """
+    Provides read-write access to a column in a dataset. Column extends ColumnView with 
+    methods for modifying data, making it suitable for dataset creation and updates in 
+    ML workflows.
+
+    The Column class allows you to:
+    - Read and write data using integer indices, slices, or lists of indices
+    - Modify data asynchronously for better performance
+    - Access and modify column metadata
+    - Handle various data types common in ML: images, embeddings, labels, etc.
+
+    Examples:
+        Update training labels
+        ```python
+        # Update single label
+        dataset["labels"][0] = 1
+        
+        # Update batch of labels
+        dataset["labels"][0:32] = new_labels
+        
+        # Async update for better performance
+        future = dataset["labels"].set_async(0:32, new_labels)
+        future.wait()
+        ```
+
+        Store image embeddings
+        ```python
+        # Generate and store embeddings
+        embeddings = model.encode(images)
+        dataset["embeddings"][0:len(embeddings)] = embeddings
+        ```
+
+        Manage column metadata
+        ```python
+        # Store preprocessing parameters
+        dataset["images"].metadata["mean"] = [0.485, 0.456, 0.406]
+        dataset["images"].metadata["std"] = [0.229, 0.224, 0.225]
+        ```
+    """
+
+    def __setitem__(self, index: int | slice, value: typing.Any) -> None:
+        """
+        Set data in the column at the specified index or range.
+
+        Parameters:
+            index: Can be:
+                - int: Single item index
+                - slice: Range of indices (e.g., 0:10)
+            value: The data to store. Must match the column's data type.
+
+        Examples:
+            ```python
+            # Update single item
+            column[0] = new_image
+            
+            # Update range
+            column[0:32] = new_batch
+            ```
+        """
+        ...
+
+    def set_async(self, index: int | slice, value: typing.Any) -> FutureVoid:
+        """
+        Asynchronously set data in the column. Useful for large updates or when 
+        modifying multiple items in ML pipelines.
+
+        Parameters:
+            index: Can be:
+                - int: Single item index
+                - slice: Range of indices
+            value: The data to store. Must match the column's data type.
+
+        Returns:
+            FutureVoid: A FutureVoid that completes when the update is finished.
+
+        Examples:
+            ```python
+            # Async batch update
+            future = column.set_async(0:32, new_batch)
+            future.wait()
+            
+            # Using with async/await
+            await column.set_async(0:32, new_batch)
+            ```
+        """
+        ...
+
     @property
     def metadata(self) -> Metadata: ...
+
 
 class Version:
     """
@@ -855,7 +1199,7 @@ class DatasetView:
             ds.add_column("id", int)
             ds.add_column("name", str)
             ds.append({"id": [1,2,3], "name": ["Mary", "Joe", "Bill"]})
-
+            
             row = ds[1]
             print("Id:", row["id"], "Name:", row["name"]) # Output: 2 Name: Joe
             rows = ds[1:2]
@@ -986,7 +1330,7 @@ class DatasetView:
         Examples:
             ```python
             from torch.utils.data import DataLoader
-
+            
             ds = deeplake.open("path/to/dataset")
             dataloader = DataLoader(ds.pytorch(), batch_size=60,
                                         shuffle=True, num_workers=10)
@@ -1014,6 +1358,7 @@ class DatasetView:
             ```
         """
         ...
+
 
 class Dataset(DatasetView):
     """
@@ -1122,9 +1467,7 @@ class Dataset(DatasetView):
         """
         ...
 
-    def __getitem__(
-        self, input: int | slice | list | tuple | str
-    ) -> Row | RowRange | Column:
+    def __getitem__(self, input: int | slice | list | tuple | str) -> Row | RowRange | Column:
         """
         Returns a subset of data from the Dataset
 
@@ -1867,7 +2210,7 @@ def create(
         ```python
         import deeplake
         from deeplake import types
-
+        
         # Create a dataset in your local filesystem:
         ds = deeplake.create("directory_path")
         ds.add_column("id", types.Int32())
@@ -1936,7 +2279,7 @@ def create_async(
         ```python
         import deeplake
         from deeplake import types
-
+        
         # Asynchronously create a dataset in your local filesystem:
         ds = await deeplake.create_async("directory_path")
         await ds.add_column("id", types.Int32())
