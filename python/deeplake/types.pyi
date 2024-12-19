@@ -38,14 +38,19 @@ __all__ = [
 ]
 
 class QuantizationType:
-    Binary: typing.ClassVar[QuantizationType]
     """
-    Stores a binary quantized representation of the original embedding in the index rather than the a full copy of the embedding.
-    
-    This slightly decreases accuracy of searches, while significantly improving query time.   
+    Enumeration of available quantization types for embeddings.
+
+    Members:
+        Binary:
+            Stores a binary quantized representation of the original embedding in the index 
+            rather than a full copy of the embedding. This slightly decreases accuracy of 
+            searches, while significantly improving query time.
     """
 
+    Binary: typing.ClassVar[QuantizationType]
     __members__: typing.ClassVar[dict[str, QuantizationType]]
+    
     def __eq__(self, other: typing.Any) -> bool: ...
     def __getstate__(self) -> int: ...
     def __hash__(self) -> int: ...
@@ -56,20 +61,41 @@ class QuantizationType:
     def __repr__(self) -> str: ...
     def __setstate__(self, state: int) -> None: ...
     def __str__(self) -> str: ...
+    
     @property
-    def name(self) -> str: ...
+    def name(self) -> str:
+        """
+        Returns:
+            str: The name of the quantization type.
+        """
+        ...
+    
     @property
-    def value(self) -> int: ...
+    def value(self) -> int:
+        """
+        Returns:
+            int: The integer value of the quantization type.
+        """
+        ...
 
 Binary: QuantizationType
+"""
+Binary quantization type for embeddings.
+
+This slightly decreases accuracy of searches while significantly improving query time
+by storing a binary quantized representation instead of the full embedding.
+"""
 
 class TextIndexType:
     """
+    Enumeration of available text indexing types.
+
     Members:
-
-      Inverted
-
-      BM25
+        Inverted:
+            A text index that supports keyword lookup. Can be used with ``CONTAINS(column, 'wanted_value')``.
+        BM25:
+            A BM25-based index of text data. Can be used with ``BM25_SIMILARITY(column, 'search text')`` 
+            in a TQL ``ORDER BY`` clause.
     """
 
     BM25: typing.ClassVar[TextIndexType]
@@ -86,14 +112,28 @@ class TextIndexType:
     def __repr__(self) -> str: ...
     def __setstate__(self, state: int) -> None: ...
     def __str__(self) -> str: ...
+    
     @property
-    def name(self) -> str: ...
+    def name(self) -> str:
+        """
+        Returns:
+            str: The name of the text index type.
+        """
+        ...
+    
     @property
-    def value(self) -> int: ...
+    def value(self) -> int:
+        """
+        Returns:
+            int: The integer value of the text index type.
+        """
+        ...
 
 class DataType:
     """
     The base class all specific types extend from.
+
+    This class provides the foundation for all data types in the deeplake.
     """
 
     def __eq__(self, other: DataType) -> bool: ...
@@ -101,67 +141,106 @@ class DataType:
     def __str__(self) -> str: ...
 
 class Type:
-    """ """
+    """
+    Base class for all complex data types in the deeplake.
+    
+    This class extends DataType to provide additional functionality for complex types
+    like images, embeddings, and sequences.
+    """
 
     def __str__(self) -> str: ...
     def __eq__(self, other: Type) -> bool: ...
     def __ne__(self, other: Type) -> bool: ...
-    @property(readonly=True)
-    def data_type(self) -> DataType: ...
-    @property(readonly=True)
-    # Temporary workaround. Need to remove `deeplake._deeplake` from the return type.
-    def default_format(self) -> deeplake._deeplake.formats.DataFormat: ...
+
     @property
-    def id(self) -> str:
+    def data_type(self) -> DataType:
         """
-        The id (name) of the data type
+        Returns:
+            DataType: The underlying data type of this type.
         """
         ...
 
     @property
-    def is_sequence(self) -> bool: ...
+    def default_format(self) -> deeplake._deeplake.formats.DataFormat:
+        """
+        Returns:
+            DataFormat: The default format used for this type.
+        """
+        ...
+
     @property
-    def is_link(self) -> bool: ...
+    def id(self) -> str:
+        """
+        Returns:
+            str: The id (name) of the data type.
+        """
+        ...
+
     @property
-    def is_image(self) -> bool: ...
+    def is_sequence(self) -> bool:
+        """
+        Returns:
+            bool: True if this type is a sequence, False otherwise.
+        """
+        ...
+
     @property
-    def is_segment_mask(self) -> bool: ...
+    def is_link(self) -> bool:
+        """
+        Returns:
+            bool: True if this type is a link, False otherwise.
+        """
+        ...
+
     @property
-    def kind(self) -> TypeKind: ...
+    def is_image(self) -> bool:
+        """
+        Returns:
+            bool: True if this type is an image, False otherwise.
+        """
+        ...
+
+    @property
+    def is_segment_mask(self) -> bool:
+        """
+        Returns:
+            bool: True if this type is a segment mask, False otherwise.
+        """
+        ...
+
+    @property
+    def kind(self) -> TypeKind:
+        """
+        Returns:
+            TypeKind: The kind of this type.
+        """
+        ...
+
     @property
     def shape(self) -> list[int] | None:
         """
-        The shape of the data type if applicable. Otherwise none
+        Returns:
+            list[int] | None: The shape of the data type if applicable, otherwise None.
         """
         ...
 
 class TypeKind:
     """
+    Enumeration of all available type kinds in the deeplake.
+
     Members:
-
-      Generic
-
-      Text
-
-      Dict
-
-      Embedding
-
-      Sequence
-
-      Image
-
-      BoundingBox
-
-      BinaryMask
-
-      SegmentMask
-
-      Polygon
-
-      ClassLabel
-
-      Link
+        Generic: Generic data type
+        Text: Text data type
+        Dict: Dictionary data type
+        Embedding: Embedding data type
+        Sequence: Sequence data type
+        Image: Image data type
+        BoundingBox: Bounding box data type
+        BinaryMask: Binary mask data type
+        SegmentMask: Segmentation mask data type
+        Polygon: Polygon data type
+        ClassLabel: Class label data type
+        Link: Link data type
     """
 
     BinaryMask: typing.ClassVar[TypeKind]
@@ -177,6 +256,7 @@ class TypeKind:
     Sequence: typing.ClassVar[TypeKind]
     Text: typing.ClassVar[TypeKind]
     __members__: typing.ClassVar[dict[str, TypeKind]]
+
     def __eq__(self, other: typing.Any) -> bool: ...
     def __getstate__(self) -> int: ...
     def __hash__(self) -> int: ...
@@ -187,99 +267,132 @@ class TypeKind:
     def __repr__(self) -> str: ...
     def __setstate__(self, state: int) -> None: ...
     def __str__(self) -> str: ...
+    
     @property
-    def name(self) -> str: ...
+    def name(self) -> str:
+        """
+        Returns:
+            str: The name of the type kind.
+        """
+        ...
+    
     @property
-    def value(self) -> int: ...
+    def value(self) -> int:
+        """
+        Returns:
+            int: The integer value of the type kind.
+        """
+        ...
 
 @typing.overload
 def Array(dtype: DataType | str, dimensions: int) -> DataType: ...
 @typing.overload
 def Array(dtype: DataType | str, shape: list[int]) -> DataType: ...
+
 def Array(dtype: DataType | str, dimensions: int, shape: list[int]) -> DataType:
     """
-    A generic array of data.
+    Creates a generic array of data.
 
     Parameters:
-        dtype: The datatype of values in the array
-        dimensions: The number of dimensions/axies in the array. Unlike specifying `shape`, there is no constraint on the size of each dimension.
-        shape: Constrain the size of each dimension in the array
+        dtype: DataType | str
+            The datatype of values in the array
+        dimensions: int
+            The number of dimensions/axes in the array. Unlike specifying ``shape``,
+            there is no constraint on the size of each dimension.
+        shape: list[int]
+            Constrain the size of each dimension in the array
+
+    Returns:
+        DataType: A new array data type with the specified parameters.
 
     Examples:
-        ```python
-        # Create a three-dimensional array, where each dimension can have any number of elements
-        ds.add_column("col1", types.Array("int32", dimensions=3))
+        Create a three-dimensional array, where each dimension can have any number of elements::
 
-        # Create a three-dimensional array, where each dimension has a known size
-        ds.add_column("col2", types.Array(types.Float32(), shape=[50, 30, 768]))
-        ```
+            ds.add_column("col1", types.Array("int32", dimensions=3))
+        
+        Create a three-dimensional array, where each dimension has a known size::
+
+            ds.add_column("col2", types.Array(types.Float32(), shape=[50, 30, 768]))
     """
     ...
 
 def Bool() -> DataType:
     """
-    A boolean value
+    Creates a boolean value type.
+
+    Returns:
+        DataType: A new boolean data type.
 
     Examples:
-        ```python
-        ds.add_column("col1", types.Bool)
-        ds.add_column("col2", "bool")
-        ```
+        Create columns with boolean type::
+
+            ds.add_column("col1", types.Bool)
+            ds.add_column("col2", "bool")
     """
     ...
 
 def Text(index_type: str | TextIndexType | None = None) -> Type:
     """
-    Text data of arbitrary length.
-
-    Options for index_type are:
-
-    - [deeplake.types.Inverted][]
-    - [deeplake.types.BM25][]
+    Creates a text data type of arbitrary length.
 
     Parameters:
-        index_type: How to index the data in the column for faster searching. Default is `None` meaning "do not index"
+        index_type: str | TextIndexType | None
+            How to index the data in the column for faster searching.
+            Options are:
+            
+            - :class:`deeplake.types.Inverted`
+            - :class:`deeplake.types.BM25`
+            
+            Default is ``None`` meaning "do not index"
+
+    Returns:
+        Type: A new text data type.
 
     Examples:
-        ```python
-        ds.add_column("col1", types.Text)
-        ds.add_column("col2", "text")
-        ds.add_column("col3", str)
-        ds.add_column("col4", types.Text(index_type=types.Inverted))
-        ds.add_column("col4", types.Text(index_type=types.BM25))
-        ```
+        Create text columns with different configurations::
+
+            ds.add_column("col1", types.Text)
+            ds.add_column("col2", "text")
+            ds.add_column("col3", str)
+            ds.add_column("col4", types.Text(index_type=types.Inverted))
+            ds.add_column("col4", types.Text(index_type=types.BM25))
     """
     ...
 
 BM25: TextIndexType
 """
-A [BM25](https://en.wikipedia.org/wiki/Okapi_BM25) based index of text data.
+A BM25-based index of text data.
 
-This index can be used with `BM25_SIMILARITY(column, 'search text')` in a TQL `ORDER BY` clause.
+This index can be used with ``BM25_SIMILARITY(column, 'search text')`` in a TQL ``ORDER BY`` clause.
+
+See Also:
+    `BM25 Algorithm <https://en.wikipedia.org/wiki/Okapi_BM25>`_
 """
 
 Inverted: TextIndexType
 """
 A text index that supports keyword lookup.
 
-This index can be used with `CONTAINS(column, 'wanted_value')`.
+This index can be used with ``CONTAINS(column, 'wanted_value')``.
 """
 
 def Dict() -> Type:
     """
-    Supports storing arbitrary key/value pairs in each row.
+    Creates a type that supports storing arbitrary key/value pairs in each row.
 
-    See [deeplake.types.Struct][] for a type that supports defining allowed keys.
+    Returns:
+        Type: A new dictionary data type.
+
+    See Also:
+        :func:`deeplake.types.Struct` for a type that supports defining allowed keys.
 
     Examples:
-        ```python
-        ds.add_column("col1", types.Dict)
+        Create and use a dictionary column::
 
-        ds.append([{"col1", {"a": 1, "b": 2}}])
-        ds.append([{"col1", {"b": 3, "c": 4}}])
-        ```
+            ds.add_column("col1", types.Dict)
+            ds.append([{"col1": {"a": 1, "b": 2}}])
+            ds.append([{"col1": {"b": 3, "c": 4}}])
     """
-
     ...
 
 def Embedding(
@@ -288,102 +401,135 @@ def Embedding(
     quantization: QuantizationType | None = None,
 ) -> Type:
     """
-    A single-dimensional embedding of a given length. See [deeplake.types.Array][] for a multidimensional array.
+    Creates a single-dimensional embedding of a given length.
 
     Parameters:
-        size: The size of the embedding
-        dtype: The datatype of the embedding. Defaults to float32
-        quantization: How to compress the embeddings in the index. Default uses no compression, but can be set to [deeplake.types.QuantizationType.Binary][]
+        size: int | None
+            The size of the embedding
+        dtype: DataType | str
+            The datatype of the embedding. Defaults to float32
+        quantization: QuantizationType | None
+            How to compress the embeddings in the index. Default uses no compression,
+            but can be set to :class:`deeplake.types.QuantizationType.Binary`
+
+    Returns:
+        Type: A new embedding data type.
+
+    See Also:
+        :func:`deeplake.types.Array` for a multidimensional array.
 
     Examples:
-        ```python
-        ds.add_column("col1", types.Embedding(768))
-        ds.add_column("col2", types.Embedding(768, quantization=types.QuantizationType.Binary))
-        ```
+        Create embedding columns::
+
+            ds.add_column("col1", types.Embedding(768))
+            ds.add_column("col2", types.Embedding(768, quantization=types.QuantizationType.Binary))
     """
     ...
 
 def Float32() -> DataType:
     """
-    A 32-bit float value
+    Creates a 32-bit float value type.
+
+    Returns:
+        DataType: A new 32-bit float data type.
 
     Examples:
-        ```python
-        ds.add_column("col1", types.Float)
-        ```
+        Create a column with 32-bit float type::
+
+            ds.add_column("col1", types.Float32)
     """
     ...
 
 def Float64() -> DataType:
     """
-    A 64-bit float value
+    Creates a 64-bit float value type.
+
+    Returns:
+        DataType: A new 64-bit float data type.
 
     Examples:
-        ```python
-        ds.add_column("col1", types.Float64)
-        ```
+        Create a column with 64-bit float type::
+
+            ds.add_column("col1", types.Float64)
     """
     ...
 
 def Int16() -> DataType:
     """
-    A 16-bit integer value
+    Creates a 16-bit integer value type.
+
+    Returns:
+        DataType: A new 16-bit integer data type.
 
     Examples:
-        ```python
-        ds.add_column("col1", types.Int16)
-        ```
+        Create a column with 16-bit integer type::
+
+            ds.add_column("col1", types.Int16)
     """
     ...
 
 def Int32() -> DataType:
     """
-    A 32-bit integer value
+    Creates a 32-bit integer value type.
+
+    Returns:
+        DataType: A new 32-bit integer data type.
 
     Examples:
-        ```python
-        ds.add_column("col1", types.Int32)
-        ```
+        Create a column with 32-bit integer type::
+
+            ds.add_column("col1", types.Int32)
     """
     ...
 
 def Int64() -> DataType:
     """
-    A 64-bit integer value
+    Creates a 64-bit integer value type.
+
+    Returns:
+        DataType: A new 64-bit integer data type.
 
     Examples:
-        ```python
-        ds.add_column("col1", types.Int64)
-        ```
+        Create a column with 64-bit integer type::
+
+            ds.add_column("col1", types.Int64)
     """
     ...
 
 def Int8() -> DataType:
     """
-    An 8-bit integer value
+    Creates an 8-bit integer value type.
+
+    Returns:
+        DataType: A new 8-bit integer data type.
 
     Examples:
-        ```python
-        ds.add_column("col1", types.Int8)
-        ```
+        Create a column with 8-bit integer type::
+
+            ds.add_column("col1", types.Int8)
     """
     ...
 
 def Sequence(nested_type: DataType | str | Type) -> Type:
     """
-    A sequence is a list of other data types, where there is a order to the values in the list.
+    Creates a sequence type that represents an ordered list of other data types.
 
-    For example, a video can be stored as a sequence of images to better capture the time-based ordering of the images rather than simply storing them as an Array
+    A sequence maintains the order of its values, making it suitable for time-series
+    data like videos (sequences of images).
 
     Parameters:
-        nested_type: The data type of the values in the sequence. Can be any data type, not just primitive types.
+        nested_type: DataType | str | Type
+            The data type of the values in the sequence. Can be any data type,
+            not just primitive types.
+
+    Returns:
+        Type: A new sequence data type.
 
     Examples:
-        ```python
-        ds.add_column("col1", types.Sequence(types.Image(sample_compression="jpeg")))
-        ```
+        Create a sequence of images::
+
+            ds.add_column("col1", types.Sequence(types.Image(sample_
     """
-    ...
 
 def Image(dtype: DataType | str = "uint8", sample_compression: str = "png") -> Type:
     """
@@ -427,8 +573,12 @@ def Link(type: Type) -> Type:
     """
     ...
 
-def Polygon() -> Type: ...
-def ClassLabel(dtype: DataType | str) -> Type: ...
+def Polygon() -> Type:
+    ...
+
+def ClassLabel(dtype: DataType | str) -> Type:
+    ...
+
 def BoundingBox(
     dtype: DataType | str = "float32",
     format: str | None = None,
@@ -507,7 +657,7 @@ def Struct(fields: dict[str, DataType | str]) -> DataType:
            "field1": types.Int16(),
            "field2": types.Text(),
         }))
-
+        
         ds.append([{"col1": {"field1": 3, "field2": "a"}}])
         print(ds[0]["col1"]["field1"]) # Output: 3
         ```

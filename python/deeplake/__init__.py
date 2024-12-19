@@ -1,5 +1,5 @@
 import os
-from typing import Callable, Any, Dict
+from typing import Callable, Any, Dict, Optional
 
 try:
     from tqdm import tqdm as progress_bar
@@ -14,7 +14,7 @@ import numpy
 import deeplake
 from ._deeplake import *
 
-__version__ = "4.1.0"
+__version__ = "4.1.1"
 
 __all__ = [
     "__version__",
@@ -180,7 +180,12 @@ For information on migrating your code, see https://docs.deeplake.ai/latest/deta
     )
 
 
-def convert(src: str, dst: str, dst_creds: Dict[str, str] = None):
+def convert(
+    src: str,
+    dst: str,
+    dst_creds: Optional[Dict[str, str]] = None,
+    token: Optional[str] = None,
+) -> None:
     """
     Copies the v3 dataset at src into a new dataset in the new v4 format.
     """
@@ -192,41 +197,30 @@ def convert(src: str, dst: str, dst_creds: Dict[str, str] = None):
         return [
             col.name
             for col in source.schema.columns
-            if not col.dtype.is_link
-            and col.dtype.kind
-            in {
+            if not col.dtype.is_link and col.dtype.kind in {
                 deeplake.types.TypeKind.Image,
                 deeplake.types.TypeKind.SegmentMask,
-                deeplake.types.TypeKind.BinaryMask,
+                deeplake.types.TypeKind.BinaryMask
             }
         ]
 
-    def transfer_non_link_data(source, dest, batch_size):
-        dl = deeplake._deeplake._Prefetcher(
-            source,
-            batch_size=batch_size,
-            adaptive=True,
-            raw_columns=set(get_raw_columns(source)),
-        )
+    def transfer_non_link_data(source, dest):
+        dl = deeplake._deeplake._Prefetcher(source, raw_columns=set(get_raw_columns(source)))
         for counter, batch in enumerate(progress_bar(dl), start=1):
             dest.append(batch)
             if counter % 100 == 0:
                 commit_data(dest)
         commit_data(dest, "Final commit of non-link data")
 
-    def transfer_with_links(source, dest, links, column_names, batch_size):
+    def transfer_with_links(source, dest, links, column_names):
         iterable_cols = [col for col in column_names if col not in links]
         link_sample_info = {link: source[link]._links_info() for link in links}
         dest.set_creds_key(link_sample_info[links[0]]["key"])
         pref_ds = source.query(f"SELECT {','.join(iterable_cols)}")
-        dl = deeplake._deeplake._Prefetcher(
-            pref_ds,
-            batch_size=batch_size,
-            adaptive=True,
-            raw_columns=set(get_raw_columns(source)),
-        )
+        dl = deeplake._deeplake._Prefetcher(pref_ds, raw_columns=set(get_raw_columns(source)))
 
         for counter, batch in enumerate(progress_bar(dl), start=1):
+            batch_size = len(batch[iterable_cols[0]])
             for link in links:
                 link_data = link_sample_info[link]["data"]
                 start_index = (counter - 1) * batch_size
@@ -238,8 +232,8 @@ def convert(src: str, dst: str, dst_creds: Dict[str, str] = None):
                 commit_data(dest)
         commit_data(dest, "Final commit of linked data")
 
-    source_ds = deeplake.query(f'select * from "{src}"')
-    dest_ds = deeplake.like(source_ds, dst, dst_creds)
+    source_ds = deeplake.query(f'select * from "{src}"', token=token)
+    dest_ds = deeplake.like(source_ds, dst, dst_creds, token=token)
     commit_data(dest_ds, "Created dataset")
 
     column_names = [col.name for col in source_ds.schema.columns]
@@ -248,13 +242,11 @@ def convert(src: str, dst: str, dst_creds: Dict[str, str] = None):
         for col in source_ds.schema.columns
         if source_ds.schema[col.name].dtype.is_link
     ]
-    batch_size = 10000
-
     print(f"Transferring {len(source_ds)} rows to {dst}...")
     if not links:
-        transfer_non_link_data(source_ds, dest_ds, batch_size)
+        transfer_non_link_data(source_ds, dest_ds)
     else:
-        transfer_with_links(source_ds, dest_ds, links, column_names, batch_size)
+        transfer_with_links(source_ds, dest_ds, links, column_names)
 
     for column in column_names:
         meta = dict(source_ds[column].metadata)
