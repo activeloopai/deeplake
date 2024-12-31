@@ -16,6 +16,15 @@ def register_function(function: typing.Callable) -> None:
     TQL interacts with Python functions through `numpy.ndarray`. The Python function
     to be used in TQL should accept input arguments as numpy arrays and return numpy array.
 
+    <!-- test-context
+    ```python
+    import deeplake
+    ds = deeplake.create("tmp://")
+    ds.add_column("column_name", "int32")
+    ds.append({"column_name": [1, 2, 3]})
+    ```
+    -->
+
     Examples:
         ```python
         def next_number(a):
