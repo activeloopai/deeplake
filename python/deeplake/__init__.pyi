@@ -118,304 +118,572 @@ __all__ = [
     "types",
     "Client",
     "client",
-    "__child_atfork",
     "__prepare_atfork",
-    "__parent_atfork",
 ]
 
 class Future:
     """
-    A future that represents a value that will be resolved in the future.
+    A future representing an asynchronous operation result in ML pipelines.
 
-    Once the Future is resolved, it will hold the result, and you can retrieve it
-    using either a blocking call (`result()`) or via asynchronous mechanisms (`await`).
-
-    The future will resolve automatically even if you do not explicitly wait for it.
+    The Future class enables non-blocking operations for data loading and processing,
+    particularly useful when working with large ML datasets or distributed training.
+    Once resolved, the Future holds the operation result which can be accessed either
+    synchronously or asynchronously.
 
     Methods:
         result() -> typing.Any:
-            Blocks until the Future is resolved and returns the object.
+            Blocks until the Future resolves and returns the result.
 
         __await__() -> typing.Any:
-            Awaits the future asynchronously and returns the object once it's ready.
+            Enables using the Future in async/await syntax.
 
         is_completed() -> bool:
-            Returns True if the Future is already resolved, False otherwise.
+            Checks if the Future has resolved without blocking.
+    <!-- test-context
+    ```python
+    import deeplake
+    ds = deeplake.create("mem://ml-data/embeddings")
+    ds = deeplake.create("mem://ml-data/images")
+    ds.add_column("images", "int32")
+    ds.append({"images": [0] * 300})
+    deeplake.open_async = lambda x: deeplake._deeplake.open_async(x.replace("s3://", "mem://"))
+    ```
+    -->
+
+    Examples:
+        Loading ML dataset asynchronously:
+        ```python
+        future = deeplake.open_async("s3://ml-data/embeddings")
+        
+        # Check status without blocking
+        if not future.is_completed():
+            print("Still loading...")
+            
+        # Block until ready
+        ds = future.result()
+        ```
+
+        Using with async/await:
+        ```python
+        async def load_data():
+            ds = await deeplake.open_async("s3://ml-data/images")
+            batch = await ds.images.get_async(slice(0, 32))
+            return batch
+        ```
     """
 
     def result(self) -> typing.Any:
         """
-        Blocks until the Future is resolved, then returns the result.
+        Blocks until the Future resolves and returns the result.
 
         Returns:
-            typing.Any: The result when the Future is resolved.
+            typing.Any: The operation result once resolved.
+
+        <!-- test-context
+        ```python
+        import deeplake
+        import numpy as np
+        ds = deeplake.create("tmp://")
+        ds.add_column("images", "int32")
+        ds.append({"images": [0] * 300})
+        ```
+        -->
+
+        Examples:
+        ```python
+        future = ds["images"].get_async(slice(0, 32)) 
+        batch = future.result()  # Blocks until batch is loaded
+        ```
         """
         ...
 
     def __await__(self) -> typing.Any:
         """
-        Awaits the resolution of the Future asynchronously.
+        Makes the Future compatible with async/await syntax.
+
+        <!-- test-context
+        ```python
+        import deeplake
+        import numpy as np
+        ds = deeplake.create("tmp://")
+        ds.add_column("images", "int32")
+        ds.append({"images": [0] * 300})
+        ```
+        -->
 
         Examples:
-            ```python
-            result = await future
-            ```
+        ```python
+        async def load_batch():
+            batch = await ds["images"].get_async(slice(0, 32))
+        ```
 
         Returns:
-            typing.Any: The result when the Future is resolved.
+            typing.Any: The operation result once resolved.
         """
         ...
 
     def is_completed(self) -> bool:
         """
-        Checks if the Future has been resolved.
+        Checks if the Future has resolved without blocking.
 
         Returns:
-            bool: True if the Future is resolved, False otherwise.
+            bool: True if resolved, False if still pending.
+
+        <!-- test-context
+        ```python
+        import deeplake
+        import numpy as np
+        ds = deeplake.create("tmp://")
+        ds.add_column("label", "int32")
+        ds.append({"label": [0] * 300})
+        ds["label"].metadata["class_names"] = ["car", "truck", "bus"]
+        ```
+        -->
+
+        Examples:
+        ```python
+        future = ds.query_async("SELECT * WHERE label = 'car'")
+        if future.is_completed():
+            results = future.result()
+        else:
+            print("Query still running...")
+        ```
         """
         ...
 
 class FutureVoid:
     """
-    A future that represents the completion of an operation that returns no result.
-
-    The future will resolve automatically to `None`, even if you do not explicitly wait for it.
+    A Future representing a void async operation in ML pipelines.
+    
+    Similar to Future but for operations that don't return values, like saving
+    or committing changes. Useful for non-blocking data management operations.
 
     Methods:
         wait() -> None:
-            Blocks until the FutureVoid is resolved and then returns `None`.
+            Blocks until operation completes.
 
         __await__() -> None:
-            Awaits the FutureVoid asynchronously and returns `None` once the operation is complete.
+            Enables using with async/await syntax.
 
         is_completed() -> bool:
-            Returns True if the FutureVoid is already resolved, False otherwise.
+            Checks completion status without blocking.
+
+    <!-- test-context
+    ```python
+    import deeplake
+    ds = deeplake.create("tmp://")
+    ds.add_column("embeddings", "float32")
+    ds.append({"embeddings": [0.1] * 100})
+    new_embeddings = [0.2] * 32
+    def process_other_data():
+        pass
+    ```
+    -->
+
+    Examples:
+        Asynchronous dataset updates:
+        ```python
+        # Update embeddings without blocking
+        future = ds["embeddings"].set_async(slice(0, 32), new_embeddings)
+        
+        # Do other work while update happens
+        process_other_data()
+        
+        # Wait for update to complete
+        future.wait()
+        ```
+
+        Using with async/await:
+        ```python
+        async def update_dataset():
+            await ds.commit_async()
+            print("Changes saved")
+        ```
     """
 
     def wait(self) -> None:
         """
-        Blocks until the FutureVoid is resolved, then returns `None`.
+        Blocks until the operation completes.
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ```
+        -->
 
         Examples:
             ```python
-            future_void.wait()  # Blocks until the operation completes.
+            future = ds.commit_async()
+            future.wait()  # Blocks until commit finishes
             ```
-
-        Returns:
-            None: Indicates the operation has completed.
         """
         ...
 
     def __await__(self) -> None:
         """
-        Awaits the resolution of the FutureVoid asynchronously.
+        Makes the FutureVoid compatible with async/await syntax.
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ```
+        -->
 
         Examples:
-            ```python
-            await future_void  # Waits for the completion of the async operation.
-            ```
-
-        Returns:
-            None: Indicates the operation has completed.
+        ```python
+        async def save_changes():
+            await ds.commit_async()
+        ```
         """
         ...
 
     def is_completed(self) -> bool:
         """
-        Checks if the FutureVoid has been resolved.
+        Checks if the operation has completed without blocking.
 
         Returns:
-            bool: True if the FutureVoid is resolved, False otherwise.
+            bool: True if completed, False if still running.
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ```
+        -->
+
+        Examples:
+            ```python
+            future = ds.commit_async()
+            if future.is_completed():
+                print("Commit finished")
+            else:
+                print("Commit still running...")
+            ```
         """
         ...
 
 class ReadOnlyMetadata:
     """
-    ReadOnlyMetadata is a key-value store.
+    Read-only access to dataset and column metadata for ML workflows.
+    
+    Stores important information about datasets like:
+    - Model parameters and hyperparameters
+    - Preprocessing statistics (mean, std, etc.)
+    - Data splits and fold definitions
+    - Version and training information
+
+    <!-- test-context
+    ```python
+    import deeplake
+    ds = deeplake.create("tmp://")
+    ds.add_column("images", "int32")
+    ds.metadata["model_name"] = "resnet50"
+    ds.metadata["hyperparameters"] = {"learning_rate": 0.001, "batch_size": 32}
+    ds["images"].metadata["mean"] = [0.485, 0.456, 0.406]
+    ds["images"].metadata["std"] = [0.229, 0.224, 0.225]
+    ```
+    -->
+
+    Examples:
+        Accessing model metadata:
+        ```python
+        metadata = ds.metadata
+        model_name = metadata["model_name"]
+        model_params = metadata["hyperparameters"]
+        ```
+
+        Reading preprocessing stats:
+        ```python
+        mean = ds["images"].metadata["mean"]
+        std = ds["images"].metadata["std"]
+        ```
     """
 
     def __getitem__(self, key: str) -> typing.Any:
         """
-        Get the value for the given key
+        Gets metadata value for the given key.
+
+        Args:
+            key: Metadata key to retrieve
+
+        Returns:
+            The stored metadata value
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("images", "int32")
+        ds.metadata["model_name"] = "resnet50"
+        ds.metadata["hyperparameters"] = {"learning_rate": 0.001, "batch_size": 32}
+        ds["images"].metadata["mean"] = [0.485, 0.456, 0.406]
+        ds["images"].metadata["std"] = [0.229, 0.224, 0.225]
+        ```
+        -->
+
+        Examples:
+            ```python
+            mean = ds["images"].metadata["mean"]
+            std = ds["images"].metadata["std"]
+            ```
         """
         ...
 
     def keys(self) -> list[str]:
         """
-        Return a list of all keys in the metadata
+        Lists all available metadata keys.
+
+        Returns:
+            list[str]: List of metadata key names
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("images", "int32")
+        metadata = ds.metadata
+        ```
+        -->
+
+        Examples:
+            ```python
+            # Print all metadata
+            for key in metadata.keys():
+                print(f"{key}: {metadata[key]}")
+            ```
         """
         ...
 
 class Metadata(ReadOnlyMetadata):
     """
-    Metadata is a key-value store.
+    Writable access to dataset and column metadata for ML workflows.
+
+    Stores important information about datasets like:
+    - Model parameters and hyperparameters 
+    - Preprocessing statistics
+    - Data splits and fold definitions
+    - Version and training information
+
+    Changes are persisted immediately without requiring `commit()`.
+
+    Examples:
+        Storing model metadata:
+
+            dataset.metadata["model_name"] = "resnet50"
+            dataset.metadata["hyperparameters"] = {
+                "learning_rate": 0.001,
+                "batch_size": 32
+            }
+
+        Setting preprocessing stats:
+
+            dataset.images.metadata["mean"] = [0.485, 0.456, 0.406]
+            dataset.images.metadata["std"] = [0.229, 0.224, 0.225]
     """
 
     def __setitem__(self, key: str, value: typing.Any) -> None:
         """
-        Set the value for the given key. Setting the value will immediately persist the change without requiring a commit().
+        Sets metadata value for given key. Changes are persisted immediately.
+
+        Args:
+            key: Metadata key to set
+            value: Value to store
+
+        Examples:
+            ```python
+            ds.metadata["train_split"] = 0.8
+            ds.metadata["val_split"] = 0.1
+            ds.metadata["test_split"] = 0.1
+            ```
         """
         ...
 
 def query(query: str, token: str | None = None) -> DatasetView:
     """
-    Executes a TQL (Tensor Query Language) query and returns a filtered DatasetView.
+    Executes TQL queries optimized for ML data filtering and search.
     
-    TQL provides SQL-like querying capabilities specifically designed for ML datasets, allowing you 
-    to filter, sort, and select data based on various criteria including vector similarity.
+    TQL is a SQL-like query language designed for ML datasets, supporting:
+    - Vector similarity search
+    - Text semantic search
+    - Complex data filtering
+    - Joining across datasets
+    - Efficient sorting and pagination
 
     Args:
-        query: A TQL query string. The query can:
-            - Filter rows using WHERE clauses
-            - Sort results using ORDER BY
-            - Select specific columns using SELECT
-            - Perform vector similarity search using BM25_SIMILARITY
-            - Join multiple datasets
-        token: Optional Activeloop token for authentication. Not required if using environment 
-            credentials.
+        query: TQL query string supporting:
+            - Vector similarity: COSINE_SIMILARITY, EUCLIDEAN_DISTANCE
+            - Text search: BM25_SIMILARITY, CONTAINS
+            - Filtering: WHERE clauses
+            - Sorting: ORDER BY
+            - Joins: JOIN across datasets
+        token: Optional Activeloop authentication token
 
     Returns:
-        DatasetView: A view containing the query results. The view can be:
-            - Used directly for ML training
+        DatasetView: Query results that can be:
+            - Used directly in ML training
             - Further filtered with additional queries
             - Converted to PyTorch/TensorFlow dataloaders
             - Materialized into a new dataset
 
+    <!-- test-context
+    ```python
+    import deeplake
+    ds = deeplake.create("mem://embeddings")
+    ds.add_column("vector", deeplake.types.Array("float32", 1))
+    ds.commit()
+    ds = deeplake.create("mem://documents")
+    ds.add_column("text", "text")
+    ds.commit()
+    ds = deeplake.create("mem://dataset")
+    ds.add_column("split", "text")
+    ds.add_column("confidence", "float32")
+    ds.add_column("label", "text")
+    ds.commit()
+    ds = deeplake.create("mem://images")
+    ds.add_column("id", "int32")
+    ds.add_column("image", "int32")
+    ds.add_column("embedding", deeplake.types.Array("float32", 1))
+    ds.commit()
+    ds = deeplake.create("mem://metadata")
+    ds.add_column("image_id", "int32")
+    ds.add_column("labels", "text")
+    ds.add_column("metadata", "text")
+    ds.add_column("verified", "bool")
+    ds.commit()
+    ```
+    -->
+
     Examples:
-        Basic filtering:
-        ```python
-        # Select images with high confidence labels
-        view = deeplake.query(f'SELECT * FROM "{ds_path}" WHERE confidence > 0.9')
-        
-        # Get samples from specific classes
-        cats = deeplake.query(f'SELECT * FROM "{ds_path}" WHERE label IN (\'cat\', \'kitten\')')
-        ```
-
-        Text similarity search:
-        ```python
-        # Find semantically similar text using BM25
-        similar = deeplake.query(f'''
-            SELECT * FROM "{ds_path}"
-            ORDER BY BM25_SIMILARITY(text_column, 'query text') DESC 
-            LIMIT 100
-        ''')
-        ```
-
         Vector similarity search:
         ```python
-        # Find nearest neighbor embeddings
-        neighbors = deeplake.query(f'''
-            SELECT * FROM "{ds_path}"
-            ORDER BY COSINE_SIMILARITY(embedding, ARRAY[0.1, 0.2, ...]) DESC
+        # Find similar embeddings
+        similar = deeplake.query('''
+            SELECT * FROM "mem://embeddings" 
+            ORDER BY COSINE_SIMILARITY(vector, ARRAY[0.1, 0.2, 0.3]) DESC
+            LIMIT 100
+        ''')
+
+        # Use results in training
+        dataloader = similar.pytorch()
+        ```
+
+        Text semantic search:
+        ```python
+        # Search documents using BM25
+        relevant = deeplake.query('''
+            SELECT * FROM "mem://documents"
+            ORDER BY BM25_SIMILARITY(text, 'machine learning') DESC
             LIMIT 10
         ''')
         ```
 
-        Joins across datasets:
+        Complex filtering:
         ```python
-        # Join images with their metadata
-        results = deeplake.query(f'''
-            SELECT i.image, m.label, m.bbox 
-            FROM "{image_ds_path}" AS i
-            JOIN "{metadata_ds_path}" AS m ON i.id = m.image_id
-            WHERE m.verified = true
+        # Filter training data
+        train = deeplake.query('''
+            SELECT * FROM "mem://dataset"
+            WHERE "split" = 'train' 
+            AND confidence > 0.9
+            AND label IN ('cat', 'dog')
         ''')
         ```
 
-        Using with ML frameworks:
+        Joins for feature engineering:
         ```python
-        # Filter dataset and create PyTorch dataloader
-        train_data = deeplake.query("SELECT * FROM dataset WHERE split = 'train'")
-        train_loader = train_data.pytorch().dataloader(batch_size=32)
+        # Combine image features with metadata
+        features = deeplake.query('''
+            SELECT i.image, i.embedding, m.labels, m.metadata
+            FROM "mem://images" AS i
+            JOIN "mem://metadata" AS m ON i.id = m.image_id
+            WHERE m.verified = true
+        ''')
         ```
     """
     ...
 
 def query_async(query: str, token: str | None = None) -> Future:
     """
-    Asynchronously executes a TQL (Tensor Query Language) query and returns a Future that will resolve into DatasetView.
+    Asynchronously executes TQL queries optimized for ML data filtering and search.
     
-    TQL provides SQL-like querying capabilities specifically designed for ML datasets, allowing you 
-    to filter, sort, and select data based on various criteria including vector similarity.
+    Non-blocking version of `query()` for better performance with large datasets.
+    Supports the same TQL features including vector similarity search, text search,
+    filtering, and joins.
 
     Args:
-        query: A TQL query string. The query can:
-            - Filter rows using WHERE clauses
-            - Sort results using ORDER BY
-            - Select specific columns using SELECT
-            - Perform vector similarity search using BM25_SIMILARITY
-            - Join multiple datasets
-        token: Optional Activeloop token for authentication. Not required if using environment 
-            credentials.
+        query: TQL query string supporting:
+            - Vector similarity: COSINE_SIMILARITY, EUCLIDEAN_DISTANCE
+            - Text search: BM25_SIMILARITY, CONTAINS
+            - Filtering: WHERE clauses
+            - Sorting: ORDER BY
+            - Joins: JOIN across datasets
+        token: Optional Activeloop authentication token
 
     Returns:
-        Future: A Future object that resolves to a DatasetView. The resulting view can be:
-            - Used directly for ML training
+        Future: Resolves to DatasetView that can be:
+            - Used directly in ML training
             - Further filtered with additional queries
             - Converted to PyTorch/TensorFlow dataloaders
             - Materialized into a new dataset
 
+    <!-- test-context
+    ```python
+    import deeplake
+    def prepare_training():
+        pass
+    ```
+    -->
+
     Examples:
-        Basic filtering with await:
+        Basic async query:
         ```python
-        # Select images with high confidence labels
-        view = await deeplake.query_async(f'SELECT * FROM "{ds_path}" WHERE confidence > 0.9')
-        
-        # Get samples from specific classes
-        cats = await deeplake.query_async(f'SELECT * FROM "{ds_path}" WHERE label IN (\'cat\', \'kitten\')')
-        ```
-
-        Text similarity search with Future.result():
-        ```python
-        # Find semantically similar text using BM25
-        future = deeplake.query_async(f'''
-            SELECT * FROM "{ds_path}"
-            ORDER BY BM25_SIMILARITY(text_column, 'query text') DESC 
-            LIMIT 100
+        # Run query asynchronously
+        future = deeplake.query_async('''
+            SELECT * FROM "mem://embeddings"
+            ORDER BY COSINE_SIMILARITY(vector, ARRAY[0.1, 0.2, 0.3]) DESC
         ''')
-        similar = future.result()  # Blocks until query completes
+
+        # Do other work while query runs
+        prepare_training()
+
+        # Get results when needed
+        results = future.result()
         ```
 
-        Vector similarity search:
+        With async/await:
         ```python
-        # Find nearest neighbor embeddings
-        neighbors = await deeplake.query_async(f'''
-            SELECT * FROM "{ds_path}"
-            ORDER BY COSINE_SIMILARITY(embedding, ARRAY[0.1, 0.2, ...]) DESC
-            LIMIT 10
-        ''')
-        ```
+        async def search_similar():
+            results = await deeplake.query_async('''
+                SELECT * FROM "mem://images"
+                ORDER BY COSINE_SIMILARITY(embedding, ARRAY[0.1, 0.2, 0.3]) DESC
+                LIMIT 100
+            ''')
+            return results
 
-        Joins across datasets:
-        ```python
-        # Join images with their metadata
-        results = await deeplake.query_async(f'''
-            SELECT i.image, m.label, m.bbox 
-            FROM "{image_ds_path}" AS i
-            JOIN "{metadata_ds_path}" AS m ON i.id = m.image_id
-            WHERE m.verified = true
-        ''')
-        ```
-
-        Using with ML frameworks:
-        ```python
-        # Filter dataset and create PyTorch dataloader
-        future = deeplake.query_async(f'SELECT * FROM "{ds_path}" WHERE split = \'train\'')
-        train_data = future.result()
-        train_loader = train_data.pytorch().dataloader(batch_size=32)
+        async def main():
+            similar = await search_similar()
         ```
 
         Non-blocking check:
         ```python
-        # Check if query is complete without blocking
-        future = deeplake.query_async(f'SELECT * FROM "{ds_path}"')
+        future = deeplake.query_async(
+            "SELECT * FROM dataset WHERE \\"split\\" = 'train'"
+        )
+        
         if future.is_completed():
-            results = future.result()
+            train_data = future.result()
+        else:
+            print("Query still running...")
         ```
     """
     ...
 
 class Client:
+    """
+    Client for connecting to Activeloop services.
+    Handles authentication and API communication.
+    """
     endpoint: str
 
 class Tag:
@@ -635,36 +903,46 @@ class ColumnView:
     - Access column metadata and properties
     - Get information about linked data if the column contains references
 
+    <!-- test-context
+    ```python
+    import deeplake
+    ds = deeplake.create("tmp://")
+    ds.add_column("images", "int32")
+    ds.append({"images": [0] * 300})
+    ds.add_column("embeddings", deeplake.types.Array("float32", 1))
+    ```
+    -->
+
     Examples:
-        Load image data from a column for training
+        Load image data from a column for training:
         ```python
         # Access a single image
-        image = dataset["images"][0]
+        image = ds["images"][0]
         
         # Load a batch of images
-        batch = dataset["images"][0:32]
+        batch = ds["images"][0:32]
         
         # Async load for better performance
-        images_future = dataset["images"].get_async(0:32)
+        images_future = ds["images"].get_async(slice(0, 32))
         images = images_future.result()
         ```
 
-        Access embeddings for similarity search
+        Access embeddings for similarity search:
         ```python
         # Get all embeddings
-        embeddings = dataset["embeddings"][:]
+        embeddings = ds["embeddings"][:]
         
         # Get specific embeddings by indices
-        selected = dataset["embeddings"][[1, 5, 10]]
+        selected = ds["embeddings"][[1, 5, 10]]
         ```
 
-        Check column properties
+        Check column properties:
         ```python
         # Get column name
-        name = dataset["images"].name
+        name = ds["images"].name
         
         # Access metadata
-        if "mean" in dataset["images"].metadata:
+        if "mean" in ds["images"].metadata.keys():
             mean = dataset["images"].metadata["mean"]
         ```
     """
@@ -681,6 +959,16 @@ class ColumnView:
 
         Returns:
             The data at the specified index/indices. Type depends on the column's data type.
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("images", "int32")
+        ds.append({"images": [0] * 300})
+        column = ds["images"]
+        ```
+        -->
 
         Examples:
             ```python
@@ -710,14 +998,26 @@ class ColumnView:
         Returns:
             Future: A Future object that resolves to the requested data.
 
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("images", "int32")
+        ds.append({"images": [0] * 300})
+        column = ds["images"]
+        ```
+        -->
+
         Examples:
             ```python
             # Async batch load
-            future = column.get_async(0:32)
+            future = column.get_async(slice(0, 32))
             batch = future.result()
             
             # Using with async/await
-            batch = await column.get_async(0:32)
+            async def load_batch():
+                batch = await column.get_async(slice(0, 32))
+                return batch
             ```
         """
         ...
@@ -749,6 +1049,20 @@ class ColumnView:
         """
         Access the column's metadata. Useful for storing statistics, preprocessing parameters,
         or other information about the column data.
+
+        Returns:
+            ReadOnlyMetadata: A ReadOnlyMetadata object for reading metadata.
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("images", "int32")
+        ds["images"].metadata["mean"] = [0.485, 0.456, 0.406]
+        ds["images"].metadata["std"] = [0.229, 0.224, 0.225]
+        column = ds["images"]
+        ```
+        -->
 
         Examples:
             ```python
@@ -786,32 +1100,49 @@ class Column(ColumnView):
     - Access and modify column metadata
     - Handle various data types common in ML: images, embeddings, labels, etc.
 
+    <!-- test-context
+    ```python
+    import deeplake
+    ds = deeplake.create("tmp://")
+    ds.add_column("images", "int32")
+    ds.append({"images": [0] * 300})
+    ds.add_column("embeddings", deeplake.types.Array("float32", 1))
+    ds.add_column("labels", "int32")
+    new_labels = [1] * 32
+    images = [0] * 32
+    class Model:
+        def encode(self, images):
+            return [[0.1]] * len(images)
+    model = Model()
+    ```
+    -->
+
     Examples:
-        Update training labels
+        Update training labels:
         ```python
         # Update single label
-        dataset["labels"][0] = 1
+        ds["labels"][0] = 1
         
         # Update batch of labels
-        dataset["labels"][0:32] = new_labels
+        ds["labels"][0:32] = new_labels
         
         # Async update for better performance
-        future = dataset["labels"].set_async(0:32, new_labels)
+        future = ds["labels"].set_async(slice(0, 32), new_labels)
         future.wait()
         ```
 
-        Store image embeddings
+        Store image embeddings:
         ```python
         # Generate and store embeddings
         embeddings = model.encode(images)
-        dataset["embeddings"][0:len(embeddings)] = embeddings
+        ds["embeddings"][0:len(embeddings)] = embeddings
         ```
 
-        Manage column metadata
+        Manage column metadata:
         ```python
         # Store preprocessing parameters
-        dataset["images"].metadata["mean"] = [0.485, 0.456, 0.406]
-        dataset["images"].metadata["std"] = [0.229, 0.224, 0.225]
+        ds["images"].metadata["mean"] = [0.485, 0.456, 0.406]
+        ds["images"].metadata["std"] = [0.229, 0.224, 0.225]
         ```
     """
 
@@ -824,6 +1155,18 @@ class Column(ColumnView):
                 - int: Single item index
                 - slice: Range of indices (e.g., 0:10)
             value: The data to store. Must match the column's data type.
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("images", "int32")
+        ds.append({"images": [0] * 300})
+        column = ds["images"]
+        new_image = 1
+        new_batch = [1] * 32
+        ```
+        -->
 
         Examples:
             ```python
@@ -850,14 +1193,27 @@ class Column(ColumnView):
         Returns:
             FutureVoid: A FutureVoid that completes when the update is finished.
 
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("images", "int32")
+        ds.append({"images": [0] * 300})
+        column = ds["images"]
+        new_image = 1
+        new_batch = [1] * 32
+        ```
+        -->
+
         Examples:
             ```python
             # Async batch update
-            future = column.set_async(0:32, new_batch)
+            future = column.set_async(slice(0, 32), new_batch)
             future.wait()
             
             # Using with async/await
-            await column.set_async(0:32, new_batch)
+            async def update_batch():
+                await column.set_async(slice(0, 32), new_batch)
             ```
         """
         ...
@@ -926,6 +1282,16 @@ class Row:
         Returns:
             Future: A Future object that will resolve to the value containing the column data.
 
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("column_name", "int32")
+        ds.append({"column_name": [0] * 300})
+        row = ds[0]
+        ```
+        -->
+
         Examples:
             ```python
             future = row.get_async("column_name")
@@ -954,6 +1320,17 @@ class Row:
 
         Returns:
             FutureVoid: A FutureVoid object that will resolve when the operation is complete.
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("column_name", "int32")
+        ds.append({"column_name": [0] * 300})
+        row = ds[0]
+        new_value = 1
+        ```
+        -->
 
         Examples:
             ```python
@@ -1004,6 +1381,16 @@ class RowRange:
         Returns:
             Future: A Future object that will resolve to the value containing the column data.
 
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("column_name", "int32")
+        ds.append({"column_name": [0] * 300})
+        row_range = ds[0:30]
+        ```
+        -->
+
         Examples:
             ```python
             future = row_range.get_async("column_name")
@@ -1032,6 +1419,17 @@ class RowRange:
 
         Returns:
             FutureVoid: A FutureVoid object that will resolve when the operation is complete.
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("column_name", "int32")
+        ds.append({"column_name": [0] * 300})
+        row_range = ds[0:30]
+        new_value = [1] * 30
+        ```
+        -->
 
         Examples:
             ```python
@@ -1085,6 +1483,16 @@ class RowRangeView:
         Returns:
             Future: A Future object that will resolve to the value containing the column data.
 
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("column_name", "int32")
+        ds.append({"column_name": [0] * 300})
+        row_range_view = ds[0:30]
+        ```
+        -->
+
         Examples:
             ```python
             future = row_range_view.get_async("column_name")
@@ -1117,6 +1525,16 @@ class RowView:
 
         Returns:
             Future: A Future object that will resolve to the value containing the column data.
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("column_name", "int32")
+        ds.append({"column_name": [0] * 300})
+        row_view = ds[0]
+        ```
+        -->
 
         Examples:
             ```python
@@ -1221,7 +1639,6 @@ class DatasetView:
                 # process row
                 pass
             ```
-
         """
         ...
 
@@ -1239,15 +1656,6 @@ class DatasetView:
             ```python
             ds.summary()
             ```
-
-            Example Output:
-            ```
-            Dataset length: 5
-            Columns:
-              id       : int64
-              title    : text
-              embedding: embedding(768)
-            ```
         """
         ...
 
@@ -1255,19 +1663,34 @@ class DatasetView:
         """
         Executes the given TQL query against the dataset and return the results as a [deeplake.DatasetView][].
 
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("category", "text")
+        ```
+        -->
+
         Examples:
             ```python
             result = ds.query("select * where category == 'active'")
             for row in result:
                 print("Id is: ", row["id"])
             ```
-
         """
         ...
 
     def query_async(self, query: str) -> Future:
         """
         Asynchronously executes the given TQL query against the dataset and return a future that will resolve into [deeplake.DatasetView][].
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("category", "text")
+        ```
+        -->
 
         Examples:
             ```python
@@ -1276,11 +1699,12 @@ class DatasetView:
             for row in result:
                 print("Id is: ", row["id"])
 
-            # or use the Future in an await expression
-            future = ds.query_async("select * where category == 'active'")
-            result = await future
-            for row in result:
-                print("Id is: ", row["id"])
+            async def query_and_process():
+                # or use the Future in an await expression
+                future = ds.query_async("select * where category == 'active'")
+                result = await future
+                for row in result:
+                    print("Id is: ", row["id"])
             ```
         """
         ...
@@ -1304,14 +1728,23 @@ class DatasetView:
         Raises:
             ImportError: If TensorFlow is not installed
 
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("images", "int32")
+        ds.append({"images": [0] * 300})
+        def process_batch(batch):
+            pass
+        ```
+        -->
+
         Examples:
             ```python
-            ds = deeplake.open("path/to/dataset")
-            dl = ds.tensorflow().shuffle(500).batch(32).
-            for i_batch, sample_batched in enumerate(dataloader):
+            dl = ds.tensorflow().shuffle(500).batch(32)
+            for i_batch, sample_batched in enumerate(dl):
                  process_batch(sample_batched)
             ```
-
         """
         ...
 
@@ -1327,17 +1760,27 @@ class DatasetView:
         Raises:
             ImportError: If pytorch is not installed
 
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("images", "int32")
+        ds.append({"images": [0] * 300})
+
+        def process_batch(batch):
+            pass
+        ```
+        -->
+
         Examples:
             ```python
             from torch.utils.data import DataLoader
             
-            ds = deeplake.open("path/to/dataset")
-            dataloader = DataLoader(ds.pytorch(), batch_size=60,
-                                        shuffle=True, num_workers=10)
-            for i_batch, sample_batched in enumerate(dataloader):
-                 process_batch(sample_batched)
+            dl = DataLoader(ds.pytorch(), batch_size=60,
+                                        shuffle=True, num_workers=8)
+            for i_batch, sample_batched in enumerate(dl):
+                process_batch(sample_batched)
             ```
-
         """
         ...
 
@@ -1349,8 +1792,8 @@ class DatasetView:
             batch_size: Number of rows in each batch
             drop_last: Whether to drop the final batch if it is incomplete
 
-         Examples:
-            ```python
+        Examples:
+            ```python 
             ds = deeplake.open("al://my_org/dataset")
             batches = ds.batches(batch_size=2000, drop_last=True)
             for batch in batches:
@@ -1479,6 +1922,15 @@ class Dataset(DatasetView):
         - `tuple`: A tuple of indices specifying the rows to return. Returns a [deeplake.RowRange][]
         - `str`: A string specifying column to return all values from. Returns a [deeplake.Column][]
 
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("id", int)
+        ds.append({"id": [3] * 3000})
+        ```
+        -->
+
         Examples:
             ```python
             row = ds[318]
@@ -1493,7 +1945,6 @@ class Dataset(DatasetView):
 
             column_data = ds["id"]
             ```
-
         """
     ...
 
@@ -1507,7 +1958,6 @@ class Dataset(DatasetView):
                 # process row
                 pass
             ```
-
         """
         ...
 
@@ -1550,7 +2000,7 @@ class Dataset(DatasetView):
             ```python
             ds.add_column("labels", deeplake.types.Int32)
 
-            ds.add_column("labels", "int32")
+            ds.add_column("categories", "int32")
 
             ds.add_column("name", deeplake.types.Text())
 
@@ -1558,7 +2008,7 @@ class Dataset(DatasetView):
 
             ds.add_column("images", deeplake.types.Image(dtype=deeplake.types.UInt8(), sample_compression="jpeg"))
 
-            ds.add_column("embedding", deeplake.types.Embedding(dtype=deeplake.types.Float32(), dimensions=768))
+            ds.add_column("embedding", deeplake.types.Embedding(size=768))
             ```
 
         Raises:
@@ -1571,6 +2021,14 @@ class Dataset(DatasetView):
 
         Args:
             name: The name of the column to remove
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("name", "text")
+        ```
+        -->
 
         Examples:
             ```python
@@ -1588,6 +2046,14 @@ class Dataset(DatasetView):
         Args:
             name: The name of the column to rename
             new_name: The new name to set to column
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("old_name", "text")
+        ```
+        -->
 
         Examples:
             ```python
@@ -1620,21 +2086,37 @@ class Dataset(DatasetView):
         Args:
             data: The data to insert into the dataset.
 
+        <!-- test-context
+        ```python
+        import deeplake
+        import numpy as np
+        ds = deeplake.create("tmp://")
+        ds.add_column("name", "text")
+        ds.add_column("age", "int32")
+        ds2 = deeplake.create("tmp://")
+        ds2.add_column("text", "text")
+        ds2.add_column("embedding", deeplake.types.Embedding(size=768))
+        deeplake.from_parquet = lambda x: ds2
+        ```
+        -->
+
         Examples:
             ```python
             ds.append({"name": ["Alice", "Bob"], "age": [25, 30]})
 
             ds.append([{"name": "Alice", "age": 25}, {"name": "Bob", "age": 30}])
-
-            ds.append({
-                "embedding": np.random.rand(4, 768),
-                "text": ["Hello World"] * 4})
-
-            ds.append([{"embedding": np.random.rand(768), "text": "Hello World"}] * 4)
             ```
 
             ```python
-            ds.append(deeplake.from_parquet("./file.parquet"))
+            ds2.append({
+                "embedding": np.random.rand(4, 768),
+                "text": ["Hello World"] * 4})
+
+            ds2.append([{"embedding": np.random.rand(768), "text": "Hello World"}] * 4)
+            ```
+
+            ```python
+            ds2.append(deeplake.from_parquet("./file.parquet"))
             ```
 
         Raises:
@@ -1662,12 +2144,9 @@ class Dataset(DatasetView):
         Examples:
             ```python
             ds.commit()
-            ```
 
-            ```python
             ds.commit("Added data from updated documents")
             ```
-
         """
 
     def commit_async(self, message: str | None = None) -> FutureVoid:
@@ -1682,21 +2161,12 @@ class Dataset(DatasetView):
         Examples:
             ```python
             ds.commit_async().wait()
-            ```
 
-            ```python
             ds.commit_async("Added data from updated documents").wait()
-            ```
 
-            ```python
-            await ds.commit_async()
-            ```
+            async def do_commit():
+                await ds.commit_async()
 
-            ```python
-            await ds.commit_async("Added data from updated documents")
-            ```
-
-            ```python
             future = ds.commit_async() # then you can check if the future is completed using future.is_completed()
             ```
         """
@@ -1807,7 +2277,6 @@ class ReadOnlyDataset(DatasetView):
                 # process row
                 pass
             ```
-
         """
         ...
 
@@ -1953,6 +2422,12 @@ class InvalidPolygonShapeError(Exception):
 class InvalidLinkDataError(Exception):
     pass
 
+class InvalidCredsKeyAssignmentError(Exception):
+    pass
+
+class CredsKeyAlreadyAssignedError(Exception):
+    pass
+
 class GcsStorageProviderFailed(Exception):
     pass
 
@@ -2053,12 +2528,6 @@ class UnsupportedChunkCompression(Exception):
     pass
 
 class InvalidImageCompression(Exception):
-    pass
-
-class InvalidCredsKeyAssignmentError(Exception):
-    pass
-
-class CredsKeyAlreadyAssignedError(Exception):
     pass
 
 class InvalidSegmentMaskCompression(Exception):
@@ -2206,11 +2675,21 @@ def create(
         token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
         schema (dict): The initial schema to use for the dataset. See `deeplake.schema` such as [deeplake.schemas.TextEmbeddings][] for common starting schemas.
 
+    <!-- test-context
+    ```python
+    import deeplake
+    from deeplake import types
+    ds = deeplake.create("tmp://")
+    def create(path, creds = None, token = None, org_id = None):
+        return ds
+    deeplake.create = create
+    key = ''
+    id = ''
+    ```
+    -->
+
     Examples:
         ```python
-        import deeplake
-        from deeplake import types
-        
         # Create a dataset in your local filesystem:
         ds = deeplake.create("directory_path")
         ds.add_column("id", types.Int32())
@@ -2219,42 +2698,23 @@ def create(
         ds.commit()
         ds.summary()
         ```
-        Output:
-        ```
-        Dataset length: 0
-        Columns:
-          id       : int32
-          url      : text
-          embedding: embedding(768)
-        ```
 
         ```python
         # Create dataset in your app.activeloop.ai organization:
         ds = deeplake.create("al://organization_id/dataset_name")
-        ```
 
-        ```python
         # Create a dataset stored in your cloud using specified credentials:
         ds = deeplake.create("s3://mybucket/my_dataset",
-            creds = {"aws_access_key_id": ..., ...})
-        ```
+            creds = {"aws_access_key_id": id, "aws_secret_access_key": key})
 
-        ```python
         # Create dataset stored in your cloud using app.activeloop.ai managed credentials.
         ds = deeplake.create("s3://mybucket/my_dataset",
             creds = {"creds_key": "managed_creds_key"}, org_id = "my_org_id")
-        ```
 
-        ```python
-        # Create dataset stored in your cloud using app.activeloop.ai managed credentials.
         ds = deeplake.create("azure://bucket/path/to/dataset")
-        ```
 
-        ```python
         ds = deeplake.create("gcs://bucket/path/to/dataset")
-        ```
 
-        ```python
         ds = deeplake.create("mem://in-memory")
         ```
 
@@ -2275,54 +2735,50 @@ def create_async(
 
     To open an existing dataset, use [deeplake.open_async][].
 
+    <!-- test-context
+    ```python
+    import deeplake
+    from deeplake import types
+    ds = deeplake.create_async("tmp://")
+    def create(path, creds = None, token = None, org_id = None):
+        return ds
+    deeplake.create_async = create
+    key = ''
+    id = ''
+    ```
+    -->
+
     Examples:
         ```python
-        import deeplake
-        from deeplake import types
-        
-        # Asynchronously create a dataset in your local filesystem:
-        ds = await deeplake.create_async("directory_path")
-        await ds.add_column("id", types.Int32())
-        await ds.add_column("url", types.Text())
-        await ds.add_column("embedding", types.Embedding(768))
-        await ds.commit()
-        await ds.summary()  # Example of usage in an async context
-        ```
+        async def create_dataset():
+            # Asynchronously create a dataset in your local filesystem:
+            ds = await deeplake.create_async("directory_path")
+            await ds.add_column("id", types.Int32())
+            await ds.add_column("url", types.Text())
+            await ds.add_column("embedding", types.Embedding(768))
+            await ds.commit()
+            await ds.summary()  # Example of usage in an async context
 
-        ```python
-        # Alternatively, create a dataset using .result().
-        future_ds = deeplake.create_async("directory_path")
-        ds = future_ds.result()  # Blocks until the dataset is created
-        ```
+            # Alternatively, create a dataset using .result().
+            future_ds = deeplake.create_async("directory_path")
+            ds = future_ds.result()  # Blocks until the dataset is created
 
-        ```python
-        # Create a dataset in your app.activeloop.ai organization:
-        ds = await deeplake.create_async("al://organization_id/dataset_name")
-        ```
+            # Create a dataset in your app.activeloop.ai organization:
+            ds = await deeplake.create_async("al://organization_id/dataset_name")
 
-        ```python
-        # Create a dataset stored in your cloud using specified credentials:
-        ds = await deeplake.create_async("s3://mybucket/my_dataset",
-            creds={"aws_access_key_id": ..., ...})
-        ```
+            # Create a dataset stored in your cloud using specified credentials:
+            ds = await deeplake.create_async("s3://mybucket/my_dataset",
+                creds={"aws_access_key_id": id, "aws_secret_access_key": key})
 
-        ```python
-        # Create dataset stored in your cloud using app.activeloop.ai managed credentials.
-        ds = await deeplake.create_async("s3://mybucket/my_dataset",
-            creds={"creds_key": "managed_creds_key"}, org_id="my_org_id")
-        ```
+            # Create dataset stored in your cloud using app.activeloop.ai managed credentials.
+            ds = await deeplake.create_async("s3://mybucket/my_dataset",
+                creds={"creds_key": "managed_creds_key"}, org_id="my_org_id")
 
-        ```python
-        # Create dataset stored in your cloud using app.activeloop.ai managed credentials.
-        ds = await deeplake.create_async("azure://bucket/path/to/dataset")
-        ```
+            ds = await deeplake.create_async("azure://bucket/path/to/dataset")
 
-        ```python
-        ds = await deeplake.create_async("gcs://bucket/path/to/dataset")
-        ```
+            ds = await deeplake.create_async("gcs://bucket/path/to/dataset")
 
-        ```python
-        ds = await deeplake.create_async("mem://in-memory")
+            ds = await deeplake.create_async("mem://in-memory")
         ```
 
     Raises:
@@ -2348,11 +2804,18 @@ def copy(
         dst_creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the destination dataset at the path.
         token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
 
+    <!-- test-context
+    ```python
+    import deeplake
+    from deeplake import types
+    deeplake.copy = lambda src, dst: None
+    ```
+    -->
+
     Examples:
         ```python
         deeplake.copy("al://organization_id/source_dataset", "al://organization_id/destination_dataset")
         ```
-
     """
 
 def delete(
@@ -2388,7 +2851,7 @@ def open(
 
     See [deeplake.open_read_only][] for opening the dataset in read only mode
 
-    To create a new dataset, see [deeplake.open][]
+    To create a new dataset, see [deeplake.create][]
 
     Args:
         url: The URL of the dataset. URLs can be specified using the following protocols:
@@ -2410,33 +2873,32 @@ def open(
             - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
         token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
 
+    <!-- test-context
+    ```python
+    import deeplake
+    deeplake.open = lambda url, creds = None, token = None, org_id = None: None
+    id = ''
+    key = ''
+    ```
+    -->
+
     Examples:
         ```python
         # Load dataset managed by Deep Lake.
         ds = deeplake.open("al://organization_id/dataset_name")
-        ```
 
-        ```python
         # Load dataset stored in your cloud using your own credentials.
         ds = deeplake.open("s3://bucket/my_dataset",
-            creds = {"aws_access_key_id": ..., ...})
-        ```
+            creds = {"aws_access_key_id": id, "aws_secret_access_key": key})
 
-        ```python
         # Load dataset stored in your cloud using Deep Lake managed credentials.
         ds = deeplake.open("s3://bucket/my_dataset",
-            ...creds = {"creds_key": "managed_creds_key"}, org_id = "my_org_id")
-        ```
+            creds = {"creds_key": "managed_creds_key"}, org_id = "my_org_id")
 
-        ```python
         ds = deeplake.open("s3://bucket/path/to/dataset")
-        ```
 
-        ```python
         ds = deeplake.open("azure://bucket/path/to/dataset")
-        ```
 
-        ```python
         ds = deeplake.open("gcs://bucket/path/to/dataset")
         ```
     """
@@ -2451,38 +2913,27 @@ def open_async(
 
     Examples:
         ```python
-        # Asynchronously load dataset managed by Deep Lake using await.
-        ds = await deeplake.open_async("al://organization_id/dataset_name")
-        ```
+        async def async_open():
+            # Asynchronously load dataset managed by Deep Lake using await.
+            ds = await deeplake.open_async("al://organization_id/dataset_name")
 
-        ```python
-        # Asynchronously load dataset stored in your cloud using your own credentials.
-        ds = await deeplake.open_async("s3://bucket/my_dataset",
-            creds={"aws_access_key_id": ..., ...})
-        ```
+            # Asynchronously load dataset stored in your cloud using your own credentials.
+            ds = await deeplake.open_async("s3://bucket/my_dataset",
+                creds={"aws_access_key_id": id, "aws_secret_access_key": key})
 
-        ```python
-        # Asynchronously load dataset stored in your cloud using Deep Lake managed credentials.
-        ds = await deeplake.open_async("s3://bucket/my_dataset",
-            creds={"creds_key": "managed_creds_key"}, org_id="my_org_id")
-        ```
+            # Asynchronously load dataset stored in your cloud using Deep Lake managed credentials.
+            ds = await deeplake.open_async("s3://bucket/my_dataset",
+                creds={"creds_key": "managed_creds_key"}, org_id="my_org_id")
 
-        ```python
-        ds = await deeplake.open_async("s3://bucket/path/to/dataset")
-        ```
+            ds = await deeplake.open_async("s3://bucket/path/to/dataset")
 
-        ```python
-        ds = await deeplake.open_async("azure://bucket/path/to/dataset")
-        ```
+            ds = await deeplake.open_async("azure://bucket/path/to/dataset")
 
-        ```python
-        ds = await deeplake.open_async("gcs://bucket/path/to/dataset")
-        ```
+            ds = await deeplake.open_async("gcs://bucket/path/to/dataset")
 
-        ```python
-        # Alternatively, load the dataset using .result().
-        future_ds = deeplake.open_async("al://organization_id/dataset_name")
-        ds = future_ds.result()  # Blocks until the dataset is loaded
+            # Alternatively, load the dataset using .result().
+            future_ds = deeplake.open_async("al://organization_id/dataset_name")
+            ds = future_ds.result()  # Blocks until the dataset is loaded
         ```
     """
 
@@ -2509,12 +2960,18 @@ def like(
             - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
         token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
 
+    <!-- test-context
+    ```python
+    import deeplake
+    deeplake.like = lambda src, dest, creds = None, token = None: None
+    ```
+    -->
+
     Examples:
         ```python
         ds = deeplake.like(src="az://bucket/existing/to/dataset",
            dest="s3://bucket/new/dataset")
         ```
-
     """
 
 def connect(
@@ -2538,33 +2995,30 @@ def connect(
         creds_key (str, optional): The creds_key of the managed credentials that will be used to access the source path. If not set, use the organization's default credentials.
         token (str, optional): Activeloop token used to fetch the managed credentials.
 
+    <!-- test-context
+    ```python
+    import deeplake
+    deeplake.connect = lambda src, dest = None, org_id = None, creds_key = None, token = None: None
+    ```
+    -->
+
     Examples:
         ```python
         ds = deeplake.connect("s3://bucket/path/to/dataset",
             "al://my_org/dataset")
-        ```
 
-        ```python
         ds = deeplake.connect("s3://bucket/path/to/dataset",
             "al://my_org/dataset", creds_key="my_key")
-        ```
 
-        ```python
         # Connect the dataset as al://my_org/dataset
         ds = deeplake.connect("s3://bucket/path/to/dataset",
             org_id="my_org")
-        ```
 
-        ```python
         ds = deeplake.connect("az://bucket/path/to/dataset",
             "al://my_org/dataset", creds_key="my_key")
-        ```
 
-        ```python
         ds = deeplake.connect("gcs://bucket/path/to/dataset",
             "al://my_org/dataset", creds_key="my_key")
-        ```
-
     """
 
 def disconnect(url: str, token: str | None = None) -> None:
@@ -2584,7 +3038,6 @@ def disconnect(url: str, token: str | None = None) -> None:
         ```python
         deeplake.disconnect("al://my_org/dataset_name")
         ```
-
     """
 
 def open_read_only(
@@ -2618,39 +3071,26 @@ def open_read_only(
         token (str, optional): Activeloop token to authenticate user.
 
     Examples:
-        ```python
+
         ds = deeplake.open_read_only("directory_path")
         ds.summary()
-        ```
 
         Example Output:
-        ```
         Dataset length: 5
         Columns:
           id       : int32
           url      : text
           embedding: embedding(768)
-        ```
 
-        ```python
         ds = deeplake.open_read_only("file:///path/to/dataset")
-        ```
 
-        ```python
         ds = deeplake.open_read_only("s3://bucket/path/to/dataset")
-        ```
 
-        ```python
         ds = deeplake.open_read_only("azure://bucket/path/to/dataset")
-        ```
 
-        ```python
         ds = deeplake.open_read_only("gcs://bucket/path/to/dataset")
-        ```
 
-        ```python
         ds = deeplake.open_read_only("mem://in-memory")
-        ```
     """
 
 def open_read_only_async(
@@ -2662,36 +3102,69 @@ def open_read_only_async(
     See [deeplake.open_async][] for opening datasets for modification and [deeplake.open_read_only][] for sync open.
 
     Examples:
-        ```python
+
         # Asynchronously open a dataset in read-only mode:
         ds = await deeplake.open_read_only_async("directory_path")
-        ```
 
-        ```python
         # Alternatively, open the dataset using .result().
         future_ds = deeplake.open_read_only_async("directory_path")
         ds = future_ds.result()  # Blocks until the dataset is loaded
-        ```
 
-        ```python
         ds = await deeplake.open_read_only_async("file:///path/to/dataset")
-        ```
 
-        ```python
         ds = await deeplake.open_read_only_async("s3://bucket/path/to/dataset")
-        ```
 
-        ```python
         ds = await deeplake.open_read_only_async("azure://bucket/path/to/dataset")
-        ```
 
-        ```python
         ds = await deeplake.open_read_only_async("gcs://bucket/path/to/dataset")
+
+        ds = await deeplake.open_read_only_async("mem://in-memory")
+    """
+
+def convert(
+    src: str,
+    dst: str, 
+    dst_creds: dict[str, str] | None = None,
+    token: str | None = None
+) -> None:
+    """
+    Converts a Deep Lake v3 dataset to the new v4 format while preserving data and metadata.
+    Optimized for ML workloads with efficient handling of large datasets and linked data.
+
+    Args:
+        src: URL of the source v3 dataset to convert
+        dst: Destination URL for the new v4 dataset. Supports:
+            - `file://path` local storage
+            - `s3://bucket/path` S3 storage
+            - `gs://bucket/path` Google Cloud storage
+            - `azure://bucket/path` Azure storage 
+        dst_creds: Optional credentials for accessing the destination storage.
+            Supports cloud provider credentials like access keys
+        token: Optional Activeloop authentication token
+
+    <-- test-context
+    ```python
+    import deeplake
+    deeplake.convert = lambda src, dst, dst_creds = None, token = None: None
+    ```
+    -->
+
+    Examples:
+        ```python
+        # Convert local dataset
+        deeplake.convert("old_dataset/", "new_dataset/")
+        
+        # Convert cloud dataset with credentials
+        deeplake.convert(
+            "s3://old-bucket/dataset",
+            "s3://new-bucket/dataset", 
+            dst_creds={"aws_access_key_id": "key", 
+                      "aws_secret_access_key": "secret"}
+        )
         ```
 
-        ```python
-        ds = await deeplake.open_read_only_async("mem://in-memory")
-        ```
+    Notes:
+        - You can open v3 dataset without converting it to v4 using `deeplake.query('SELECT * FROM "old_dataset/"')`
     """
 
 def from_parquet(url: str) -> ReadOnlyDataset:
@@ -2702,6 +3175,4 @@ def from_parquet(url: str) -> ReadOnlyDataset:
         url: The URL of the Parquet dataset. If no protocol is specified, it assumes `file://`
     """
 
-def __child_atfork() -> None: ...
-def __parent_atfork() -> None: ...
 def __prepare_atfork() -> None: ...

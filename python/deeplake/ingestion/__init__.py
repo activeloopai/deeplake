@@ -1,0 +1,1 @@
+from deeplake.ingestion.coco.ingest_coco import ingest_coco

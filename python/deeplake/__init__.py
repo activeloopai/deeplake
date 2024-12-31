@@ -14,7 +14,7 @@ import numpy
 import deeplake
 from ._deeplake import *
 
-__version__ = "4.1.1"
+__version__ = "4.1.2"
 
 __all__ = [
     "__version__",
@@ -128,9 +128,7 @@ __all__ = [
     "types",
     "Client",
     "client",
-    "__child_atfork",
     "__prepare_atfork",
-    "__parent_atfork",
 ]
 
 
@@ -259,7 +257,7 @@ def convert(
 
 
 def __register_at_fork():
-    from ._deeplake import __prepare_atfork, __parent_atfork, __child_atfork
+    from ._deeplake import __prepare_atfork
 
     UNSAFE_TYPES = (
         Dataset,
@@ -300,13 +298,13 @@ def __register_at_fork():
 
     def before_fork():
         check_main_globals_for_unsafe_types()
-        __prepare_atfork()
+        pass
 
     def after_fork_parent():
-        __parent_atfork()
+        pass
 
     def after_fork_child():
-        __child_atfork()
+        pass
 
     os.register_at_fork(
         before=before_fork,
@@ -314,5 +312,11 @@ def __register_at_fork():
         after_in_child=after_fork_child,
     )
 
+    ff = os.fork
+    def fork():
+        __prepare_atfork()
+        return ff()
+
+    os.fork = fork
 
 __register_at_fork()

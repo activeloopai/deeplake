@@ -306,13 +306,15 @@ def Array(dtype: DataType | str, dimensions: int, shape: list[int]) -> DataType:
         DataType: A new array data type with the specified parameters.
 
     Examples:
-        Create a three-dimensional array, where each dimension can have any number of elements::
-
-            ds.add_column("col1", types.Array("int32", dimensions=3))
+        Create a three-dimensional array, where each dimension can have any number of elements:
+        ```python
+        ds.add_column("col1", types.Array("int32", dimensions=3))
+        ```
         
-        Create a three-dimensional array, where each dimension has a known size::
-
-            ds.add_column("col2", types.Array(types.Float32(), shape=[50, 30, 768]))
+        Create a three-dimensional array, where each dimension has a known size:
+        ```python
+        ds.add_column("col2", types.Array(types.Float32(), shape=[50, 30, 768]))
+        ```
     """
     ...
 
@@ -324,10 +326,11 @@ def Bool() -> DataType:
         DataType: A new boolean data type.
 
     Examples:
-        Create columns with boolean type::
-
-            ds.add_column("col1", types.Bool)
-            ds.add_column("col2", "bool")
+        Create columns with boolean type:
+        ```python
+        ds.add_column("col1", types.Bool)
+        ds.add_column("col2", "bool")
+        ```
     """
     ...
 
@@ -349,13 +352,14 @@ def Text(index_type: str | TextIndexType | None = None) -> Type:
         Type: A new text data type.
 
     Examples:
-        Create text columns with different configurations::
-
-            ds.add_column("col1", types.Text)
-            ds.add_column("col2", "text")
-            ds.add_column("col3", str)
-            ds.add_column("col4", types.Text(index_type=types.Inverted))
-            ds.add_column("col4", types.Text(index_type=types.BM25))
+        Create text columns with different configurations:
+        ```python
+        ds.add_column("col1", types.Text)
+        ds.add_column("col2", "text")
+        ds.add_column("col3", str)
+        ds.add_column("col4", types.Text(index_type=types.Inverted))
+        ds.add_column("col5", types.Text(index_type=types.BM25))
+        ```
     """
     ...
 
@@ -387,11 +391,12 @@ def Dict() -> Type:
         :func:`deeplake.types.Struct` for a type that supports defining allowed keys.
 
     Examples:
-        Create and use a dictionary column::
-
-            ds.add_column("col1", types.Dict)
-            ds.append([{"col1": {"a": 1, "b": 2}}])
-            ds.append([{"col1": {"b": 3, "c": 4}}])
+        Create and use a dictionary column:
+        ```python
+        ds.add_column("col1", types.Dict)
+        ds.append([{"col1": {"a": 1, "b": 2}}])
+        ds.append([{"col1": {"b": 3, "c": 4}}])
+        ```
     """
     ...
 
@@ -419,10 +424,11 @@ def Embedding(
         :func:`deeplake.types.Array` for a multidimensional array.
 
     Examples:
-        Create embedding columns::
-
-            ds.add_column("col1", types.Embedding(768))
-            ds.add_column("col2", types.Embedding(768, quantization=types.QuantizationType.Binary))
+        Create embedding columns:
+        ```python
+        ds.add_column("col1", types.Embedding(768))
+        ds.add_column("col2", types.Embedding(768, quantization=types.QuantizationType.Binary))
+        ```
     """
     ...
 
@@ -434,9 +440,10 @@ def Float32() -> DataType:
         DataType: A new 32-bit float data type.
 
     Examples:
-        Create a column with 32-bit float type::
-
-            ds.add_column("col1", types.Float32)
+        Create a column with 32-bit float type:
+        ```python
+        ds.add_column("col1", types.Float32)
+        ```
     """
     ...
 
@@ -448,9 +455,10 @@ def Float64() -> DataType:
         DataType: A new 64-bit float data type.
 
     Examples:
-        Create a column with 64-bit float type::
-
-            ds.add_column("col1", types.Float64)
+        Create a column with 64-bit float type:
+        ```python
+        ds.add_column("col1", types.Float64)
+        ```
     """
     ...
 
@@ -462,9 +470,10 @@ def Int16() -> DataType:
         DataType: A new 16-bit integer data type.
 
     Examples:
-        Create a column with 16-bit integer type::
-
-            ds.add_column("col1", types.Int16)
+        Create a column with 16-bit integer type:
+        ```python
+        ds.add_column("col1", types.Int16)
+        ```
     """
     ...
 
@@ -476,9 +485,10 @@ def Int32() -> DataType:
         DataType: A new 32-bit integer data type.
 
     Examples:
-        Create a column with 32-bit integer type::
-
-            ds.add_column("col1", types.Int32)
+        Create a column with 32-bit integer type:
+        ```python
+        ds.add_column("col1", types.Int32)
+        ```
     """
     ...
 
@@ -490,9 +500,10 @@ def Int64() -> DataType:
         DataType: A new 64-bit integer data type.
 
     Examples:
-        Create a column with 64-bit integer type::
-
-            ds.add_column("col1", types.Int64)
+        Create a column with 64-bit integer type:
+        ```python
+        ds.add_column("col1", types.Int64)
+        ```
     """
     ...
 
@@ -504,9 +515,10 @@ def Int8() -> DataType:
         DataType: A new 8-bit integer data type.
 
     Examples:
-        Create a column with 8-bit integer type::
-
-            ds.add_column("col1", types.Int8)
+        Create a column with 8-bit integer type:
+        ```python
+        ds.add_column("col1", types.Int8)
+        ```
     """
     ...
 
@@ -526,9 +538,10 @@ def Sequence(nested_type: DataType | str | Type) -> Type:
         Type: A new sequence data type.
 
     Examples:
-        Create a sequence of images::
-
-            ds.add_column("col1", types.Sequence(types.Image(sample_
+        Create a sequence of images:
+        ```python
+        ds.add_column("col1", types.Sequence(types.Image(sample_compression="jpg")))
+        ```
     """
 
 def Image(dtype: DataType | str = "uint8", sample_compression: str = "png") -> Type:
@@ -554,7 +567,7 @@ def Image(dtype: DataType | str = "uint8", sample_compression: str = "png") -> T
     Examples:
         ```python
         ds.add_column("col1", types.Image)
-        ds.add_column("col1", types.Image(sample_compression="jpg"))
+        ds.add_column("col2", types.Image(sample_compression="jpg"))
         ```
     """
     ...
@@ -615,7 +628,7 @@ def BinaryMask(
     Examples:
         ```python
         ds.add_column("col1", types.BinaryMask(sample_compression="lz4"))
-        ds.append(np.zeros((512, 512, 5), dtype="bool"))
+        ds.append([{"col1": np.zeros((512, 512, 5), dtype="bool")}])
         ```
     """
     ...
@@ -637,7 +650,7 @@ def SegmentMask(
     Examples:
         ```python
         ds.add_column("col1", types.SegmentMask(sample_compression="lz4"))
-        ds.append("col1", np.zeros((512, 512)))
+        ds.append([{"col1": np.zeros((512, 512, 3))}])
         ```
     """
     ...
@@ -655,14 +668,12 @@ def Struct(fields: dict[str, DataType | str]) -> DataType:
         ```python
         ds.add_column("col1", types.Struct({
            "field1": types.Int16(),
-           "field2": types.Text(),
+           "field2": "text",
         }))
         
         ds.append([{"col1": {"field1": 3, "field2": "a"}}])
         print(ds[0]["col1"]["field1"]) # Output: 3
         ```
-
-
     """
     ...
 
