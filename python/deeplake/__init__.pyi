@@ -167,7 +167,7 @@ class Future:
         ```python
         async def load_data():
             ds = await deeplake.open_async("s3://ml-data/images")
-            batch = await ds.images.get_async(slice(0, 32))
+            batch = await ds["images"].get_async(slice(0, 32))
             return batch
         ```
     """
@@ -461,6 +461,7 @@ class Metadata(ReadOnlyMetadata):
     Writable access to dataset and column metadata for ML workflows.
 
     Stores important information about datasets like:
+
     - Model parameters and hyperparameters 
     - Preprocessing statistics
     - Data splits and fold definitions
@@ -468,19 +469,29 @@ class Metadata(ReadOnlyMetadata):
 
     Changes are persisted immediately without requiring `commit()`.
 
+    <!-- test-context
+    ```python
+    import deeplake
+    ds = deeplake.create("tmp://")
+    ds.add_column("images", "int32")
+    ```
+    -->
+
     Examples:
         Storing model metadata:
-
-            dataset.metadata["model_name"] = "resnet50"
-            dataset.metadata["hyperparameters"] = {
-                "learning_rate": 0.001,
-                "batch_size": 32
-            }
+        ```python
+        ds.metadata["model_name"] = "resnet50"
+        ds.metadata["hyperparameters"] = {
+            "learning_rate": 0.001,
+            "batch_size": 32
+        }
+        ```
 
         Setting preprocessing stats:
-
-            dataset.images.metadata["mean"] = [0.485, 0.456, 0.406]
-            dataset.images.metadata["std"] = [0.229, 0.224, 0.225]
+        ```python
+        ds["images"].metadata["mean"] = [0.485, 0.456, 0.406]
+        ds["images"].metadata["std"] = [0.229, 0.224, 0.225]
+        ```
     """
 
     def __setitem__(self, key: str, value: typing.Any) -> None:
@@ -505,27 +516,32 @@ def query(query: str, token: str | None = None) -> DatasetView:
     Executes TQL queries optimized for ML data filtering and search.
     
     TQL is a SQL-like query language designed for ML datasets, supporting:
-    - Vector similarity search
-    - Text semantic search
-    - Complex data filtering
-    - Joining across datasets
-    - Efficient sorting and pagination
+
+      - Vector similarity search
+      - Text semantic search
+      - Complex data filtering
+      - Joining across datasets
+      - Efficient sorting and pagination
 
     Args:
         query: TQL query string supporting:
-            - Vector similarity: COSINE_SIMILARITY, EUCLIDEAN_DISTANCE
-            - Text search: BM25_SIMILARITY, CONTAINS
-            - Filtering: WHERE clauses
-            - Sorting: ORDER BY
-            - Joins: JOIN across datasets
+
+          - Vector similarity: COSINE_SIMILARITY, L2_NORM
+          - Text search: BM25_SIMILARITY, CONTAINS
+          - MAXSIM similarity for ColPali embeddings: MAXSIM
+          - Filtering: WHERE clauses
+          - Sorting: ORDER BY
+          - Joins: JOIN across datasets
+
         token: Optional Activeloop authentication token
 
     Returns:
         DatasetView: Query results that can be:
-            - Used directly in ML training
-            - Further filtered with additional queries
-            - Converted to PyTorch/TensorFlow dataloaders
-            - Materialized into a new dataset
+
+          - Used directly in ML training
+          - Further filtered with additional queries
+          - Converted to PyTorch/TensorFlow dataloaders
+          - Materialized into a new dataset
 
     <!-- test-context
     ```python
@@ -898,10 +914,11 @@ class ColumnView:
     data access in ML workflows, supporting both synchronous and asynchronous operations.
 
     The ColumnView class allows you to:
-    - Access column data using integer indices, slices, or lists of indices
-    - Retrieve data asynchronously for better performance in ML pipelines
-    - Access column metadata and properties
-    - Get information about linked data if the column contains references
+
+      - Access column data using integer indices, slices, or lists of indices
+      - Retrieve data asynchronously for better performance in ML pipelines
+      - Access column metadata and properties
+      - Get information about linked data if the column contains references
 
     <!-- test-context
     ```python
@@ -953,9 +970,10 @@ class ColumnView:
 
         Parameters:
             index: Can be:
-                - int: Single item index
-                - slice: Range of indices (e.g., 0:10)
-                - list/tuple: Multiple specific indices
+
+              - int: Single item index
+              - slice: Range of indices (e.g., 0:10)
+              - list/tuple: Multiple specific indices
 
         Returns:
             The data at the specified index/indices. Type depends on the column's data type.
@@ -991,9 +1009,10 @@ class ColumnView:
 
         Parameters:
             index: Can be:
-                - int: Single item index
-                - slice: Range of indices
-                - list/tuple: Multiple specific indices
+
+              - int: Single item index
+              - slice: Range of indices
+              - list/tuple: Multiple specific indices
 
         Returns:
             Future: A Future object that resolves to the requested data.
@@ -1095,10 +1114,11 @@ class Column(ColumnView):
     ML workflows.
 
     The Column class allows you to:
-    - Read and write data using integer indices, slices, or lists of indices
-    - Modify data asynchronously for better performance
-    - Access and modify column metadata
-    - Handle various data types common in ML: images, embeddings, labels, etc.
+
+      - Read and write data using integer indices, slices, or lists of indices
+      - Modify data asynchronously for better performance
+      - Access and modify column metadata
+      - Handle various data types common in ML: images, embeddings, labels, etc.
 
     <!-- test-context
     ```python
@@ -1152,8 +1172,9 @@ class Column(ColumnView):
 
         Parameters:
             index: Can be:
-                - int: Single item index
-                - slice: Range of indices (e.g., 0:10)
+
+              - int: Single item index
+              - slice: Range of indices (e.g., 0:10)
             value: The data to store. Must match the column's data type.
 
         <!-- test-context
@@ -1186,8 +1207,9 @@ class Column(ColumnView):
 
         Parameters:
             index: Can be:
-                - int: Single item index
-                - slice: Range of indices
+            
+              - int: Single item index
+              - slice: Range of indices
             value: The data to store. Must match the column's data type.
 
         Returns:
@@ -1605,11 +1627,11 @@ class DatasetView:
 
         The result will depend on the type of value passed to the `[]` operator.
 
-        - `int`: The zero-based offset of the single row to return. Returns a [deeplake.RowView][]
-        - `slice`: A slice specifying the range of rows to return. Returns a [deeplake.RowRangeView][]
-        - `list`: A list of indices specifying the rows to return. Returns a [deeplake.RowRangeView][]
-        - `tuple`: A tuple of indices specifying the rows to return. Returns a [deeplake.RowRangeView
-        - `str`: A string specifying column to return all values from. Returns a [deeplake.ColumnView][]
+          - `int`: The zero-based offset of the single row to return. Returns a [deeplake.RowView][]
+          - `slice`: A slice specifying the range of rows to return. Returns a [deeplake.RowRangeView][]
+          - `list`: A list of indices specifying the rows to return. Returns a [deeplake.RowRangeView][]
+          - `tuple`: A tuple of indices specifying the rows to return. Returns a [deeplake.RowRangeView
+          - `str`: A string specifying column to return all values from. Returns a [deeplake.ColumnView][]
 
         Examples:
             ```python
@@ -1990,10 +2012,10 @@ class Dataset(DatasetView):
             name: The name of the column
             dtype: The type of the column. Possible values include:
 
-                - Values from `deeplake.types` such as "[deeplake.types.Int32][]()"
-                - Python types: `str`, `int`, `float`
-                - Numpy types: such as `np.int32`
-                - A function reference that returns one of the above types
+              - Values from `deeplake.types` such as "[deeplake.types.Int32][]()"
+              - Python types: `str`, `int`, `float`
+              - Numpy types: such as `np.int32`
+              - A function reference that returns one of the above types
             format (DataFormat, optional): The format of the column, if applicable. Only required when the dtype is [deeplake.types.DataType][].
 
         Examples:
@@ -2079,9 +2101,9 @@ class Dataset(DatasetView):
 
         The data can be in a variety of formats:
 
-        - A list of dictionaries, each value in the list is a row, with the dicts containing the column name and its value for the row.
-        - A dictionary, the keys are the column names and the values are array-like (list or numpy.array) objects corresponding to the column values.
-        - A DatasetView that was generated through any mechanism
+          - A list of dictionaries, each value in the list is a row, with the dicts containing the column name and its value for the row.
+          - A dictionary, the keys are the column names and the values are array-like (list or numpy.array) objects corresponding to the column values.
+          - A DatasetView that was generated through any mechanism
 
         Args:
             data: The data to insert into the dataset.
@@ -2657,21 +2679,21 @@ def create(
         url: The URL of the dataset.
             URLs can be specified using the following protocols:
 
-            - `file://path` local filesystem storage
-            - `al://org_id/dataset_name` A dataset on app.activeloop.ai
-            - `azure://bucket/path` or `az://bucket/path` Azure storage
-            - `gs://bucket/path` or `gcs://bucket/path` or `gcp://bucket/path` Google Cloud storage
-            - `s3://bucket/path` S3 storage
-            - `mem://name` In-memory storage that lasts the life of the process
+              - `file://path` local filesystem storage
+              - `al://org_id/dataset_name` A dataset on app.activeloop.ai
+              - `azure://bucket/path` or `az://bucket/path` Azure storage
+              - `gs://bucket/path` or `gcs://bucket/path` or `gcp://bucket/path` Google Cloud storage
+              - `s3://bucket/path` S3 storage
+              - `mem://name` In-memory storage that lasts the life of the process
 
             A URL without a protocol is assumed to be a file:// URL
 
         creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
 
-            - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-            - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
-            - To use credentials managed in your Activeloop organization, use they key 'creds_key': 'managed_key_name'. This requires the org_id dataset argument to be set.
-            - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
+          - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+          - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+          - To use credentials managed in your Activeloop organization, use they key 'creds_key': 'managed_key_name'. This requires the org_id dataset argument to be set.
+          - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
         token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
         schema (dict): The initial schema to use for the dataset. See `deeplake.schema` such as [deeplake.schemas.TextEmbeddings][] for common starting schemas.
 
@@ -2856,21 +2878,21 @@ def open(
     Args:
         url: The URL of the dataset. URLs can be specified using the following protocols:
 
-            - `file://path` local filesystem storage
-            - `al://org_id/dataset_name` A dataset on app.activeloop.ai
-            - `azure://bucket/path` or `az://bucket/path` Azure storage
-            - `gs://bucket/path` or `gcs://bucket/path` or `gcp://bucket/path` Google Cloud storage
-            - `s3://bucket/path` S3 storage
-            - `mem://name` In-memory storage that lasts the life of the process
+          - `file://path` local filesystem storage
+          - `al://org_id/dataset_name` A dataset on app.activeloop.ai
+          - `azure://bucket/path` or `az://bucket/path` Azure storage
+          - `gs://bucket/path` or `gcs://bucket/path` or `gcp://bucket/path` Google Cloud storage
+          - `s3://bucket/path` S3 storage
+          - `mem://name` In-memory storage that lasts the life of the process
 
-             A URL without a protocol is assumed to be a file:// URL
+          A URL without a protocol is assumed to be a file:// URL
 
         creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
 
-            - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-            - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
-            - To use credentials managed in your Activeloop organization, use they key 'creds_key': 'managed_key_name'. This requires the org_id dataset argument to be set.
-            - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
+          - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+          - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+          - To use credentials managed in your Activeloop organization, use they key 'creds_key': 'managed_key_name'. This requires the org_id dataset argument to be set.
+          - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
         token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
 
     <!-- test-context
@@ -2954,10 +2976,10 @@ def like(
         dest: The URL to create the new dataset at.
                 creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
 
-            - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-            - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
-            - To use credentials managed in your Activeloop organization, use they key 'creds_key': 'managed_key_name'. This requires the org_id dataset argument to be set.
-            - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
+          - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+          - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+          - To use credentials managed in your Activeloop organization, use they key 'creds_key': 'managed_key_name'. This requires the org_id dataset argument to be set.
+          - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
         token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
 
     <!-- test-context
