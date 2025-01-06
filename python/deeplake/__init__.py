@@ -14,7 +14,7 @@ import numpy
 import deeplake
 from ._deeplake import *
 
-__version__ = "4.1.2"
+__version__ = "4.1.3"
 
 __all__ = [
     "__version__",
