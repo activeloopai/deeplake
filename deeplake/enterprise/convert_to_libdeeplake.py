@@ -194,7 +194,7 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
         elif path.startswith("mem://"):
             raise ValueError("In memory datasets are not supported for libdeeplake")
         elif path.startswith("hub://"):
-            provider = hub2_dataset.storage.next_storage
+            provider = get_base_storage(hub2_dataset.storage)
             if isinstance(provider, S3Provider):
                 libdeeplake_dataset = _get_indra_ds_from_s3_provider(
                     path=path, token=token, provider=provider
@@ -218,7 +218,7 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
 
         elif path.startswith("s3://"):
             libdeeplake_dataset = _get_indra_ds_from_s3_provider(
-                path=path, token=token, provider=hub2_dataset.storage.next_storage
+                path=path, token=token, provider=get_base_storage(hub2_dataset.storage)
             )
 
         elif path.startswith(("gcs://", "gs://", "gcp://")):
