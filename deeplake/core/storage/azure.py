@@ -384,6 +384,8 @@ class AzureProvider(StorageProvider):
             if self.sas_token:
                 self.credential = AzureSasCredential(self.sas_token)
 
+            self._set_clients()
+
     def get_items(self, keys):
         with ThreadPoolExecutor() as executor:
             future_to_key = {
