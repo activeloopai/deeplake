@@ -1,5 +1,6 @@
 import datetime
 import typing
+import pathlib
 
 import formats
 import storage
@@ -23,6 +24,7 @@ __all__ = [
     "DatasetView",
     "Dataset",
     "ReadOnlyDataset",
+    "IndexingMode",
     "ExpiredTokenError",
     "FormatNotSupportedError",
     "UnevenColumnsError",
@@ -33,6 +35,7 @@ __all__ = [
     "InvalidColumnValueError",
     "InvalidPolygonShapeError",
     "InvalidLinkDataError",
+    "EmbeddingSizeMismatch",
     "PushError",
     "GcsStorageProviderFailed",
     "History",
@@ -119,6 +122,7 @@ __all__ = [
     "Client",
     "client",
     "__prepare_atfork",
+    "from_coco",
 ]
 
 class Future:
@@ -1825,6 +1829,48 @@ class DatasetView:
         ...
 
 
+class IndexingMode:
+    """
+    Enumeration of available indexing modes in deeplake.
+
+    Members:
+        Always: Indices are always updated at commit.
+        Automatic: Deeplake automatically detects when to update the indices.
+        Off: Index updates are disabled during the session.
+    """
+    Always: typing.ClassVar[IndexingMode]
+    Automatic: typing.ClassVar[IndexingMode]
+    Off: typing.ClassVar[IndexingMode]
+    __members__: typing.ClassVar[Dict[str, IndexingMode]]
+
+    def __eq__(self, other: typing.Any) -> bool:
+        ...
+    def __getstate__(self) -> int:
+        ...
+    def __hash__(self) -> int:
+        ...
+    def __index__(self) -> int:
+        ...
+    def __init__(self, value: int) -> None:
+        ...
+    def __int__(self) -> int:
+        ...
+    def __ne__(self, other: typing.Any) -> bool:
+        ...
+    def __repr__(self) -> str:
+        ...
+    def __setstate__(self, state: int) -> None:
+        ...
+    def __str__(self) -> str:
+        ...
+    @property
+    def name(self) -> str:
+        ...
+    @property
+    def value(self) -> int:
+        ...
+
+
 class Dataset(DatasetView):
     """
     Datasets are the primary data structure used in DeepLake. They are used to store and manage data for searching, training, evaluation.
@@ -1869,6 +1915,31 @@ class Dataset(DatasetView):
         """
         When the dataset was created. The value is auto-generated at creation time.
         """
+
+    indexing_mode: IndexingMode
+    """
+    The indexing mode of the dataset. This property can be set to change the indexing mode of the dataset for the current session,
+    other sessions will not be affected.
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.indexing_mode = deeplake.IndexingMode.Off
+        ds.add_column("column_name", deeplake.types.Text(deeplake.types.BM25))
+        a = ['a']*10_000
+        ds.append({"column_name":a})
+        ds.commit()
+        ```
+        -->
+
+        Examples:
+            ```python
+            ds = deeplake.open("tmp://")
+            ds.indexing_mode = deeplake.IndexingMode.Automatic
+            ds.commit()
+            ```
+    """
 
     @property
     def version(self) -> str:
@@ -2442,6 +2513,9 @@ class InvalidPolygonShapeError(Exception):
     pass
 
 class InvalidLinkDataError(Exception):
+    pass
+
+class EmbeddingSizeMismatch(Exception):
     pass
 
 class InvalidCredsKeyAssignmentError(Exception):
@@ -3195,6 +3269,33 @@ def from_parquet(url: str) -> ReadOnlyDataset:
 
     Args:
         url: The URL of the Parquet dataset. If no protocol is specified, it assumes `file://`
+    """
+
+def from_coco(
+    images_directory: typing.Union[str, pathlib.Path],
+    annotation_files: typing.Dict[str, typing.Union[str, pathlib.Path]],
+    dest: typing.Union[str, pathlib.Path],
+    dest_creds: typing.Optional[Dict[str, str]] = None,
+) -> dp.Dataset:
+    """Ingest images and annotations in COCO format to a Deep Lake Dataset. The source data can be stored locally or in the cloud.
+
+    Args:
+        images_directory (str, pathlib.Path): The path to the directory containing images.
+        annotation_files Dict(str, Union[str, pathlib.Path]): dictionary from key to path to JSON annotation file in COCO format.
+            - the required keys are the following `instances`, `keypoints` and `stuff`
+        dest (str, pathlib.Path):
+            - The full path to the dataset. Can be:
+            - a Deep Lake cloud path of the form ``al://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are authenticated to Deep Lake (pass in a token using the 'token' parameter).
+            - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
+            - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
+            - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+        dest_creds (Optional[Dict[str, str]]): The dictionary containing credentials used to access the destination path of the dataset.
+
+    Returns:
+        Dataset: The Dataset created from images and COCO annotations.
+
+    Raises:
+        CocoAnnotationMissingError: If one or many annotation key is missing from file.
     """
 
 def __prepare_atfork() -> None: ...

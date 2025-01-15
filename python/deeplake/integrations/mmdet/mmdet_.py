@@ -116,8 +116,8 @@ Below is the example of the deeplake mmdet configuration:
 ...             "token": TOKEN,
 ...             "creds": None,
 ...         },
-...         #OPTIONAL - Checkout the specified commit_id before training
-...         deeplake_commit_id="",
+...         #OPTIONAL - load deeplake dataset from a query
+...         deeplake_query = "",
 ...         #OPTIONAL - Loads a dataset tag for training based on tag_id
 ...         deeplake_tag_id="",
 ...         # OPTIONAL - {"mmdet_key": "deep_lake_tensor",...} - Maps Deep Lake tensors to MMDET dictionary keys. 
@@ -369,8 +369,8 @@ def build_dataloader(
         batch_size=batch_size,
     )
 
+    rank, world_size = get_dist_info()
     if dist:
-        rank, world_size = get_dist_info()
         sl = get_indexes(
             dataset, rank=rank, num_replicas=world_size, drop_last=drop_last
         )

@@ -60,39 +60,42 @@ Below is the example of the deeplake mmseg configuration:
 
 
 >>> _base_ = "../mmsegmentation/configs/pspnet/pspnet_r101-d8_512x512_4x4_160k_coco-stuff164k.py"
+>>> device = "cuda"
+>>> work_dir "./"
+>>> seed = 0
+>>> gpu_ids = range(1)
 >>> # use caffe img_norm
->>> img_norm_cfg = dict(mean=[0, 0, 0], std=[255., 255., 255.], to_rgb=True)
+>>> img_norm_cfg = dict(mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
+>>> crop_size = (256, 256)
+>>> reduce_zero_label = False
 >>> train_pipeline = [
-...     dict(type='LoadImageFromFile'),
-...     dict(type='LoadAnnotations'),
-...     dict(
-...         type='Expand',
-...         mean=img_norm_cfg['mean'],
-...         to_rgb=img_norm_cfg['to_rgb'],
-...         ratio_range=(1, 2)),
-...     dict(type='Resize', img_scale=[(320, 320), (416, 416)], keep_ratio=True),
-...     dict(type='RandomFlip', flip_ratio=0.0),
-...     dict(type='PhotoMetricDistortion'),
-...     dict(type='Normalize', **img_norm_cfg),
-...     dict(type='Pad', size_divisor=32),
-...     dict(type='DefaultFormatBundle'),
-...     dict(type='Collect', keys=['img', 'gt_semantic_seg'])
+...     dict(type="LoadImageFromFile"),
+...     dict(type="LoadAnnotations"),
+...     dict(type="Resize", img_scale=(320, 240), ratio_range=(0.5, 2.0)),
+...     dict(type="RandomCrop", crop_size=crop_size),
+...     dict(type="RandomFlip", flip_ratio=0.5),
+...     dict(type="PhotoMetricDistortion"),
+...     dict(type="Normalize", **img_norm_cfg),
+...     dict(type="Pad", size=crop_size, pad_val=0),
+...     dict(type="DefaultFormatBundle"),
+...     dict(type="Collect", keys=["img", "gt_semantic_seg"]),
 ... ]
 >>> test_pipeline = [
-...     dict(type='LoadImageFromFile'),
+...     dict(type="LoadImageFromFile"),
 ...     dict(
-...         type='MultiScaleFlipAug',
-...         img_scale=(416, 416),
+...         type="MultiScaleFlipAug",
+...         img_scale=(320, 240),
 ...         flip=False,
 ...         transforms=[
-...             dict(type='Resize', keep_ratio=True),
-...             dict(type='RandomFlip', flip_ratio=0.0),
-...             dict(type='Normalize', **img_norm_cfg),
-...             dict(type='Pad', size_divisor=32),
-...             dict(type='ImageToTensor', keys=['img']),
-...             dict(type='Collect', keys=['img'])
-...         ])
+...             dict(type="Resize", img_scale=(320, 240), keep_ratio=True),
+...             dict(type="RandomFlip"),
+...             dict(type="Normalize", **img_norm_cfg),
+...             dict(type="ImageToTensor", keys=["img"]),
+...             dict(type="Collect", keys=["img"]),
+...         ],
+...     ),
 ... ]
+>>> evaluation = dict(metric=["mIoU"], interval=500)
 >>> #--------------------------------------DEEPLAKE INPUTS------------------------------------------------------------#
 >>> TOKEN = "INSERT_YOUR_DEEPLAKE_TOKEN"
 >>> data = dict(
@@ -106,8 +109,8 @@ Below is the example of the deeplake mmseg configuration:
 ...             "token": TOKEN,
 ...             "creds": None,
 ...         },
-...         #OPTIONAL - Checkout the specified commit_id before training
-...         deeplake_commit_id="",
+...         #OPTIONAL - load deeplake dataset from a query
+...         deeplake_query = "",
 ...         #OPTIONAL - Loads a dataset tag for training based on tag_id
 ...         deeplake_tag_id="",
 ...         # OPTIONAL - {"mmseg_key": "deep_lake_tensor",...} - Maps Deep Lake tensors to MMSeg dictionary keys.
@@ -335,7 +338,7 @@ def train_segmentor(
     check_unsupported_functionalities(cfg)
 
     if not hasattr(cfg, "gpu_ids"):
-        cfg.gpu_ids = range(torch.cuda.device_count() if distributed else 1)
+        cfg.gpu_ids = range(torch.cuda.device_count() if distributed else range(1))
     if distributed:
         return torch.multiprocessing.spawn(
             _train_segmentor,
@@ -688,9 +691,8 @@ def build_dataloader(
         num_gpus=loader_config["num_gpus"],
         batch_size=batch_size,
     )
-
+    rank, world_size = get_dist_info()
     if dist:
-        rank, world_size = get_dist_info()
         sl = get_indexes(
             dataset, rank=rank, num_replicas=world_size, drop_last=drop_last
         )

@@ -21,6 +21,7 @@ __all__ = [
     "Inverted",
     "Link",
     "Polygon",
+    "Point",
     "QuantizationType",
     "SegmentMask",
     "Sequence",

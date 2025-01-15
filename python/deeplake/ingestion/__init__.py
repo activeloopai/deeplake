@@ -1,1 +1,1 @@
-from deeplake.ingestion.coco.ingest_coco import ingest_coco
+from deeplake.ingestion.coco.from_coco import from_coco

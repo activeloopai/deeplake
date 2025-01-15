@@ -13,8 +13,9 @@ import numpy
 
 import deeplake
 from ._deeplake import *
+from deeplake.ingestion import from_coco
 
-__version__ = "4.1.3"
+__version__ = "4.1.4"
 
 __all__ = [
     "__version__",
@@ -33,6 +34,7 @@ __all__ = [
     "DatasetView",
     "Dataset",
     "ReadOnlyDataset",
+    "IndexingMode",
     "ExpiredTokenError",
     "FormatNotSupportedError",
     "UnevenColumnsError",
@@ -43,6 +45,7 @@ __all__ = [
     "InvalidColumnValueError",
     "InvalidPolygonShapeError",
     "InvalidLinkDataError",
+    "EmbeddingSizeMismatch",
     "PushError",
     "GcsStorageProviderFailed",
     "History",
@@ -129,6 +132,7 @@ __all__ = [
     "Client",
     "client",
     "__prepare_atfork",
+    "from_coco",
 ]
 
 
