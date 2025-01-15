@@ -23,6 +23,7 @@ __all__ = [
     "Inverted",
     "Link",
     "Polygon",
+    "Point",
     "QuantizationType",
     "SegmentMask",
     "Sequence",
@@ -240,6 +241,7 @@ class TypeKind:
         SegmentMask: Segmentation mask data type
         Polygon: Polygon data type
         ClassLabel: Class label data type
+        Point: Point data type
         Link: Link data type
     """
 
@@ -252,6 +254,7 @@ class TypeKind:
     Image: typing.ClassVar[TypeKind]
     Link: typing.ClassVar[TypeKind]
     Polygon: typing.ClassVar[TypeKind]
+    Point: typing.ClassVar[TypeKind]
     SegmentMask: typing.ClassVar[TypeKind]
     Sequence: typing.ClassVar[TypeKind]
     Text: typing.ClassVar[TypeKind]
@@ -288,18 +291,20 @@ class TypeKind:
 def Array(dtype: DataType | str, dimensions: int) -> DataType: ...
 @typing.overload
 def Array(dtype: DataType | str, shape: list[int]) -> DataType: ...
+@typing.overload
+def Array(dtype: DataType | str) -> DataType: ...
 
-def Array(dtype: DataType | str, dimensions: int, shape: list[int]) -> DataType:
+def Array(dtype: DataType | str, dimensions: int | None, shape: list[int] | None) -> DataType:
     """
     Creates a generic array of data.
 
     Parameters:
         dtype: DataType | str
             The datatype of values in the array
-        dimensions: int
+        dimensions: int | None
             The number of dimensions/axes in the array. Unlike specifying ``shape``,
             there is no constraint on the size of each dimension.
-        shape: list[int]
+        shape: list[int] | None
             Constrain the size of each dimension in the array
 
     Returns:
@@ -587,6 +592,9 @@ def Link(type: Type) -> Type:
     ...
 
 def Polygon() -> Type:
+    ...
+
+def Point() -> Type:
     ...
 
 def ClassLabel(dtype: DataType | str) -> Type:
