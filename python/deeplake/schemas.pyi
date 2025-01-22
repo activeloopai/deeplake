@@ -20,6 +20,14 @@ def TextEmbeddings(embedding_size: int, quantize: bool = False) -> SchemaTemplat
     - text_chunk (text): The text of the shard.
     - embedding (dtype=float32, size=embedding_size): The embedding of the text.
 
+    <!-- test-context
+    ```python
+    import deeplake
+    from deeplake import types
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
     Parameters:
         embedding_size: int
             Size of the embeddings.
