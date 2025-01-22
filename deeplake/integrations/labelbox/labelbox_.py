@@ -307,7 +307,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
        fail_on_labelbox_project_export_error (bool, optional): Whether to raise an exception if Labelbox project export fails. Defaults to False
 
     Returns:
-       Dataset: Created Deeplake dataset containing processed video frames and Labelbox metadata.
+       Tuple: Created Deeplake dataset containing processed video frames and Labelbox metadata and the Labelbox project JSON.
        Returns empty dataset if no data found in project.
 
     Notes:
