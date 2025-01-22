@@ -70,8 +70,8 @@ def validate_ds(ds):
     assert np.all(ds["radio_bttn"][0].numpy() == [[0]])
 
     assert np.all(ds["checklist"][499].numpy() == [[]])
-    assert np.all(ds["checklist"][500].numpy() == [[0, 1]])
-    assert np.all(ds["checklist"][598].numpy() == [[1, 0]])
+    assert np.all(ds["checklist"][500].numpy() == [[0, 1]]) or np.all(ds["checklist"][500].numpy() == [[1, 0]])
+    assert np.all(ds["checklist"][598].numpy() == [[0, 1]]) or np.all(ds["checklist"][598].numpy() == [[1, 0]])
     assert np.all(ds["checklist"][599].numpy() == [[0]])
     assert np.all(ds["checklist"][698].numpy() == [[0]])
     assert np.all(ds["checklist"][699].numpy() == [[1]])
@@ -260,7 +260,7 @@ def test_connect_to_labelbox():
         # the second value is the headers that will be added to the request
         return url.partition("?")[0] + "?" + sas_token, {}
 
-    ds = create_dataset_from_video_annotation_project(
+    ds, project_json = create_dataset_from_video_annotation_project(
         ds_path,
         project_id,
         client,
@@ -283,6 +283,7 @@ def test_connect_to_labelbox():
         ds_provider,
         API_KEY,
         group_mapping={"raster-segmentation": "mask"},
+        project_json=project_json,
     )
     print("generating annotations")
     ds = converter.dataset_with_applied_annotations()

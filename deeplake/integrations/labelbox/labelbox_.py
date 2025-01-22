@@ -19,6 +19,7 @@ def converter_for_video_project_with_id(
     fail_on_labelbox_project_export_error=False,
     generate_metadata=True,
     metadata_prefix="lb_meta",
+    project_json=None,
 ) -> Optional[labelbox_video_converter]:
     """
     Creates a converter for Labelbox video project to a Deeplake dataset format based on annotation types.
@@ -33,6 +34,7 @@ def converter_for_video_project_with_id(
         fail_on_labelbox_project_export_error (bool, optional): Whether to raise an exception if Labelbox project export fails. Defaults to False.
         generate_metadata (bool, optional): Whether to generate metadata tensors. Defaults to True.
         metadata_prefix (str, optional): Prefix for metadata tensors. Defaults to "lb_meta". Will be ignored if generate_metadata is False.
+        project_json (dict, optional): Optional project JSON data to use for conversion. If not provided, the function will fetch the project data from Labelbox.
 
 
     Returns:
@@ -59,9 +61,10 @@ def converter_for_video_project_with_id(
         - Supports Video ontology from labelbox.
         - The function first validates the project data before setting up converters.
     """
-    project_json = labelbox_get_project_json_with_id_(
-        client, project_id, fail_on_labelbox_project_export_error
-    )
+    if project_json is None:
+        project_json = labelbox_get_project_json_with_id_(
+            client, project_id, fail_on_labelbox_project_export_error
+        )
 
     if len(project_json) == 0:
         print("no data")
@@ -324,7 +327,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     )
     if len(proj) == 0:
         print("no data")
-        return ds
+        return ds, proj
 
     if not validate_project_creation_data_(proj, project_id, "video"):
         if fail_on_error:
@@ -362,7 +365,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
 
     ds.commit()
 
-    return ds
+    return ds, proj
 
 
 def create_dataset_from_video_annotation_project(
