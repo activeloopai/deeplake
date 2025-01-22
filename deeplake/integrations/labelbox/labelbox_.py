@@ -34,7 +34,7 @@ def converter_for_video_project_with_id(
         fail_on_labelbox_project_export_error (bool, optional): Whether to raise an exception if Labelbox project export fails. Defaults to False.
         generate_metadata (bool, optional): Whether to generate metadata tensors. Defaults to True.
         metadata_prefix (str, optional): Prefix for metadata tensors. Defaults to "lb_meta". Will be ignored if generate_metadata is False.
-        project_json (dict, optional): Optional project JSON data to use for conversion. If not provided, the function will fetch the project data from Labelbox.
+        project_json (Any, optional): Optional project JSON data to use for conversion. If not provided, the function will fetch the project data from Labelbox.
 
 
     Returns:
@@ -280,7 +280,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     url_presigner=None,
     video_generator_batch_size=100,
     fail_on_labelbox_project_export_error=False,
-) -> deeplake.Dataset:
+) -> Tuple[deeplake.Dataset, Any]:
     """
     Creates a Deeplake dataset from an existing Labelbox video annotation project using custom data processing.
     Downloads video frames from Labelbox and processes them using provided data filler functions.
@@ -381,7 +381,7 @@ def create_dataset_from_video_annotation_project(
     url_presigner=None,
     video_generator_batch_size=100,
     fail_on_labelbox_project_export_error=False,
-) -> deeplake.Dataset:
+) -> Tuple[deeplake.Dataset, Any]:
     """
     See create_dataset_from_video_annotation_project_with_custom_data_filler for complete documentation.
 
