@@ -24,6 +24,7 @@ __all__ = [
     "Point",
     "QuantizationType",
     "SegmentMask",
+    "Medical",
     "Sequence",
     "Struct",
     "Text",

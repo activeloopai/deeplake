@@ -26,6 +26,7 @@ __all__ = [
     "Point",
     "QuantizationType",
     "SegmentMask",
+    "Medical",
     "Sequence",
     "Struct",
     "Text",
@@ -47,6 +48,15 @@ class QuantizationType:
             Stores a binary quantized representation of the original embedding in the index 
             rather than a full copy of the embedding. This slightly decreases accuracy of 
             searches, while significantly improving query time.
+
+    <!--
+    ```python
+    import deeplake
+    import numpy as np
+    from deeplake import types
+    ds = deeplake.create("tmp://")
+    ```
+    -->
     """
 
     Binary: typing.ClassVar[QuantizationType]
@@ -242,6 +252,7 @@ class TypeKind:
         Polygon: Polygon data type
         ClassLabel: Class label data type
         Point: Point data type
+        Medical: Medical data type
         Link: Link data type
     """
 
@@ -258,6 +269,7 @@ class TypeKind:
     SegmentMask: typing.ClassVar[TypeKind]
     Sequence: typing.ClassVar[TypeKind]
     Text: typing.ClassVar[TypeKind]
+    Medical: typing.ClassVar[TypeKind]
     __members__: typing.ClassVar[dict[str, TypeKind]]
 
     def __eq__(self, other: typing.Any) -> bool: ...
@@ -310,6 +322,12 @@ def Array(dtype: DataType | str, dimensions: int | None, shape: list[int] | None
     Returns:
         DataType: A new array data type with the specified parameters.
 
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
     Examples:
         Create a three-dimensional array, where each dimension can have any number of elements:
         ```python
@@ -329,6 +347,12 @@ def Bool() -> DataType:
 
     Returns:
         DataType: A new boolean data type.
+
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
 
     Examples:
         Create columns with boolean type:
@@ -355,6 +379,12 @@ def Text(index_type: str | TextIndexType | None = None) -> Type:
 
     Returns:
         Type: A new text data type.
+
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
 
     Examples:
         Create text columns with different configurations:
@@ -395,6 +425,12 @@ def Dict() -> Type:
     See Also:
         :func:`deeplake.types.Struct` for a type that supports defining allowed keys.
 
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
     Examples:
         Create and use a dictionary column:
         ```python
@@ -428,6 +464,12 @@ def Embedding(
     See Also:
         :func:`deeplake.types.Array` for a multidimensional array.
 
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
     Examples:
         Create embedding columns:
         ```python
@@ -444,6 +486,12 @@ def Float32() -> DataType:
     Returns:
         DataType: A new 32-bit float data type.
 
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
     Examples:
         Create a column with 32-bit float type:
         ```python
@@ -458,6 +506,12 @@ def Float64() -> DataType:
 
     Returns:
         DataType: A new 64-bit float data type.
+
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
 
     Examples:
         Create a column with 64-bit float type:
@@ -474,6 +528,12 @@ def Int16() -> DataType:
     Returns:
         DataType: A new 16-bit integer data type.
 
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
     Examples:
         Create a column with 16-bit integer type:
         ```python
@@ -488,6 +548,12 @@ def Int32() -> DataType:
 
     Returns:
         DataType: A new 32-bit integer data type.
+
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
 
     Examples:
         Create a column with 32-bit integer type:
@@ -504,6 +570,12 @@ def Int64() -> DataType:
     Returns:
         DataType: A new 64-bit integer data type.
 
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
     Examples:
         Create a column with 64-bit integer type:
         ```python
@@ -518,6 +590,12 @@ def Int8() -> DataType:
 
     Returns:
         DataType: A new 8-bit integer data type.
+
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
 
     Examples:
         Create a column with 8-bit integer type:
@@ -541,6 +619,12 @@ def Sequence(nested_type: DataType | str | Type) -> Type:
 
     Returns:
         Type: A new sequence data type.
+
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
 
     Examples:
         Create a sequence of images:
@@ -569,6 +653,12 @@ def Image(dtype: DataType | str = "uint8", sample_compression: str = "png") -> T
         dtype: The data type of the array elements to return
         sample_compression: The on-disk compression/format of the image
 
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
     Examples:
         ```python
         ds.add_column("col1", types.Image)
@@ -583,6 +673,12 @@ def Link(type: Type) -> Type:
 
     Parameters:
         type: The type of the linked data
+
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
 
     Examples:
         ```python
@@ -613,6 +709,12 @@ def BoundingBox(
         format: The bounding box format. Possible values: `ccwh`, `ltwh`, `ltrb`, `unknown`
         bbox_type: The pixel type. Possible values: `pixel`, `fractional`
 
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
     Examples:
         ```python
         ds.add_column("col1", types.BoundingBox())
@@ -632,6 +734,12 @@ def BinaryMask(
     Parameters:
         sample_compression: How to compress each row's value. Possible values: lz4, null (default: null)
         chunk_compression: How to compress all the values stored in a single file. Possible values: lz4, null (default: null)
+
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
 
     Examples:
         ```python
@@ -655,10 +763,73 @@ def SegmentMask(
         sample_compression: How to compress each row's value. Possible values: lz4, null (default: null)
         chunk_compression: How to compress all the values stored in a single file. Possible values: lz4, null (default: null)
 
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
     Examples:
         ```python
         ds.add_column("col1", types.SegmentMask(sample_compression="lz4"))
         ds.append([{"col1": np.zeros((512, 512, 3))}])
+        ```
+    """
+    ...
+
+def Medical(
+    compression: str
+) -> Type:
+    """
+    Medical datatype for storing medical images.
+
+    <!-- test-context
+    ```python
+    import deeplake
+    from io import BytesIO
+    from deeplake import types
+    from inspect import Signature, Parameter
+    from functools import wraps
+
+    ds = deeplake.create("tmp://")
+
+    def __open(*args, **kwargs):
+        return BytesIO(b"")
+
+    # Extract the original open signature
+    original_signature = Signature(
+        parameters=[
+            Parameter("file", Parameter.POSITIONAL_OR_KEYWORD),
+            Parameter("mode", Parameter.POSITIONAL_OR_KEYWORD, default="r"),
+            Parameter("buffering", Parameter.POSITIONAL_OR_KEYWORD, default=-1),
+            Parameter("encoding", Parameter.POSITIONAL_OR_KEYWORD, default=None),
+            Parameter("errors", Parameter.POSITIONAL_OR_KEYWORD, default=None),
+            Parameter("newline", Parameter.POSITIONAL_OR_KEYWORD, default=None),
+            Parameter("closefd", Parameter.POSITIONAL_OR_KEYWORD, default=True),
+            Parameter("opener", Parameter.POSITIONAL_OR_KEYWORD, default=None),
+        ]
+    )
+
+    @wraps(__open)
+    def new_open(*args, **kwargs):
+        return __open(*args, **kwargs)
+
+    new_open.__signature__ = original_signature
+
+    open = new_open
+
+    ```
+    -->
+
+    Parameters:
+        compression: How to compress each row's value. Possible values: dcm, nii, nii.gz
+    Examples:
+        ```python
+        ds.add_column("col1", types.Medical(compression="dcm"))
+
+        with open("path/to/dicom/file.dcm", "rb") as f:
+            bytes_data = f.read()
+            ds.append([{"col1": bytes_data}])
         ```
     """
     ...
@@ -671,6 +842,12 @@ def Struct(fields: dict[str, DataType | str]) -> DataType:
 
     Parameters:
         fields: A dict where the key is the name of the field, and the value is the datatype definition for it
+
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
 
     Examples:
         ```python
@@ -689,6 +866,12 @@ def UInt16() -> DataType:
     """
     An unsigned 16-bit integer value
 
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
     Examples:
         ```python
         ds.add_column("col1", types.UInt16)
@@ -699,6 +882,12 @@ def UInt16() -> DataType:
 def UInt32() -> DataType:
     """
     An unsigned 32-bit integer value
+
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
 
     Examples:
         ```python
@@ -711,6 +900,12 @@ def UInt64() -> DataType:
     """
     An unsigned 64-bit integer value
 
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
     Examples:
         ```python
         ds.add_column("col1", types.UInt64)
@@ -721,6 +916,12 @@ def UInt64() -> DataType:
 def UInt8() -> DataType:
     """
     An unsigned 8-bit integer value
+
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
 
     Examples:
         ```python

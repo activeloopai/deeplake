@@ -67,6 +67,9 @@ __all__ = [
     "UnsupportedChunkCompression",
     "InvalidImageCompression",
     "InvalidSegmentMaskCompression",
+    "InvalidMedicalCompression",
+    "UnexpectedMedicalTypeInputData",
+    "UnexpectedInputDataForDicomColumn",
     "InvalidBinaryMaskCompression",
     "DtypeMismatch",
     "UnspecifiedDtype",
@@ -557,7 +560,7 @@ def query(query: str, token: str | None = None) -> DatasetView:
     ds.add_column("text", "text")
     ds.commit()
     ds = deeplake.create("mem://dataset")
-    ds.add_column("split", "text")
+    ds.add_column("train_split", "text")
     ds.add_column("confidence", "float32")
     ds.add_column("label", "text")
     ds.commit()
@@ -604,7 +607,7 @@ def query(query: str, token: str | None = None) -> DatasetView:
         # Filter training data
         train = deeplake.query('''
             SELECT * FROM "mem://dataset"
-            WHERE "split" = 'train' 
+            WHERE "train_split" = 'train' 
             AND confidence > 0.9
             AND label IN ('cat', 'dog')
         ''')
@@ -688,7 +691,7 @@ def query_async(query: str, token: str | None = None) -> Future:
         Non-blocking check:
         ```python
         future = deeplake.query_async(
-            "SELECT * FROM dataset WHERE \\"split\\" = 'train'"
+            "SELECT * FROM dataset WHERE train_split = 'train'"
         )
         
         if future.is_completed():
@@ -1924,7 +1927,7 @@ class Dataset(DatasetView):
         <!-- test-context
         ```python
         import deeplake
-        ds = deeplake.create("tmp://")
+        ds = deeplake.create("mem://ds_id")
         ds.indexing_mode = deeplake.IndexingMode.Off
         ds.add_column("column_name", deeplake.types.Text(deeplake.types.BM25))
         a = ['a']*10_000
@@ -1935,7 +1938,7 @@ class Dataset(DatasetView):
 
         Examples:
             ```python
-            ds = deeplake.open("tmp://")
+            ds = deeplake.open("mem://ds_id")
             ds.indexing_mode = deeplake.IndexingMode.Automatic
             ds.commit()
             ```
@@ -2629,6 +2632,15 @@ class InvalidImageCompression(Exception):
 class InvalidSegmentMaskCompression(Exception):
     pass
 
+class InvalidMedicalCompression(Exception):
+    pass
+
+class UnexpectedMedicalTypeInputData(Exception):
+    pass
+
+class UnexpectedInputDataForDicomColumn(Exception):
+    pass
+
 class InvalidBinaryMaskCompression(Exception):
     pass
 
@@ -3115,6 +3127,7 @@ def connect(
 
         ds = deeplake.connect("gcs://bucket/path/to/dataset",
             "al://my_org/dataset", creds_key="my_key")
+        ```
     """
 
 def disconnect(url: str, token: str | None = None) -> None:
@@ -3238,7 +3251,7 @@ def convert(
             Supports cloud provider credentials like access keys
         token: Optional Activeloop authentication token
 
-    <-- test-context
+    <!-- test-context
     ```python
     import deeplake
     deeplake.convert = lambda src, dst, dst_creds = None, token = None: None

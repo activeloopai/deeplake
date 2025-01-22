@@ -15,7 +15,7 @@ import deeplake
 from ._deeplake import *
 from deeplake.ingestion import from_coco
 
-__version__ = "4.1.4"
+__version__ = "4.1.5"
 
 __all__ = [
     "__version__",
@@ -77,6 +77,9 @@ __all__ = [
     "UnsupportedChunkCompression",
     "InvalidImageCompression",
     "InvalidSegmentMaskCompression",
+    "InvalidMedicalCompression",
+    "UnexpectedMedicalTypeInputData",
+    "UnexpectedInputDataForDicomColumn",
     "InvalidBinaryMaskCompression",
     "DtypeMismatch",
     "UnspecifiedDtype",
@@ -202,7 +205,7 @@ def convert(
             if not col.dtype.is_link and col.dtype.kind in {
                 deeplake.types.TypeKind.Image,
                 deeplake.types.TypeKind.SegmentMask,
-                deeplake.types.TypeKind.BinaryMask
+                deeplake.types.TypeKind.Medical,
             }
         ]
 
