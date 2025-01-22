@@ -280,6 +280,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     url_presigner=None,
     video_generator_batch_size=100,
     fail_on_labelbox_project_export_error=False,
+    project_json=None,
 ) -> Tuple[deeplake.Dataset, Any]:
     """
     Creates a Deeplake dataset from an existing Labelbox video annotation project using custom data processing.
@@ -305,6 +306,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
        url_presigner (callable, optional): Function that takes a URL and returns a pre-signed URL and headers (str, dict). Default will use labelbox access token to access the data. Is useful when used cloud storage integrations.
        video_generator_batch_size (int, optional): Number of frames to process in each batch. Defaults to 100
        fail_on_labelbox_project_export_error (bool, optional): Whether to raise an exception if Labelbox project export fails. Defaults to False
+       project_json (Any, optional): Optional project JSON data to use for conversion. If not provided, the function will fetch the project data from Labelbox.
 
     Returns:
        Tuple: Created Deeplake dataset containing processed video frames and Labelbox metadata and the Labelbox project JSON.
@@ -322,14 +324,15 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     )
     data_filler["create_tensors"](ds)
 
-    proj = labelbox_get_project_json_with_id_(
-        lb_client, project_id, fail_on_labelbox_project_export_error
-    )
-    if len(proj) == 0:
+    if project_json is None:
+        project_json = labelbox_get_project_json_with_id_(
+            lb_client, project_id, fail_on_labelbox_project_export_error
+        )
+    if len(project_json) == 0:
         print("no data")
-        return ds, proj
+        return ds, project_json
 
-    if not validate_project_creation_data_(proj, project_id, "video"):
+    if not validate_project_creation_data_(project_json, project_id, "video"):
         if fail_on_error:
             raise Exception("Data validation failed")
 
@@ -344,7 +347,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
 
         url_presigner = default_presigner
 
-    for idx, p in enumerate(proj):
+    for idx, p in enumerate(project_json):
         video_url = p["data_row"]["row_data"]
         header = None
         if not os.path.exists(video_url):
@@ -360,12 +363,12 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
         "project_id": project_id,
         "type": "video",
         "sources": video_files,
-        "project_name": proj[0]["projects"][project_id]["name"],
+        "project_name": project_json[0]["projects"][project_id]["name"],
     }
 
     ds.commit()
 
-    return ds, proj
+    return ds, project_json
 
 
 def create_dataset_from_video_annotation_project(
@@ -381,6 +384,7 @@ def create_dataset_from_video_annotation_project(
     url_presigner=None,
     video_generator_batch_size=100,
     fail_on_labelbox_project_export_error=False,
+    project_json=None,
 ) -> Tuple[deeplake.Dataset, Any]:
     """
     See create_dataset_from_video_annotation_project_with_custom_data_filler for complete documentation.
@@ -406,4 +410,5 @@ def create_dataset_from_video_annotation_project(
         url_presigner=url_presigner,
         video_generator_batch_size=video_generator_batch_size,
         fail_on_labelbox_project_export_error=fail_on_labelbox_project_export_error,
+        project_json=project_json,
     )
