@@ -11,7 +11,7 @@
     <a href="https://pepy.tech/project/deeplake"><img src="https://static.pepy.tech/badge/deeplake" alt="PyPI version" height="18"></a>
   <h3 align="center">
    <a href="https://docs.deeplake.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Docs</b></a> &bull;
-   <a href="https://docs.deeplake.ai/latest/setup/quickstart/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Get Started</b></a> &bull;
+   <a href="https://docs.deeplake.ai/latest/getting-started/quickstart/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Get Started</b></a> &bull;
    <a href="https://docs.deeplake.ai/latest/api/dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>API Reference</b></a> &bull;  
    <a href="http://learn.activeloop.ai"><b>LangChain & VectorDBs Course</b></a> &bull;
    <a href="https://www.activeloop.ai/resources/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Blog</b></a> &bull;
@@ -71,16 +71,16 @@ pip install deeplake
 
 ### Vector Store Applications
 Using Deep Lake as a Vector Store for building LLM applications:
-### - [Vector Store Quickstart](https://docs.deeplake.ai/latest/guide/rag/vector-search/)
+### - [Vector Store Quickstart](https://docs.deeplake.ai/latest/guides/rag/)
 ### - [Vector Store Tutorials](https://docs.activeloop.ai/examples/rag/tutorials)
 ### - [LangChain Integration](https://docs.activeloop.ai/examples/rag/langchain-integration)
 ### - [LlamaIndex Integration](https://docs.activeloop.ai/examples/rag/llamaindex-integration)
-### - [Image Similarity Search with Deep Lake](https://docs.deeplake.ai/latest/guide/rag/image-similarity/)
+### - [Image Similarity Search with Deep Lake](https://docs.deeplake.ai/latest/guides/rag/#5-integrating-image-embeddings-for-multi-modal-search)
 
 
 ### Deep Learning Applications
 Using Deep Lake for managing data while training Deep Learning models:
-### - [Deep Learning Quickstart](https://docs.deeplake.ai/latest/guide/deep-learning/)
+### - [Deep Learning Quickstart](https://docs.deeplake.ai/latest/guides/deep-learning/deep-learning/)
 ### - [Tutorials for Training Models](https://docs.activeloop.ai/examples/dl/tutorials/training-models)
 
 ## ⚙️ Integrations
