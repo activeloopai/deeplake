@@ -203,7 +203,7 @@ class IndraDatasetView(Dataset):
                 )
         else:
             raise InvalidKeyTypeError(item)
-        raise AttributeError("Dataset has no attribute - {item}")
+        raise AttributeError(f"Dataset has no attribute - {item}")
 
     def __getattr__(self, key):
         try:
