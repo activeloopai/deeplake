@@ -4,10 +4,7 @@ permissions:
   contents: read
   id-token: write
 
-#on:
-#  schedule:
-#    - cron: '0 4 * * *'
-#  workflow_dispatch: {}
+on: {}
 
 concurrency:
   group: ${{ github.workflow }}
