@@ -46,6 +46,7 @@ from deeplake.util.exceptions import (
     SampleExtendError,
 )
 from deeplake.util.path import convert_string_to_pathlib_if_needed, verify_dataset_name
+from deeplake.tests.common import requires_libdeeplake, disabale_hidden_tensors_config
 from deeplake.util.testing import assert_array_equal
 from deeplake.util.pretty_print import summary_tensor, summary_dataset
 from deeplake.util.shape_interval import ShapeInterval
@@ -2542,6 +2543,31 @@ def test_pickle_bug(local_ds):
     np.testing.assert_array_equal(
         ds["__temp_123"].numpy(), np.array([1, 2, 3, 4, 5]).reshape(-1, 1)
     )
+
+
+@requires_libdeeplake
+def test_max_view_with_query(local_auth_ds):
+    import random
+
+    with local_auth_ds as ds:
+        ds.create_tensor(
+            "label1", htype="generic", dtype=np.int32, **disabale_hidden_tensors_config
+        )
+        ds.create_tensor(
+            "label2", htype="generic", dtype=np.int32, **disabale_hidden_tensors_config
+        )
+
+        for _ in range(1000):
+            ds.label1.append(int(100 * random.uniform(0.0, 1.0)))
+
+        for _ in range(100):
+            ds.label2.append(int(100 * random.uniform(0.0, 1.0)))
+
+    view = local_auth_ds.query("select label1, label2 LIMIT 200")
+    view_max = view.max_view
+
+    labels2 = view_max.label2.numpy(aslist=True)
+    assert labels2[150] == None
 
 
 def test_max_view(memory_ds):
