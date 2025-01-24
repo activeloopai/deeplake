@@ -104,6 +104,7 @@ class AzureProvider(StorageProvider):
 
     def __delitem__(self, path):
         self.check_readonly()
+        self._check_update_creds()
         blob_client = self.container_client.get_blob_client(
             f"{self.root_folder}/{path}"
         )
@@ -364,7 +365,8 @@ class AzureProvider(StorageProvider):
         from azure.core.credentials import AzureSasCredential  # type: ignore
 
         if self.expiration and (
-            force or float(self.expiration) < datetime.now(timezone.utc).timestamp()
+            force
+            or float(self.expiration) - datetime.now(timezone.utc).timestamp() < 300
         ):
             client = DeepLakeBackendClient(self.token)
             org_id, ds_name = self.tag.split("/")
@@ -383,6 +385,8 @@ class AzureProvider(StorageProvider):
             self.sas_token = creds.get("sas_token")
             if self.sas_token:
                 self.credential = AzureSasCredential(self.sas_token)
+
+            self._set_clients()
 
     def get_items(self, keys):
         with ThreadPoolExecutor() as executor:
