@@ -4928,6 +4928,11 @@ class Dataset:
             (20, 20, 3) [1]
             (20, 20, 3) [None]
         """
+        from deeplake.core.dataset.indra_dataset_view import IndraDatasetView
+
+        if isinstance(self, IndraDatasetView):
+            return self
+
         return self.__class__(
             storage=self.storage,
             index=self.index,
