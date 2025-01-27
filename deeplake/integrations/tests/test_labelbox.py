@@ -70,8 +70,12 @@ def validate_ds(ds):
     assert np.all(ds["radio_bttn"][0].numpy() == [[0]])
 
     assert np.all(ds["checklist"][499].numpy() == [[]])
-    assert np.all(ds["checklist"][500].numpy() == [[0, 1]]) or np.all(ds["checklist"][500].numpy() == [[1, 0]])
-    assert np.all(ds["checklist"][598].numpy() == [[0, 1]]) or np.all(ds["checklist"][598].numpy() == [[1, 0]])
+    assert np.all(ds["checklist"][500].numpy() == [[0, 1]]) or np.all(
+        ds["checklist"][500].numpy() == [[1, 0]]
+    )
+    assert np.all(ds["checklist"][598].numpy() == [[0, 1]]) or np.all(
+        ds["checklist"][598].numpy() == [[1, 0]]
+    )
     assert np.all(ds["checklist"][599].numpy() == [[0]])
     assert np.all(ds["checklist"][698].numpy() == [[0]])
     assert np.all(ds["checklist"][699].numpy() == [[1]])
