@@ -175,7 +175,7 @@ def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
         "project_details": True,
         "label_details": True,
         "performance_details": True,
-        "interpolated_frames": True,
+        "interpolated_frames": False,
     }
 
     # Note: Filters follow AND logic, so typically using one filter is sufficient.

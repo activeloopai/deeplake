@@ -80,9 +80,12 @@ class labelbox_type_converter:
                 if "segments" not in labels["annotations"]:
                     continue
                 segments = labels["annotations"]["segments"]
+                key_frame_feature_map = labels["annotations"]["key_frame_feature_map"]
                 # the frames contain only the interpolated values
                 # iterate over segments and assign same value to all frames in the segment
-                self.parse_segments_(segments, frames, idx_offset)
+                self.parse_segments_(
+                    segments, frames, key_frame_feature_map, idx_offset
+                )
 
                 self.apply_cached_values_(self.values_cache, idx_offset)
                 if self.metadata_generators_:
@@ -234,24 +237,26 @@ class labelbox_type_converter:
 
         return None
 
-    def existing_sub_ranges_(self, frames, r, feature_id):
+    def existing_sub_ranges_(self, frames, r, key_frames):
         end = r[1]
         sub_ranges = [(r[0], end)]
-        for i in range(r[0] + 1, end):
+        for i in key_frames:
             if str(i) not in frames:
                 continue
-            if self.find_object_with_feature_id_(frames[str(i)], feature_id) is None:
+            if i <= r[0] or i >= end:
                 continue
             sub_ranges[-1] = (sub_ranges[-1][0], i)
             sub_ranges.append((i, end))
         return sub_ranges
 
-    def parse_segments_(self, segments, frames, offset):
+    def parse_segments_(self, segments, frames, key_frame_feature_map, offset):
         print("total segments count to parse:", len(segments))
         for feature_id, ranges in segments.items():
             print("parsing segments with feature id: ", feature_id)
             for r in tqdm.tqdm(ranges):
-                sub_ranges = self.existing_sub_ranges_(frames, r, feature_id)
+                sub_ranges = self.existing_sub_ranges_(
+                    frames, r, key_frame_feature_map[feature_id]
+                )
                 for st, en in sub_ranges:
                     assert str(st) in frames
 
