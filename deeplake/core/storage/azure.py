@@ -10,6 +10,8 @@ from deeplake.client.client import DeepLakeBackendClient
 from concurrent.futures import ThreadPoolExecutor
 from deeplake.util.path import relpath
 from concurrent import futures
+from deeplake.util.warnings import always_warn
+import time
 
 
 class AzureProvider(StorageProvider):
@@ -87,7 +89,7 @@ class AzureProvider(StorageProvider):
             self.container_name
         )
 
-    def __setitem__(self, path, content):
+    def _set(self, path, content):
         self.check_readonly()
         self._check_update_creds()
         if isinstance(content, memoryview):
@@ -99,10 +101,49 @@ class AzureProvider(StorageProvider):
         )
         blob_client.upload_blob(content, overwrite=True)
 
-    def __getitem__(self, path):
-        return self.get_bytes(path)
+    def __setitem__(self, path, content):
+        from azure.core.exceptions import ClientAuthenticationError  # type: ignore
 
-    def __delitem__(self, path):
+        try:
+            self._set(path, content)
+        except ClientAuthenticationError as ex:
+            tries = 5
+            retry_wait = 0
+            for i in range(1, tries + 1):
+                always_warn(f"Encountered connection error, retry {i} out of {tries}")
+                retry_wait = self._retry_wait_and_extend(retry_wait, err)
+                try:
+                    self._set(path, content)
+                    always_warn(
+                        f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
+                    )
+                    return
+                except Exception:
+                    pass
+            raise ex
+
+    def __getitem__(self, path):
+        from azure.core.exceptions import ClientAuthenticationError  # type: ignore
+
+        try:
+            return self.get_bytes(path)
+        except ClientAuthenticationError as ex:
+            tries = 5
+            retry_wait = 0
+            for i in range(1, tries + 1):
+                always_warn(f"Encountered connection error, retry {i} out of {tries}")
+                retry_wait = self._retry_wait_and_extend(retry_wait, err)
+                try:
+                    return self.get_bytes(path)
+                    always_warn(
+                        f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
+                    )
+                    return
+                except Exception:
+                    pass
+            raise ex
+
+    def _del(self, path):
         self.check_readonly()
         self._check_update_creds()
         blob_client = self.container_client.get_blob_client(
@@ -111,6 +152,27 @@ class AzureProvider(StorageProvider):
         if not blob_client.exists():
             raise KeyError(path)
         blob_client.delete_blob()
+
+    def __delitem__(self, path):
+        from azure.core.exceptions import ClientAuthenticationError  # type: ignore
+
+        try:
+            return self._del(path)
+        except ClientAuthenticationError as ex:
+            tries = 5
+            retry_wait = 0
+            for i in range(1, tries + 1):
+                always_warn(f"Encountered connection error, retry {i} out of {tries}")
+                retry_wait = self._retry_wait_and_extend(retry_wait, err)
+                try:
+                    self._del(path)
+                    always_warn(
+                        f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
+                    )
+                    return
+                except Exception:
+                    pass
+            raise ex
 
     def get_bytes(
         self,
@@ -145,7 +207,7 @@ class AzureProvider(StorageProvider):
         byts = blob_client.download_blob(offset=offset, length=length).readall()
         return byts
 
-    def clear(self, prefix=""):
+    def _clear(self, prefix=""):
         self.check_readonly()
         self._check_update_creds()
         blobs = [
@@ -155,6 +217,27 @@ class AzureProvider(StorageProvider):
         batches = [blobs[i : i + 256] for i in range(0, len(blobs), 256)]
         for batch in batches:
             self.container_client.delete_blobs(*batch)
+
+    def clear(self, prefix=""):
+        from azure.core.exceptions import ClientAuthenticationError  # type: ignore
+
+        try:
+            return self._clear(prefix)
+        except ClientAuthenticationError as ex:
+            tries = 5
+            retry_wait = 0
+            for i in range(1, tries + 1):
+                always_warn(f"Encountered connection error, retry {i} out of {tries}")
+                retry_wait = self._retry_wait_and_extend(retry_wait, err)
+                try:
+                    self._clear(prefix)
+                    always_warn(
+                        f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
+                    )
+                    return
+                except Exception:
+                    pass
+            raise ex
 
     def get_sas_token(self):
         from azure.storage.blob import generate_container_sas, ContainerSasPermissions  # type: ignore
@@ -275,7 +358,7 @@ class AzureProvider(StorageProvider):
             source_blob.delete_blob()
         self.root_folder = root_folder
 
-    def get_object_size(self, path: str) -> int:
+    def _get_object_size(self, path: str) -> int:
         self._check_update_creds()
         blob_client = self.container_client.get_blob_client(
             f"{self.root_folder}/{path}"
@@ -283,6 +366,27 @@ class AzureProvider(StorageProvider):
         if not blob_client.exists():
             raise KeyError(path)
         return blob_client.get_blob_properties().size
+
+    def get_object_size(self, path: str) -> int:
+        from azure.core.exceptions import ClientAuthenticationError  # type: ignore
+
+        try:
+            return self._get_object_size(path)
+        except ClientAuthenticationError as ex:
+            tries = 5
+            retry_wait = 0
+            for i in range(1, tries + 1):
+                always_warn(f"Encountered connection error, retry {i} out of {tries}")
+                retry_wait = self._retry_wait_and_extend(retry_wait, err)
+                try:
+                    res = self._get_object_size(path)
+                    always_warn(
+                        f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
+                    )
+                    return res
+                except Exception:
+                    pass
+            raise ex
 
     def get_clients_from_full_path(self, url: str):
         from azure.storage.blob import BlobServiceClient  # type: ignore
@@ -351,12 +455,32 @@ class AzureProvider(StorageProvider):
 
         return url
 
-    def get_object_from_full_url(self, url: str) -> bytes:
+    def _get_object_from_full_url(self, url: str) -> bytes:
+        self._check_update_creds()
         blob_client, _ = self.get_clients_from_full_path(url)
         # Azure raises an error when trying to download an empty blob
         if blob_client.get_blob_properties().size == 0:
             return b""
         return blob_client.download_blob().readall()
+
+    def get_object_from_full_url(self, url: str) -> bytes:
+        try:
+            return self._get_object_from_full_url(url)
+        except ClientAuthenticationError as ex:
+            tries = 5
+            retry_wait = 0
+            for i in range(1, tries + 1):
+                always_warn(f"Encountered connection error, retry {i} out of {tries}")
+                retry_wait = self._retry_wait_and_extend(retry_wait, err)
+                try:
+                    res = self._get_object_from_full_url(url)
+                    always_warn(
+                        f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
+                    )
+                    return res
+                except Exception:
+                    pass
+            raise ex
 
     def _check_update_creds(self, force=False):
         """If the client has an expiration time, check if creds are expired and fetch new ones.
@@ -402,3 +526,10 @@ class AzureProvider(StorageProvider):
                     yield key, future.result()
                 else:
                     yield key, exception
+
+    def _retry_wait_and_extend(self, retry_wait: int, err: Exception):
+        time.sleep(retry_wait)
+
+        if retry_wait == 0:
+            return 1
+        return retry_wait * 2
