@@ -111,7 +111,7 @@ class AzureProvider(StorageProvider):
             retry_wait = 0
             for i in range(1, tries + 1):
                 always_warn(f"Encountered connection error, retry {i} out of {tries}")
-                retry_wait = self._retry_wait_and_extend(retry_wait, err)
+                retry_wait = self._retry_wait_and_extend(retry_wait, ex)
                 try:
                     self._set(path, content)
                     always_warn(
@@ -132,13 +132,13 @@ class AzureProvider(StorageProvider):
             retry_wait = 0
             for i in range(1, tries + 1):
                 always_warn(f"Encountered connection error, retry {i} out of {tries}")
-                retry_wait = self._retry_wait_and_extend(retry_wait, err)
+                retry_wait = self._retry_wait_and_extend(retry_wait, ex)
                 try:
-                    return self.get_bytes(path)
+                    res = self.get_bytes(path)
                     always_warn(
                         f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
                     )
-                    return
+                    return res
                 except Exception:
                     pass
             raise ex
@@ -163,7 +163,7 @@ class AzureProvider(StorageProvider):
             retry_wait = 0
             for i in range(1, tries + 1):
                 always_warn(f"Encountered connection error, retry {i} out of {tries}")
-                retry_wait = self._retry_wait_and_extend(retry_wait, err)
+                retry_wait = self._retry_wait_and_extend(retry_wait, ex)
                 try:
                     self._del(path)
                     always_warn(
@@ -228,7 +228,7 @@ class AzureProvider(StorageProvider):
             retry_wait = 0
             for i in range(1, tries + 1):
                 always_warn(f"Encountered connection error, retry {i} out of {tries}")
-                retry_wait = self._retry_wait_and_extend(retry_wait, err)
+                retry_wait = self._retry_wait_and_extend(retry_wait, ex)
                 try:
                     self._clear(prefix)
                     always_warn(
@@ -377,7 +377,7 @@ class AzureProvider(StorageProvider):
             retry_wait = 0
             for i in range(1, tries + 1):
                 always_warn(f"Encountered connection error, retry {i} out of {tries}")
-                retry_wait = self._retry_wait_and_extend(retry_wait, err)
+                retry_wait = self._retry_wait_and_extend(retry_wait, ex)
                 try:
                     res = self._get_object_size(path)
                     always_warn(
@@ -471,7 +471,7 @@ class AzureProvider(StorageProvider):
             retry_wait = 0
             for i in range(1, tries + 1):
                 always_warn(f"Encountered connection error, retry {i} out of {tries}")
-                retry_wait = self._retry_wait_and_extend(retry_wait, err)
+                retry_wait = self._retry_wait_and_extend(retry_wait, ex)
                 try:
                     res = self._get_object_from_full_url(url)
                     always_warn(
