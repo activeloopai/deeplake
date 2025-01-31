@@ -311,7 +311,7 @@ def serialize_linked_tiled_sample(sample: LinkedTiledSample):
 
 
 def deserialize_linked_tiled_sample(
-    byts: Union[bytes, memoryview]
+    byts: Union[bytes, memoryview],
 ) -> LinkedTiledSample:
     byts = memoryview(byts)
     # Read version
@@ -374,7 +374,7 @@ def serialize_chunkids(version: str, arr: np.ndarray) -> memoryview:
 
 
 def deserialize_chunkids(
-    byts: Union[bytes, memoryview]
+    byts: Union[bytes, memoryview],
 ) -> Tuple[str, np.ndarray, type]:
     """Deserializes a chunk ID encoder from the serialized byte stream. This is how the encoder can be accessed/modified after it is read from storage.
 
