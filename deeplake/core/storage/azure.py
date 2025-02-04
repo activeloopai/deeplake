@@ -36,8 +36,8 @@ class AzureProvider(StorageProvider):
         self.expiration: Optional[str] = None
         self.db_engine: bool = False
         self.repository: Optional[str] = None
-        self.hub_path = None
-        self.tag = None
+        self.hub_path = ""
+        self.tag = ""
 
     def _set_attrs(self):
         self.account_name, self.container_name, self.root_folder = self._get_attrs(
@@ -466,6 +466,8 @@ class AzureProvider(StorageProvider):
         return blob_client.download_blob().readall()
 
     def get_object_from_full_url(self, url: str) -> bytes:
+        from azure.core.exceptions import ClientAuthenticationError  # type: ignore
+
         try:
             return self._get_object_from_full_url(url)
         except ClientAuthenticationError as ex:
