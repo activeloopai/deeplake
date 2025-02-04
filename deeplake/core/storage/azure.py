@@ -292,6 +292,8 @@ class AzureProvider(StorageProvider):
             "db_engine": self.db_engine,
             "repository": self.repository,
             "expiration": self.expiration,
+            "tag": getattr(self, 'tag', ''),
+            "hub_path": getattr(self, 'hub_path', '')
         }
 
     def __setstate__(self, state):
