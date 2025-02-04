@@ -1,10 +1,11 @@
 import numpy as np
 from typing import Generator, Tuple, Dict, Optional, Any
-import labelbox as lb  # type: ignore
-import av
 import requests
 from collections import Counter
-from deeplake.integrations.labelbox.deeplake_utils import generic_tensor_create_kwargs_, image_tensor_create_kwargs_
+from deeplake.integrations.labelbox.deeplake_utils import (
+    generic_tensor_create_kwargs_,
+    image_tensor_create_kwargs_,
+)
 
 
 def is_remote_resource_public_(url):
@@ -53,6 +54,7 @@ def frame_generator_(
         - frame_number (int): The sequential number of the frame
         - frame_data (numpy.ndarray): The frame image data
     """
+    import av  # type: ignore
 
     def get_video_container(current_retries):
         try:
@@ -168,6 +170,8 @@ def validate_project_creation_data_(proj, project_id, type):
 
 
 def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
+    import labelbox as lb  # type: ignore
+
     # Set the export params to include/exclude certain fields.
     export_params = {
         "attachments": True,

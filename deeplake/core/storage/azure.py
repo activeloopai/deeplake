@@ -36,6 +36,8 @@ class AzureProvider(StorageProvider):
         self.expiration: Optional[str] = None
         self.db_engine: bool = False
         self.repository: Optional[str] = None
+        self.hub_path = None
+        self.tag = None
 
     def _set_attrs(self):
         self.account_name, self.container_name, self.root_folder = self._get_attrs(

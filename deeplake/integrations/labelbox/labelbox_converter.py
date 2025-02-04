@@ -98,7 +98,7 @@ class labelbox_type_converter:
                         p,
                         self.project_id,
                         p["media_attributes"]["frame_count"],
-                        idx_offset
+                        idx_offset,
                     )
 
             idx_offset += p["media_attributes"]["frame_count"]
@@ -329,7 +329,9 @@ class labelbox_type_converter:
             except:
                 pass
 
-    def fill_metadata_(self, generators, dataset, project, project_id, frames_count, offset):
+    def fill_metadata_(
+        self, generators, dataset, project, project_id, frames_count, offset
+    ):
         metadata_dict = defaultdict(list)
         context = {"project_id": project_id}
         for tensor_name, v in generators.items():

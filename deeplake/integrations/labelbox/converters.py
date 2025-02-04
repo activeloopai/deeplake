@@ -8,10 +8,7 @@ from deeplake.integrations.labelbox.deeplake_utils import *
 def bbox_converter_(obj, converter, tensor_name, context, generate_labels):
     ds = context["ds"]
     try:
-        ds.create_tensor(
-            tensor_name,
-            **bbox_tensor_create_kwargs_()
-        )
+        ds.create_tensor(tensor_name, **bbox_tensor_create_kwargs_())
     except:
         pass
 
@@ -74,7 +71,9 @@ def radio_converter_(obj, converter, tensor_name, context, generate_labels):
             tensor_name,
             **class_label_tensor_create_kwargs_(),
         )
-        ds[tensor_name].update_metadata({'class_names': list(converter.label_mappings[tensor_name].keys())})
+        ds[tensor_name].update_metadata(
+            {"class_names": list(converter.label_mappings[tensor_name].keys())}
+        )
     except:
         pass
 
@@ -115,7 +114,9 @@ def checkbox_converter_(obj, converter, tensor_name, context, generate_labels):
             tensor_name,
             **class_label_tensor_create_kwargs_(),
         )
-        ds[tensor_name].update_metadata({'class_names': list(converter.label_mappings[tensor_name].keys())})
+        ds[tensor_name].update_metadata(
+            {"class_names": list(converter.label_mappings[tensor_name].keys())}
+        )
     except:
         pass
 
@@ -227,17 +228,14 @@ def raster_segmentation_converter_(
 ):
     ds = context["ds"]
     try:
-        ds.create_tensor(
-            tensor_name, **binary_mask_tensor_create_kwargs_()
-        )
+        ds.create_tensor(tensor_name, **binary_mask_tensor_create_kwargs_())
     except:
         pass
 
     try:
         if generate_labels:
             ds.create_tensor(
-                f"{tensor_name}_labels",
-                **class_label_tensor_create_kwargs_()
+                f"{tensor_name}_labels", **class_label_tensor_create_kwargs_()
             )
             converter.label_mappings[f"{tensor_name}_labels"] = dict()
     except:
@@ -264,14 +262,18 @@ def raster_segmentation_converter_(
                         converter.label_mappings[f"{tensor_name}_labels"][tool_name] = (
                             len(converter.label_mappings[f"{tensor_name}_labels"])
                         )
-                        ds[f"{tensor_name}_labels"].update_metadata({'class_names': list(
-                                converter.label_mappings[f"{tensor_name}_labels"].keys()
-                            )})
+                        ds[f"{tensor_name}_labels"].update_metadata(
+                            {
+                                "class_names": list(
+                                    converter.label_mappings[
+                                        f"{tensor_name}_labels"
+                                    ].keys()
+                                )
+                            }
+                        )
                     val = []
                     try:
-                        val = (
-                            ds[f"{tensor_name}_labels"].value(row, aslist=True)
-                        )
+                        val = ds[f"{tensor_name}_labels"].value(row, aslist=True)
                     except (KeyError, IndexError):
                         pass
                     val.append(

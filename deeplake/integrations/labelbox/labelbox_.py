@@ -1,6 +1,5 @@
 import deeplake
 import os
-import labelbox as lb  # type: ignore
 import uuid
 
 from deeplake.integrations.labelbox.labelbox_utils import *
@@ -201,6 +200,7 @@ def create_labelbox_annotation_project(
        data_upload_strategy (str, optional): Strategy for uploading data to Labelbox. Can be 'fail', 'skip', or 'all'. Defaults to 'fail'
        lb_batches_name (str, optional): Name for Labelbox batches. Defaults to None. If None, will use lb_dataset_name + '_batch-'
     """
+    import labelbox as lb  # type: ignore
 
     video_paths = filter_video_paths_(video_paths, data_upload_strategy)
 
@@ -316,7 +316,13 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     Notes:
         - The function does not fetch the annotations from Labelbox, only the video frames. After creating the dataset, use the converter to apply annotations.
     """
-    wrapped_dataset = dataset_wrapper.create(deeplake_ds_path, token=deeplake_token, org_id=deeplake_org_id, creds=deeplake_creds, overwrite=overwrite)
+    wrapped_dataset = dataset_wrapper.create(
+        deeplake_ds_path,
+        token=deeplake_token,
+        org_id=deeplake_org_id,
+        creds=deeplake_creds,
+        overwrite=overwrite,
+    )
 
     data_filler["create_tensors"](wrapped_dataset)
 
@@ -352,7 +358,9 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
         for frame_indexes, frames in frames_batch_generator_(
             video_url, header=header, batch_size=video_generator_batch_size
         ):
-            data_filler["fill_data"](wrapped_dataset, [idx] * len(frames), frame_indexes, frames)
+            data_filler["fill_data"](
+                wrapped_dataset, [idx] * len(frames), frame_indexes, frames
+            )
         video_files.append(external_url_from_video_project_(p))
 
     wrapped_dataset.metadata["labelbox_meta"] = {

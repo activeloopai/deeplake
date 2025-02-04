@@ -207,7 +207,7 @@ def storage_provider_from_hub_path(
         indra=indra,
     )
     storage.creds_used = creds_used
-    if creds_used == "PLATFORM":
+    if creds_used == "PLATFORM" or not url.startswith("s3://"):
         storage._set_hub_creds_info(path, expiration, db_engine, repo)
 
     return storage
