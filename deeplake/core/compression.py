@@ -507,11 +507,11 @@ def get_compression(header=None, path=None):
                 return fmt[1:]
     if header:
         if (
-            header[4:12] == b"\x66\x74\x79\x70\x4D\x53\x4E\x56"
-            or header[4:12] == b"\x66\x74\x79\x70\x69\x73\x6F\x6D"
+            header[4:12] == b"\x66\x74\x79\x70\x4d\x53\x4e\x56"
+            or header[4:12] == b"\x66\x74\x79\x70\x69\x73\x6f\x6d"
         ):
             return "mp4"
-        if header[0:4] == b"\x1A\x45\xDF\xA3":
+        if header[0:4] == b"\x1a\x45\xdf\xa3":
             return "mkv"
         if (
             header[0:2] == b"\xff\xfb"
@@ -525,12 +525,12 @@ def get_compression(header=None, path=None):
             return "wav"
         if header[0:4] == b"\x52\x49\x46\x46" and header[8:12] == b"\x41\x56\x49\x20":
             return "avi"
-        if header[128:132] == b"\x44\x49\x43\x4D":
+        if header[128:132] == b"\x44\x49\x43\x4d":
             return "dcm"
         if header[0:4] == b"\x6e\x2b\x31\x00":
             return "nii"
         if any(
-            header[: len(x)] == x for x in [b"\x73\x6F\x6C\x69", b"numpy-stl", b"solid"]
+            header[: len(x)] == x for x in [b"\x73\x6f\x6c\x69", b"numpy-stl", b"solid"]
         ):
             return "stl"
         if not Image.OPEN:
@@ -811,7 +811,7 @@ def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int, ...]:
 
 
 def _read_dicom_shape_and_dtype(
-    f: Union[bytes, BinaryIO]
+    f: Union[bytes, BinaryIO],
 ) -> Tuple[Tuple[int, ...], str]:
     try:
         from pydicom import dcmread

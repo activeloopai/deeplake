@@ -1,14 +1,14 @@
 """
-Deep Lake offers an integration with MMDetection, a popular open-source object detection toolbox based on PyTorch. 
+Deep Lake offers an integration with MMDetection, a popular open-source object detection toolbox based on PyTorch.
 The integration enables users to train models while streaming Deep Lake dataset using the transformation, training, and evaluation tools built by MMDet.
 
 Learn more about MMDetection `here <https://mmdetection.readthedocs.io/en/latest/>`_.
 
 Integration Interface
 ~~~~~~~~~~~~~~~~~~~~~
-MMDetection works with configs. Deeplake adopted this strategy, and in order to train MMDet models, you need to create/specify your model 
-and training/validation config. Deep Lake integration's logic is almost the same as MMDetection's with some minor modifications. The integrations 
-with MMDET occurs in the deeplake.integrations.mmdet module. At a high-level, Deep Lake is responsible for the pytorch dataloader that streams data 
+MMDetection works with configs. Deeplake adopted this strategy, and in order to train MMDet models, you need to create/specify your model
+and training/validation config. Deep Lake integration's logic is almost the same as MMDetection's with some minor modifications. The integrations
+with MMDET occurs in the deeplake.integrations.mmdet module. At a high-level, Deep Lake is responsible for the pytorch dataloader that streams data
 to the training framework, while MMDET is used for the training, transformation, and evaluation logic. Let us take a look at the config with deeplake changes:
 
 Deeplake integration requires the following parameters to be specified in the configuration file:
@@ -17,9 +17,9 @@ Deeplake integration requires the following parameters to be specified in the co
     - ``train``: Keyword argument of data, a dictionary where one can specify dataset path, credentials, transformations of the training data
     - ``val``: Keyword argument of data, a dictionary where one can specify dataset path, credentials, transformations of the validation data
     - ``pipeline``: List of transformations. This parameter exists for train as well as for val.
-    
+
         - Example:
-    
+
             >>> pipeline =  [dict(type="Resize", img_scale=[(320, 320), (608, 608)], keep_ratio=True), dict(type="RandomFlip", flip_ratio=0.5), dict(type="PhotoMetricDistortion")]
 
     - ``deeplake_path``: Path to the deeplake dataset. This parameter exists for train as well as for val.
@@ -38,10 +38,10 @@ Deeplake integration requires the following parameters to be specified in the co
         - ``"num_workers"``: Number of workers to use. If not specified, dataloader will use ``workers_per_gpu``.
 
 - ``deeplake_dataloader_type``: Optional parameter. If specified, it represents the type of deeplake dataloader to use.
-- ``deeplake_metrics_format``: Optional parameter. If specified, it represents the format of the deeplake metrics that will be used during evaluation. Defaults to COCO. 
-    Avaliable values are: "COCO", "PascalVOC". If COCO format is used, you can specify whether you want to evaluate on bbox only or also want to evaluate on masks. 
-    To do that you need to specify the format of the metric in metric. 
-  
+- ``deeplake_metrics_format``: Optional parameter. If specified, it represents the format of the deeplake metrics that will be used during evaluation. Defaults to COCO.
+    Avaliable values are: "COCO", "PascalVOC". If COCO format is used, you can specify whether you want to evaluate on bbox only or also want to evaluate on masks.
+    To do that you need to specify the format of the metric in metric.
+
 Example:
 
 >>> deeplake_metrics_format = "COCO"
@@ -105,7 +105,7 @@ Below is the example of the deeplake mmdet configuration:
 ...         ])
 ... ]
 >>> #--------------------------------------DEEPLAKE INPUTS------------------------------------------------------------#
->>> TOKEN = "INSERT_YOUR_DEEPLAKE_TOKEN" 
+>>> TOKEN = "INSERT_YOUR_DEEPLAKE_TOKEN"
 >>> data = dict(
 ...     # samples_per_gpu=4, # Is used instead of batch_size if deeplake_dataloader is not specified below
 ...     # workers_per_gpu=8, # Is used instead of num_workers if deeplake_dataloader is not specified below
@@ -121,9 +121,9 @@ Below is the example of the deeplake mmdet configuration:
 ...         deeplake_commit_id="",
 ...         #OPTIONAL - Loads a dataset view for training based on view_id
 ...         deeplake_view_id="",
-...         # OPTIONAL - {"mmdet_key": "deep_lake_tensor",...} - Maps Deep Lake tensors to MMDET dictionary keys. 
+...         # OPTIONAL - {"mmdet_key": "deep_lake_tensor",...} - Maps Deep Lake tensors to MMDET dictionary keys.
 ...         # If not specified, Deep Lake will auto-infer the mapping, but it might make mistakes if datasets have many tensors
-...         deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories", "gt_masks": "masks},         
+...         deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories", "gt_masks": "masks},
 ...         # OPTIONAL - Parameters to use for the Deep Lake dataloader. If unspecified, the integration uses
 ...         # the parameters in other parts of the cfg file such as samples_per_gpu, and others.
 ...         deeplake_dataloader = {"shuffle": True, "batch_size": 4, 'num_workers': 8}
