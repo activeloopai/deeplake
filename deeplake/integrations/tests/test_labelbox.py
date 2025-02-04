@@ -285,6 +285,8 @@ def test_connect_to_labelbox():
         url_presigner=url_presigner,
     )
 
+    ds.commit("create dataset")
+
     def ds_provider(p):
         # we need to have a clean branch to apply the annotations
         try:
