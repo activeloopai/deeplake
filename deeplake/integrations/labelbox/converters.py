@@ -72,8 +72,9 @@ def radio_converter_(obj, converter, tensor_name, context, generate_labels):
     try:
         ds.create_tensor(
             tensor_name,
-            **class_label_tensor_create_kwargs_(list(converter.label_mappings[tensor_name].keys())),
+            **class_label_tensor_create_kwargs_(),
         )
+        ds[tensor_name].update_metadata({'class_names': list(converter.label_mappings[tensor_name].keys())})
     except:
         pass
 
@@ -112,8 +113,9 @@ def checkbox_converter_(obj, converter, tensor_name, context, generate_labels):
     try:
         ds.create_tensor(
             tensor_name,
-            **class_label_tensor_create_kwargs_(list(converter.label_mappings[tensor_name].keys())),
+            **class_label_tensor_create_kwargs_(),
         )
+        ds[tensor_name].update_metadata({'class_names': list(converter.label_mappings[tensor_name].keys())})
     except:
         pass
 
@@ -235,7 +237,7 @@ def raster_segmentation_converter_(
         if generate_labels:
             ds.create_tensor(
                 f"{tensor_name}_labels",
-                **class_label_tensor_create_kwargs_([])
+                **class_label_tensor_create_kwargs_()
             )
             converter.label_mappings[f"{tensor_name}_labels"] = dict()
     except:

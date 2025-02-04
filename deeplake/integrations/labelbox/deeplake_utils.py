@@ -20,10 +20,10 @@ def binary_mask_tensor_create_kwargs_(sample_compression = "lz4"):
         raise ValueError("expected deeplake version 3")
     return {"htype": "binary_mask", "dtype": 'bool', "sample_compression": sample_compression}
 
-def class_label_tensor_create_kwargs_(class_names, dtype = "int32"):
+def class_label_tensor_create_kwargs_(dtype = "int32"):
     if not is_v3():
         raise ValueError("expected deeplake version 3")
-    return {"htype": "class_label", "dtype": dtype, "class_names": class_names, "chunk_compression": "lz4"}
+    return {"htype": "class_label", "dtype": dtype, "class_names": [], "chunk_compression": "lz4"}
 
 def image_tensor_create_kwargs_(sample_compression = "jpg"):
     if not is_v3():
