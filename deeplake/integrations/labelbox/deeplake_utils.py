@@ -3,7 +3,7 @@ import deeplake
 
 def is_v3():
     assert int(deeplake.__version__.split(".")[0]) == 3
-    return True
+    return int(deeplake.__version__.split(".")[0]) == 3
 
 
 def text_tensor_create_kwargs_():
