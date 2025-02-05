@@ -1,9 +1,11 @@
 import numpy as np
 from typing import Generator, Tuple, Dict, Optional, Any
-import labelbox as lb  # type: ignore
-import av
 import requests
 from collections import Counter
+from deeplake.integrations.labelbox.deeplake_utils import (
+    generic_tensor_create_kwargs_,
+    image_tensor_create_kwargs_,
+)
 
 
 def is_remote_resource_public_(url):
@@ -52,6 +54,7 @@ def frame_generator_(
         - frame_number (int): The sequential number of the frame
         - frame_data (numpy.ndarray): The frame image data
     """
+    import av  # type: ignore
 
     def get_video_container(current_retries):
         try:
@@ -167,6 +170,8 @@ def validate_project_creation_data_(proj, project_id, type):
 
 
 def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
+    import labelbox as lb  # type: ignore
+
     # Set the export params to include/exclude certain fields.
     export_params = {
         "attachments": True,
@@ -175,7 +180,7 @@ def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
         "project_details": True,
         "label_details": True,
         "performance_details": True,
-        "interpolated_frames": True,
+        "interpolated_frames": False,
     }
 
     # Note: Filters follow AND logic, so typically using one filter is sufficient.
@@ -217,12 +222,10 @@ def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
 
 
 def create_tensors_default_(ds):
-    ds.create_tensor("frames", htype="image", sample_compression="jpg")
-    ds.create_tensor("frame_idx", htype="generic", dtype="int32")
-    ds.create_tensor("video_idx", htype="generic", dtype="int32")
+    ds.add_column("frames", **image_tensor_create_kwargs_())
+    ds.add_column("frame_idx", **generic_tensor_create_kwargs_("int32"))
+    ds.add_column("video_idx", **generic_tensor_create_kwargs_("int32"))
 
 
 def fill_data_default_(ds, group_ids, indexes, frames):
-    ds["frames"].extend(frames)
-    ds["video_idx"].extend(group_ids)
-    ds["frame_idx"].extend(indexes)
+    ds.extend(["frames", "video_idx", "frame_idx"], [frames, group_ids, indexes])

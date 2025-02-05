@@ -50,12 +50,25 @@ def validate_ds(ds):
     assert len(ds["radio_bttn"]) == 876
     assert np.all(ds["radio_bttn"][0].numpy() == [[0]])
     assert np.all(ds["radio_bttn"][20].numpy() == [[0]])
+    assert np.all(ds["radio_bttn"][21].numpy() == [[0]])
+    assert np.all(ds["radio_bttn"][22].numpy() == [[1]])
     assert np.all(ds["radio_bttn"][23].numpy() == [[1]])
     assert np.all(ds["radio_bttn"][800].numpy() == [[]])
 
     assert np.all(
-        ds["bbox/bbox"][0:3].numpy()
-        == [[[1092, 9, 361, 361]], [[1092, 8, 360, 361]], [[1093, 8, 361, 360]]]
+        ds["bbox/bbox"][:10].numpy()
+        == [
+            [[1092, 9, 361, 361]],
+            [[1092, 8, 361, 361]],
+            [[1093, 8, 361, 361]],
+            [[1094, 7, 361, 361]],
+            [[1095, 7, 361, 361]],
+            [[1096, 6, 361, 361]],
+            [[1096, 6, 361, 361]],
+            [[1097, 6, 361, 361]],
+            [[1098, 5, 361, 361]],
+            [[1099, 5, 361, 361]],
+        ]
     )
     assert np.all(ds["bbox/fully_visible"][0:3].numpy() == [[0], [0], [0]])
 
@@ -271,6 +284,8 @@ def test_connect_to_labelbox():
         API_KEY,
         url_presigner=url_presigner,
     )
+
+    ds.commit("create dataset")
 
     def ds_provider(p):
         # we need to have a clean branch to apply the annotations

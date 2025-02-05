@@ -1,6 +1,7 @@
 from deeplake.integrations.labelbox.labelbox_utils import *
 import tqdm
 from collections import defaultdict
+from deeplake.integrations.labelbox.deeplake_utils import dataset_wrapper
 
 
 class labelbox_type_converter:
@@ -25,7 +26,8 @@ class labelbox_type_converter:
 
         self.project = project
         self.project_id = project_id
-        self.dataset = dataset
+
+        self.dataset = dataset_wrapper(dataset)
 
         self.group_mapping = group_mapping if group_mapping is not None else dict()
         self.groupped_tensor_overrides = dict()
@@ -80,9 +82,12 @@ class labelbox_type_converter:
                 if "segments" not in labels["annotations"]:
                     continue
                 segments = labels["annotations"]["segments"]
+                key_frame_feature_map = labels["annotations"]["key_frame_feature_map"]
                 # the frames contain only the interpolated values
                 # iterate over segments and assign same value to all frames in the segment
-                self.parse_segments_(segments, frames, idx_offset)
+                self.parse_segments_(
+                    segments, frames, key_frame_feature_map, idx_offset
+                )
 
                 self.apply_cached_values_(self.values_cache, idx_offset)
                 if self.metadata_generators_:
@@ -93,13 +98,14 @@ class labelbox_type_converter:
                         p,
                         self.project_id,
                         p["media_attributes"]["frame_count"],
+                        idx_offset,
                     )
 
             idx_offset += p["media_attributes"]["frame_count"]
 
         self.pad_all_tensors(self.dataset)
 
-        return self.dataset
+        return self.dataset.ds
 
     def register_tool_(self, tool, context, fix_grouping_only):
         if tool.tool.value not in self.labelbox_type_converters_:
@@ -234,24 +240,26 @@ class labelbox_type_converter:
 
         return None
 
-    def existing_sub_ranges_(self, frames, r, feature_id):
+    def existing_sub_ranges_(self, frames, r, key_frames):
         end = r[1]
         sub_ranges = [(r[0], end)]
-        for i in range(r[0] + 1, end):
+        for i in key_frames:
             if str(i) not in frames:
                 continue
-            if self.find_object_with_feature_id_(frames[str(i)], feature_id) is None:
+            if i <= r[0] or i >= end:
                 continue
             sub_ranges[-1] = (sub_ranges[-1][0], i)
             sub_ranges.append((i, end))
         return sub_ranges
 
-    def parse_segments_(self, segments, frames, offset):
+    def parse_segments_(self, segments, frames, key_frame_feature_map, offset):
         print("total segments count to parse:", len(segments))
         for feature_id, ranges in segments.items():
             print("parsing segments with feature id: ", feature_id)
             for r in tqdm.tqdm(ranges):
-                sub_ranges = self.existing_sub_ranges_(frames, r, feature_id)
+                sub_ranges = self.existing_sub_ranges_(
+                    frames, r, key_frame_feature_map[feature_id]
+                )
                 for st, en in sub_ranges:
                     assert str(st) in frames
 
@@ -300,16 +308,6 @@ class labelbox_type_converter:
         print("applying cached values")
         for tensor_name, row_map in cache.items():
             print("applying cached values for tensor: ", tensor_name)
-            if len(self.dataset[tensor_name]) < offset:
-                print(
-                    "extending dataset for tensor: ",
-                    tensor_name,
-                    "size: ",
-                    offset - len(self.dataset[tensor_name]),
-                )
-                self.dataset[tensor_name].extend(
-                    [None] * (offset - len(self.dataset[tensor_name]))
-                )
             max_val = max(row_map.keys()) - offset
             values = []
             for i in tqdm.tqdm(range(max_val + 1)):
@@ -319,7 +317,7 @@ class labelbox_type_converter:
                 else:
                     values.append(None)
 
-            self.dataset[tensor_name].extend(values)
+            self.dataset.fill_data(tensor_name, values, offset)
 
     def yield_projects_(self, project_j, ds):
         raise NotImplementedError("fixed_project_order_ is not implemented")
@@ -327,11 +325,13 @@ class labelbox_type_converter:
     def generate_metadata_tensors_(self, generators, ds):
         for tensor_name, v in generators.items():
             try:
-                ds.create_tensor(tensor_name, **v["create_tensor_kwargs"])
+                self.dataset.add_column(tensor_name, **v["create_tensor_kwargs"])
             except:
                 pass
 
-    def fill_metadata_(self, generators, dataset, project, project_id, frames_count):
+    def fill_metadata_(
+        self, generators, dataset, project, project_id, frames_count, offset
+    ):
         metadata_dict = defaultdict(list)
         context = {"project_id": project_id}
         for tensor_name, v in generators.items():
@@ -340,13 +340,10 @@ class labelbox_type_converter:
                 metadata_dict[tensor_name].append(v["generator"](project, context))
 
         for tensor_name, values in metadata_dict.items():
-            dataset[tensor_name].extend(values)
+            dataset.fill_data(tensor_name, values, offset)
 
     def pad_all_tensors(self, dataset):
-        ml = dataset.max_len
-        for tensor_name in dataset.tensors:
-            if len(dataset[tensor_name]) < ml:
-                dataset[tensor_name].extend([None] * (ml - len(dataset[tensor_name])))
+        dataset.pad_all_tensors()
 
 
 # if changes are made to the labelbox_video_converter class, check if ontology_for_debug works correctly
@@ -374,9 +371,9 @@ class labelbox_video_converter(labelbox_type_converter):
         )
 
     def yield_projects_(self, project_j, ds):
-        if "labelbox_meta" not in ds.info:
+        if "labelbox_meta" not in ds.metadata:
             raise ValueError("No labelbox meta data in dataset")
-        info = ds.info["labelbox_meta"]
+        info = ds.metadata["labelbox_meta"]
 
         def sorter(p):
             url = external_url_from_video_project_(p)

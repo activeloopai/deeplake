@@ -2,17 +2,13 @@ from PIL import Image
 import urllib.request
 import numpy as np
 import copy
+from deeplake.integrations.labelbox.deeplake_utils import *
 
 
 def bbox_converter_(obj, converter, tensor_name, context, generate_labels):
     ds = context["ds"]
     try:
-        ds.create_tensor(
-            tensor_name,
-            htype="bbox",
-            dtype="int32",
-            coords={"type": "pixel", "mode": "LTWH"},
-        )
+        ds.create_tensor(tensor_name, **bbox_tensor_create_kwargs_())
     except:
         pass
 
@@ -73,9 +69,10 @@ def radio_converter_(obj, converter, tensor_name, context, generate_labels):
     try:
         ds.create_tensor(
             tensor_name,
-            htype="class_label",
-            class_names=list(converter.label_mappings[tensor_name].keys()),
-            chunk_compression="lz4",
+            **class_label_tensor_create_kwargs_(),
+        )
+        ds[tensor_name].update_metadata(
+            {"class_names": list(converter.label_mappings[tensor_name].keys())}
         )
     except:
         pass
@@ -115,9 +112,10 @@ def checkbox_converter_(obj, converter, tensor_name, context, generate_labels):
     try:
         ds.create_tensor(
             tensor_name,
-            htype="class_label",
-            class_names=list(converter.label_mappings[tensor_name].keys()),
-            chunk_compression="lz4",
+            **class_label_tensor_create_kwargs_(),
+        )
+        ds[tensor_name].update_metadata(
+            {"class_names": list(converter.label_mappings[tensor_name].keys())}
         )
     except:
         pass
@@ -149,7 +147,7 @@ def checkbox_converter_(obj, converter, tensor_name, context, generate_labels):
 def point_converter_(obj, converter, tensor_name, context, generate_labels):
     ds = context["ds"]
     try:
-        ds.create_tensor(tensor_name, htype="point", dtype="int32")
+        ds.create_tensor(tensor_name, **point_tensor_create_kwargs_())
     except:
         pass
 
@@ -187,7 +185,7 @@ def point_converter_(obj, converter, tensor_name, context, generate_labels):
 def line_converter_(obj, converter, tensor_name, context, generate_labels):
     ds = context["ds"]
     try:
-        ds.create_tensor(tensor_name, htype="polygon", dtype="int32")
+        ds.create_tensor(tensor_name, **polygon_tensor_create_kwargs_())
     except:
         pass
 
@@ -230,20 +228,14 @@ def raster_segmentation_converter_(
 ):
     ds = context["ds"]
     try:
-        ds.create_tensor(
-            tensor_name, htype="binary_mask", dtype="bool", sample_compression="lz4"
-        )
+        ds.create_tensor(tensor_name, **binary_mask_tensor_create_kwargs_())
     except:
         pass
 
     try:
         if generate_labels:
             ds.create_tensor(
-                f"{tensor_name}_labels",
-                htype="class_label",
-                dtype="int32",
-                class_names=[],
-                chunk_compression="lz4",
+                f"{tensor_name}_labels", **class_label_tensor_create_kwargs_()
             )
             converter.label_mappings[f"{tensor_name}_labels"] = dict()
     except:
@@ -270,30 +262,33 @@ def raster_segmentation_converter_(
                         converter.label_mappings[f"{tensor_name}_labels"][tool_name] = (
                             len(converter.label_mappings[f"{tensor_name}_labels"])
                         )
-                        ds[f"{tensor_name}_labels"].info.update(
-                            class_names=list(
-                                converter.label_mappings[f"{tensor_name}_labels"].keys()
-                            )
+                        ds[f"{tensor_name}_labels"].update_metadata(
+                            {
+                                "class_names": list(
+                                    converter.label_mappings[
+                                        f"{tensor_name}_labels"
+                                    ].keys()
+                                )
+                            }
                         )
                     val = []
                     try:
-                        val = (
-                            ds[f"{tensor_name}_labels"][row].numpy(aslist=True).tolist()
-                        )
+                        val = ds[f"{tensor_name}_labels"].value(row, aslist=True)
                     except (KeyError, IndexError):
                         pass
-
                     val.append(
                         converter.label_mappings[f"{tensor_name}_labels"][tool_name]
                     )
-                    ds[f"{tensor_name}_labels"][row] = val
+                    ds[f"{tensor_name}_labels"].set_value(row, val)
 
                 mask = np.array(Image.open(response)).astype(np.bool_)
                 mask = mask[..., np.newaxis]
                 try:
                     if generate_labels:
-                        val = ds[tensor_name][row].numpy()
+                        val = ds[tensor_name].value(row)
                         labels = ds[f"{tensor_name}_labels"].info["class_names"]
+                        if val is None:
+                            raise IndexError()
                         if len(labels) != val.shape[-1]:
                             val = np.concatenate(
                                 [val, np.zeros_like(mask)],
@@ -302,11 +297,11 @@ def raster_segmentation_converter_(
                         idx = labels.index(tool_name)
                         val[:, :, idx] = np.logical_or(val[:, :, idx], mask[:, :, 0])
                     else:
-                        val = np.logical_or(ds[tensor_name][row].numpy(), mask)
+                        val = np.logical_or(ds[tensor_name].value(row), mask)
                 except (KeyError, IndexError):
                     val = mask
 
-                ds[tensor_name][row] = val
+                ds[tensor_name].set_value(row, val)
         except Exception as e:
             print(f"Error downloading mask: {e}")
 
@@ -316,7 +311,7 @@ def raster_segmentation_converter_(
 def text_converter_(obj, converter, tensor_name, context, generate_labels):
     ds = context["ds"]
     try:
-        ds.create_tensor(tensor_name, htype="text", dtype="str")
+        ds.create_tensor(tensor_name, **text_tensor_create_kwargs_())
     except:
         pass
 

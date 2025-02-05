@@ -1,12 +1,12 @@
 import deeplake
 import os
-import labelbox as lb  # type: ignore
 import uuid
 
 from deeplake.integrations.labelbox.labelbox_utils import *
 from deeplake.integrations.labelbox.labelbox_converter import labelbox_video_converter
-from deeplake.integrations.labelbox.v3_converters import *
+from deeplake.integrations.labelbox.converters import *
 from deeplake.integrations.labelbox.labelbox_metadata_utils import *
+from deeplake.integrations.labelbox.deeplake_utils import *
 
 
 def converter_for_video_project_with_id(
@@ -71,9 +71,9 @@ def converter_for_video_project_with_id(
         return None
 
     ds_name = project_json[0]["projects"][project_id]["name"]
-    deeplake_dataset = deeplake_ds_loader(ds_name)
+    wrapped_dataset = dataset_wrapper(deeplake_ds_loader(ds_name))
 
-    if not validate_project_data_(project_json, deeplake_dataset, project_id, "video"):
+    if not validate_project_data_(project_json, wrapped_dataset, project_id, "video"):
         if fail_on_error:
             raise Exception("Data validation failed")
 
@@ -100,66 +100,66 @@ def converter_for_video_project_with_id(
         metadata_generators = {
             tensor_name_generator("video_name"): {
                 "generator": get_video_name_from_video_project_,
-                "create_tensor_kwargs": {"htype": "text"},
+                "create_tensor_kwargs": text_tensor_create_kwargs_(),
             },
             tensor_name_generator("id"): {
                 "generator": get_data_row_id_from_video_project_,
-                "create_tensor_kwargs": {"htype": "text"},
+                "create_tensor_kwargs": text_tensor_create_kwargs_(),
             },
             tensor_name_generator("row_data"): {
                 "generator": lambda project, ctx: get_data_row_url_from_video_project_(
                     project, ctx
                 ),
-                "create_tensor_kwargs": {"htype": "text"},
+                "create_tensor_kwargs": text_tensor_create_kwargs_(),
             },
             tensor_name_generator("label_creator"): {
                 "generator": get_label_creator_from_video_project_,
-                "create_tensor_kwargs": {"htype": "text"},
+                "create_tensor_kwargs": text_tensor_create_kwargs_(),
             },
             tensor_name_generator("frame_rate"): {
                 "generator": get_frame_rate_from_video_project_,
-                "create_tensor_kwargs": {"htype": "generic", "dtype": "int32"},
+                "create_tensor_kwargs": generic_tensor_create_kwargs_("int32"),
             },
             tensor_name_generator("frame_count"): {
                 "generator": get_frame_count_from_video_project_,
-                "create_tensor_kwargs": {"htype": "generic", "dtype": "int32"},
+                "create_tensor_kwargs": generic_tensor_create_kwargs_("int32"),
             },
             tensor_name_generator("width"): {
                 "generator": get_width_from_video_project_,
-                "create_tensor_kwargs": {"htype": "generic", "dtype": "int32"},
+                "create_tensor_kwargs": generic_tensor_create_kwargs_("int32"),
             },
             tensor_name_generator("height"): {
                 "generator": get_height_from_video_project_,
-                "create_tensor_kwargs": {"htype": "generic", "dtype": "int32"},
+                "create_tensor_kwargs": generic_tensor_create_kwargs_("int32"),
             },
             tensor_name_generator("ontology_id"): {
                 "generator": get_ontology_id_from_video_project_,
-                "create_tensor_kwargs": {"htype": "text"},
+                "create_tensor_kwargs": text_tensor_create_kwargs_(),
             },
             tensor_name_generator("project_name"): {
                 "generator": get_project_name_from_video_project_,
-                "create_tensor_kwargs": {"htype": "text"},
+                "create_tensor_kwargs": text_tensor_create_kwargs_(),
             },
             tensor_name_generator("dataset_name"): {
                 "generator": get_dataset_name_from_video_project_,
-                "create_tensor_kwargs": {"htype": "text"},
+                "create_tensor_kwargs": text_tensor_create_kwargs_(),
             },
             tensor_name_generator("dataset_id"): {
                 "generator": get_dataset_id_from_video_project_,
-                "create_tensor_kwargs": {"htype": "text"},
+                "create_tensor_kwargs": text_tensor_create_kwargs_(),
             },
             tensor_name_generator("global_key"): {
                 "generator": get_global_key_from_video_project_,
-                "create_tensor_kwargs": {"htype": "text"},
+                "create_tensor_kwargs": text_tensor_create_kwargs_(),
             },
             tensor_name_generator("frame_number"): {
                 "generator": lambda project, ctx: ctx["frame_idx"]
                 + 1,  # 1-indexed frame number
-                "create_tensor_kwargs": {"htype": "generic", "dtype": "int32"},
+                "create_tensor_kwargs": generic_tensor_create_kwargs_("int32"),
             },
             tensor_name_generator("current_frame_name"): {
                 "generator": lambda project, ctx: f"{get_video_name_from_video_project_(project, ctx)}_{(ctx['frame_idx'] + 1):06d}",  # 1-indexed frame number
-                "create_tensor_kwargs": {"htype": "text"},
+                "create_tensor_kwargs": text_tensor_create_kwargs_(),
             },
         }
     else:
@@ -170,8 +170,8 @@ def converter_for_video_project_with_id(
         converters,
         project_json,
         project_id,
-        deeplake_dataset,
-        {"ds": deeplake_dataset, "lb_api_key": lb_api_key},
+        wrapped_dataset,
+        {"ds": wrapped_dataset, "lb_api_key": lb_api_key},
         metadata_generators=metadata_generators,
         group_mapping=group_mapping,
     )
@@ -200,6 +200,7 @@ def create_labelbox_annotation_project(
        data_upload_strategy (str, optional): Strategy for uploading data to Labelbox. Can be 'fail', 'skip', or 'all'. Defaults to 'fail'
        lb_batches_name (str, optional): Name for Labelbox batches. Defaults to None. If None, will use lb_dataset_name + '_batch-'
     """
+    import labelbox as lb  # type: ignore
 
     video_paths = filter_video_paths_(video_paths, data_upload_strategy)
 
@@ -281,7 +282,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     video_generator_batch_size=100,
     fail_on_labelbox_project_export_error=False,
     project_json=None,
-) -> Tuple[deeplake.Dataset, Any]:
+) -> Tuple[Any, Any]:
     """
     Creates a Deeplake dataset from an existing Labelbox video annotation project using custom data processing.
     Downloads video frames from Labelbox and processes them using provided data filler functions.
@@ -315,14 +316,15 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     Notes:
         - The function does not fetch the annotations from Labelbox, only the video frames. After creating the dataset, use the converter to apply annotations.
     """
-    ds = deeplake.empty(
+    wrapped_dataset = dataset_wrapper.create(
         deeplake_ds_path,
-        overwrite=overwrite,
-        creds=deeplake_creds,
-        org_id=deeplake_org_id,
         token=deeplake_token,
+        org_id=deeplake_org_id,
+        creds=deeplake_creds,
+        overwrite=overwrite,
     )
-    data_filler["create_tensors"](ds)
+
+    data_filler["create_tensors"](wrapped_dataset)
 
     if project_json is None:
         project_json = labelbox_get_project_json_with_id_(
@@ -330,7 +332,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
         )
     if len(project_json) == 0:
         print("no data")
-        return ds, project_json
+        return wrapped_dataset.ds, project_json
 
     if not validate_project_creation_data_(project_json, project_id, "video"):
         if fail_on_error:
@@ -356,19 +358,19 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
         for frame_indexes, frames in frames_batch_generator_(
             video_url, header=header, batch_size=video_generator_batch_size
         ):
-            data_filler["fill_data"](ds, [idx] * len(frames), frame_indexes, frames)
+            data_filler["fill_data"](
+                wrapped_dataset, [idx] * len(frames), frame_indexes, frames
+            )
         video_files.append(external_url_from_video_project_(p))
 
-    ds.info["labelbox_meta"] = {
+    wrapped_dataset.metadata["labelbox_meta"] = {
         "project_id": project_id,
         "type": "video",
         "sources": video_files,
         "project_name": project_json[0]["projects"][project_id]["name"],
     }
 
-    ds.commit()
-
-    return ds, project_json
+    return wrapped_dataset.ds, project_json
 
 
 def create_dataset_from_video_annotation_project(
@@ -385,7 +387,7 @@ def create_dataset_from_video_annotation_project(
     video_generator_batch_size=100,
     fail_on_labelbox_project_export_error=False,
     project_json=None,
-) -> Tuple[deeplake.Dataset, Any]:
+) -> Tuple[Any, Any]:
     """
     See create_dataset_from_video_annotation_project_with_custom_data_filler for complete documentation.
 

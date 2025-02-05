@@ -36,6 +36,8 @@ class AzureProvider(StorageProvider):
         self.expiration: Optional[str] = None
         self.db_engine: bool = False
         self.repository: Optional[str] = None
+        self.hub_path = ""
+        self.tag = ""
 
     def _set_attrs(self):
         self.account_name, self.container_name, self.root_folder = self._get_attrs(
@@ -111,6 +113,7 @@ class AzureProvider(StorageProvider):
             retry_wait = 0
             for i in range(1, tries + 1):
                 always_warn(f"Encountered connection error, retry {i} out of {tries}")
+                self._check_update_creds(force=True)
                 retry_wait = self._retry_wait_and_extend(retry_wait, ex)
                 try:
                     self._set(path, content)
@@ -132,6 +135,7 @@ class AzureProvider(StorageProvider):
             retry_wait = 0
             for i in range(1, tries + 1):
                 always_warn(f"Encountered connection error, retry {i} out of {tries}")
+                self._check_update_creds(force=True)
                 retry_wait = self._retry_wait_and_extend(retry_wait, ex)
                 try:
                     res = self.get_bytes(path)
@@ -163,6 +167,7 @@ class AzureProvider(StorageProvider):
             retry_wait = 0
             for i in range(1, tries + 1):
                 always_warn(f"Encountered connection error, retry {i} out of {tries}")
+                self._check_update_creds(force=True)
                 retry_wait = self._retry_wait_and_extend(retry_wait, ex)
                 try:
                     self._del(path)
@@ -228,6 +233,7 @@ class AzureProvider(StorageProvider):
             retry_wait = 0
             for i in range(1, tries + 1):
                 always_warn(f"Encountered connection error, retry {i} out of {tries}")
+                self._check_update_creds(force=True)
                 retry_wait = self._retry_wait_and_extend(retry_wait, ex)
                 try:
                     self._clear(prefix)
@@ -290,6 +296,8 @@ class AzureProvider(StorageProvider):
             "db_engine": self.db_engine,
             "repository": self.repository,
             "expiration": self.expiration,
+            "tag": getattr(self, "tag", ""),
+            "hub_path": getattr(self, "hub_path", ""),
         }
 
     def __setstate__(self, state):
@@ -377,6 +385,7 @@ class AzureProvider(StorageProvider):
             retry_wait = 0
             for i in range(1, tries + 1):
                 always_warn(f"Encountered connection error, retry {i} out of {tries}")
+                self._check_update_creds(force=True)
                 retry_wait = self._retry_wait_and_extend(retry_wait, ex)
                 try:
                     res = self._get_object_size(path)
@@ -464,6 +473,8 @@ class AzureProvider(StorageProvider):
         return blob_client.download_blob().readall()
 
     def get_object_from_full_url(self, url: str) -> bytes:
+        from azure.core.exceptions import ClientAuthenticationError  # type: ignore
+
         try:
             return self._get_object_from_full_url(url)
         except ClientAuthenticationError as ex:
@@ -471,6 +482,7 @@ class AzureProvider(StorageProvider):
             retry_wait = 0
             for i in range(1, tries + 1):
                 always_warn(f"Encountered connection error, retry {i} out of {tries}")
+                self._check_update_creds(force=True)
                 retry_wait = self._retry_wait_and_extend(retry_wait, ex)
                 try:
                     res = self._get_object_from_full_url(url)
