@@ -11,7 +11,6 @@ from deeplake.integrations.labelbox.deeplake_utils import *
 
 def converter_for_video_project_with_id(
     project_id,
-    client,
     deeplake_ds_loader,
     lb_api_key,
     group_mapping=None,
@@ -26,7 +25,6 @@ def converter_for_video_project_with_id(
 
     Args:
         project_id (str): The unique identifier for the Labelbox project to convert.
-        client (LabelboxClient): An authenticated Labelbox client instance for API access.
         deeplake_ds_loader (callable): A function that creates/loads a Deeplake dataset given a name.
         lb_api_key (str): Labelbox API key for authentication.
         group_mapping (dict, optional): A dictionary mapping annotation kinds (labelbox_kind) to the desired tensor group name (tensor_name). This mapping determines whether annotations of the same kind should be grouped into the same tensor or kept separate.
@@ -45,10 +43,8 @@ def converter_for_video_project_with_id(
         Exception: If project data validation fails.
 
     Example:
-        >>> client = LabelboxClient(api_key='your_api_key')
         >>> converter = converter_for_video_project_with_id(
         ...     '<project_id>',
-        ...     client,
         ...     lambda name: deeplake.load(name),
         ...     'your_api_key',
         ...     group_mapping={"raster-segmentation": "mask"}
@@ -61,6 +57,9 @@ def converter_for_video_project_with_id(
         - Supports Video ontology from labelbox.
         - The function first validates the project data before setting up converters.
     """
+    import labelbox as lb # type: ignore
+
+    client = lb.Client(api_key=lb_api_key)
     if project_json is None:
         project_json = labelbox_get_project_json_with_id_(
             client, project_id, fail_on_labelbox_project_export_error
@@ -181,7 +180,7 @@ def create_labelbox_annotation_project(
     video_paths,
     lb_dataset_name,
     lb_project_name,
-    lb_client,
+    lb_api_key,
     lb_ontology=None,
     lb_batch_priority=5,
     data_upload_strategy="fail",
@@ -194,13 +193,16 @@ def create_labelbox_annotation_project(
        video_paths (List[str]): List of paths to video files to be processed can be either all local or all pre-signed remote.
        lb_dataset_name (str): Name for Labelbox dataset.
        lb_project_name (str): Name for Labelbox project.
-       lb_client (LabelboxClient): Authenticated Labelbox client instance
+       lb_api_key (str): Labelbox API key for authentication.
        lb_ontology (Ontology, optional): Labelbox ontology to connect to project. Defaults to None
        lb_batch_priority (int, optional): Priority for Labelbox batches. Defaults to 5
        data_upload_strategy (str, optional): Strategy for uploading data to Labelbox. Can be 'fail', 'skip', or 'all'. Defaults to 'fail'
        lb_batches_name (str, optional): Name for Labelbox batches. Defaults to None. If None, will use lb_dataset_name + '_batch-'
     """
+
     import labelbox as lb  # type: ignore
+
+    lb_client = lb.Client(api_key=lb_api_key)
 
     video_paths = filter_video_paths_(video_paths, data_upload_strategy)
 
@@ -270,7 +272,6 @@ def create_labelbox_annotation_project(
 def create_dataset_from_video_annotation_project_with_custom_data_filler(
     deeplake_ds_path,
     project_id,
-    lb_client,
     lb_api_key,
     data_filler,
     deeplake_creds=None,
@@ -291,7 +292,6 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
        deeplake_ds_path (str): Path where the Deeplake dataset will be created/stored.
            Can be local path or cloud path (e.g. 'hub://org/dataset')
        project_id (str): Labelbox project ID to import data from
-       lb_client (LabelboxClient): Authenticated Labelbox client instance
        lb_api_key (str): Labelbox API key for accessing video frames
        data_filler (dict): Dictionary containing two functions:
            - 'create_tensors': callable(ds) -> None
@@ -316,6 +316,10 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     Notes:
         - The function does not fetch the annotations from Labelbox, only the video frames. After creating the dataset, use the converter to apply annotations.
     """
+
+    import labelbox as lb # type: ignore
+    lb_client = lb.Client(api_key=lb_api_key)
+
     wrapped_dataset = dataset_wrapper.create(
         deeplake_ds_path,
         token=deeplake_token,
@@ -376,7 +380,6 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
 def create_dataset_from_video_annotation_project(
     deeplake_ds_path,
     project_id,
-    lb_client,
     lb_api_key,
     deeplake_creds=None,
     deeplake_org_id=None,
@@ -398,7 +401,6 @@ def create_dataset_from_video_annotation_project(
     return create_dataset_from_video_annotation_project_with_custom_data_filler(
         deeplake_ds_path,
         project_id,
-        lb_client,
         lb_api_key,
         data_filler={
             "create_tensors": create_tensors_default_,
