@@ -57,7 +57,7 @@ def converter_for_video_project_with_id(
         - Supports Video ontology from labelbox.
         - The function first validates the project data before setting up converters.
     """
-    import labelbox as lb # type: ignore
+    import labelbox as lb  # type: ignore
 
     client = lb.Client(api_key=lb_api_key)
     if project_json is None:
@@ -317,7 +317,8 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
         - The function does not fetch the annotations from Labelbox, only the video frames. After creating the dataset, use the converter to apply annotations.
     """
 
-    import labelbox as lb # type: ignore
+    import labelbox as lb  # type: ignore
+
     lb_client = lb.Client(api_key=lb_api_key)
 
     wrapped_dataset = dataset_wrapper.create(
