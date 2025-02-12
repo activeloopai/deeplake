@@ -17,26 +17,25 @@ from mmengine.registry import TRANSFORMS
 from mmengine.utils import is_abs
 
 
-
 class BaseDataset(Dataset):
     r"""
     @brief A modified copy of OpenMMLab's BaseDataset.
 
-    This class is a direct copy of OpenMMLab's `BaseDataset`, with modifications 
-    to remove forced filesystem initialization (`force_init`) and customize the 
-    dataset length retrieval. 
+    This class is a direct copy of OpenMMLab's `BaseDataset`, with modifications
+    to remove forced filesystem initialization (`force_init`) and customize the
+    dataset length retrieval.
 
     @note
-    - We do not use the original `BaseDataset` because it enforces local filesystem 
+    - We do not use the original `BaseDataset` because it enforces local filesystem
       dataset initialization, which is incompatible with our cloud-based dataset.
-    - Instead of relying on local file scans, this version retrieves dataset size 
+    - Instead of relying on local file scans, this version retrieves dataset size
       from a cloud storage backend.
-    
+
     @modifications
     - Removed `force_init` to avoid mandatory filesystem checks.
     - Overridden `__len__` to use cloud metadata instead of local file counting.
-    
-    This ensures that the dataset can be loaded dynamically from the cloud without 
+
+    This ensures that the dataset can be loaded dynamically from the cloud without
     unnecessary local file system dependencies.
 
     The annotation format is shown as follows.
@@ -193,8 +192,7 @@ class BaseDataset(Dataset):
         return data_info
 
     def full_init(self):
-        """Load annotation file and set ``BaseDataset._fully_initialized`` to True.
-        """
+        """Load annotation file and set ``BaseDataset._fully_initialized`` to True."""
         if self._fully_initialized:
             return
 
