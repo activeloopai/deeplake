@@ -2,9 +2,9 @@ import os
 import copy
 from typing import Any, Dict
 
-from deeplake.integrations.mmlab.segmentation.registry import TRANSFORMS
+from deeplake.integrations.mmlab.segmentation.registry import TRANSFORMS  # type: ignore
 from deeplake.integrations.mmlab.segmentation.load_annotations import LoadAnnotations
-from mmengine.dataset import Compose
+from mmengine.dataset import Compose  # type: ignore
 
 from deeplake.client.config import DEEPLAKE_AUTH_TOKEN
 
@@ -15,13 +15,13 @@ from deeplake.util.exceptions import (
     MissingTensorMappingError,
 )
 
-import mmengine.registry
+import mmengine.registry  # type: ignore
 
 original_build_func = mmengine.registry.DATASETS.build
 
 
 def build_transform(steps):
-    from mmengine.registry.build_functions import build_from_cfg
+    from mmengine.registry.build_functions import build_from_cfg  # type: ignore
 
     transforms = []
     steps_copy = copy.deepcopy(steps)

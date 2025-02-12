@@ -4,14 +4,14 @@ import os.path as osp
 import numpy as np
 import warnings
 
-from mmengine.config import Config, DictAction
-from mmengine.logging import print_log
-from mmengine.runner import Runner
-from mmseg.registry import RUNNERS
+from mmengine.config import Config, DictAction  # type: ignore
+from mmengine.logging import print_log  # type: ignore
+from mmengine.runner import Runner  # type: ignore
+from mmseg.registry import RUNNERS  # type: ignore
 
 from typing import Any, Dict, Callable
 
-import mmengine
+import mmengine  # type: ignore
 
 from deeplake.integrations.mmlab.segmentation.basedataset import (
     BaseDataset as DeeplakeBaseDataset,
@@ -22,17 +22,17 @@ from deeplake.integrations.mmlab.segmentation.transform import transform
 
 mmengine.registry.DATASETS.build = build_func_patch
 
-from mmengine.runner import Runner
+from mmengine.runner import Runner  # type: ignore
 from typing import Optional, Union
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader  # type: ignore
 import copy
 from functools import partial
-from mmengine.utils.dl_utils import TORCH_VERSION
-from mmengine.dataset import worker_init_fn as default_worker_init_fn
+from mmengine.utils.dl_utils import TORCH_VERSION  # type: ignore
+from mmengine.dataset import worker_init_fn as default_worker_init_fn  # type: ignore
 
-from mmengine.registry import DATA_SAMPLERS, DATASETS, FUNCTIONS
-from mmengine.utils import digit_version
-from mmengine.runner.utils import _get_batch_size
+from mmengine.registry import DATA_SAMPLERS, DATASETS, FUNCTIONS  # type: ignore
+from mmengine.utils import digit_version  # type: ignore
+from mmengine.runner.utils import _get_batch_size  # type: ignore
 from deeplake.enterprise.dataloader import DeepLakeDataLoader
 
 _original_build_dataloader = Runner.build_dataloader
@@ -45,7 +45,7 @@ from mmengine.dist import (
     init_dist,
     is_distributed,
     master_only,
-)
+)  # type: ignore
 
 
 def build_dataloader(

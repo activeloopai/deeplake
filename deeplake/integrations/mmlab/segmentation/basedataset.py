@@ -10,11 +10,12 @@ from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 import numpy as np
 from torch.utils.data import Dataset
 
-from mmengine.config import Config
-from mmengine.fileio import join_path, list_from_file, load
-from mmengine.logging import print_log
-from mmengine.registry import TRANSFORMS
-from mmengine.utils import is_abs
+from mmengine.config import Config  # type: ignore
+from mmengine.fileio import join_path, list_from_file, load  # type: ignore
+from mmengine.logging import print_log  # type: ignore
+from mmengine.registry import TRANSFORMS  # type: ignore
+from mmengine.utils import is_abs  # type: ignore
+from mmengine.dataset import Compose  # type: ignore
 
 
 class BaseDataset(Dataset):

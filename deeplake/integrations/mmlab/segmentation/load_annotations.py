@@ -1,5 +1,5 @@
 import warnings
-from mmcv.transforms import LoadAnnotations as MMCV_LoadAnnotations
+from mmcv.transforms import LoadAnnotations as MMCV_LoadAnnotations  # type: ignore
 
 from deeplake.integrations.mmlab.segmentation.registry import TRANSFORMS
 

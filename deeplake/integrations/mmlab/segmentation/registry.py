@@ -1,5 +1,5 @@
-from mmseg.registry import TRANSFORMS as MMSEG_TRANSFORMS
-from mmengine.registry import Registry
+from mmseg.registry import TRANSFORMS as MMSEG_TRANSFORMS  # type: ignore
+from mmengine.registry import Registry  # type: ignore
 
 TRANSFORMS = Registry(
     "transform",
