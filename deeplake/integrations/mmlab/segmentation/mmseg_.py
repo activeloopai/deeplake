@@ -3,6 +3,7 @@ import os
 import os.path as osp
 import numpy as np
 import warnings
+import logging
 
 from mmengine.config import Config, DictAction  # type: ignore
 from mmengine.logging import print_log  # type: ignore
@@ -17,6 +18,7 @@ from deeplake.integrations.mmlab.segmentation.basedataset import (
     BaseDataset as DeeplakeBaseDataset,
 )
 from deeplake.integrations.mmlab.segmentation.builder_patch import build_func_patch
+
 mmengine.dataset.BaseDataset = DeeplakeBaseDataset
 from deeplake.integrations.mmlab.segmentation.transform import transform
 
@@ -37,7 +39,7 @@ from deeplake.enterprise.dataloader import DeepLakeDataLoader
 
 _original_build_dataloader = Runner.build_dataloader
 
-from mmengine.dist import (
+from mmengine.dist import (  # type: ignore
     broadcast,
     get_dist_info,
     get_rank,
@@ -45,7 +47,7 @@ from mmengine.dist import (
     init_dist,
     is_distributed,
     master_only,
-)  # type: ignore
+)
 
 
 def build_dataloader(

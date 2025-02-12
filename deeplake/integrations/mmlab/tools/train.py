@@ -4,11 +4,11 @@ import logging
 import os
 import os.path as osp
 
-from mmengine.config import Config, DictAction
-from mmengine.logging import print_log
-from mmengine.runner import Runner
+from mmengine.config import Config, DictAction  # type: ignore
+from mmengine.logging import print_log  # type: ignore
+from mmengine.runner import Runner  # type: ignore
 
-from mmseg.registry import RUNNERS
+from mmseg.registry import RUNNERS  # type: ignore
 
 
 def parse_args():

@@ -589,22 +589,7 @@ class BaseDataset(Dataset):
             )
         return sub_data_bytes, sub_data_address  # type: ignore
 
-    def _get_unserialized_subset(self, indices: Union[Sequence[int], int]) -> Tuple[np.ndarray, np.ndarray]:
-        """Get subset of data information list.
-
-        Args:
-            indices (int or Sequence[int]): If type of indices is int,
-                indices represents the first or last few data of data
-                information. If type of indices is Sequence, indices represents
-                the target data information index which consist of subset data
-                information.
-
-        Raises:
-            TypeError: If indices is not a int or sequence of int.
-
-        Returns:
-            Tuple[np.ndarray, np.ndarray]: subset of data information.
-        """
+    def _get_unserialized_subset(self, indices: Union[Sequence[int], int]):
         if isinstance(indices, int):
             if indices >= 0:
                 # Return the first few data information.
@@ -674,13 +659,7 @@ class BaseDataset(Dataset):
         data_info = self.get_data_info(idx)
         return self.pipeline(data_info)
 
-    def __len__(self) -> int:
-        """Get the length of filtered dataset and automatically call
-        ``full_init`` if the  dataset has not been fully init.
-
-        Returns:
-            int: The length of filtered dataset.
-        """
+    def __len__(self):
         return len(self.deeplake_dataset)
 
     def _copy_without_annotation(self, memo=dict()) -> "BaseDataset":
