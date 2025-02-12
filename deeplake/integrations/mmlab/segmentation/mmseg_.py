@@ -16,7 +16,6 @@ import mmengine
 from deeplake.integrations.mmlab.segmentation.basedataset import (
     BaseDataset as DeeplakeBaseDataset,
 )
-from deeplake.integrations.mmlab.segmentation.registry import TRANSFORMS
 from deeplake.integrations.mmlab.segmentation.builder_patch import build_func_patch
 mmengine.dataset.BaseDataset = DeeplakeBaseDataset
 from deeplake.integrations.mmlab.segmentation.transform import transform

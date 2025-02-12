@@ -10,6 +10,7 @@ from mmengine.runner import Runner
 
 from mmseg.registry import RUNNERS
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Train a segmentor")
     parser.add_argument("config", help="train config file path")
@@ -106,6 +107,7 @@ def main():
     runner.train()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from deeplake.integrations.mmlab.segmentation.mmseg_ import *
+
     main()
