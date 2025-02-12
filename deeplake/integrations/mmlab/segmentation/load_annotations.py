@@ -81,8 +81,6 @@ class LoadAnnotations(MMCV_LoadAnnotations):
         Args:
             results (dict): Result dict from :obj:``mmcv.BaseDataset``.
 
-        Returns:
-            dict: The dict contains loaded semantic segmentation annotations.
         """
 
         gt_semantic_seg = results.pop("dp_seg_map", None)

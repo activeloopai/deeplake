@@ -233,8 +233,9 @@ class BaseDataset(Dataset):
         Args:
             idx (int): The index of data.
 
-        Returns:
-            list[int]: All categories in the image of specified index.
+        Raises:
+            NotImplementedError: This method must be implemented in subclass.
+
         """
         raise NotImplementedError(
             f"{type(self)} must implement `get_cat_ids` " "method"
@@ -251,6 +252,9 @@ class BaseDataset(Dataset):
 
         Args:
             idx (int): The index of self.data_list.
+
+        Raises:
+            Exception: If cannot find valid image after ``self.max_refetch``.
 
         Returns:
             dict: The idx-th image and data information of dataset after
@@ -303,8 +307,13 @@ class BaseDataset(Dataset):
         information of annotation file will be overwritten :attr:`METAINFO`
         and ``metainfo`` argument of constructor.
 
+        Raises:
+            ValueError: If the annotation file does not have ``data_list`` and
+            TypeError: If the annotations loaded from annotation file should be
+
         Returns:
             list[dict]: A list of annotation.
+
         """  # noqa: E501
         # `self.ann_file` denotes the absolute annotation file path if
         # `self.root=None` or relative path if `self.root=/path/to/data/`.
@@ -361,6 +370,9 @@ class BaseDataset(Dataset):
             metainfo (Mapping or Config, optional): Meta information dict.
                 If ``metainfo`` contains existed filename, it will be
                 parsed by ``list_from_file``.
+
+        Raises:
+            TypeError: If ``metainfo`` is not a Mapping or Config.
 
         Returns:
             dict: Parsed meta information.
@@ -526,19 +538,6 @@ class BaseDataset(Dataset):
     def _get_serialized_subset(
         self, indices: Union[Sequence[int], int]
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Get subset of serialized data information list.
-
-        Args:
-            indices (int or Sequence[int]): If type of indices is int,
-                indices represents the first or last few data of serialized
-                data information list. If type of indices is Sequence, indices
-                represents the target data information index which consist of
-                subset data information.
-
-        Returns:
-            Tuple[np.ndarray, np.ndarray]: subset of serialized data
-            information.
-        """
         sub_data_bytes: Union[List, np.ndarray]
         sub_data_address: Union[List, np.ndarray]
         if isinstance(indices, int):
@@ -589,7 +588,7 @@ class BaseDataset(Dataset):
             )
         return sub_data_bytes, sub_data_address  # type: ignore
 
-    def _get_unserialized_subset(self, indices: Union[Sequence[int], int]) -> list:
+    def _get_unserialized_subset(self, indices: Union[Sequence[int], int]) -> Tuple[np.ndarray, np.ndarray]:
         """Get subset of data information list.
 
         Args:
@@ -598,6 +597,9 @@ class BaseDataset(Dataset):
                 information. If type of indices is Sequence, indices represents
                 the target data information index which consist of subset data
                 information.
+
+        Raises:
+            TypeError: If indices is not a int or sequence of int.
 
         Returns:
             Tuple[np.ndarray, np.ndarray]: subset of data information.
@@ -687,6 +689,9 @@ class BaseDataset(Dataset):
         Args:
             memo: Memory dict which used to reconstruct complex object
                 correctly.
+
+        Returns:
+            BaseDataset
         """
         cls = self.__class__
         other = cls.__new__(cls)
