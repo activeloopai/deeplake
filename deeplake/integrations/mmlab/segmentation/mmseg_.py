@@ -13,14 +13,13 @@ from typing import Any, Dict, Callable
 
 import mmengine
 
-from deeplake.integrations.mmlab.mmseg.basedataset import (
+from deeplake.integrations.mmlab.segmentation.basedataset import (
     BaseDataset as DeeplakeBaseDataset,
 )
-from deeplake.integrations.mmlab.mmseg.registry import TRANSFORMS
-from deeplake.integrations.mmlab.mmseg.builder_patch import build_func_patch
-
+from deeplake.integrations.mmlab.segmentation.registry import TRANSFORMS
+from deeplake.integrations.mmlab.segmentation.builder_patch import build_func_patch
 mmengine.dataset.BaseDataset = DeeplakeBaseDataset
-from deeplake.integrations.mmlab.mmseg.transform import transform
+from deeplake.integrations.mmlab.segmentation.transform import transform
 
 mmengine.registry.DATASETS.build = build_func_patch
 

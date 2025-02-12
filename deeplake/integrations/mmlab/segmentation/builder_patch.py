@@ -2,8 +2,8 @@ import os
 import copy
 from typing import Any, Dict
 
-from deeplake.integrations.mmlab.mmseg.registry import TRANSFORMS
-from deeplake.integrations.mmlab.mmseg.load_annotations import LoadAnnotations
+from deeplake.integrations.mmlab.segmentation.registry import TRANSFORMS
+from deeplake.integrations.mmlab.segmentation.load_annotations import LoadAnnotations
 from mmengine.dataset import Compose
 
 from deeplake.client.config import DEEPLAKE_AUTH_TOKEN

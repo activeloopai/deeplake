@@ -1,7 +1,7 @@
 import warnings
 from mmcv.transforms import LoadAnnotations as MMCV_LoadAnnotations
 
-from deeplake.integrations.mmlab.mmseg.registry import TRANSFORMS
+from deeplake.integrations.mmlab.segmentation.registry import TRANSFORMS
 
 
 @TRANSFORMS.register_module()

@@ -107,5 +107,5 @@ def main():
 
 
 if __name__ == '__main__':
-    from deeplake.integrations.mmlab.mmseg.mmseg_ import *
+    from deeplake.integrations.mmlab.segmentation.mmseg_ import *
     main()
