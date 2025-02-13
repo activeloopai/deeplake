@@ -1,6 +1,3 @@
-from azure.storage.blob import BlobServiceClient
-
-
 def load_blob_file_paths_from_azure(
     storage_account_name,
     container_name,
@@ -8,6 +5,8 @@ def load_blob_file_paths_from_azure(
     sas_token,
     predicate=lambda x: True,
 ):
+    from azure.storage.blob import BlobServiceClient
+
     # Construct the account URL with the SAS token
     account_url = f"https://{storage_account_name}.blob.core.windows.net"
     # Service client to connect to Azure Blob Storage using SAS token

@@ -311,6 +311,30 @@ class EmptyTokenException(Exception):
         super().__init__(message)
 
 
+class EmptyDeeplakePathException(Exception):
+    def __init__(self, message="The Deeplake dataset path is empty."):
+        super().__init__(message)
+
+
+class ConflictingDatasetParametersError(Exception):
+    """Raised when both deeplake_query and deeplake_view_id are specified simultaneously."""
+
+    def __init__(self):
+        message = (
+            "A query and view_id were specified simultaneously for a dataset in the config. "
+            "Please specify either the deeplake_query or the deeplake_view_id."
+        )
+        super().__init__(message)
+
+
+class MissingTensorMappingError(Exception):
+    """Raised when the required keys 'img' and 'gt_semantic_seg' are missing in the tensor mapping."""
+
+    def __init__(self):
+        message = "Tensor mapping must include the keys 'img' and 'gt_semantic_seg'."
+        super().__init__(message)
+
+
 # TODO Better S3 Exception handling
 
 
