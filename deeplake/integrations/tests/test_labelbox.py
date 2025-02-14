@@ -1,4 +1,3 @@
-import labelbox as lb  # type: ignore
 import os
 import numpy as np
 import pytest
@@ -264,7 +263,6 @@ def test_connect_to_labelbox():
     ds_path = "mem://labelbox_connect_test"
 
     API_KEY = os.environ["LABELBOX_TOKEN"]
-    client = lb.Client(api_key=API_KEY)
 
     project_id = "cm4hts5gf0109072nbpl390xc"
 
@@ -280,7 +278,6 @@ def test_connect_to_labelbox():
     ds, project_json = create_dataset_from_video_annotation_project(
         ds_path,
         project_id,
-        client,
         API_KEY,
         url_presigner=url_presigner,
     )
@@ -298,7 +295,6 @@ def test_connect_to_labelbox():
 
     converter = converter_for_video_project_with_id(
         project_id,
-        client,
         ds_provider,
         API_KEY,
         group_mapping={"raster-segmentation": "mask"},
