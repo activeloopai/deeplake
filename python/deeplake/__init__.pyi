@@ -2,7 +2,6 @@ import datetime
 import typing
 import pathlib
 
-import formats
 import storage
 from . import schemas
 from . import types
@@ -35,6 +34,8 @@ __all__ = [
     "InvalidColumnValueError",
     "InvalidPolygonShapeError",
     "InvalidLinkDataError",
+    "InvalidIndexCreationError",
+    "IndexAlreadyExistsError",
     "EmbeddingSizeMismatch",
     "PushError",
     "GcsStorageProviderFailed",
@@ -105,7 +106,6 @@ __all__ = [
     "create_async",
     "copy",
     "delete",
-    "formats",
     "exists",
     "open",
     "open_async",
@@ -161,11 +161,11 @@ class Future:
         Loading ML dataset asynchronously:
         ```python
         future = deeplake.open_async("s3://ml-data/embeddings")
-        
+
         # Check status without blocking
         if not future.is_completed():
             print("Still loading...")
-            
+
         # Block until ready
         ds = future.result()
         ```
@@ -198,7 +198,7 @@ class Future:
 
         Examples:
         ```python
-        future = ds["images"].get_async(slice(0, 32)) 
+        future = ds["images"].get_async(slice(0, 32))
         batch = future.result()  # Blocks until batch is loaded
         ```
         """
@@ -261,7 +261,7 @@ class Future:
 class FutureVoid:
     """
     A Future representing a void async operation in ML pipelines.
-    
+
     Similar to Future but for operations that don't return values, like saving
     or committing changes. Useful for non-blocking data management operations.
 
@@ -292,10 +292,10 @@ class FutureVoid:
         ```python
         # Update embeddings without blocking
         future = ds["embeddings"].set_async(slice(0, 32), new_embeddings)
-        
+
         # Do other work while update happens
         process_other_data()
-        
+
         # Wait for update to complete
         future.wait()
         ```
@@ -374,7 +374,7 @@ class FutureVoid:
 class ReadOnlyMetadata:
     """
     Read-only access to dataset and column metadata for ML workflows.
-    
+
     Stores important information about datasets like:
     - Model parameters and hyperparameters
     - Preprocessing statistics (mean, std, etc.)
@@ -463,13 +463,19 @@ class ReadOnlyMetadata:
         """
         ...
 
+    def __contains__(self, key: str) -> bool:
+        """
+        Checks if the metadata contains the given key.
+        """
+        ...
+
 class Metadata(ReadOnlyMetadata):
     """
     Writable access to dataset and column metadata for ML workflows.
 
     Stores important information about datasets like:
 
-    - Model parameters and hyperparameters 
+    - Model parameters and hyperparameters
     - Preprocessing statistics
     - Data splits and fold definitions
     - Version and training information
@@ -521,7 +527,7 @@ class Metadata(ReadOnlyMetadata):
 def query(query: str, token: str | None = None) -> DatasetView:
     """
     Executes TQL queries optimized for ML data filtering and search.
-    
+
     TQL is a SQL-like query language designed for ML datasets, supporting:
 
       - Vector similarity search
@@ -583,7 +589,7 @@ def query(query: str, token: str | None = None) -> DatasetView:
         ```python
         # Find similar embeddings
         similar = deeplake.query('''
-            SELECT * FROM "mem://embeddings" 
+            SELECT * FROM "mem://embeddings"
             ORDER BY COSINE_SIMILARITY(vector, ARRAY[0.1, 0.2, 0.3]) DESC
             LIMIT 100
         ''')
@@ -607,7 +613,7 @@ def query(query: str, token: str | None = None) -> DatasetView:
         # Filter training data
         train = deeplake.query('''
             SELECT * FROM "mem://dataset"
-            WHERE "train_split" = 'train' 
+            WHERE "train_split" = 'train'
             AND confidence > 0.9
             AND label IN ('cat', 'dog')
         ''')
@@ -629,7 +635,7 @@ def query(query: str, token: str | None = None) -> DatasetView:
 def query_async(query: str, token: str | None = None) -> Future:
     """
     Asynchronously executes TQL queries optimized for ML data filtering and search.
-    
+
     Non-blocking version of `query()` for better performance with large datasets.
     Supports the same TQL features including vector similarity search, text search,
     filtering, and joins.
@@ -693,7 +699,7 @@ def query_async(query: str, token: str | None = None) -> Future:
         future = deeplake.query_async(
             "SELECT * FROM dataset WHERE train_split = 'train'"
         )
-        
+
         if future.is_completed():
             train_data = future.result()
         else:
@@ -917,7 +923,7 @@ class ColumnDefinitionView:
 
 class ColumnView:
     """
-    Provides read-only access to a column in a dataset. ColumnView is designed for efficient 
+    Provides read-only access to a column in a dataset. ColumnView is designed for efficient
     data access in ML workflows, supporting both synchronous and asynchronous operations.
 
     The ColumnView class allows you to:
@@ -942,10 +948,10 @@ class ColumnView:
         ```python
         # Access a single image
         image = ds["images"][0]
-        
+
         # Load a batch of images
         batch = ds["images"][0:32]
-        
+
         # Async load for better performance
         images_future = ds["images"].get_async(slice(0, 32))
         images = images_future.result()
@@ -955,7 +961,7 @@ class ColumnView:
         ```python
         # Get all embeddings
         embeddings = ds["embeddings"][:]
-        
+
         # Get specific embeddings by indices
         selected = ds["embeddings"][[1, 5, 10]]
         ```
@@ -964,14 +970,14 @@ class ColumnView:
         ```python
         # Get column name
         name = ds["images"].name
-        
+
         # Access metadata
         if "mean" in ds["images"].metadata.keys():
             mean = dataset["images"].metadata["mean"]
         ```
     """
 
-    def __getitem__(self, index: int | slice | list | tuple) -> typing.Any:
+    def __getitem__(self, index: int | slice | list | tuple) -> numpy.ndarray | list | core.Dict | str | bytes | None:
         """
         Retrieve data from the column at the specified index or range.
 
@@ -999,10 +1005,10 @@ class ColumnView:
             ```python
             # Get single item
             image = column[0]
-            
+
             # Get range
             batch = column[0:32]
-            
+
             # Get specific indices
             items = column[[1, 5, 10]]
             ```
@@ -1011,7 +1017,7 @@ class ColumnView:
 
     def get_async(self, index: int | slice | list | tuple) -> Future:
         """
-        Asynchronously retrieve data from the column. Useful for large datasets or when 
+        Asynchronously retrieve data from the column. Useful for large datasets or when
         loading multiple items in ML pipelines.
 
         Parameters:
@@ -1039,7 +1045,7 @@ class ColumnView:
             # Async batch load
             future = column.get_async(slice(0, 32))
             batch = future.result()
-            
+
             # Using with async/await
             async def load_batch():
                 batch = await column.get_async(slice(0, 32))
@@ -1062,11 +1068,31 @@ class ColumnView:
     def _links_info(self) -> dict:
         """
         Get information about linked data if this column contains references to other datasets.
-        
+
         Internal method used primarily for debugging and advanced operations.
 
         Returns:
             dict: Information about linked data.
+        """
+        ...
+
+    @property
+    def indexes(self) -> list[types.IndexType]:
+        """
+        Get a list of indexes on the column.
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ```
+        -->
+
+        Examples:
+            ```python
+            ds.add_column("A", deeplake.types.Text(deeplake.types.BM25))
+            print([str(element) for element in ds["A"].indexes])
+            ```
         """
         ...
 
@@ -1095,7 +1121,7 @@ class ColumnView:
             # Access preprocessing parameters
             mean = column.metadata["mean"]
             std = column.metadata["std"]
-            
+
             # Check available metadata
             for key in column.metadata.keys():
                 print(f"{key}: {column.metadata[key]}")
@@ -1116,8 +1142,8 @@ class ColumnView:
 
 class Column(ColumnView):
     """
-    Provides read-write access to a column in a dataset. Column extends ColumnView with 
-    methods for modifying data, making it suitable for dataset creation and updates in 
+    Provides read-write access to a column in a dataset. Column extends ColumnView with
+    methods for modifying data, making it suitable for dataset creation and updates in
     ML workflows.
 
     The Column class allows you to:
@@ -1149,10 +1175,10 @@ class Column(ColumnView):
         ```python
         # Update single label
         ds["labels"][0] = 1
-        
+
         # Update batch of labels
         ds["labels"][0:32] = new_labels
-        
+
         # Async update for better performance
         future = ds["labels"].set_async(slice(0, 32), new_labels)
         future.wait()
@@ -1200,21 +1226,73 @@ class Column(ColumnView):
             ```python
             # Update single item
             column[0] = new_image
-            
+
             # Update range
             column[0:32] = new_batch
             ```
         """
         ...
+    def create_index(self, index_type: types.IndexType) -> None:
+        """
+        Create an index on the column.
+
+        Parameters:
+            index_type: Can be:
+
+              - TextIndexType: Index for text columns
+              - EmbeddingIndexType: Index for embedding columns
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ```
+        -->
+
+        Examples:
+            ```python
+            ds.add_column("A", deeplake.types.Text)
+            ds.append({"A": ["Test"]})
+            ds["A"].create_index(deeplake.types.TextIndex(deeplake.types.BM25))
+            ```
+        """
+        ...
+
+    def drop_index(self, index_type: types.IndexType) -> None:
+        """
+        Drop an index on the column.
+
+        Parameters:
+            index_type: Can be:
+
+              - TextIndexType: Index for text columns
+              - EmbeddingIndexType: Index for embedding columns
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ```
+        -->
+
+        Examples:
+            ```python
+            ds.add_column("A", deeplake.types.Text)
+            ds["A"].create_index(deeplake.types.TextIndex(deeplake.types.BM25))
+            ds["A"].drop_index(deeplake.types.TextIndex(deeplake.types.BM25))
+            ```
+        """
+        ...
+
 
     def set_async(self, index: int | slice, value: typing.Any) -> FutureVoid:
         """
-        Asynchronously set data in the column. Useful for large updates or when 
+        Asynchronously set data in the column. Useful for large updates or when
         modifying multiple items in ML pipelines.
 
         Parameters:
             index: Can be:
-            
+
               - int: Single item index
               - slice: Range of indices
             value: The data to store. Must match the column's data type.
@@ -1239,7 +1317,7 @@ class Column(ColumnView):
             # Async batch update
             future = column.set_async(slice(0, 32), new_batch)
             future.wait()
-            
+
             # Using with async/await
             async def update_batch():
                 await column.set_async(slice(0, 32), new_batch)
@@ -1296,7 +1374,7 @@ class Row:
     Provides mutable access to a particular row in a dataset.
     """
 
-    def __getitem__(self, column: str) -> typing.Any:
+    def __getitem__(self, column: str) ->  numpy.ndarray | list | core.Dict | str | bytes | None:
         """
         The value for the given column
         """
@@ -1395,7 +1473,7 @@ class RowRange:
         The number of rows in the row range
         """
 
-    def __getitem__(self, column: str) -> typing.Any:
+    def __getitem__(self, column: str) ->  numpy.ndarray | list | core.Dict | str | bytes | None:
         """
         The value for the given column
         """
@@ -1492,7 +1570,7 @@ class RowRangeView:
         The number of rows in the row range
         """
 
-    def __getitem__(self, column: str) -> typing.Any:
+    def __getitem__(self, column: str) -> numpy.ndarray | list | core.Dict | str | bytes | None:
         """
         The value for the given column
         """
@@ -1540,7 +1618,7 @@ class RowView:
     Provides access to a particular row in a dataset.
     """
 
-    def __getitem__(self, column: str) -> typing.Any:
+    def __getitem__(self, column: str) -> numpy.ndarray | list | core.Dict | str | bytes | None:
         """
         The value for the given column
         """
@@ -1646,7 +1724,7 @@ class DatasetView:
             ds.add_column("id", int)
             ds.add_column("name", str)
             ds.append({"id": [1,2,3], "name": ["Mary", "Joe", "Bill"]})
-            
+
             row = ds[1]
             print("Id:", row["id"], "Name:", row["name"]) # Output: 2 Name: Joe
             rows = ds[1:2]
@@ -1804,7 +1882,7 @@ class DatasetView:
         Examples:
             ```python
             from torch.utils.data import DataLoader
-            
+
             dl = DataLoader(ds.pytorch(), batch_size=60,
                                         shuffle=True, num_workers=8)
             for i_batch, sample_batched in enumerate(dl):
@@ -1821,9 +1899,16 @@ class DatasetView:
             batch_size: Number of rows in each batch
             drop_last: Whether to drop the final batch if it is incomplete
 
+        <!-- test-context
+        ```python
+        ds = deeplake.create("tmp://")
+        def process_batch(*args, **kwargs):
+            pass
+        ```
+        -->
+
         Examples:
-            ```python 
-            ds = deeplake.open("al://my_org/dataset")
+            ```python
             batches = ds.batches(batch_size=2000, drop_last=True)
             for batch in batches:
                 process_batch(batch["images"])
@@ -1924,24 +2009,24 @@ class Dataset(DatasetView):
     The indexing mode of the dataset. This property can be set to change the indexing mode of the dataset for the current session,
     other sessions will not be affected.
 
-        <!-- test-context
+    <!-- test-context
+    ```python
+    import deeplake
+    ds = deeplake.create("mem://ds_id")
+    ds.indexing_mode = deeplake.IndexingMode.Off
+    ds.add_column("column_name", deeplake.types.Text(deeplake.types.BM25))
+    a = ['a']*10_000
+    ds.append({"column_name":a})
+    ds.commit()
+    ```
+    -->
+
+    Examples:
         ```python
-        import deeplake
-        ds = deeplake.create("mem://ds_id")
-        ds.indexing_mode = deeplake.IndexingMode.Off
-        ds.add_column("column_name", deeplake.types.Text(deeplake.types.BM25))
-        a = ['a']*10_000
-        ds.append({"column_name":a})
+        ds = deeplake.open("mem://ds_id")
+        ds.indexing_mode = deeplake.IndexingMode.Automatic
         ds.commit()
         ```
-        -->
-
-        Examples:
-            ```python
-            ds = deeplake.open("mem://ds_id")
-            ds.indexing_mode = deeplake.IndexingMode.Automatic
-            ds.commit()
-            ```
     """
 
     @property
@@ -2075,7 +2160,7 @@ class Dataset(DatasetView):
         self,
         name: str,
         dtype: types.DataType | str | types.Type | type | typing.Callable,
-        format: formats.DataFormat | None = None,
+        default_value: typing.Any = None,
     ) -> None:
         """
         Add a new column to the dataset.
@@ -2518,6 +2603,12 @@ class InvalidPolygonShapeError(Exception):
 class InvalidLinkDataError(Exception):
     pass
 
+class InvalidIndexCreationError(Exception):
+    pass
+
+class IndexAlreadyExistsError(Exception):
+    pass
+
 class EmbeddingSizeMismatch(Exception):
     pass
 
@@ -2754,7 +2845,7 @@ def create(
     url: str,
     creds: dict[str, str] | None = None,
     token: str | None = None,
-    schema: schemas.SchemaTemplate | None = None,
+    schema: dict[str, types.DataType | str | types.Type] | None = None,
 ) -> Dataset:
     """
     Creates a new dataset at the given URL.
@@ -2834,7 +2925,7 @@ def create_async(
     url: str,
     creds: dict[str, str] | None = None,
     token: str | None = None,
-    schema: schemas.SchemaTemplate | None = None,
+    schema: dict[str, types.DataType | str | types.Type] | None = None,
 ) -> Future:
     """
     Asynchronously creates a new dataset at the given URL.
@@ -3232,7 +3323,7 @@ def open_read_only_async(
 
 def convert(
     src: str,
-    dst: str, 
+    dst: str,
     dst_creds: dict[str, str] | None = None,
     token: str | None = None
 ) -> None:
@@ -3246,7 +3337,7 @@ def convert(
             - `file://path` local storage
             - `s3://bucket/path` S3 storage
             - `gs://bucket/path` Google Cloud storage
-            - `azure://bucket/path` Azure storage 
+            - `azure://bucket/path` Azure storage
         dst_creds: Optional credentials for accessing the destination storage.
             Supports cloud provider credentials like access keys
         token: Optional Activeloop authentication token
@@ -3262,12 +3353,12 @@ def convert(
         ```python
         # Convert local dataset
         deeplake.convert("old_dataset/", "new_dataset/")
-        
+
         # Convert cloud dataset with credentials
         deeplake.convert(
             "s3://old-bucket/dataset",
-            "s3://new-bucket/dataset", 
-            dst_creds={"aws_access_key_id": "key", 
+            "s3://new-bucket/dataset",
+            dst_creds={"aws_access_key_id": "key",
                       "aws_secret_access_key": "secret"}
         )
         ```
