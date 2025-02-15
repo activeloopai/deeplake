@@ -15,7 +15,8 @@ import deeplake
 from ._deeplake import *
 from deeplake.ingestion import from_coco
 
-__version__ = "4.1.5"
+
+__version__ = "4.1.7"
 
 __all__ = [
     "__version__",
@@ -45,6 +46,8 @@ __all__ = [
     "InvalidColumnValueError",
     "InvalidPolygonShapeError",
     "InvalidLinkDataError",
+    "InvalidIndexCreationError",
+    "IndexAlreadyExistsError",
     "EmbeddingSizeMismatch",
     "PushError",
     "GcsStorageProviderFailed",
@@ -115,7 +118,6 @@ __all__ = [
     "create_async",
     "copy",
     "delete",
-    "formats",
     "exists",
     "open",
     "open_async",

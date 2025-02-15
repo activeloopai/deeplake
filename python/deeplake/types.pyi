@@ -9,13 +9,22 @@ __all__ = [
     "BinaryMask",
     "Bool",
     "BoundingBox",
+    "Bytes",
     "ClassLabel",
+    "Clustered",
+    "ClusteredQuantized",
     "DataType",
     "Dict",
     "Embedding",
+    "EmbeddingIndex",
+    "EmbeddingIndexType",
+    "EmbeddingIndexEnumType",
+    "EmbeddingsMatrixIndex",
+    "EmbeddingsMatrixIndexType",
     "Float32",
     "Float64",
     "Image",
+    "IndexType",
     "Int16",
     "Int32",
     "Int64",
@@ -30,14 +39,68 @@ __all__ = [
     "Sequence",
     "Struct",
     "Text",
+    "TextIndex",
     "TextIndexType",
+    "TextIndexEnumType",
     "Type",
     "TypeKind",
     "UInt16",
     "UInt32",
     "UInt64",
-    "UInt8",
+    "UInt8"
 ]
+
+class EmbeddingIndexEnumType:
+    """
+    Enumeration of available index types for embedding.
+
+    Members:
+
+      Clustered:
+            Clusters embeddings in the index to speed up search. This is the default index type.
+
+      ClusteredQuantized:
+            Stores a binary quantized representation of the original embedding in the index
+            rather than a full copy of the embedding. This slightly decreases accuracy of
+            searches, while significantly improving query time.
+    """
+    Clustered: typing.ClassVar[EmbeddingIndexEnumType]
+    ClusteredQuantized: typing.ClassVar[EmbeddingIndexEnumType]
+    __members__: typing.ClassVar[dict[str, EmbeddingIndexEnumType]]
+    def __eq__(self, other: typing.Any) -> bool:
+        ...
+    def __getstate__(self) -> int:
+        ...
+    def __hash__(self) -> int:
+        ...
+    def __index__(self) -> int:
+        ...
+    def __init__(self, value: int) -> None:
+        ...
+    def __int__(self) -> int:
+        ...
+    def __ne__(self, other: typing.Any) -> bool:
+        ...
+    def __repr__(self) -> str:
+        ...
+    def __setstate__(self, state: int) -> None:
+        ...
+    def __str__(self) -> str:
+        ...
+    @property
+    def name(self) -> str:
+        ...
+    @property
+    def value(self) -> int:
+        ...
+
+
+class EmbeddingIndexType:
+    """
+    Represents embedding index type.
+    """
+    def __init__(self, type: EmbeddingIndexEnumType) -> None:
+        ...
 
 class QuantizationType:
     """
@@ -45,8 +108,8 @@ class QuantizationType:
 
     Members:
         Binary:
-            Stores a binary quantized representation of the original embedding in the index 
-            rather than a full copy of the embedding. This slightly decreases accuracy of 
+            Stores a binary quantized representation of the original embedding in the index
+            rather than a full copy of the embedding. This slightly decreases accuracy of
             searches, while significantly improving query time.
 
     <!--
@@ -61,7 +124,7 @@ class QuantizationType:
 
     Binary: typing.ClassVar[QuantizationType]
     __members__: typing.ClassVar[dict[str, QuantizationType]]
-    
+
     def __eq__(self, other: typing.Any) -> bool: ...
     def __getstate__(self) -> int: ...
     def __hash__(self) -> int: ...
@@ -72,7 +135,6 @@ class QuantizationType:
     def __repr__(self) -> str: ...
     def __setstate__(self, state: int) -> None: ...
     def __str__(self) -> str: ...
-    
     @property
     def name(self) -> str:
         """
@@ -80,7 +142,7 @@ class QuantizationType:
             str: The name of the quantization type.
         """
         ...
-    
+
     @property
     def value(self) -> int:
         """
@@ -97,7 +159,7 @@ This slightly decreases accuracy of searches while significantly improving query
 by storing a binary quantized representation instead of the full embedding.
 """
 
-class TextIndexType:
+class TextIndexEnumType:
     """
     Enumeration of available text indexing types.
 
@@ -105,39 +167,64 @@ class TextIndexType:
         Inverted:
             A text index that supports keyword lookup. Can be used with ``CONTAINS(column, 'wanted_value')``.
         BM25:
-            A BM25-based index of text data. Can be used with ``BM25_SIMILARITY(column, 'search text')`` 
+            A BM25-based index of text data. Can be used with ``BM25_SIMILARITY(column, 'search text')``
             in a TQL ``ORDER BY`` clause.
     """
 
-    BM25: typing.ClassVar[TextIndexType]
-    Inverted: typing.ClassVar[TextIndexType]
-    __members__: typing.ClassVar[dict[str, TextIndexType]]
-
-    def __eq__(self, other: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, other: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    
+    BM25: typing.ClassVar[TextIndexType]  # value = <deeplake._deeplake.types.TextIndexType object>
+    Inverted: typing.ClassVar[TextIndexType]  # value = <deeplake._deeplake.types.TextIndexType object>
+    __members__: typing.ClassVar[dict[str, TextIndexEnumType]]  # value = {'Inverted': <TextIndexEnumType.Inverted: 1>, 'BM25': <TextIndexEnumType.BM25: 2>}
+    def __eq__(self, other: typing.Any) -> bool:
+        ...
+    def __getstate__(self) -> int:
+        ...
+    def __hash__(self) -> int:
+        ...
+    def __index__(self) -> int:
+        ...
+    def __init__(self, value: int) -> None:
+        ...
+    def __int__(self) -> int:
+        ...
+    def __ne__(self, other: typing.Any) -> bool:
+        ...
+    def __repr__(self) -> str:
+        ...
+    def __setstate__(self, state: int) -> None:
+        ...
+    def __str__(self) -> str:
+        ...
     @property
     def name(self) -> str:
-        """
-        Returns:
-            str: The name of the text index type.
-        """
         ...
-    
     @property
     def value(self) -> int:
         """
         Returns:
             int: The integer value of the text index type.
         """
+        ...
+
+class TextIndexType:
+    def __init__(self, type: TextIndexEnumType) -> None:
+        ...
+
+class EmbeddingsMatrixIndexType:
+    def __init__(self) -> None:
+        ...
+
+class IndexType:
+    """
+    Represents all available index types in the deeplake.
+    """
+    __hash__: typing.ClassVar[None] = None
+    def __eq__(self, other: IndexType) -> bool:
+        ...
+    def __init__(self, index_type: TextIndexType | EmbeddingIndexType | EmbeddingsMatrixIndexType) -> None:
+        ...
+    def __ne__(self, other: IndexType) -> bool:
+        ...
+    def __str__(self) -> str:
         ...
 
 class DataType:
@@ -154,7 +241,7 @@ class DataType:
 class Type:
     """
     Base class for all complex data types in the deeplake.
-    
+
     This class extends DataType to provide additional functionality for complex types
     like images, embeddings, and sequences.
     """
@@ -162,20 +249,11 @@ class Type:
     def __str__(self) -> str: ...
     def __eq__(self, other: Type) -> bool: ...
     def __ne__(self, other: Type) -> bool: ...
-
     @property
     def data_type(self) -> DataType:
         """
         Returns:
             DataType: The underlying data type of this type.
-        """
-        ...
-
-    @property
-    def default_format(self) -> deeplake._deeplake.formats.DataFormat:
-        """
-        Returns:
-            DataFormat: The default format used for this type.
         """
         ...
 
@@ -282,7 +360,6 @@ class TypeKind:
     def __repr__(self) -> str: ...
     def __setstate__(self, state: int) -> None: ...
     def __str__(self) -> str: ...
-    
     @property
     def name(self) -> str:
         """
@@ -290,7 +367,7 @@ class TypeKind:
             str: The name of the type kind.
         """
         ...
-    
+
     @property
     def value(self) -> int:
         """
@@ -305,8 +382,9 @@ def Array(dtype: DataType | str, dimensions: int) -> DataType: ...
 def Array(dtype: DataType | str, shape: list[int]) -> DataType: ...
 @typing.overload
 def Array(dtype: DataType | str) -> DataType: ...
-
-def Array(dtype: DataType | str, dimensions: int | None, shape: list[int] | None) -> DataType:
+def Array(
+    dtype: DataType | str, dimensions: int | None, shape: list[int] | None
+) -> DataType:
     """
     Creates a generic array of data.
 
@@ -333,7 +411,7 @@ def Array(dtype: DataType | str, dimensions: int | None, shape: list[int] | None
         ```python
         ds.add_column("col1", types.Array("int32", dimensions=3))
         ```
-        
+
         Create a three-dimensional array, where each dimension has a known size:
         ```python
         ds.add_column("col2", types.Array(types.Float32(), shape=[50, 30, 768]))
@@ -363,18 +441,46 @@ def Bool() -> DataType:
     """
     ...
 
-def Text(index_type: str | TextIndexType | None = None) -> Type:
+
+def Bytes() -> DataType:
+    """
+    Creates a byte array value type. This is useful for storing raw binary data.
+
+    Returns:
+        DataType: A new byte array data type.
+
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
+    Examples:
+        Create columns with byte array type:
+        ```python
+        ds.add_column("col1", types.Bytes)
+        ds.add_column("col2", "bytes")
+        ```
+
+        Append raw binary data to a byte array column:
+        ```python
+        ds.append([{"col1": b"hello", "col2": b"world"}])
+        ```
+    """
+    ...
+
+def Text(index_type: str | TextIndexEnumType | TextIndexType | None = None) -> Type:
     """
     Creates a text data type of arbitrary length.
 
     Parameters:
-        index_type: str | TextIndexType | None
+        index_type: str | TextIndexEnumType | TextIndexType | None
             How to index the data in the column for faster searching.
             Options are:
-            
+
             - :class:`deeplake.types.Inverted`
             - :class:`deeplake.types.BM25`
-            
+
             Default is ``None`` meaning "do not index"
 
     Returns:
@@ -398,7 +504,34 @@ def Text(index_type: str | TextIndexType | None = None) -> Type:
     """
     ...
 
-BM25: TextIndexType
+def TextIndex(type: TextIndexEnumType) -> TextIndexType:
+    """
+    Creates a text index.
+
+    Parameters:
+        type: TextIndexEnumType
+
+    Returns:
+        Type: Text index type.
+
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
+    Examples:
+        Create text columns with different text index types:
+        ```python
+        ds.add_column("col1", types.Text)
+        ds.add_column("col2", types.Text)
+        ds["col1"].create_index(types.TextIndex(types.Inverted))
+        ds["col2"].create_index(types.TextIndex(types.BM25))
+        ```
+    """
+    ...
+
+BM25: TextIndexEnumType
 """
 A BM25-based index of text data.
 
@@ -408,7 +541,7 @@ See Also:
     `BM25 Algorithm <https://en.wikipedia.org/wiki/Okapi_BM25>`_
 """
 
-Inverted: TextIndexType
+Inverted: TextIndexEnumType
 """
 A text index that supports keyword lookup.
 
@@ -444,7 +577,7 @@ def Dict() -> Type:
 def Embedding(
     size: int | None = None,
     dtype: DataType | str = "float32",
-    quantization: QuantizationType | None = None,
+    index_type: EmbeddingIndexType | QuantizationType | None = None,
 ) -> Type:
     """
     Creates a single-dimensional embedding of a given length.
@@ -474,8 +607,39 @@ def Embedding(
         Create embedding columns:
         ```python
         ds.add_column("col1", types.Embedding(768))
-        ds.add_column("col2", types.Embedding(768, quantization=types.QuantizationType.Binary))
+        ds.add_column("col2", types.Embedding(768, index_type=types.EmbeddingIndex(types.ClusteredQuantized)))
         ```
+    """
+    ...
+
+def EmbeddingIndex(type: EmbeddingIndexEnumType | None = None) -> EmbeddingIndexType:
+    """
+    Creates an embedding index.
+
+    Parameters:
+        type: EmbeddingIndexEnumType | None = None
+            The enumeration type of embedding index
+
+    Returns:
+        Type: EmbeddingIndexType.
+
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
+    Examples:
+        Create embedding columns:
+        ```python
+        ds.add_column("col", types.Embedding(768, index_type=types.EmbeddingIndex(types.ClusteredQuantized)))
+        ```
+    """
+    ...
+
+def EmbeddingsMatrixIndex() -> EmbeddingsMatrixIndexType:
+    """
+    Creates an embeddings matrix index.
     """
     ...
 
@@ -687,15 +851,29 @@ def Link(type: Type) -> Type:
     """
     ...
 
-def Polygon() -> Type:
-    ...
-
+def Polygon() -> Type: ...
 def Point() -> Type:
+    """
+    Point datatype for storing 2D points with ability to visualize them.
+
+    <!-- test-context
+    ```python
+    import deeplake
+    from deeplake import types
+
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
+    Examples:
+        ```python
+        ds.add_column("col1", types.Point())
+        ds.append([{"col1": [[1.0, 2.0], [0.0, 1.0]]}])
+        ```
+    """
     ...
 
-def ClassLabel(dtype: DataType | str) -> Type:
-    ...
-
+def ClassLabel(dtype: DataType | str) -> Type: ...
 def BoundingBox(
     dtype: DataType | str = "float32",
     format: str | None = None,
@@ -777,9 +955,7 @@ def SegmentMask(
     """
     ...
 
-def Medical(
-    compression: str
-) -> Type:
+def Medical(compression: str) -> Type:
     """
     Medical datatype for storing medical images.
 
@@ -855,7 +1031,7 @@ def Struct(fields: dict[str, DataType | str]) -> DataType:
            "field1": types.Int16(),
            "field2": "text",
         }))
-        
+
         ds.append([{"col1": {"field1": 3, "field2": "a"}}])
         print(ds[0]["col1"]["field1"]) # Output: 3
         ```

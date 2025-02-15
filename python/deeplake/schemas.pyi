@@ -8,7 +8,7 @@ __all__ = [
     "SchemaTemplate",
 ]
 
-def TextEmbeddings(embedding_size: int, quantize: bool = False) -> SchemaTemplate:
+def TextEmbeddings(embedding_size: int, quantize: bool = False) -> dict[str, deeplake._deeplake.types.DataType | str | deeplake._deeplake.types.Type]:
     """
     A schema for storing embedded text from documents.
 
@@ -42,15 +42,16 @@ def TextEmbeddings(embedding_size: int, quantize: bool = False) -> SchemaTemplat
 
         Customize the schema before creating the dataset:
         ```python
-        ds = deeplake.create("tmp://", schema=deeplake.schemas.TextEmbeddings(768)
-            .rename("embedding", "text_embed")
-            .add("author", types.Text()))
+        schema = deeplake.schemas.TextEmbeddings(768)
+        schema["text_embed"] = schema.pop("embedding")
+        schema["author"] = types.Text()
+        ds = deeplake.create("tmp://", schema=schema)
         ```
 
         Add a new field to the schema:
         ```python
         schema = deeplake.schemas.TextEmbeddings(768)
-        schema.add("language", types.Text())
+        schema["language"] = types.Text()
         ds = deeplake.create("tmp://", schema=schema)
         ```
     """
@@ -62,7 +63,7 @@ def COCOImages(
     objects: bool = True,
     keypoints: bool = False,
     stuffs: bool = False,
-) -> SchemaTemplate:
+) -> dict[str, deeplake._deeplake.types.DataType | str | deeplake._deeplake.types.Type]:
     """
     A schema for storing COCO-based image data.
 
@@ -114,136 +115,17 @@ def COCOImages(
 
         Customize the schema before creating the dataset:
         ```python
-        ds = deeplake.create("tmp://", schema=deeplake.schemas.COCOImages(768, objects=True, keypoints=True)
-            .rename("embedding", "image_embed")
-            .add("author", types.Text()))
+        schema = deeplake.schemas.COCOImages(768, objects=True, keypoints=True)
+        schema["image_embed"] = schema.pop("embedding")
+        schema["author"] = types.Text()
+        ds = deeplake.create("tmp://", schema=schema)
         ```
 
         Add a new field to the schema:
         ```python
         schema = deeplake.schemas.COCOImages(768)
-        schema.add("location", types.Text())
+        schema["location"] = types.Text()
         ds = deeplake.create("tmp://", schema=schema)
         ```
     """
     ...
-
-class SchemaTemplate:
-    """
-    A template that can be used for creating a new dataset with [deeplake.create][].
-
-    This class allows you to define and customize the schema for your dataset.
-
-    Parameters:
-        schema: dict
-            A dictionary where the key is the column name and the value is the data type.
-
-    Methods:
-        add(name: str, dtype: deeplake._deeplake.types.DataType | str | deeplake._deeplake.types.Type) -> SchemaTemplate:
-            Adds a new column to the template.
-        remove(name: str) -> SchemaTemplate:
-            Removes a column from the template.
-        rename(old_name: str, new_name: str) -> SchemaTemplate:
-            Renames a column in the template.
-
-    Examples:
-        Create a new schema template, modify it, and create a dataset with the schema:
-        ```python
-        schema = deeplake.schemas.SchemaTemplate({
-            "id": types.UInt64(),
-            "text": types.Text(),
-            "embedding": types.Embedding(768)
-        })
-        schema.add("author", types.Text())
-        schema.remove("text")
-        schema.rename("embedding", "text_embedding")
-        ds = deeplake.create("tmp://", schema=schema)
-        ```
-    """
-
-    def __init__(
-        self,
-        schema: dict[
-            str, deeplake._deeplake.types.DataType | str | deeplake._deeplake.types.Type
-        ],
-    ) -> None:
-        """
-        Constructs a new SchemaTemplate from the given dict.
-        """
-        # ...existing code...
-
-    def add(
-        self,
-        name: str,
-        dtype: deeplake._deeplake.types.DataType | str | deeplake._deeplake.types.Type,
-    ) -> SchemaTemplate:
-        """
-        Adds a new column to the template.
-
-        Parameters:
-            name: str
-                The column name.
-            dtype: deeplake._deeplake.types.DataType | str | deeplake._deeplake.types.Type
-                The column data type.
-
-        Returns:
-            SchemaTemplate: The updated schema template.
-
-        Examples:
-            Add a new column to the schema:
-            ```python
-            schema = deeplake.schemas.SchemaTemplate({})
-            schema.add("author", types.Text())
-            ```
-        """
-        ...
-
-    def remove(self, name: str) -> SchemaTemplate:
-        """
-        Removes a column from the template.
-
-        Parameters:
-            name: str
-                The column name.
-
-        Returns:
-            SchemaTemplate: The updated schema template.
-
-        Examples:
-            Remove a column from the schema:
-            ```python
-            schema = deeplake.schemas.SchemaTemplate({
-                "id": types.UInt64(),
-                "text": types.Text(),
-                "embedding": types.Embedding(768)
-            })
-            schema.remove("text")
-            ```
-        """
-        ...
-
-    def rename(self, old_name: str, new_name: str) -> SchemaTemplate:
-        """
-        Renames a column in the template.
-
-        Parameters:
-            old_name: str
-                Existing column name.
-            new_name: str
-                New column name.
-
-        Returns:
-            SchemaTemplate: The updated schema template.
-
-        Examples:
-            Rename a column in the schema:
-            ```python
-            schema = deeplake.schemas.SchemaTemplate({
-                "id": types.UInt64(),
-                "text": types.Text(),
-                "embedding": types.Embedding(768)
-            })
-            schema.rename("embedding", "text_embedding")
-            ```
-        """
-        ...
