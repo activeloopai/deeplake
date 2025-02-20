@@ -37,7 +37,13 @@ class Dict:
     def keys(self: dict) -> list[str]:
         ...
 
-    def to_dict(self: dict) -> dict:
+    def to_dict(self: dict, convert_numpy_to_list: bool = False) -> dict:
+        """
+        Converts the deeplake dictionary to a standard Python dictionary.
+
+        Args:
+            convert_numpy_to_list: If True, convert numpy arrays to lists. Default is False.
+        """
         ...
 
     def __contains__(self: dict, key: str) -> bool:
