@@ -50,6 +50,17 @@ from mmengine.dist import (  # type: ignore
 )
 
 
+def __generate_palette(num_classes):
+    """Function to generate a random but distinguishable color palette"""
+    import random
+
+    random.seed(42)
+    return [
+        [random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)]
+        for _ in range(num_classes)
+    ]
+
+
 def build_dataloader(
     dataloader: Union[DeepLakeDataLoader, Dict],
     seed: Optional[int] = None,
@@ -200,7 +211,11 @@ def build_dataloader(
             persistent_workers=persistent_workers,
         )
     )
-    loader.dataset.__setattr__("metainfo", {"classes": classes})
+
+    loader.dataset.__setattr__(
+        "metainfo",
+        {"classes": tuple(classes), "palette": __generate_palette(len(classes))},
+    )
 
     if init_fn:
         loader.worker_init_fn = init_fn
