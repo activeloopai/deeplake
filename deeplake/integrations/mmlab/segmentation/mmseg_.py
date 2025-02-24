@@ -36,6 +36,7 @@ from mmengine.registry import DATA_SAMPLERS, DATASETS, FUNCTIONS  # type: ignore
 from mmengine.utils import digit_version  # type: ignore
 from mmengine.runner.utils import _get_batch_size  # type: ignore
 from deeplake.enterprise.dataloader import DeepLakeDataLoader
+from deeplake.util.exceptions import ClassNamesEmptyError
 
 _original_build_dataloader = Runner.build_dataloader
 
@@ -183,6 +184,8 @@ def build_dataloader(
     masks_tensor = dataset.masks_tensor
     classes = deeplake_ds[masks_tensor].info.class_names
     dataset.CLASSES = classes
+    if not classes or not len(classes):
+        raise ClassNamesEmptyError(masks_tensor)
 
     num_workers = dataloader_cfg.get("num_workers", 0)
     batch_size = dataloader_cfg.get("batch_size", 1)
@@ -199,7 +202,7 @@ def build_dataloader(
     )
 
     loader = (
-        deeplake_ds.dataloader()
+        deeplake_ds.dataloader(ignore_errors=True)
         .transform(transform_fn)
         .shuffle(shuffle)
         .batch(batch_size=batch_size, drop_last=drop_last)

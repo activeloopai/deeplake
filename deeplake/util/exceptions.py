@@ -167,6 +167,11 @@ class ProviderListEmptyError(Exception):
         )
 
 
+class ClassNamesEmptyError(Exception):
+    def __init__(self, tensor_name: str):
+        super().__init__(f"The class_names of the tensor `{tensor_name}` are empty")
+
+
 class DirectoryAtPathException(Exception):
     def __init__(self):
         super().__init__(
