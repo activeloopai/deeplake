@@ -186,8 +186,16 @@ def access_creds(path: str):
     return Response("", 404)
 
 
-@_APP.route("/<path:path>")
+@_APP.route("/<path:path>", methods=["GET", "HEAD", "OPTIONS"])
 def access_data(path: str):
+    if request.method == "OPTIONS":
+        # Handle preflight request
+        response = Response("", 200)
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
+        response.headers.add("Access-Control-Allow-Headers", "*")
+        return response
+
     try:
         paths = path.split("/", 1)
         range_header = request.headers.get("Range", None)
