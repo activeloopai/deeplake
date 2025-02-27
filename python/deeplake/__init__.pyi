@@ -1873,6 +1873,13 @@ class DatasetView:
         <!-- test-context
         ```python
         import deeplake
+        import multiprocessing as mp
+        try:
+            mp.set_start_method('fork')
+        except RuntimeError:
+            pass  # method has already been set
+
+
         ds = deeplake.create("tmp://")
         ds.add_column("images", "int32")
         ds.append({"images": [0] * 300})

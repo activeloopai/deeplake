@@ -16,7 +16,7 @@ from ._deeplake import *
 from deeplake.ingestion import from_coco
 
 
-__version__ = "4.1.10"
+__version__ = "4.1.11"
 
 __all__ = [
     "__version__",
