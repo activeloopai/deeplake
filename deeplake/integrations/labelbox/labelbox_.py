@@ -185,6 +185,7 @@ def create_labelbox_annotation_project(
     lb_batch_priority=5,
     data_upload_strategy="fail",
     lb_batches_name=None,
+    lb_iam_integration_id='DEFAULT',
 ):
     """
     Creates labelbox dataset for video annotation and sets up corresponding Labelbox project.
@@ -198,6 +199,7 @@ def create_labelbox_annotation_project(
        lb_batch_priority (int, optional): Priority for Labelbox batches. Defaults to 5
        data_upload_strategy (str, optional): Strategy for uploading data to Labelbox. Can be 'fail', 'skip', or 'all'. Defaults to 'fail'
        lb_batches_name (str, optional): Name for Labelbox batches. Defaults to None. If None, will use lb_dataset_name + '_batch-'
+       lb_iam_integration_id (str, optional): IAM integration id for Labelbox. Defaults to 'DEFAULT'
     """
 
     import labelbox as lb  # type: ignore
@@ -226,8 +228,23 @@ def create_labelbox_annotation_project(
                 for p in video_paths
             ]
 
-    print("uploading videos to labelbox")
-    lb_ds = lb_client.create_dataset(name=lb_dataset_name)
+    if lb_iam_integration_id and lb_iam_integration_id != 'DEFAULT':
+        lb_org = lb_client.get_organization()
+        integrations = lb_org.get_iam_integrations()
+        tmp_integration = None
+        for integration in integrations:
+            if integration.uid == lb_iam_integration_id:
+                tmp_integration = integration
+                break
+        if tmp_integration is None:
+            raise Exception(f"iam integration {lb_iam_integration_id} not found")
+        lb_iam_integration = tmp_integration
+    else:
+        lb_iam_integration = lb_iam_integration_id
+
+    print("uploading videos to labelbox", f"using iam integration: {lb_iam_integration}" if lb_iam_integration != 'DEFAULT' else "")
+
+    lb_ds = lb_client.create_dataset(iam_integration=lb_iam_integration, name=lb_dataset_name)
     task = lb_ds.create_data_rows(assets)
     task.wait_till_done()
 
