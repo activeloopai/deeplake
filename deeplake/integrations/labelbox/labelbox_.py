@@ -186,6 +186,7 @@ def create_labelbox_annotation_project(
     data_upload_strategy="fail",
     lb_batches_name=None,
     lb_iam_integration_id='DEFAULT',
+    lb_global_key_generator=lambda x: str(uuid.uuid4()),
 ):
     """
     Creates labelbox dataset for video annotation and sets up corresponding Labelbox project.
@@ -200,6 +201,7 @@ def create_labelbox_annotation_project(
        data_upload_strategy (str, optional): Strategy for uploading data to Labelbox. Can be 'fail', 'skip', or 'all'. Defaults to 'fail'
        lb_batches_name (str, optional): Name for Labelbox batches. Defaults to None. If None, will use lb_dataset_name + '_batch-'
        lb_iam_integration_id (str, optional): IAM integration id for Labelbox. Defaults to 'DEFAULT'
+       lb_global_key_generator (callable, optional): Function to generate global keys for data rows. Defaults to lambda x: str(uuid.uuid4())
     """
 
     import labelbox as lb  # type: ignore
@@ -220,7 +222,7 @@ def create_labelbox_annotation_project(
             assets = [
                 {
                     "row_data": p,
-                    "global_key": str(uuid.uuid4()),
+                    "global_key": lb_global_key_generator(p),
                     "media_type": "VIDEO",
                     "metadata_fields": [],
                     "attachments": [],
