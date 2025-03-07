@@ -13,9 +13,19 @@ __all__ = [
     "AuthenticationError",
     "AuthorizationError",
     "BadRequestError",
+    "Branch",
+    "BranchExistsError",
+    "BranchHasChildrenError",
+    "BranchNotFoundError",
+    "BranchView",
+    "Branches",
+    "BranchesView",
     "BytePositionIndexOutOfChunk",
     "CanNotCreateTensorWithProvidedCompressions",
+    "CannotDeleteMainBranchError",
+    "CannotRenameMainBranchError",
     "CannotTagUncommittedDatasetError",
+    "Client",
     "Column",
     "ColumnAlreadyExistsError",
     "ColumnDefinition",
@@ -25,6 +35,7 @@ __all__ = [
     "ColumnView",
     "CredsKeyAlreadyAssignedError",
     "Dataset",
+    "DatasetUnavailableError",
     "DatasetView",
     "DimensionsMismatch",
     "DtypeMismatch",
@@ -34,10 +45,10 @@ __all__ = [
     "Future",
     "FutureVoid",
     "GcsStorageProviderFailed",
-    "History",
     "HTTPBodyIsMissingError",
     "HTTPBodyIsNotJSONError",
     "HTTPRequestFailedError",
+    "History",
     "IncorrectDeeplakePathError",
     "IndexAlreadyExistsError",
     "IndexingMode",
@@ -67,6 +78,7 @@ __all__ = [
     "PushError",
     "QuantizationType",
     "ReadOnlyDataset",
+    "ReadOnlyDatasetModificationError",
     "ReadOnlyMetadata",
     "Row",
     "RowRange",
@@ -87,10 +99,10 @@ __all__ = [
     "Tags",
     "TagsView",
     "TensorAlreadyExists",
-    "UnexpectedInputDataForDicomColumn",
-    "UnexpectedMedicalTypeInputData",
     "UnevenColumnsError",
     "UnevenUpdateError",
+    "UnexpectedInputDataForDicomColumn",
+    "UnexpectedMedicalTypeInputData",
     "UnknownBoundingBoxCoordinateFormat",
     "UnknownBoundingBoxPixelFormat",
     "UnknownFormat",
@@ -104,31 +116,30 @@ __all__ = [
     "WriteFailedError",
     "WrongChunkCompression",
     "WrongSampleCompression",
+    "__prepare_atfork",
+    "client",
+    "connect",
+    "convert",
+    "copy",
     "core",
     "create",
     "create_async",
-    "copy",
     "delete",
+    "disconnect",
     "exists",
+    "from_coco",
+    "from_parquet",
+    "like",
     "open",
     "open_async",
-    "like",
-    "convert",
-    "connect",
-    "disconnect",
     "open_read_only",
     "open_read_only_async",
-    "from_parquet",
     "query",
     "query_async",
     "schemas",
     "storage",
     "tql",
     "types",
-    "Client",
-    "client",
-    "__prepare_atfork",
-    "from_coco",
 ]
 
 class Future:
@@ -527,7 +538,7 @@ class Metadata(ReadOnlyMetadata):
         """
         ...
 
-def query(query: str, token: str | None = None) -> DatasetView:
+def query(query: str, token: str | None = None, creds: dict[str, str] | None = None) -> DatasetView:
     """
     Executes TQL queries optimized for ML data filtering and search.
 
@@ -550,6 +561,11 @@ def query(query: str, token: str | None = None) -> DatasetView:
           - Joins: JOIN across datasets
 
         token: Optional Activeloop authentication token
+        creds (dict, optional): Dictionary containing credentials used to access the dataset at the path.
+
+          - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+          - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+          - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
 
     Returns:
         DatasetView: Query results that can be:
@@ -635,7 +651,7 @@ def query(query: str, token: str | None = None) -> DatasetView:
     """
     ...
 
-def query_async(query: str, token: str | None = None) -> Future:
+def query_async(query: str, token: str | None = None, creds: dict[str, str] | None = None) -> Future:
     """
     Asynchronously executes TQL queries optimized for ML data filtering and search.
 
@@ -651,6 +667,11 @@ def query_async(query: str, token: str | None = None) -> Future:
             - Sorting: ORDER BY
             - Joins: JOIN across datasets
         token: Optional Activeloop authentication token
+        creds (dict, optional): Dictionary containing credentials used to access the dataset at the path.
+
+          - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+          - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+          - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
 
     Returns:
         Future: Resolves to DatasetView that can be:
@@ -718,6 +739,159 @@ class Client:
     """
     endpoint: str
 
+class Branch:
+    """
+    Describes a branch within the dataset.
+
+    Branches are created using [deeplake.Dataset.branch][].
+    """
+
+    __hash__: typing.ClassVar[None] = None
+    def __eq__(self, other: Branch) -> bool:
+        ...
+
+    def __str__(self) -> str:
+        ...
+
+    def delete(self) -> None:
+        """
+        Deletes the branch from the dataset
+        """
+        ...
+
+    def open(self) -> Dataset:
+        """
+        Opens corresponding branch of the dataset
+        """
+        ...
+
+    def rename(self, new_name: str) -> None:
+        """
+        Renames the branch within the dataset
+        """
+        ...
+
+    @property
+    def base(self) -> tuple[str, str] | None:
+        """
+        The base branch id and version
+        """
+        ...
+
+    @property
+    def id(self) -> str:
+        """
+        The unique identifier of the branch
+        """
+        ...
+
+    @property
+    def name(self) -> str:
+        """
+        The name of the branch
+        """
+        ...
+
+    @property
+    def timestamp(self) -> datetime.datetime:
+        """
+        The branch creation timestamp
+        """
+        ...
+
+class BranchView:
+    """
+    Describes a read-only branch within the dataset.
+    """
+
+    __hash__: typing.ClassVar[None] = None
+    def __eq__(self, other: BranchView) -> bool:
+        ...
+
+    def __str__(self) -> str:
+        ...
+
+    @property
+    def base(self) -> tuple[str, str] | None:
+        """
+        The base branch id and version
+        """
+        ...
+    @property
+    def id(self) -> str:
+        """
+        The unique identifier of the branch
+        """
+        ...
+
+    @property
+    def name(self) -> str:
+        """
+        The name of the branch
+        """
+        ...
+
+    @property
+    def timestamp(self) -> datetime.datetime:
+        """
+        The branch creation timestamp
+        """
+        ...
+
+    def open(self) -> ReadOnlyDataset:
+        """
+        Opens corresponding branch of the dataset
+        """
+        ...
+
+class Branches:
+    """
+    Provides access to the branches within a dataset.
+
+    It is returned by the [deeplake.Dataset.branches][] property.
+    """
+    def __getitem__(self, name: str) -> Branch:
+        """
+        Return a branch by name or id
+        """
+        ...
+    def __len__(self) -> int:
+        """
+        The number of branches in the dataset
+        """
+        ...
+    def __str__(self) -> str:
+        ...
+    def names(self) -> list[str]:
+        """
+        Return a list of branch names
+        """
+        ...
+
+class BranchesView:
+    """
+    Provides access to the read-only branches within a dataset view.
+
+    It is returned by the [deeplake.ReadOnlyDataset.branches][] property.
+    """
+    def __getitem__(self, name: str) -> BranchView:
+        """
+        Return a branch by name or id
+        """
+        ...
+    def __len__(self) -> int:
+        """
+        The number of branches in the dataset
+        """
+        ...
+    def __str__(self) -> str:
+        ...
+    def names(self) -> list[str]:
+        """
+        Return a list of branch names
+        """
+        ...
+
 class Tag:
     """
     Describes a tag within the dataset.
@@ -767,7 +941,8 @@ class Tag:
         """
         ...
 
-    def __str__(self) -> str: ...
+    def __str__(self) -> str:
+        ...
 
 class TagView:
     """
@@ -807,18 +982,6 @@ class TagView:
         ...
 
     def __str__(self) -> str: ...
-
-class TagNotFoundError(Exception):
-    pass
-
-class TagExistsError(Exception):
-    pass
-
-class CannotTagUncommittedDatasetError(Exception):
-    pass
-
-class PushError(Exception):
-    pass
 
 class Tags:
     """
@@ -1976,7 +2139,19 @@ class Dataset(DatasetView):
     Unlike [deeplake.ReadOnlyDataset][], instances of `Dataset` can be modified.
     """
 
-    def __str__(self) -> str: ...
+    def __str__(self) -> str:
+        ...
+
+    def branch(self, name: str, version: str | None = None) -> Branch:
+        """
+        Creates a branch with the given version of the current branch. If no version is given, the current version will be picked up.
+
+        Parameters:
+            name: The name of the branch
+            version: The version of the dataset
+        """
+        ...
+
     def tag(self, name: str, version: str | None = None) -> Tag:
         """
         Tags a version of the dataset. If no version is given, the current version is tagged.
@@ -1984,6 +2159,20 @@ class Dataset(DatasetView):
         Parameters:
             name: The name of the tag
             version: The version of the dataset to tag
+        """
+        ...
+
+    @property
+    def current_branch(self) -> Branch:
+        """
+        The current active branch
+        """
+        ...
+
+    @property
+    def branches(self) -> Branches:
+        """
+        The collection of [deeplake.Branch][]s within the dataset
         """
         ...
 
@@ -2471,7 +2660,23 @@ class ReadOnlyDataset(DatasetView):
         """
         ...
 
-    def __str__(self) -> str: ...
+    def __str__(self) -> str:
+        ...
+
+    @property
+    def current_branch(self) -> BranchView:
+        """
+        The current active branch
+        """
+        ...
+
+    @property
+    def branches(self) -> BranchesView:
+        """
+        The collection of [deeplake.BranchView][]s within the dataset
+        """
+        ...
+
     @property
     def tags(self) -> TagsView:
         """
@@ -2654,6 +2859,40 @@ class History:
         ...
 
     def __str__(self) -> str: ...
+
+
+class ReadOnlyDatasetModificationError(Exception):
+    pass
+
+class DatasetUnavailableError(Exception):
+    pass
+
+class CannotDeleteMainBranchError(Exception):
+    pass
+
+class CannotRenameMainBranchError(Exception):
+    pass
+
+class BranchExistsError(Exception):
+    pass
+
+class BranchNotFoundError(Exception):
+    pass
+
+class BranchHasChildrenError(Exception):
+    pass
+
+class TagNotFoundError(Exception):
+    pass
+
+class TagExistsError(Exception):
+    pass
+
+class CannotTagUncommittedDatasetError(Exception):
+    pass
+
+class PushError(Exception):
+    pass
 
 class InvalidType(Exception):
     pass
