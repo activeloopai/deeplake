@@ -185,7 +185,7 @@ def create_labelbox_annotation_project(
     lb_batch_priority=5,
     data_upload_strategy="fail",
     lb_batches_name=None,
-    lb_iam_integration_id='DEFAULT',
+    lb_iam_integration_id="DEFAULT",
     lb_global_key_generator=lambda x: str(uuid.uuid4()),
 ):
     """
@@ -230,7 +230,7 @@ def create_labelbox_annotation_project(
                 for p in video_paths
             ]
 
-    if lb_iam_integration_id and lb_iam_integration_id != 'DEFAULT':
+    if lb_iam_integration_id and lb_iam_integration_id != "DEFAULT":
         lb_org = lb_client.get_organization()
         integrations = lb_org.get_iam_integrations()
         tmp_integration = None
@@ -244,9 +244,18 @@ def create_labelbox_annotation_project(
     else:
         lb_iam_integration = lb_iam_integration_id
 
-    print("uploading videos to labelbox", f"using iam integration: {lb_iam_integration}" if lb_iam_integration != 'DEFAULT' else "")
+    print(
+        "uploading videos to labelbox",
+        (
+            f"using iam integration: {lb_iam_integration}"
+            if lb_iam_integration != "DEFAULT"
+            else ""
+        ),
+    )
 
-    lb_ds = lb_client.create_dataset(iam_integration=lb_iam_integration, name=lb_dataset_name)
+    lb_ds = lb_client.create_dataset(
+        iam_integration=lb_iam_integration, name=lb_dataset_name
+    )
     task = lb_ds.create_data_rows(assets)
     task.wait_till_done()
 

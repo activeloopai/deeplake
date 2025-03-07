@@ -4,7 +4,7 @@ def load_blob_file_paths_from_azure(
     parent_path,
     sas_token,
     predicate=lambda x: True,
-    sign_urls=True
+    sign_urls=True,
 ):
     from azure.storage.blob import BlobServiceClient
 
@@ -19,7 +19,8 @@ def load_blob_file_paths_from_azure(
     # List blobs in the directory
     blob_list = container_client.list_blobs(name_starts_with=parent_path)
     file_url_list = [
-        f"{account_url}/{container_name}/{blob.name}" + (f"?{sas_token}" if sign_urls else "")
+        f"{account_url}/{container_name}/{blob.name}"
+        + (f"?{sas_token}" if sign_urls else "")
         for blob in blob_list
         if predicate(blob.name)
     ]
