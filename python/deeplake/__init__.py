@@ -16,7 +16,7 @@ from ._deeplake import *
 from deeplake.ingestion import from_coco
 
 
-__version__ = "4.1.12"
+__version__ = "4.1.16"
 
 __all__ = [
     "__version__",
@@ -27,7 +27,6 @@ __all__ = [
     "BadRequestError",
     "Branch",
     "BranchExistsError",
-    "BranchHasChildrenError",
     "BranchNotFoundError",
     "BranchView",
     "Branches",
@@ -36,7 +35,6 @@ __all__ = [
     "CanNotCreateTensorWithProvidedCompressions",
     "CannotDeleteMainBranchError",
     "CannotRenameMainBranchError",
-    "CannotTagUncommittedDatasetError",
     "Client",
     "Column",
     "ColumnAlreadyExistsError",
@@ -89,6 +87,8 @@ __all__ = [
     "NotLoggedInAgreementError",
     "PushError",
     "QuantizationType",
+    "Random",
+    "random",
     "ReadOnlyDataset",
     "ReadOnlyDatasetModificationError",
     "ReadOnlyMetadata",
@@ -152,6 +152,8 @@ __all__ = [
     "storage",
     "tql",
     "types",
+    "TelemetryClient",
+    "telemetry_client"
 ]
 
 

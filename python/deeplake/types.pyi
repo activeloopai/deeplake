@@ -21,6 +21,7 @@ __all__ = [
     "EmbeddingIndexEnumType",
     "EmbeddingsMatrixIndex",
     "EmbeddingsMatrixIndexType",
+    "Float16",
     "Float32",
     "Float64",
     "Image",
@@ -640,6 +641,27 @@ def EmbeddingIndex(type: EmbeddingIndexEnumType | None = None) -> EmbeddingIndex
 def EmbeddingsMatrixIndex() -> EmbeddingsMatrixIndexType:
     """
     Creates an embeddings matrix index.
+    """
+    ...
+
+def Float16() -> DataType:
+    """
+    Creates a 16-bit (half) float value type.
+
+    Returns:
+        DataType: A new 16-bit float data type.
+
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
+    Examples:
+        Create a column with 16-bit float type:
+        ```python
+        ds.add_column("col1", types.Float16)
+        ```
     """
     ...
 

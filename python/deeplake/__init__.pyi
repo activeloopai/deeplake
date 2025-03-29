@@ -15,7 +15,6 @@ __all__ = [
     "BadRequestError",
     "Branch",
     "BranchExistsError",
-    "BranchHasChildrenError",
     "BranchNotFoundError",
     "BranchView",
     "Branches",
@@ -24,7 +23,6 @@ __all__ = [
     "CanNotCreateTensorWithProvidedCompressions",
     "CannotDeleteMainBranchError",
     "CannotRenameMainBranchError",
-    "CannotTagUncommittedDatasetError",
     "Client",
     "Column",
     "ColumnAlreadyExistsError",
@@ -77,6 +75,8 @@ __all__ = [
     "NotLoggedInAgreementError",
     "PushError",
     "QuantizationType",
+    "Random",
+    "random",
     "ReadOnlyDataset",
     "ReadOnlyDatasetModificationError",
     "ReadOnlyMetadata",
@@ -140,6 +140,8 @@ __all__ = [
     "storage",
     "tql",
     "types",
+    "TelemetryClient",
+    "telemetry_client"
 ]
 
 class Future:
@@ -738,6 +740,14 @@ class Client:
     Handles authentication and API communication.
     """
     endpoint: str
+
+class Random:
+    """
+    A pseudorandom number generator class that allows for deterministic random number generation
+    through seed control.
+    """
+
+    seed: int | None
 
 class Branch:
     """
@@ -2152,6 +2162,38 @@ class Dataset(DatasetView):
         """
         ...
 
+    def merge(self, branch_name: str, version: str | None = None) -> None:
+        """
+        Merge the given branch into the current branch. If no version is given, the current version will be picked up.
+
+        Parameters:
+            name: The name of the branch
+            version: The version of the dataset
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ```
+        -->
+
+        Examples:
+            ```python
+            ds = deeplake.create("mem://merge_branch")
+            ds.add_column("c1", deeplake.types.Int64())
+            ds.append({"c1": [1, 2, 3]})
+            ds.commit()
+
+            b = ds.branch("Branch1")
+            branch_ds = b.open()
+            branch_ds.append({"c1": [4, 5, 6]})
+            branch_ds.commit()
+
+            ds.merge("Branch1")
+            print(len(ds))
+            ```
+        """
+        ...
+
     def tag(self, name: str, version: str | None = None) -> Tag:
         """
         Tags a version of the dataset. If no version is given, the current version is tagged.
@@ -2879,16 +2921,10 @@ class BranchExistsError(Exception):
 class BranchNotFoundError(Exception):
     pass
 
-class BranchHasChildrenError(Exception):
-    pass
-
 class TagNotFoundError(Exception):
     pass
 
 class TagExistsError(Exception):
-    pass
-
-class CannotTagUncommittedDatasetError(Exception):
     pass
 
 class PushError(Exception):
@@ -3176,7 +3212,7 @@ def create(
         ```
 
     Raises:
-        ValueError: if a dataset already exists at the given URL
+        LogExistsError: if a dataset already exists at the given URL
     """
 
 def create_async(
@@ -3239,7 +3275,7 @@ def create_async(
         ```
 
     Raises:
-        ValueError: if a dataset already exists at the given URL (will be raised when the future is awaited)
+        RuntimeError: if a dataset already exists at the given URL (will be raised when the future is awaited)
     """
 
 def copy(
@@ -3661,3 +3697,10 @@ def from_coco(
     """
 
 def __prepare_atfork() -> None: ...
+
+class TelemetryClient:
+    """
+    Client for logging deeplake messages to telemetry.
+    """
+    endpoint: str
+    api_key: str

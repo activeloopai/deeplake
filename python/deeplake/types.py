@@ -19,6 +19,7 @@ __all__ = [
     "EmbeddingIndexEnumType",
     "EmbeddingsMatrixIndex",
     "EmbeddingsMatrixIndexType",
+    "Float16",
     "Float32",
     "Float64",
     "Image",
