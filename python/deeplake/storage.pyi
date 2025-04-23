@@ -7,7 +7,7 @@ import datetime
 import deeplake._deeplake.core
 import typing
 
-__all__ = ["Reader", "Writer", "ResourceMeta"]
+__all__ = ["Reader", "Writer", "ResourceMeta", "concurrency", "set_concurrency"]
 
 class Reader:
     def __getstate__(self) -> tuple: ...
@@ -59,3 +59,37 @@ class ResourceMeta:
     @property
     def size(self) -> int:
         ...
+
+def concurrency() -> int:
+    """
+    Returns the number of threads of storage readers and writers.
+
+    <!-- test-context
+    ```python
+    import deeplake
+    ```
+    -->
+
+    Examples:
+        ```python
+        deeplake.storage.concurrency()
+        ```
+    """
+    ...
+
+def set_concurrency(num_threads: int) -> None:
+    """
+    Sets the number of threads of storage readers and writers.
+
+    <!-- test-context
+    ```python
+    import deeplake
+    ```
+    -->
+
+    Examples:
+        ```python
+        deeplake.storage.set_concurrency(64)
+        ```
+    """
+

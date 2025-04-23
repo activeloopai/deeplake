@@ -38,6 +38,7 @@ __all__ = [
     "DimensionsMismatch",
     "DtypeMismatch",
     "EmbeddingSizeMismatch",
+    "Executor",
     "ExpiredTokenError",
     "FormatNotSupportedError",
     "Future",
@@ -113,6 +114,7 @@ __all__ = [
     "UnsupportedPythonType",
     "UnsupportedSampleCompression",
     "Version",
+    "VersionNotFoundError",
     "WriteFailedError",
     "WrongChunkCompression",
     "WrongSampleCompression",
@@ -134,6 +136,7 @@ __all__ = [
     "open_async",
     "open_read_only",
     "open_read_only_async",
+    "prepare_query",
     "query",
     "query_async",
     "schemas",
@@ -159,6 +162,9 @@ class Future:
 
         __await__() -> typing.Any:
             Enables using the Future in async/await syntax.
+
+        cancel() -> None:
+            Cancels the Future if it is still pending.
 
         is_completed() -> bool:
             Checks if the Future has resolved without blocking.
@@ -274,6 +280,11 @@ class Future:
         """
         ...
 
+    def cancel(self) -> None:
+        """
+        Cancels the Future if it is still pending.
+        """
+
 class FutureVoid:
     """
     A Future representing a void async operation in ML pipelines.
@@ -290,6 +301,9 @@ class FutureVoid:
 
         is_completed() -> bool:
             Checks completion status without blocking.
+
+        cancel() -> None:
+            Cancels the Future if still pending.
 
     <!-- test-context
     ```python
@@ -361,6 +375,11 @@ class FutureVoid:
         ```
         """
         ...
+
+    def cancel(self) -> None:
+        """
+        Cancels the Future if it is still pending.
+        """
 
     def is_completed(self) -> bool:
         """
@@ -539,6 +558,38 @@ class Metadata(ReadOnlyMetadata):
             ```
         """
         ...
+
+def prepare_query(query: str, token: str | None = None, creds: dict[str, str] | None = None) -> Executor:
+    """
+    Prepares a TQL query for execution with optional authentication.
+
+    Args:
+        query: TQL query string to execute
+        token: Optional Activeloop authentication token
+        creds (dict, optional): Dictionary containing credentials used to access the dataset at the path.
+
+    Returns:
+        Executor: An executor object to run the query.
+
+    <!-- test-context
+    ```python
+    import deeplake
+    ds = deeplake.create("mem://parametriized")
+    ds.add_column("category", "text")
+    ds.append({"category": ["active", "inactive", "not sure"]})
+    ds.commit()
+    ```
+    -->
+
+    Examples:
+        Running a parametrized batch query:
+        ```python
+        ex = deeplake.prepare_query('SELECT * FROM "mem://parametriized" WHERE category = ?')
+        results = ex.run_batch([["active"], ["inactive"]])
+        assert len(results) == 2
+        ```
+    """
+    ...
 
 def query(query: str, token: str | None = None, creds: dict[str, str] | None = None) -> DatasetView:
     """
@@ -1627,6 +1678,11 @@ class Row:
             or await the FutureVoid object in an asynchronous context.
         """
 
+    def to_dict(self) -> dict:
+        """
+        Converts the row to a dictionary.
+        """
+
     def __str__(self) -> str: ...
     @property
     def row_id(self) -> int:
@@ -1832,6 +1888,11 @@ class RowView:
             or use the Future in an `await` expression.
         """
 
+    def to_dict(self) -> dict:
+        """
+        Converts the row to a dictionary.
+        """
+
     def __str__(self) -> str: ...
     @property
     def row_id(self) -> int:
@@ -1938,6 +1999,35 @@ class DatasetView:
         Examples:
             ```python
             ds.summary()
+            ```
+        """
+        ...
+
+    def prepare_query(self, query: str) -> Executor:
+        """
+        Prepares a query for execution.
+
+        Parameters:
+            query: The query to prepare
+
+        Returns:
+            Executor: The prepared query
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("category", "text")
+        ds.append({"category": ["active", "inactive", "not sure"]})
+        ```
+        -->
+
+        Examples:
+            ```python
+            executor = ds.prepare_query("select * where category == ?")
+            results = executor.run_batch([['active'], ['inactive'], ['not sure']])
+            for row in results:
+                print("Id is: ", row["category"])
             ```
         """
         ...
@@ -2675,6 +2765,26 @@ class Dataset(DatasetView):
         """
         ...
 
+    def refresh(
+        self
+    ) -> None:
+        """
+        Refreshes any new info from the dataset.
+
+        Similar to [deeplake.Dataset.open_read_only][] but the lightweight way.
+        """
+        ...
+
+    def refresh_async(
+        self
+    ) -> FutureVoid:
+        """
+        Asynchronously refreshes any new info from the dataset.
+
+        Similar to [deeplake.Dataset.open_read_only_async][] but the lightweight way.
+        """
+        ...
+
     @property
     def history(self) -> History:
         """
@@ -2816,6 +2926,26 @@ class ReadOnlyDataset(DatasetView):
         """
         ...
 
+    def refresh(
+        self
+    ) -> None:
+        """
+        Refreshes any new info from the dataset.
+
+        Similar to [deeplake.Dataset.open_read_only][] but the lightweight way.
+        """
+        ...
+
+    def refresh_async(
+        self
+    ) -> FutureVoid:
+        """
+        Asynchronously refreshes any new info from the dataset.
+
+        Similar to [deeplake.Dataset.open_read_only_async][] but the lightweight way.
+        """
+        ...
+
     def __getstate__(self) -> tuple:
         """Returns a dict that can be pickled and used to restore this dataset.
 
@@ -2829,6 +2959,14 @@ class ReadOnlyDataset(DatasetView):
         Args:
             state (dict): The pickled state used to restore the dataset.
         """
+
+class Executor:
+    def get_query_string(self) -> str:
+        ...
+    def run_single(self) -> DatasetView:
+        ...
+    def run_batch(self, parameters: list = None) -> list:
+        ...
 
 class ExpiredTokenError(Exception):
     pass
@@ -3130,6 +3268,9 @@ class StorageNetworkConnectionError(Exception):
     pass
 
 class StorageInternalError(Exception):
+    pass
+
+class VersionNotFoundError(Exception):
     pass
 
 class WriteFailedError(Exception):
