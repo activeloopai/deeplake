@@ -16,7 +16,7 @@ from ._deeplake import *
 from deeplake.ingestion import from_coco
 
 
-__version__ = "4.1.16"
+__version__ = "4.2.1"
 
 __all__ = [
     "__version__",
@@ -50,6 +50,7 @@ __all__ = [
     "DimensionsMismatch",
     "DtypeMismatch",
     "EmbeddingSizeMismatch",
+    "Executor",
     "ExpiredTokenError",
     "FormatNotSupportedError",
     "Future",
@@ -125,6 +126,7 @@ __all__ = [
     "UnsupportedPythonType",
     "UnsupportedSampleCompression",
     "Version",
+    "VersionNotFoundError",
     "WriteFailedError",
     "WrongChunkCompression",
     "WrongSampleCompression",
@@ -146,6 +148,7 @@ __all__ = [
     "open_async",
     "open_read_only",
     "open_read_only_async",
+    "prepare_query",
     "query",
     "query_async",
     "schemas",
@@ -239,7 +242,9 @@ def convert(
         iterable_cols = [col for col in column_names if col not in links]
         link_sample_info = {link: source[link]._links_info() for link in links}
         dest.set_creds_key(link_sample_info[links[0]]["key"])
-        pref_ds = source.query(f"SELECT {','.join(iterable_cols)}")
+        quoted_cols = ['"' + col + '"' for col in iterable_cols]
+        joined_cols = ",".join(quoted_cols)
+        pref_ds = source.query(f"SELECT {joined_cols}")
         dl = deeplake._deeplake._Prefetcher(pref_ds, raw_columns=set(get_raw_columns(source)))
 
         for counter, batch in enumerate(progress_bar(dl), start=1):
@@ -255,7 +260,7 @@ def convert(
                 commit_data(dest)
         commit_data(dest, "Final commit of linked data")
 
-    source_ds = deeplake.query(f'select * from "{src}"', token=token)
+    source_ds = deeplake.query(f'SELECT * FROM "{src}"', token=token)
     dest_ds = deeplake.like(source_ds, dst, dst_creds, token=token)
     commit_data(dest_ds, "Created dataset")
 
