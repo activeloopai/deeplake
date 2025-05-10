@@ -36,6 +36,7 @@ __all__ = [
     "DatasetUnavailableError",
     "DatasetView",
     "DimensionsMismatch",
+    "DimensionsMismatchError",
     "DtypeMismatch",
     "EmbeddingSizeMismatch",
     "Executor",
@@ -2965,7 +2966,11 @@ class Executor:
         ...
     def run_single(self) -> DatasetView:
         ...
+    def run_single_async(self) -> Future:
+        ...
     def run_batch(self, parameters: list = None) -> list:
+        ...
+    def run_batch_async(self, parameters: list = None) -> Future:
         ...
 
 class ExpiredTokenError(Exception):
@@ -2999,6 +3004,9 @@ class InvalidLinkDataError(Exception):
     pass
 
 class InvalidIndexCreationError(Exception):
+    pass
+
+class DimensionsMismatchError(Exception):
     pass
 
 class IndexAlreadyExistsError(Exception):

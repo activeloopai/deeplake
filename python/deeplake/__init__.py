@@ -16,7 +16,7 @@ from ._deeplake import *
 from deeplake.ingestion import from_coco
 
 
-__version__ = "4.2.1"
+__version__ = "4.2.3"
 
 __all__ = [
     "__version__",
@@ -48,6 +48,7 @@ __all__ = [
     "DatasetUnavailableError",
     "DatasetView",
     "DimensionsMismatch",
+    "DimensionsMismatchError",
     "DtypeMismatch",
     "EmbeddingSizeMismatch",
     "Executor",

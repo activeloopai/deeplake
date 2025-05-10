@@ -21,6 +21,7 @@ __all__ = [
     "EmbeddingIndexEnumType",
     "EmbeddingsMatrixIndex",
     "EmbeddingsMatrixIndexType",
+    "Exact",
     "Float16",
     "Float32",
     "Float64",
@@ -174,7 +175,8 @@ class TextIndexEnumType:
 
     BM25: typing.ClassVar[TextIndexType]  # value = <deeplake._deeplake.types.TextIndexType object>
     Inverted: typing.ClassVar[TextIndexType]  # value = <deeplake._deeplake.types.TextIndexType object>
-    __members__: typing.ClassVar[dict[str, TextIndexEnumType]]  # value = {'Inverted': <TextIndexEnumType.Inverted: 1>, 'BM25': <TextIndexEnumType.BM25: 2>}
+    Exact: typing.ClassVar[TextIndexType]  # value = <deeplake._deeplake.types.TextIndexType object>
+    __members__: typing.ClassVar[dict[str, TextIndexEnumType]]  # value = {'Inverted': <TextIndexEnumType.Inverted: 1>, 'BM25': <TextIndexEnumType.BM25: 2>, 'Exact': <TextIndexEnumType.Exact: 3>}
     def __eq__(self, other: typing.Any) -> bool:
         ...
     def __getstate__(self) -> int:
@@ -547,6 +549,13 @@ Inverted: TextIndexEnumType
 A text index that supports keyword lookup.
 
 This index can be used with ``CONTAINS(column, 'wanted_value')``.
+"""
+
+Exact: TextIndexEnumType
+"""
+A text index that supports whole text lookup.
+
+This index can be used with ``EQUALS(column, 'wanted_value')``.
 """
 
 def Dict() -> Type:
