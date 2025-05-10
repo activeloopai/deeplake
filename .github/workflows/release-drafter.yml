@@ -1,10 +1,7 @@
 name: Release Drafter
 
 on:
-  push:
-    branches:
-      - main
-      - v3
+  workflow_dispatch: {}
 
 jobs:
   update_release_draft:
