@@ -1,10 +1,6 @@
 name: Lint
-#on:
-#  push:
-#    branches:
-#      - 'main'
-#      - 'v3'
-#  pull_request:
+on:
+  workflow_dispatch: {}
 
 
 concurrency:

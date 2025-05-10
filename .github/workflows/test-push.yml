@@ -7,19 +7,8 @@ permissions:
   pull-requests: write
 
 
-#on:
-#  push:
-#    branches:
-#      - 'main'
-#      - 'v3'
-#      - 'release/**'
-#  pull_request:
-#    types:
-#      - opened
-#      - reopened
-#      - synchronize
-#      - labeled
-#      - ready_for_review
+on:
+  workflow_dispatch: {}
 
 concurrency:
   cancel-in-progress: true
