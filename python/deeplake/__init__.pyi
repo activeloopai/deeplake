@@ -39,7 +39,9 @@ __all__ = [
     "DimensionsMismatchError",
     "DtypeMismatch",
     "EmbeddingSizeMismatch",
+    "EmptyColumnNameError",
     "Executor",
+    "ExplainQueryResult",
     "ExpiredTokenError",
     "FormatNotSupportedError",
     "Future",
@@ -130,6 +132,7 @@ __all__ = [
     "delete",
     "disconnect",
     "exists",
+    "explain_query",
     "from_coco",
     "from_parquet",
     "like",
@@ -560,6 +563,12 @@ class Metadata(ReadOnlyMetadata):
         """
         ...
 
+class ExplainQueryResult:
+    def __str__(self) -> str:
+        ...
+    def to_dict(self) -> typing.Any:
+        ...
+
 def prepare_query(query: str, token: str | None = None, creds: dict[str, str] | None = None) -> Executor:
     """
     Prepares a TQL query for execution with optional authentication.
@@ -786,6 +795,37 @@ def query_async(query: str, token: str | None = None, creds: dict[str, str] | No
     """
     ...
 
+def explain_query(query: str, token: str | None = None, creds: dict[str, str] | None = None) -> ExplainQueryResult:
+    """
+    Explains TQL query with optional authentication.
+
+    Args:
+        query: TQL query string to explain
+        token: Optional Activeloop authentication token
+        creds (dict, optional): Dictionary containing credentials used to access the dataset at the path.
+
+    Returns:
+        ExplainQueryResult: An explain result object to analyze the query.
+
+    <!-- test-context
+    ```python
+    import deeplake
+    ds = deeplake.create("mem://explain_query")
+    ds.add_column("category", "text")
+    ds.append({"category": ["active", "inactive", "not sure"]})
+    ds.commit()
+    ```
+    -->
+
+    Examples:
+        Explaining a query:
+        ```python
+        explain_result = deeplake.explain_query('SELECT * FROM "mem://explain_query" WHERE category == \'active\'')
+        print(explain_result)
+        ```
+    """
+    ...
+
 class Client:
     """
     Client for connecting to Activeloop services.
@@ -972,6 +1012,19 @@ class Tag:
         """
         The name of the tag
         """
+        
+    @property
+    def message(self) -> str:
+        """
+        The message of the tag
+        """
+
+    @property
+    def timestamp(self) -> datetime.datetime:
+        """
+        The tag creation timestamp
+        """
+        ...
 
     @property
     def version(self) -> str:
@@ -1026,10 +1079,23 @@ class TagView:
         """
 
     @property
+    def message(self) -> str:
+        """
+        The message of the tag
+        """
+
+    @property
     def version(self) -> str:
         """
         The version that has been tagged
         """
+
+    @property
+    def timestamp(self) -> datetime.datetime:
+        """
+        The tag creation timestamp
+        """
+        ...
 
     def open(self) -> DatasetView:
         """
@@ -1095,7 +1161,7 @@ class TagsView:
         """
         Return a list of tag names
         """
-    ...
+        ...
 
 class ColumnDefinition:
     def __str__(self) -> str: ...
@@ -1280,6 +1346,12 @@ class ColumnView:
                 return batch
             ```
         """
+        ...
+
+    def get_bytes(self, index: int | slice | list | tuple) -> bytes | list:
+        ...
+
+    def get_bytes_async(self, index: int | slice | list | tuple) -> Future:
         ...
 
     def __len__(self) -> int:
@@ -1679,6 +1751,12 @@ class Row:
             or await the FutureVoid object in an asynchronous context.
         """
 
+    def get_bytes(self, column: str) ->  bytes | list:
+        ...
+
+    def get_bytes_async(self, column: str) -> Future:
+        ...
+
     def to_dict(self) -> dict:
         """
         Converts the row to a dictionary.
@@ -1783,6 +1861,12 @@ class RowRange:
             or await the FutureVoid object in an asynchronous context.
         """
 
+    def get_bytes(self, column: str) ->  bytes | list:
+        ...
+
+    def get_bytes_async(self, column: str) -> Future:
+        ...
+
     def summary(self) -> None:
         """
         Prints a summary of the RowRange.
@@ -1846,6 +1930,12 @@ class RowRangeView:
             or use the Future in an `await` expression.
         """
 
+    def get_bytes(self, column: str) -> bytes | list:
+        ...
+
+    def get_bytes_async(self, column: str) -> Future:
+        ...
+
 class RowView:
     """
     Provides access to a particular row in a dataset.
@@ -1888,6 +1978,12 @@ class RowView:
             - You can either wait for the result using `future.result()` (a blocking call)
             or use the Future in an `await` expression.
         """
+
+    def get_bytes(self, column: str) -> bytes | list:
+        ...
+
+    def get_bytes_async(self, column: str) -> Future:
+        ...
 
     def to_dict(self) -> dict:
         """
@@ -1993,6 +2089,33 @@ class DatasetView:
         """
         ...
 
+    def explain_query(self, query: str) -> ExplainQueryResult:
+        """
+        Explains a query.
+
+        Parameters:
+            query: The query to explain
+
+        Returns:
+            ExplainQueryResult: The result of the explanation
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("category", "text")
+        ds.append({"category": ["active", "inactive", "not sure"]})
+        ```
+        -->
+
+        Examples:
+            ```python
+            explain_result = ds.explain_query("select * where category == 'inactive'")
+            print(explain_result)
+            ```
+        """
+        ...
+
     def summary(self) -> None:
         """
         Prints a summary of the dataset.
@@ -2083,7 +2206,7 @@ class DatasetView:
         """
         ...
 
-    def tag(self, name: str | None = None) -> Tag:
+    def tag(self, name: str | None = None, message: str | None = None) -> Tag:
         """
         Saves the current view as a tag to its source dataset and returns the tag.
         """
@@ -2285,7 +2408,7 @@ class Dataset(DatasetView):
         """
         ...
 
-    def tag(self, name: str, version: str | None = None) -> Tag:
+    def tag(self, name: str, message: str | None = None, version: str | None = None) -> Tag:
         """
         Tags a version of the dataset. If no version is given, the current version is tagged.
 
@@ -2380,6 +2503,10 @@ class Dataset(DatasetView):
 
         Primarily used for debugging purposes.
         """
+        ...
+
+    @property
+    def _datafiles(self) -> list[tuple[str, int]]:
         ...
 
     @property
@@ -2881,6 +3008,10 @@ class ReadOnlyDataset(DatasetView):
         ...
 
     @property
+    def _datafiles(self) -> list[tuple[str, int]]:
+        ...
+
+    @property
     def id(self) -> str:
         """
         The unique identifier of the dataset. Value is auto-generated at creation time.
@@ -3013,6 +3144,9 @@ class IndexAlreadyExistsError(Exception):
     pass
 
 class EmbeddingSizeMismatch(Exception):
+    pass
+
+class EmptyColumnNameError(Exception):
     pass
 
 class InvalidCredsKeyAssignmentError(Exception):

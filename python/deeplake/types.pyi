@@ -1041,7 +1041,7 @@ def Medical(compression: str) -> Type:
     """
     ...
 
-def Struct(fields: dict[str, DataType | str]) -> DataType:
+def Struct(fields: dict[str, DataType | str | Type]) -> Type:
     """
     Defines a custom datatype with specified keys.
 
