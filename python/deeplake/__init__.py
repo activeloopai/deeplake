@@ -16,7 +16,7 @@ from ._deeplake import *
 from deeplake.ingestion import from_coco
 
 
-__version__ = "4.2.3"
+__version__ = "4.2.7"
 
 __all__ = [
     "__version__",
@@ -51,7 +51,9 @@ __all__ = [
     "DimensionsMismatchError",
     "DtypeMismatch",
     "EmbeddingSizeMismatch",
+    "EmptyColumnNameError",
     "Executor",
+    "ExplainQueryResult",
     "ExpiredTokenError",
     "FormatNotSupportedError",
     "Future",
@@ -142,6 +144,7 @@ __all__ = [
     "delete",
     "disconnect",
     "exists",
+    "explain_query",
     "from_coco",
     "from_parquet",
     "like",
