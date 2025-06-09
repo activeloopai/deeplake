@@ -215,13 +215,41 @@ class AzureProvider(StorageProvider):
     def _clear(self, prefix=""):
         self.check_readonly()
         self._check_update_creds()
-        blobs = [
-            posixpath.join(self.root_folder, key) for key in self._all_keys(prefix)
-        ]
-        # delete_blobs can only delete 256 blobs at a time
-        batches = [blobs[i : i + 256] for i in range(0, len(blobs), 256)]
-        for batch in batches:
-            self.container_client.delete_blobs(*batch)
+
+        blobs_to_delete = []
+        directories_to_delete = []
+
+        try:
+            blob_list = self.container_client.list_blobs(name_starts_with=prefix)
+            for blob in blob_list:
+                if blob.size == 0:
+                    directories_to_delete.append(blob.name)
+                else:
+                    blobs_to_delete.append(blob.name)
+        except Exception as e:
+            return
+
+        if blobs_to_delete:
+            batches = [
+                blobs_to_delete[i : i + 256]
+                for i in range(0, len(blobs_to_delete), 256)
+            ]
+            for batch in batches:
+                try:
+                    self.container_client.delete_blobs(*batch)
+                except Exception as e:
+                    for blob_name in batch:
+                        try:
+                            self.container_client.delete_blob(blob_name)
+                        except Exception:
+                            pass
+
+        directories_to_delete = sorted(directories_to_delete, key=len, reverse=True)
+        for directory in directories_to_delete:
+            try:
+                self.container_client.delete_blob(directory)
+            except Exception:
+                pass
 
     def clear(self, prefix=""):
         from azure.core.exceptions import ClientAuthenticationError  # type: ignore
@@ -241,7 +269,7 @@ class AzureProvider(StorageProvider):
                         f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
                     )
                     return
-                except Exception:
+                except Exception as ex:
                     pass
             raise ex
 
