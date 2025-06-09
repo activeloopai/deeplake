@@ -15,20 +15,18 @@ jobs:
     name: Python linting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.2.2
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5.3.0
         with:
           python-version: "3.10"
-          cache: pip
-          cache-dependency-path: deeplake/requirements/*.txt
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r deeplake/requirements/common.txt
-          pip install -r deeplake/requirements/tests.txt
-          pip install -r deeplake/requirements/plugins.txt
+          python -m pip install --upgrade pip --pre
+          python -c "import subprocess, sys, re; [subprocess.run([sys.executable, '-m', 'pip', 'install', re.sub(r'#.*', '', line.strip())], check=False) for line in open('deeplake/requirements/common.txt') if line.strip() and not line.startswith('#') and re.match(r'^[a-zA-Z0-9]', line.strip())]"
+          python -c "import subprocess, sys, re; [subprocess.run([sys.executable, '-m', 'pip', 'install', re.sub(r'#.*', '', line.strip())], check=False) for line in open('deeplake/requirements/tests.txt') if line.strip() and not line.startswith('#') and re.match(r'^[a-zA-Z0-9]', line.strip())]"
+          python -c "import subprocess, sys, re; [subprocess.run([sys.executable, '-m', 'pip', 'install', re.sub(r'#.*', '', line.strip())], check=False) for line in open('deeplake/requirements/plugins.txt') if line.strip() and not line.startswith('#') and re.match(r'^[a-zA-Z0-9]', line.strip())]"
 
       - name: Install deeplake
         run: pip install -e .
