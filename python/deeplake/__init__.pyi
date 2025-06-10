@@ -134,6 +134,7 @@ __all__ = [
     "exists",
     "explain_query",
     "from_coco",
+    "from_csv",
     "from_parquet",
     "like",
     "open",
@@ -3944,12 +3945,20 @@ def convert(
         - You can open v3 dataset without converting it to v4 using `deeplake.query('SELECT * FROM "old_dataset/"')`
     """
 
-def from_parquet(url: str) -> ReadOnlyDataset:
+def from_parquet(url_or_bytes: bytes | str) -> ReadOnlyDataset:
     """
     Opens a Parquet dataset in the deeplake format.
 
     Args:
-        url: The URL of the Parquet dataset. If no protocol is specified, it assumes `file://`
+        url_or_bytes: The URL of the Parquet dataset or bytes of the Parquet file. If no protocol is specified, it assumes `file://`
+    """
+
+def from_csv(url_or_bytes: bytes | str) -> ReadOnlyDataset:
+    """
+    Opens a CSV dataset in the deeplake format.
+
+    Args:
+        url_or_bytes: The URL of the CSV dataset or bytes of the CSV file. If no protocol is specified, it assumes `file://`
     """
 
 def from_coco(

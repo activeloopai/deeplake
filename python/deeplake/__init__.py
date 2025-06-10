@@ -16,7 +16,7 @@ from ._deeplake import *
 from deeplake.ingestion import from_coco
 
 
-__version__ = "4.2.7"
+__version__ = "4.2.8"
 
 __all__ = [
     "__version__",
@@ -146,6 +146,7 @@ __all__ = [
     "exists",
     "explain_query",
     "from_coco",
+    "from_csv",
     "from_parquet",
     "like",
     "open",
