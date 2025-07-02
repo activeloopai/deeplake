@@ -68,7 +68,7 @@ class labelbox_type_converter:
                 if not len(frames):
                     print(
                         "skip",
-                        external_url_from_video_project_(p),
+                        external_url_from_media_project_(p),
                         "with label idx",
                         lbl_idx,
                         "as it has no frames",
@@ -380,9 +380,95 @@ class labelbox_video_converter(labelbox_type_converter):
         info = ds.metadata["labelbox_meta"]
 
         def sorter(p):
-            url = external_url_from_video_project_(p)
+            url = external_url_from_media_project_(p)
             return info["sources"].index(url)
 
         ordered_values = sorted(project_j, key=sorter)
         for p in ordered_values:
             yield p
+
+
+class labelbox_image_converter(labelbox_type_converter):
+    def __init__(
+        self,
+        ontology,
+        converters,
+        project,
+        project_id,
+        dataset,
+        context,
+        metadata_generators=None,
+        group_mapping=None,
+    ):
+        super().__init__(
+            ontology,
+            converters,
+            project,
+            project_id,
+            dataset,
+            context,
+            metadata_generators,
+            group_mapping,
+        )
+
+    def yield_projects_(self, project_j, ds):
+        if "labelbox_meta" not in ds.metadata:
+            raise ValueError("No labelbox meta data in dataset")
+        info = ds.metadata["labelbox_meta"]
+
+        def sorter(p):
+            url = external_url_from_media_project_(p)
+            return info["sources"].index(url)
+
+        ordered_values = sorted(project_j, key=sorter)
+        for p in ordered_values:
+            yield p
+
+    def dataset_with_applied_annotations(self):
+        idx_offset = 0
+        print("total annotations projects count: ", len(self.project))
+
+        if self.metadata_generators_:
+            self.generate_metadata_tensors_(self.metadata_generators_, self.dataset)
+        for p_idx, p in enumerate(self.yield_projects_(self.project, self.dataset)):
+            if "labels" not in p["projects"][self.project_id]:
+                print("no labels for project with index: ", p_idx)
+                continue
+            print("parsing annotations for project with index: ", p_idx)
+            for lbl_idx, labels in enumerate(p["projects"][self.project_id]["labels"]):
+                self.values_cache = dict()
+                if "objects" not in labels["annotations"]:
+                    continue
+                objects = labels["annotations"]["objects"]
+                if not len(objects):
+                    print(
+                        "skip",
+                        external_url_from_media_project_(p),
+                        "with label idx",
+                        lbl_idx,
+                        "as it has no objects",
+                    )
+                    continue
+
+                print("parsing objects for label index: ", lbl_idx)
+                for obj in progress_bar(objects):
+                    self.parse_object_(obj, idx_offset)
+
+
+            self.apply_cached_values_(self.values_cache, idx_offset)
+            if self.metadata_generators_:
+                print("filling metadata for project with index: ", p_idx)
+                self.fill_metadata_(
+                    self.metadata_generators_,
+                    self.dataset,
+                    p,
+                    self.project_id,
+                    1,
+                    idx_offset,
+                )
+
+            idx_offset += 1
+
+        self.pad_all_tensors(self.dataset)
+
+        return self.dataset.ds

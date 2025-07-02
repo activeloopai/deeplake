@@ -55,6 +55,50 @@ def bbox_converter_(obj, converter, tensor_name, context, generate_labels):
 
     converter.registered_interpolators[obj.feature_schema_id] = interpolator
 
+def polygon_converter_(obj, converter, tensor_name, context, generate_labels):
+    ds = context["ds"]
+    try:
+        ds.create_tensor(tensor_name, **polygon_tensor_create_kwargs_())
+    except:
+        pass
+
+    if generate_labels:
+        print("polygon converter does not support generating labels")
+
+    converter.register_feature_id_for_kind("tool", "polygon", obj, tensor_name)
+
+    def polygon_converter(row, obj):
+        if tensor_name not in converter.values_cache:
+            converter.values_cache[tensor_name] = dict()
+        if row not in converter.values_cache[tensor_name]:
+            converter.values_cache[tensor_name][row] = []
+        polygon = obj["polygon"]
+        if len(polygon) != 0 and not isinstance(polygon[0], dict):
+            # if polygon is a list of points, convert it to a list of dicts
+            polygon = [{"x": float(p[0]), "y": float(p[1])} for p in polygon]
+        converter.values_cache[tensor_name][row].append(
+            np.array([[float(p["x"]), float(p["y"])] for p in polygon])
+        )
+
+    converter.regsistered_actions[obj.feature_schema_id] = polygon_converter
+
+    def interpolator(start, end, progress):
+        start_polygon = start["polygon"]
+        end_polygon = end["polygon"]
+        polygon = copy.deepcopy(start)
+        polygon["polygon"] = [
+            [
+                start_polygon[i]["x"]
+                + (end_polygon[i]["x"] - start_polygon[i]["x"]) * progress,
+                start_polygon[i]["y"]
+                + (end_polygon[i]["y"] - start_polygon[i]["y"]) * progress,
+            ]
+            for i in range(len(start_polygon))
+        ]
+
+        return polygon
+
+    converter.registered_interpolators[obj.feature_schema_id] = interpolator
 
 def radio_converter_(obj, converter, tensor_name, context, generate_labels):
     ds = context["ds"]
@@ -199,9 +243,12 @@ def line_converter_(obj, converter, tensor_name, context, generate_labels):
             converter.values_cache[tensor_name] = dict()
         if row not in converter.values_cache[tensor_name]:
             converter.values_cache[tensor_name][row] = []
-
+        line = obj["line"]
+        if len(line) != 0 and not isinstance(line[0], dict):
+            # if line is a list of points, convert it to a list of dicts
+            line = [{"x": int(l[0]), "y": int(l[1])} for l in line]
         converter.values_cache[tensor_name][row].append(
-            [[int(l["x"]), int(l["y"])] for l in obj["line"]]
+            [[int(l["x"]), int(l["y"])] for l in line]
         )
 
     converter.regsistered_actions[obj.feature_schema_id] = polygon_converter

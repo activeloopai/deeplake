@@ -129,6 +129,7 @@ __all__ = [
     "core",
     "create",
     "create_async",
+    "_create_global_cache",
     "delete",
     "disconnect",
     "exists",
@@ -2460,6 +2461,29 @@ class Dataset(DatasetView):
         When the dataset was created. The value is auto-generated at creation time.
         """
 
+    auto_commit_enabled: bool
+    """
+    This property controls whether the dataset will perform time-based auto-commits.
+
+    <!-- test-context
+    ```python
+    import deeplake
+    ds = deeplake.create("mem://auto_commit_ds")
+    ds.auto_commit_enabled = False
+    ds.add_column("column_name", deeplake.types.Text(deeplake.types.BM25))
+    a = ['a']*10_000
+    ds.append({"column_name":a})
+    ds.commit()
+    ```
+    -->
+
+    Examples:
+        ```python
+        ds = deeplake.open("mem://auto_commit_ds")
+        ds.auto_commit_enabled = True
+        ```
+    """
+
     indexing_mode: IndexingMode
     """
     The indexing mode of the dataset. This property can be set to change the indexing mode of the dataset for the current session,
@@ -2468,7 +2492,7 @@ class Dataset(DatasetView):
     <!-- test-context
     ```python
     import deeplake
-    ds = deeplake.create("mem://ds_id")
+    ds = deeplake.create("mem://indexing_mode_ds")
     ds.indexing_mode = deeplake.IndexingMode.Off
     ds.add_column("column_name", deeplake.types.Text(deeplake.types.BM25))
     a = ['a']*10_000
@@ -2479,7 +2503,7 @@ class Dataset(DatasetView):
 
     Examples:
         ```python
-        ds = deeplake.open("mem://ds_id")
+        ds = deeplake.open("mem://indexing_mode_ds")
         ds.indexing_mode = deeplake.IndexingMode.Automatic
         ds.commit()
         ```
@@ -3560,6 +3584,15 @@ def create_async(
 
     Raises:
         RuntimeError: if a dataset already exists at the given URL (will be raised when the future is awaited)
+    """
+
+def _create_global_cache(
+    size: int = None,
+) -> None:
+    """
+    Creates a global cache with the given size.
+    Args:
+        size (int, optional): The size of the global cache in bytes. If not specified, a default size of 1GB is used.
     """
 
 def copy(

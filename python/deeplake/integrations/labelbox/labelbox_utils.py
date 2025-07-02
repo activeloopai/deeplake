@@ -97,11 +97,24 @@ def frames_batch_generator_(
         yield indexes, frames
 
 
-def external_url_from_video_project_(p):
+def external_url_from_media_project_(p):
     if "external_id" in p["data_row"]:
         return p["data_row"]["external_id"]
     return p["data_row"]["row_data"]
 
+def validate_image_project_data_impl_(project_j, deeplake_dataset, project_id):
+    if "labelbox_meta" not in deeplake_dataset.info:
+        return False
+    info = deeplake_dataset.info["labelbox_meta"]
+    if info["type"] != "image":
+        return False
+    if project_id != info["project_id"]:
+        return False
+    if len(project_j) != len(info["sources"]):
+        return False
+    if len(project_j) == 0:
+        return True
+    return True
 
 def validate_video_project_data_impl_(project_j, deeplake_dataset, project_id):
     if "labelbox_meta" not in deeplake_dataset.info:
@@ -123,7 +136,7 @@ def validate_video_project_data_impl_(project_j, deeplake_dataset, project_id):
     ontology_ids = set()
 
     for p in project_j:
-        url = external_url_from_video_project_(p)
+        url = external_url_from_media_project_(p)
         if url not in info["sources"]:
             return False
 
@@ -135,7 +148,8 @@ def validate_video_project_data_impl_(project_j, deeplake_dataset, project_id):
     return True
 
 
-PROJECT_DATA_VALIDATION_MAP_ = {"video": validate_video_project_data_impl_}
+PROJECT_DATA_VALIDATION_MAP_ = {"video": validate_video_project_data_impl_,
+                                "image": validate_image_project_data_impl_}
 
 
 def validate_project_data_(proj, ds, project_id, type):
@@ -158,9 +172,23 @@ def validate_video_project_creation_data_impl_(project_j, project_id):
 
     return True
 
+def validate_image_project_creation_data_impl_(project_j, project_id):
+    if len(project_j) == 0:
+        return True
+
+    for p in project_j:
+        for l in p["projects"][project_id]["labels"]:
+            if l["label_kind"] != "Image":
+                return False
+
+        if p["media_attributes"]["asset_type"] != "image":
+            return False
+
+    return True
 
 PROJECT_DATA_CREATION_VALIDATION_MAP_ = {
-    "video": validate_video_project_creation_data_impl_
+    "video": validate_video_project_creation_data_impl_,
+    "image": validate_image_project_creation_data_impl_
 }
 
 
@@ -222,12 +250,36 @@ def labelbox_get_project_json_with_id_(client, project_id, fail_on_error=False):
 
     raise ValueError("This should not happen")
 
+def download_image_from_url_(url: str, header: Optional[dict[str, Any]] = None) -> np.ndarray:
+    """
+    Download an image from a URL and return it as a numpy array.
 
-def create_tensors_default_(ds):
+    Parameters:
+    url (str): The URL of the image to download.
+    header (dict, optional): Optional request header for authorization.
+
+    Returns:
+    np.ndarray: The image data as a numpy array.
+    """
+    response = requests.get(url, headers=header)
+    response.raise_for_status()
+    from PIL import Image
+    from io import BytesIO
+    
+    image = Image.open(BytesIO(response.content))
+    return np.array(image)
+
+def create_video_tensors_default_(ds):
     ds.add_column("frames", **image_tensor_create_kwargs_())
     ds.add_column("frame_idx", **generic_tensor_create_kwargs_("int32"))
     ds.add_column("video_idx", **generic_tensor_create_kwargs_("int32"))
 
+def create_image_tensors_default_(ds):
+    ds.add_column("image", **image_tensor_create_kwargs_())
+    ds.add_column("image_idx", **generic_tensor_create_kwargs_("int32"))
 
-def fill_data_default_(ds, group_ids, indexes, frames):
+def fill_video_data_default_(ds, group_ids, indexes, frames):
     ds.extend(["frames", "video_idx", "frame_idx"], [frames, group_ids, indexes])
+
+def fill_image_data_default_(ds, images, indexes):
+    ds.extend(["image", "image_idx"], [images, indexes])

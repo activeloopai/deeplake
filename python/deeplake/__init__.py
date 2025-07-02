@@ -16,7 +16,7 @@ from ._deeplake import *
 from deeplake.ingestion import from_coco
 
 
-__version__ = "4.2.8"
+__version__ = "4.2.12"
 
 __all__ = [
     "__version__",
@@ -141,6 +141,7 @@ __all__ = [
     "core",
     "create",
     "create_async",
+    "_create_global_cache",
     "delete",
     "disconnect",
     "exists",

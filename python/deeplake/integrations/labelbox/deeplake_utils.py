@@ -33,7 +33,7 @@ def class_label_tensor_create_kwargs_(dtype="int32"):
     }
 
 
-def image_tensor_create_kwargs_(sample_compression="jpg"):
+def image_tensor_create_kwargs_(sample_compression="png"):
     if is_v3():
         raise ValueError("unexpected deeplake version 3")
     return {"dtype": deeplake.types.Image(sample_compression=sample_compression)}

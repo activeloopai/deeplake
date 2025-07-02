@@ -882,10 +882,50 @@ def Link(type: Type) -> Type:
     """
     ...
 
-def Polygon() -> Type: ...
-def Point() -> Type:
+def Polygon() -> Type:
     """
-    Point datatype for storing 2D points with ability to visualize them.
+    Polygon datatype for storing polygons with ability to visualize them.
+    <!-- test-context
+    ```python
+    import deeplake
+    from deeplake import types
+    import numpy as np
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
+    Examples:
+        ```python
+        ds.add_column("col1", deeplake.types.Polygon())
+        poly1 = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+        poly2 = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+        ds.append({"col1": [[poly1, poly2], [poly1, poly2]]})
+        print(ds[0]["col1"])  
+        # Output: [[[1. 2.]
+        #          [3. 4.]
+        #          [5. 6.]]
+
+        #         [[1. 2.]
+        #          [3. 4.]
+        #          [5. 6.]]]
+        print(ds[1]["col1"])
+        # Output: [[[1. 2.]
+        #          [3. 4.]
+        #          [5. 6.]]
+        #         [[1. 2.]
+        #          [3. 4.]
+        #          [5. 6.]]]
+        
+        ```
+    """
+    ...
+
+def Point(dimensions: int = 2) -> Type:
+    """
+    Point datatype for storing points with ability to visualize them.
+
+    Parameters:
+        dimensions: The dimension of the point. For example, 2 for 2D points, 3 for 3D points, etc.: defaults to "2"
 
     <!-- test-context
     ```python
