@@ -2,6 +2,7 @@ from ._deeplake.types import *
 
 __all__ = [
     "Array",
+    "Audio",
     "BM25",
     "Binary",
     "BinaryMask",
@@ -15,8 +16,8 @@ __all__ = [
     "Dict",
     "Embedding",
     "EmbeddingIndex",
-    "EmbeddingIndexType",
     "EmbeddingIndexEnumType",
+    "EmbeddingIndexType",
     "EmbeddingsMatrixIndex",
     "EmbeddingsMatrixIndexType",
     "Exact",
@@ -31,17 +32,17 @@ __all__ = [
     "Int8",
     "Inverted",
     "Link",
-    "Polygon",
+    "Medical",
     "Point",
+    "Polygon",
     "QuantizationType",
     "SegmentMask",
-    "Medical",
     "Sequence",
     "Struct",
     "Text",
     "TextIndex",
-    "TextIndexType",
     "TextIndexEnumType",
+    "TextIndexType",
     "Type",
     "TypeKind",
     "UInt16",
@@ -49,3 +50,4 @@ __all__ = [
     "UInt64",
     "UInt8"
 ]
+

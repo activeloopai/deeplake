@@ -131,6 +131,7 @@ __all__ = [
     "create_async",
     "_create_global_cache",
     "delete",
+    "delete_async",
     "disconnect",
     "exists",
     "explain_query",
@@ -2522,19 +2523,6 @@ class Dataset(DatasetView):
         """
 
     @property
-    def _reader(self) -> storage.Reader:
-        """
-        A [reader][deeplake.storage.Reader] that can be used to directly access files from the dataset's storage.
-
-        Primarily used for debugging purposes.
-        """
-        ...
-
-    @property
-    def _datafiles(self) -> list[tuple[str, int]]:
-        ...
-
-    @property
     def id(self) -> str:
         """
         The unique identifier of the dataset. Value is auto-generated at creation time.
@@ -2640,12 +2628,7 @@ class Dataset(DatasetView):
             arg0 (dict): The pickled state used to restore the dataset.
         """
 
-    def add_column(
-        self,
-        name: str,
-        dtype: types.DataType | str | types.Type | type | typing.Callable,
-        default_value: typing.Any = None,
-    ) -> None:
+    def add_column(self, name: str, dtype: typing.Any, default_value: typing.Any = None) -> None:
         """
         Add a new column to the dataset.
 
@@ -3021,19 +3004,6 @@ class ReadOnlyDataset(DatasetView):
         """
         The history of the overall dataset configuration.
         """
-        ...
-
-    @property
-    def _reader(self) -> storage.Reader:
-        """
-        A [reader][deeplake.storage.Reader] that can be used to directly access files from the dataset's storage.
-
-        Primarily used for debugging purposes.
-        """
-        ...
-
-    @property
-    def _datafiles(self) -> list[tuple[str, int]]:
         ...
 
     @property
@@ -3447,7 +3417,7 @@ def create(
     url: str,
     creds: dict[str, str] | None = None,
     token: str | None = None,
-    schema: dict[str, types.DataType | str | types.Type] | None = None,
+    schema: dict[str, typing.Any] | typing.Any | None = None,
 ) -> Dataset:
     """
     Creates a new dataset at the given URL.
@@ -3527,7 +3497,7 @@ def create_async(
     url: str,
     creds: dict[str, str] | None = None,
     token: str | None = None,
-    schema: dict[str, types.DataType | str | types.Type] | None = None,
+    schema: dict[str, typing.Any] | typing.Any | None = None,
 ) -> Future:
     """
     Asynchronously creates a new dataset at the given URL.
@@ -3633,6 +3603,19 @@ def delete(
 ) -> None:
     """
     Deletes an existing dataset.
+
+    !!! warning
+        This operation is irreversible. All data will be lost.
+
+        If concurrent processes are attempting to write to the dataset while it's being deleted, it may lead to data inconsistency.
+        It's recommended to use this operation with caution.
+    """
+
+def delete_async(
+    url: str, creds: dict[str, str] | None = None, token: str | None = None
+) -> FutureVoid:
+    """
+    Asynchronously deletes an existing dataset.
 
     !!! warning
         This operation is irreversible. All data will be lost.

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import typing
 
-__all__ = [
-    "Array",
+__all__ = ["Array",
+    "Audio",
     "BM25",
     "Binary",
     "BinaryMask",
@@ -17,8 +17,8 @@ __all__ = [
     "Dict",
     "Embedding",
     "EmbeddingIndex",
-    "EmbeddingIndexType",
     "EmbeddingIndexEnumType",
+    "EmbeddingIndexType",
     "EmbeddingsMatrixIndex",
     "EmbeddingsMatrixIndexType",
     "Exact",
@@ -33,17 +33,17 @@ __all__ = [
     "Int8",
     "Inverted",
     "Link",
-    "Polygon",
+    "Medical",
     "Point",
+    "Polygon",
     "QuantizationType",
     "SegmentMask",
-    "Medical",
     "Sequence",
     "Struct",
     "Text",
     "TextIndex",
-    "TextIndexType",
     "TextIndexEnumType",
+    "TextIndexType",
     "Type",
     "TypeKind",
     "UInt16",
@@ -336,7 +336,7 @@ class TypeKind:
         Medical: Medical data type
         Link: Link data type
     """
-
+    Audio: typing.ClassVar[TypeKind]
     BinaryMask: typing.ClassVar[TypeKind]
     BoundingBox: typing.ClassVar[TypeKind]
     ClassLabel: typing.ClassVar[TypeKind]
@@ -418,6 +418,38 @@ def Array(
         Create a three-dimensional array, where each dimension has a known size:
         ```python
         ds.add_column("col2", types.Array(types.Float32(), shape=[50, 30, 768]))
+        ```
+    """
+    ...
+
+def Audio(dtype: DataType | str = "uint8", sample_compression: str = "mp3") -> Type:
+    """
+    Creates an audio data type.
+
+    Parameters:
+        dtype: DataType | str
+            The datatype of the audio samples. Defaults to "uint8".
+        sample_compression: str
+            The compression format for the audio samples wav or mp3. Defaults to "mp3".
+
+    Returns:
+        Type: A new audio data type.
+
+    <!--
+    ```python
+    ds = deeplake.create("tmp://")
+    ```
+    -->
+
+    Examples:
+        Create an audio column with default settings:
+        ```python
+        ds.add_column("col1", types.Audio())
+        ```
+
+        Create an audio column with specific sample compression:
+        ```python
+        ds.add_column("col2", types.Audio(sample_compression="wav"))
         ```
     """
     ...
