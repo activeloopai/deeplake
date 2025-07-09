@@ -113,6 +113,7 @@ class DeepLakeDataLoader(DataLoader):
         _ignore_errors=False,
         _verbose=False,
         _offset=None,
+        _sampler=None,
         **kwargs,
     ):
         import_indra_loader()
@@ -139,6 +140,7 @@ class DeepLakeDataLoader(DataLoader):
         self._ignore_errors = _ignore_errors
         self._verbose = _verbose
         self._offset = _offset
+        self._sampler = _sampler
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -236,11 +238,17 @@ class DeepLakeDataLoader(DataLoader):
 
     @property
     def sampler(self):
+        if self._sampler is not None:
+            return self._sampler
         return (
             DistributedSampler(self._orig_dataset)
             if self._distributed
             else _InfiniteConstantSampler()
         )
+
+    @sampler.setter
+    def sampler(self, value):
+        self._sampler = value
 
     @property
     def batch_sampler(self):
