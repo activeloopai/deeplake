@@ -18,16 +18,16 @@ from mmengine.utils import is_abs  # type: ignore
 from mmengine.dataset import Compose  # type: ignore
 
 
-class BaseDataset(Dataset):
+class DeeplakeBaseDataset(Dataset):
     r"""
-    @brief A modified copy of OpenMMLab's BaseDataset.
+    @brief A modified copy of OpenMMLab's DeeplakeBaseDataset.
 
-    This class is a direct copy of OpenMMLab's `BaseDataset`, with modifications
+    This class is a direct copy of OpenMMLab's `DeeplakeBaseDataset`, with modifications
     to remove forced filesystem initialization (`force_init`) and customize the
     dataset length retrieval.
 
     @note
-    - We do not use the original `BaseDataset` because it enforces local filesystem
+    - We do not use the original `DeeplakeBaseDataset` because it enforces local filesystem
       dataset initialization, which is incompatible with our cloud-based dataset.
     - Instead of relying on local file scans, this version retrieves dataset size
       from a cloud storage backend.
@@ -95,27 +95,27 @@ class BaseDataset(Dataset):
         lazy_init (bool, optional): Whether to load annotation during
             instantiation. In some cases, such as visualization, only the meta
             information of the dataset is needed, which is not necessary to
-            load annotation file. ``Basedataset`` can skip load annotations to
+            load annotation file. ``DeeplakeBaseDataset`` can skip load annotations to
             save time by set ``lazy_init=True``. Defaults to False.
-        max_refetch (int, optional): If ``Basedataset.prepare_data`` get a
+        max_refetch (int, optional): If ``DeeplakeBaseDataset.prepare_data`` get a
             None img. The maximum extra number of cycles to get a valid
             image. Defaults to 1000.
 
     Note:
-        BaseDataset collects meta information from ``annotation file`` (the
-        lowest priority), ``BaseDataset.METAINFO``(medium) and ``metainfo
+        DeeplakeBaseDataset collects meta information from ``annotation file`` (the
+        lowest priority), ``DeeplakeBaseDataset.METAINFO``(medium) and ``metainfo
         parameter`` (highest) passed to constructors. The lower priority meta
         information will be overwritten by higher one.
 
     Note:
         Dataset wrapper such as ``ConcatDataset``, ``RepeatDataset`` .etc.
-        should not inherit from ``BaseDataset`` since ``get_subset`` and
+        should not inherit from ``DeeplakeBaseDataset`` since ``get_subset`` and
         ``get_subset_`` could produce ambiguous meaning sub-dataset which
         conflicts with original dataset.
 
     Examples:
         >>> # Assume the annotation file is given above.
-        >>> class CustomDataset(BaseDataset):
+        >>> class CustomDataset(DeeplakeBaseDataset):
         >>>     METAINFO: dict = dict(task_name='custom_task',
         >>>                           dataset_type='custom_type')
         >>> metainfo=dict(task_name='custom_task_name')
@@ -193,7 +193,7 @@ class BaseDataset(Dataset):
         return data_info
 
     def full_init(self):
-        """Load annotation file and set ``BaseDataset._fully_initialized`` to True."""
+        """Load annotation file and set ``DeeplakeBaseDataset._fully_initialized`` to True."""
         if self._fully_initialized:
             return
 
@@ -204,7 +204,7 @@ class BaseDataset(Dataset):
         """Get meta information of dataset.
 
         Returns:
-            dict: meta information collected from ``BaseDataset.METAINFO``,
+            dict: meta information collected from ``DeeplakeBaseDataset.METAINFO``,
             annotation file and metainfo argument during instantiation.
         """
         return copy.deepcopy(self._metainfo)
@@ -330,7 +330,7 @@ class BaseDataset(Dataset):
         raw_data_list = annotations["data_list"]
 
         # Meta information load from annotation file will not influence the
-        # existed meta information load from `BaseDataset.METAINFO` and
+        # existed meta information load from `DeeplakeBaseDataset.METAINFO` and
         # `metainfo` arguments defined in constructor.
         for k, v in metainfo.items():
             self._metainfo.setdefault(k, v)
@@ -454,7 +454,7 @@ class BaseDataset(Dataset):
         the index given in indices.
 
         Examples:
-              >>> dataset = BaseDataset('path/to/ann_file')
+              >>> dataset = DeeplakeBaseDataset('path/to/ann_file')
               >>> len(dataset)
               100
               >>> dataset.get_subset_(90)
@@ -483,7 +483,7 @@ class BaseDataset(Dataset):
         else:
             self.data_list = self._get_unserialized_subset(indices)
 
-    def get_subset(self, indices: Union[Sequence[int], int]) -> "BaseDataset":
+    def get_subset(self, indices: Union[Sequence[int], int]) -> "DeeplakeBaseDataset":
         """Return a subset of dataset.
 
         This method will return a subset of original dataset. If type of
@@ -494,7 +494,7 @@ class BaseDataset(Dataset):
         given in indices.
 
         Examples:
-              >>> dataset = BaseDataset('path/to/ann_file')
+              >>> dataset = DeeplakeBaseDataset('path/to/ann_file')
               >>> len(dataset)
               100
               >>> subdataset = dataset.get_subset(90)
@@ -518,7 +518,7 @@ class BaseDataset(Dataset):
                 index of dataset.
 
         Returns:
-            BaseDataset: A subset of dataset.
+            DeeplakeBaseDataset: A subset of dataset.
         """
         # Get subset of data from serialized data or data information list
         # according to `self.serialize_data`. Since `_get_serialized_subset`
@@ -662,7 +662,7 @@ class BaseDataset(Dataset):
     def __len__(self):
         return len(self.deeplake_dataset)
 
-    def _copy_without_annotation(self, memo=dict()) -> "BaseDataset":
+    def _copy_without_annotation(self, memo=dict()) -> "DeeplakeBaseDataset":
         """Deepcopy for all attributes other than ``data_list``,
         ``data_address`` and ``data_bytes``.
 
@@ -671,7 +671,7 @@ class BaseDataset(Dataset):
                 correctly.
 
         Returns:
-            BaseDataset
+            DeeplakeBaseDataset
         """
         cls = self.__class__
         other = cls.__new__(cls)

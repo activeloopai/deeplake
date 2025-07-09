@@ -10,13 +10,12 @@ from mmengine.logging import print_log  # type: ignore
 from mmengine.runner import Runner  # type: ignore
 from mmseg.registry import RUNNERS  # type: ignore
 
-from typing import Any, Dict, Callable
+from typing import Dict
 
 import mmengine  # type: ignore
 
-from deeplake.integrations.mmlab.segmentation.basedataset import (
-    BaseDataset as DeeplakeBaseDataset,
-)
+from deeplake.integrations.mmlab.segmentation.basedataset import DeeplakeBaseDataset
+
 from deeplake.integrations.mmlab.segmentation.builder_patch import build_func_patch
 
 mmengine.dataset.BaseDataset = DeeplakeBaseDataset
