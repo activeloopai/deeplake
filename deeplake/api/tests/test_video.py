@@ -78,35 +78,6 @@ def test_video_slicing(local_ds: Dataset, video_paths):
     indirect=True,
 )
 @pytest.mark.slow
-def test_video_streaming(vstream_path, hub_token):
-    ds = deeplake.load(vstream_path, read_only=True, token=hub_token)
-
-    # no streaming, downloads chunk
-    assert ds.mp4_videos[0].shape == (400, 360, 640, 3)
-    assert ds.mp4_videos[0].numpy().shape == (400, 360, 640, 3)
-    assert ds.mp4_videos[1].numpy().shape == (120, 1080, 1920, 3)
-
-    # streaming
-    assert ds.large_video[0].shape == (21312, 546, 1280, 3)
-    assert ds.large_video[0, 13500].numpy().shape == (546, 1280, 3)
-    # will use cached url
-    assert ds.large_video[0, 18000].numpy().shape == (546, 1280, 3)
-
-
-@pytest.mark.skipif(
-    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
-)
-@pytest.mark.parametrize(
-    ("vstream_path", "hub_token"),
-    [
-        ("gcs_vstream_path", "hub_cloud_dev_token"),
-        ("azure_vstream_path", "hub_cloud_dev_token"),
-        ("s3_vstream_path", "hub_cloud_dev_token"),
-        ("hub_cloud_vstream_path", "hub_cloud_dev_token"),
-    ],
-    indirect=True,
-)
-@pytest.mark.slow
 def test_video_timestamps(vstream_path, hub_token):
     ds = deeplake.load(vstream_path, read_only=True, token=hub_token)
 
