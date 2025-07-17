@@ -245,7 +245,7 @@ class DeeplakeBaseSegDataset(DeeplakeBaseDataset):
         data_list = []
         img_dir = self.data_prefix.get("img_path", None)
         ann_dir = self.data_prefix.get("seg_map_path", None)
-        if not osp.isdir(self.ann_file) and self.ann_file:
+        if self.ann_file and not osp.isdir(self.ann_file):
             assert osp.isfile(
                 self.ann_file
             ), f"Failed to load `ann_file` {self.ann_file}"
@@ -528,7 +528,7 @@ class DeeplakeBaseCDDataset(DeeplakeBaseDataset):
         img_dir = self.data_prefix.get("img_path", None)
         img_dir2 = self.data_prefix.get("img_path2", None)
         ann_dir = self.data_prefix.get("seg_map_path", None)
-        if osp.isfile(self.ann_file):
+        if self.ann_file and osp.isfile(self.ann_file):
             lines = mmengine.list_from_file(
                 self.ann_file, backend_args=self.backend_args
             )
