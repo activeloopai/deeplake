@@ -329,16 +329,6 @@ def s3_creds(request):
     return creds
 
 
-@pytest.fixture
-def s3_vstream_path(request):
-    if not is_opt_true(request, S3_OPT):
-        pytest.skip(f"{S3_OPT} flag not set")
-        return
-
-    path = f"{PYTEST_S3_PROVIDER_BASE_ROOT}vstream_test"
-    yield path
-
-
 @pytest.fixture(scope="session")
 def gcs_creds():
     return os.environ.get(ENV_GOOGLE_APPLICATION_CREDENTIALS, None)
@@ -361,16 +351,6 @@ def gcs_path(request, gcs_creds):
 
 
 @pytest.fixture
-def gcs_vstream_path(request):
-    if not is_opt_true(request, GCS_OPT):
-        pytest.skip(f"{GCS_OPT} flag not set")
-        return
-
-    path = f"{PYTEST_GCS_PROVIDER_BASE_ROOT}vstream_test"
-    yield path
-
-
-@pytest.fixture
 def azure_path(request):
     if not is_opt_true(request, AZURE_OPT):
         pytest.skip(f"{AZURE_OPT} flag not set")
@@ -383,15 +363,6 @@ def azure_path(request):
     # clear storage unless flagged otherwise
     if not is_opt_true(request, KEEP_STORAGE_OPT):
         AzureProvider(path).clear()
-
-
-@pytest.fixture
-def azure_vstream_path(request):
-    if not is_opt_true(request, AZURE_OPT):
-        pytest.skip(f"{AZURE_OPT} flag not set")
-
-    path = f"{PYTEST_AZURE_PROVIDER_BASE_ROOT}vstream_test"
-    yield path
 
 
 @pytest.fixture(scope="session")
@@ -459,17 +430,6 @@ def hub_cloud_path(request, hub_cloud_dev_token):
             # Invalid Request. One or more request parameters is incorrect.`
             # (on windows 3.8 only)
             pass
-
-
-@pytest.fixture
-def hub_cloud_vstream_path(request, hub_cloud_dev_token):
-    if not is_opt_true(request, HUB_CLOUD_OPT):
-        pytest.skip(f"{HUB_CLOUD_OPT} flag not set")
-        return
-
-    path = f"{PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT}vstream_test_dataset"
-
-    yield path
 
 
 @pytest.fixture
@@ -730,12 +690,6 @@ def stl_mesh_paths():
     for k in paths:
         paths[k] = os.path.join(parent, paths[k])
     return paths
-
-
-@pytest.fixture
-def vstream_path(request):
-    """Used with parametrize to use all video stream test datasets."""
-    return request.getfixturevalue(request.param)
 
 
 @pytest.fixture

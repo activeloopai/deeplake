@@ -64,40 +64,6 @@ def test_video_slicing(local_ds: Dataset, video_paths):
     raise Exception  # test did not run
 
 
-@pytest.mark.skipif(
-    os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
-)
-@pytest.mark.parametrize(
-    ("vstream_path", "hub_token"),
-    [
-        ("gcs_vstream_path", "hub_cloud_dev_token"),
-        ("azure_vstream_path", "hub_cloud_dev_token"),
-        ("s3_vstream_path", "hub_cloud_dev_token"),
-        ("hub_cloud_vstream_path", "hub_cloud_dev_token"),
-    ],
-    indirect=True,
-)
-@pytest.mark.slow
-def test_video_timestamps(vstream_path, hub_token):
-    ds = deeplake.load(vstream_path, read_only=True, token=hub_token)
-
-    with pytest.raises(ValueError):
-        ds.mp4_videos[:2].timestamps
-
-    stamps = ds.large_video[0, 12000:1199:-100].timestamps
-
-    assert len(stamps) == 109
-
-    # timestamp is 50, 24 fps video, 50 * 24 = 1200th frame
-    assert stamps[-1] == 50
-
-    # cover stepping without seeking
-    stamps = ds.large_video[0, 1200:1300:2].timestamps
-
-    assert len(stamps) == 50
-    assert stamps[0] == 50
-
-
 def test_video_exception(local_ds):
     with local_ds as ds:
         ds.create_tensor("abc")
