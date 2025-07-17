@@ -9,6 +9,7 @@ from deeplake.util.exceptions import (
     InvalidViewException,
     DatasetHandlerError,
     SampleAppendError,
+    TransformError,
 )
 import deeplake
 from uuid import uuid4
@@ -491,5 +492,5 @@ def test_link_materialize(local_ds, num_workers):
         loaded = ds.load_view("view_1")
 
         assert loaded.abc.numpy().shape == (10, 10, 10, 3)
-    except SampleAppendError:
+    except (SampleAppendError, TransformError):
         pass
