@@ -1212,6 +1212,30 @@ def test_tensor_delete(local_ds_generator):
     assert ds.meta.hidden_tensors == []
 
 
+def test_azure_dataset_delete(azure_path):
+    for i in range(5):
+        deeplake.dataset(f"{azure_path}{i}")
+
+    for i in range(5):
+        assert deeplake.load(f"{azure_path}{i}") is not None
+
+    for i in range(5):
+        dataset_path = f"{azure_path}{i}"
+
+        deeplake.delete(dataset_path)
+
+        with pytest.raises(DatasetHandlerError):
+            deeplake.load(dataset_path)
+
+        for j in range(i + 1, 5):
+            remaining_path = f"{azure_path}{j}"
+            assert deeplake.load(remaining_path) is not None
+
+    for i in range(5):
+        with pytest.raises(DatasetHandlerError):
+            deeplake.load(f"{azure_path}{i}")
+
+
 def test_group_delete_bug(local_ds_generator):
     with local_ds_generator() as ds:
         ds.create_tensor("abc/first")
