@@ -78,8 +78,6 @@ jobs:
                   matrix["python-version"] = [
                       "3.11",
                       "3.10",
-                      "3.9",
-                      "3.8",
                   ]
                   matrix["storage"] = [
                     "--hub-cloud --local",
@@ -96,8 +94,6 @@ jobs:
                   matrix["python-version"] = [
                       "3.11",
                       "3.10",
-                      "3.9",
-                      "3.8",
                   ]
               else:
                   raise Exception("Unexpected branch")

@@ -23,10 +23,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip --pre
-          python -c "import subprocess, sys, re; [subprocess.run([sys.executable, '-m', 'pip', 'install', re.sub(r'#.*', '', line.strip())], check=False) for line in open('deeplake/requirements/common.txt') if line.strip() and not line.startswith('#') and re.match(r'^[a-zA-Z0-9]', line.strip())]"
-          python -c "import subprocess, sys, re; [subprocess.run([sys.executable, '-m', 'pip', 'install', re.sub(r'#.*', '', line.strip())], check=False) for line in open('deeplake/requirements/tests.txt') if line.strip() and not line.startswith('#') and re.match(r'^[a-zA-Z0-9]', line.strip())]"
-          python -c "import subprocess, sys, re; [subprocess.run([sys.executable, '-m', 'pip', 'install', re.sub(r'#.*', '', line.strip())], check=False) for line in open('deeplake/requirements/plugins.txt') if line.strip() and not line.startswith('#') and re.match(r'^[a-zA-Z0-9]', line.strip())]"
+          python -m pip install --upgrade pip
+          pip install -r deeplake/requirements/common.txt  --use-deprecated=legacy-resolver
+          pip install -r deeplake/requirements/tests.txt  --use-deprecated=legacy-resolver
+          pip install -r deeplake/requirements/plugins.txt  --use-deprecated=legacy-resolver
 
       - name: Install deeplake
         run: pip install -e .

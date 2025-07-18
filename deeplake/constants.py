@@ -111,7 +111,7 @@ PYTEST_MEMORY_PROVIDER_BASE_ROOT = "mem://hub_pytest"
 PYTEST_LOCAL_PROVIDER_BASE_ROOT = "./hub_pytest/"
 PYTEST_S3_PROVIDER_BASE_ROOT = "s3://deeplake-tests/"
 PYTEST_GCS_PROVIDER_BASE_ROOT = "gcs://deeplake-tests/"
-PYTEST_AZURE_PROVIDER_BASE_ROOT = "az://activeloopgen2/deeplake-tests/"
+PYTEST_AZURE_PROVIDER_BASE_ROOT = "az://activeloop/deeplake-tests/"
 PYTEST_GDRIVE_PROVIDER_BASE_ROOT = "gdrive://hubtest"
 PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT = (
     None if HUB_CLOUD_DEV_USERNAME is None else f"hub://{HUB_CLOUD_DEV_USERNAME}/"

@@ -3,13 +3,13 @@ import copy
 import os.path as osp
 from typing import Callable, Dict, List, Optional, Sequence, Union
 
-import mmengine
-import mmengine.fileio as fileio
+import mmengine  # type: ignore
+import mmengine.fileio as fileio  # type: ignore
 import numpy as np
-from mmengine.dataset import Compose
+from mmengine.dataset import Compose  # type: ignore
 from deeplake.integrations.mmlab.segmentation.basedataset import DeeplakeBaseDataset
 
-from mmseg.registry import DATASETS
+from mmseg.registry import DATASETS  # type: ignore
 
 
 @DATASETS.register_module()
@@ -101,7 +101,6 @@ class DeeplakeBaseSegDataset(DeeplakeBaseDataset):
         reduce_zero_label: bool = False,
         backend_args: Optional[dict] = None,
     ) -> None:
-
         self.img_suffix = img_suffix
         self.seg_map_suffix = seg_map_suffix
         self.ignore_index = ignore_index
@@ -167,6 +166,10 @@ class DeeplakeBaseSegDataset(DeeplakeBaseDataset):
         Returns:
             dict, optional: The mapping from old classes in cls.METAINFO to
                 new classes in self._metainfo
+
+        Raises:
+            ValueError: When label mapping is invalid or when classes mismatch
+                cannot be resolved
         """
         old_classes = cls.METAINFO.get("classes", None)
         if (
@@ -174,7 +177,6 @@ class DeeplakeBaseSegDataset(DeeplakeBaseDataset):
             and old_classes is not None
             and list(new_classes) != list(old_classes)
         ):
-
             label_map = {}
             if not set(new_classes).issubset(cls.METAINFO["classes"]):
                 raise ValueError(
@@ -199,7 +201,10 @@ class DeeplakeBaseSegDataset(DeeplakeBaseDataset):
         palette.
 
         Returns:
-            Sequence: Palette for current dataset.
+            list: Palette for current dataset.
+
+        Raises:
+            ValueError: When palette generation fails or classes are invalid
         """
         palette = self._metainfo.get("palette", [])
         classes = self._metainfo.get("classes", [])
@@ -240,7 +245,7 @@ class DeeplakeBaseSegDataset(DeeplakeBaseDataset):
         data_list = []
         img_dir = self.data_prefix.get("img_path", None)
         ann_dir = self.data_prefix.get("seg_map_path", None)
-        if not osp.isdir(self.ann_file) and self.ann_file:
+        if self.ann_file and not osp.isdir(self.ann_file):
             assert osp.isfile(
                 self.ann_file
             ), f"Failed to load `ann_file` {self.ann_file}"
@@ -376,7 +381,6 @@ class DeeplakeBaseCDDataset(DeeplakeBaseDataset):
         reduce_zero_label: bool = False,
         backend_args: Optional[dict] = None,
     ) -> None:
-
         self.img_suffix = img_suffix
         self.img_suffix2 = img_suffix2
         self.seg_map_suffix = seg_map_suffix
@@ -443,6 +447,10 @@ class DeeplakeBaseCDDataset(DeeplakeBaseDataset):
         Returns:
             dict, optional: The mapping from old classes in cls.METAINFO to
                 new classes in self._metainfo
+
+        Raises:
+            ValueError: When label mapping cannot be created or when there's a
+                mismatch between old and new classes that cannot be resolved.
         """
         old_classes = cls.METAINFO.get("classes", None)
         if (
@@ -450,7 +458,6 @@ class DeeplakeBaseCDDataset(DeeplakeBaseDataset):
             and old_classes is not None
             and list(new_classes) != list(old_classes)
         ):
-
             label_map = {}
             if not set(new_classes).issubset(cls.METAINFO["classes"]):
                 raise ValueError(
@@ -475,7 +482,11 @@ class DeeplakeBaseCDDataset(DeeplakeBaseDataset):
         palette.
 
         Returns:
-            Sequence: Palette for current dataset.
+            list: Palette for current dataset.
+
+        Raises:
+            ValueError: When palette cannot be generated or updated due to
+                invalid classes or palette configuration.
         """
         palette = self._metainfo.get("palette", [])
         classes = self._metainfo.get("classes", [])
@@ -517,7 +528,7 @@ class DeeplakeBaseCDDataset(DeeplakeBaseDataset):
         img_dir = self.data_prefix.get("img_path", None)
         img_dir2 = self.data_prefix.get("img_path2", None)
         ann_dir = self.data_prefix.get("seg_map_path", None)
-        if osp.isfile(self.ann_file):
+        if self.ann_file and osp.isfile(self.ann_file):
             lines = mmengine.list_from_file(
                 self.ann_file, backend_args=self.backend_args
             )

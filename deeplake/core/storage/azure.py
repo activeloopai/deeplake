@@ -220,7 +220,9 @@ class AzureProvider(StorageProvider):
         directories_to_delete = []
 
         try:
-            blob_list = self.container_client.list_blobs(name_starts_with=prefix)
+            blob_list = self.container_client.list_blobs(
+                name_starts_with=posixpath.join(self.root_folder, prefix)
+            )
             for blob in blob_list:
                 if blob.size == 0:
                     directories_to_delete.append(blob.name)
