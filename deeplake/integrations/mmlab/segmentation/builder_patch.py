@@ -47,6 +47,9 @@ def build_func_patch(
 ) -> Any:
     import deeplake as dp
 
+    if "deeplake_path" not in cfg.keys():
+        return original_build_func(cfg, *args, **kwargs)
+
     creds = cfg.pop("deeplake_credentials", {})
     token = creds.pop("token", None)
     token = token or os.environ.get(DEEPLAKE_AUTH_TOKEN)

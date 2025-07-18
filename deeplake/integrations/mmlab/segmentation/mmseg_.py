@@ -14,11 +14,7 @@ from typing import Dict
 
 import mmengine  # type: ignore
 
-from deeplake.integrations.mmlab.segmentation.basedataset import DeeplakeBaseDataset
-
 from deeplake.integrations.mmlab.segmentation.builder_patch import build_func_patch
-
-mmengine.dataset.BaseDataset = DeeplakeBaseDataset
 from deeplake.integrations.mmlab.segmentation.transform import transform
 
 mmengine.registry.DATASETS.build = build_func_patch
@@ -73,7 +69,10 @@ def build_dataloader(
 
     # build dataset
     dataset_cfg = dataloader_cfg.pop("dataset")
-    dataset, transform_pipeline = build_func_patch(dataset_cfg)
+    if "deeplake_path" not in dataset_cfg.keys():
+        _original_build_dataloader(dataloader, seed, diff_rank_seed)
+
+    dataset, transform_pipeline = mmengine.registry.DATASETS.build(dataset_cfg)
 
     num_batch_per_epoch = dataloader_cfg.pop("num_batch_per_epoch", None)
     # if num_batch_per_epoch is not None:
