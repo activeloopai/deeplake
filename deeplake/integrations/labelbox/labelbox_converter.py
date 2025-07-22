@@ -275,13 +275,21 @@ class labelbox_type_converter:
                         end = start
 
                     if not start:
-                        print(f"Warning: Could not find start object with feature_id {feature_id} in frame {st}")
+                        print(
+                            f"Warning: Could not find start object with feature_id {feature_id} in frame {st}"
+                        )
                         continue
                     if not end:
-                        print(f"Warning: Could not find end object with feature_id {feature_id} in frame {en}")
+                        print(
+                            f"Warning: Could not find end object with feature_id {feature_id} in frame {en}"
+                        )
                         continue
-                    if start["feature_schema_id"] != end["feature_schema_id"]:  # type : ignore
-                        print(f"Warning: Feature schema ID mismatch between start ({start['feature_schema_id']}) and end ({end['feature_schema_id']})")
+                    if (
+                        start["feature_schema_id"] != end["feature_schema_id"]
+                    ):  # type : ignore
+                        print(
+                            f"Warning: Feature schema ID mismatch between start ({start['feature_schema_id']}) and end ({end['feature_schema_id']})"
+                        )
                         continue
 
                     for i in range(st + 1, en + 1):
