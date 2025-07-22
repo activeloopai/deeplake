@@ -1,6 +1,8 @@
 import deeplake
 import os
 import uuid
+import json
+import labelbox as lb
 
 from deeplake.integrations.labelbox.labelbox_utils import *
 from deeplake.integrations.labelbox.labelbox_converter import labelbox_video_converter
@@ -185,6 +187,32 @@ def create_ontology_mock_from_project_element(project_element: Dict[str, Any]) -
     return LabelboxOntologyMock(project_element)
 
 
+class OntologyLike:
+    def __init__(self, json_data: dict):
+        self._data = json_data
+
+    # @property
+    def tools(self):
+        return [lb.Tool.from_dict(item) for item in self._data['tools']]
+        # return self._data.get("tools", [])
+
+    # @property
+    def classifications(self):
+        return [lb.Classification.from_dict(item) for item in self._data['classifications']]
+        # return self._data.get("classifications", [])
+
+    @property
+    def normalized(self):
+        """Mimics the Labelbox SDK's Ontology.normalized"""
+        return self._data
+
+    def asdict(self):
+        """Return the raw dictionary (like OntologyBuilder.asdict())"""
+        return self._data
+
+    def __repr__(self):
+        return f"OntologyLike(tools={len(self.tools)}, classifications={len(self.classifications)})"
+
 
 ###############################
 
@@ -261,8 +289,12 @@ def converter_for_video_project_with_id(
     ]
 
     ## MOCK
-    # ontology = client.get_ontology(ontology_id)
-    ontology = create_ontology_mock_from_project_element(project_json[0])
+    # ontology = client.get_ontology('cmdeacbrd0t32071mdctc9slf')
+    # print("ontology", ontology)
+    
+    ontology = json.loads(open("/home/ubuntu/deeplake/clvug912g00zl07z4cxaybw29_ontology.json").read())
+    ontology = OntologyLike(ontology)
+    # ontology = create_ontology_mock_from_project_element(project_json[0])
 
     converters = {
         "rectangle": bbox_converter_,

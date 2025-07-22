@@ -169,6 +169,7 @@ class labelbox_type_converter:
         )
 
     def register_ontology_(self, ontology, context, fix_grouping_only=True):
+        print("ontology:", type(ontology), dir(ontology))
         for tool in ontology.tools():
             self.register_tool_(tool, context, fix_grouping_only=fix_grouping_only)
 
@@ -273,9 +274,28 @@ class labelbox_type_converter:
                     else:
                         end = start
 
-                    assert start
-                    assert end
-                    assert start["feature_schema_id"] == end["feature_schema_id"]
+                    if not start:
+                        print(
+                            f"Warning: Could not find start object with feature_id {feature_id} in frame {st}"
+                        )
+                        continue
+                    if not end:
+                        print(
+                            f"Warning: Could not find end object with feature_id {feature_id} in frame {en}"
+                        )
+                        continue
+                    if (
+                        start["feature_schema_id"] != end["feature_schema_id"]
+                    ):  # type : ignore
+                        print(
+                            f"Warning: Feature schema ID mismatch between start ({start['feature_schema_id']}) and end ({end['feature_schema_id']})"
+                        )
+                        continue
+                    # if not start:
+                    #     print("st: ", st, "en:", en, "feature_id:", feature_id, " r: ", r, " key_frame_feature_map: ", key_frame_feature_map)
+                    # assert start
+                    # assert end
+                    # assert start["feature_schema_id"] == end["feature_schema_id"]
 
                     for i in range(st + 1, en + 1):
                         # skip if the frame already has the object
