@@ -54,27 +54,56 @@ def frame_generator_(
         - frame_number (int): The sequential number of the frame
         - frame_data (numpy.ndarray): The frame image data
     """
-    import av  # type: ignore
 
-    def get_video_container(current_retries):
-        try:
-            return av.open(video_path, options=header)
-        except Exception as e:
-            if current_retries > 0:
-                print(f"Failed opening video: {e}. Retrying...")
-                return get_video_container(current_retries - 1)
-            else:
-                raise e
+    mock_video_props = {
+        'height': 480,
+        'width': 640, 
+        'asset_type': 'video',
+        'mime_type': 'video/mp4',
+        'frame_rate': 1,
+        'frame_count': 602
+    }
+
+    # print(f"Start generating mock frames from {video_path}")
+    # print(f"Mock video properties: {mock_video_props}")
+    
+    height = mock_video_props['height']
+    width = mock_video_props['width']
+    frame_count = mock_video_props['frame_count']
 
     try:
-        container = get_video_container(retries)
-        print(f"Start generating frames from {video_path}")
-        frame_num = 0
-        for frame in container.decode(video=0):
-            yield frame_num, frame.to_ndarray(format="rgb24")
-            frame_num += 1
+        for frame_num in range(frame_count):
+            # Generate random RGB frame data (values 0-255)
+            # Shape: (height, width, 3) for RGB channels
+            random_frame = np.full((height, width, 3), 255, dtype=np.uint8)
+            # np.random.randint(0, 256, size=(height, width, 3), dtype=np.uint8)
+            
+            yield frame_num, random_frame
+            
     except Exception as e:
-        print(f"Failed generating frames: {e}")
+        print(f"Failed generating mock frames: {e}")
+    
+    # import av  # type: ignore
+
+    # def get_video_container(current_retries):
+    #     try:
+    #         return av.open(video_path, options=header)
+    #     except Exception as e:
+    #         if current_retries > 0:
+    #             print(f"Failed opening video: {e}. Retrying...")
+    #             return get_video_container(current_retries - 1)
+    #         else:
+    #             raise e
+
+    # try:
+    #     container = get_video_container(retries)
+    #     print(f"Start generating frames from {video_path}")
+    #     frame_num = 0
+    #     for frame in container.decode(video=0):
+    #         yield frame_num, frame.to_ndarray(format="rgb24")
+    #         frame_num += 1
+    # except Exception as e:
+    #     print(f"Failed generating frames: {e}")
 
 
 def frames_batch_generator_(

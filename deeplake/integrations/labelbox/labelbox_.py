@@ -8,6 +8,186 @@ from deeplake.integrations.labelbox.converters import *
 from deeplake.integrations.labelbox.labelbox_metadata_utils import *
 from deeplake.integrations.labelbox.deeplake_utils import *
 
+################################
+
+from datetime import datetime
+from typing import List, Dict, Any, Optional, Union
+from unittest.mock import Mock
+
+class LabelboxOntologyMock:
+    
+    def __init__(self, project_element: Dict[str, Any]):
+        """Initialize ontology mock from first project element"""
+        
+        project_info = project_element.get('projects', {})
+        
+        self.uid = project_info.get('ontology_id', f"mock-ontology-{project_info.get('id', 'unknown')}")
+        self.name = f"Ontology for {project_info.get('name', 'Project')}"
+        self.description = f"Mock ontology extracted from project export data"
+        self.created_at = datetime.now()
+        self.updated_at = datetime.now()
+        
+        self.normalized = self._extract_normalized_structure(project_element)
+        
+        self.object_schema_count = len(self.normalized.get("tools", []))
+        self.classification_schema_count = len(self.normalized.get("classifications", []))
+        
+        self.projects = Mock()
+        self.created_by = Mock()
+        
+        self._tools = None
+        self._classifications = None
+    
+    def _extract_normalized_structure(self, project_element: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract normalized ontology structure from project element"""
+        
+        tools_map = {}  # name -> tool_config
+        classifications_map = {}  # name -> {type, options_set}
+        
+        data_row = project_element.get('data_row', {})
+        labels = data_row.get('labels', [])
+        
+        for label in labels:
+            annotations = label.get('annotations', [])
+            
+            for annotation in annotations:
+                tool_name = annotation.get('name', 'Unknown Tool')
+                
+                tool_type = 'rectangle'  # default
+                if 'bbox' in annotation:
+                    tool_type = 'rectangle'
+                elif 'polygon' in annotation:
+                    tool_type = 'polygon'
+                elif 'point' in annotation:
+                    tool_type = 'point'
+                elif 'line' in annotation:
+                    tool_type = 'line'
+                elif 'mask' in annotation:
+                    tool_type = 'raster-segmentation'
+                
+                if tool_name not in tools_map:
+                    tools_map[tool_name] = {
+                        'name': tool_name,
+                        'tool': tool_type,
+                        'classifications': []
+                    }
+                
+                annotation_classifications = annotation.get('classifications', [])
+                for classification in annotation_classifications:
+                    class_name = classification.get('name', 'Unknown Classification')
+                    answer = classification.get('answer', {})
+                    
+                    if class_name not in classifications_map:
+                        classifications_map[class_name] = {
+                            'type': 'radio',
+                            'options': set()
+                        }
+                    
+                    if isinstance(answer, dict) and 'value' in answer:
+                        option_value = answer['value']
+                        classifications_map[class_name]['options'].add(option_value)
+                    elif isinstance(answer, str):
+                        classifications_map[class_name]['options'].add(answer)
+                    elif isinstance(answer, list):
+                        classifications_map[class_name]['type'] = 'checklist'
+                        for item in answer:
+                            if isinstance(item, dict) and 'value' in item:
+                                classifications_map[class_name]['options'].add(item['value'])
+                            elif isinstance(item, str):
+                                classifications_map[class_name]['options'].add(item)
+        
+        tools = []
+        tool_id = 1
+        for tool_name, tool_info in tools_map.items():
+            tools.append({
+                "id": f"tool-{tool_id}",
+                "name": tool_info['name'],
+                "tool": tool_info['tool'],
+                "classifications": [],
+                "color": self._generate_color(tool_name)
+            })
+            tool_id += 1
+        
+        classifications = []
+        class_id = 1
+        for class_name, class_info in classifications_map.items():
+            options = []
+            option_id = 1
+            for option_value in class_info['options']:
+                options.append({
+                    "id": f"option-{option_id}",
+                    "value": option_value,
+                    "color": self._generate_color(option_value)
+                })
+                option_id += 1
+            
+            classifications.append({
+                "id": f"classification-{class_id}",
+                "name": class_name,
+                "type": class_info['type'],
+                "options": options
+            })
+            class_id += 1
+        
+        if not tools and not classifications:
+            tools = [self._create_default_tool()]
+            classifications = [self._create_default_classification()]
+        
+        return {
+            "tools": tools,
+            "classifications": classifications
+        }
+    
+    def _generate_color(self, name: str) -> str:
+        """Generate a consistent color for a name"""
+        return f"#{abs(hash(name)) % 0xFFFFFF:06x}"
+    
+    def _create_default_tool(self) -> Dict[str, Any]:
+        """Create a default tool when none found"""
+        return {
+            "id": "default-tool-1",
+            "name": "Object Detection",
+            "tool": "rectangle",
+            "classifications": [],
+            "color": "#FF0000"
+        }
+    
+    def _create_default_classification(self) -> Dict[str, Any]:
+        """Create a default classification when none found"""
+        return {
+            "id": "default-classification-1",
+            "name": "Category",
+            "type": "radio",
+            "options": [
+                {"id": "option-1", "value": "Positive", "color": "#00FF00"},
+                {"id": "option-2", "value": "Negative", "color": "#FF0000"}
+            ]
+        }
+    
+    def tools(self) -> List[Dict[str, Any]]:
+        """Get list of tools in the ontology (mimics Labelbox API)"""
+        if self._tools is None:
+            self._tools = self.normalized.get("tools", [])
+        return self._tools
+    
+    def classifications(self) -> List[Dict[str, Any]]:
+        """Get list of classifications in the ontology (mimics Labelbox API)"""
+        if self._classifications is None:
+            self._classifications = self.normalized.get("classifications", [])
+        return self._classifications
+    
+    def __repr__(self):
+        return f"<LabelboxOntologyMock uid='{self.uid}' name='{self.name}' tools={len(self.tools())} classifications={len(self.classifications())}>"
+
+
+def create_ontology_mock_from_project_element(project_element: Dict[str, Any]) -> LabelboxOntologyMock:
+    """Factory function to create Labelbox ontology mock from project element"""
+    return LabelboxOntologyMock(project_element)
+
+
+
+###############################
+
 
 def converter_for_video_project_with_id(
     project_id,
@@ -79,7 +259,10 @@ def converter_for_video_project_with_id(
     ontology_id = project_json[0]["projects"][project_id]["project_details"][
         "ontology_id"
     ]
-    ontology = client.get_ontology(ontology_id)
+
+    ## MOCK
+    # ontology = client.get_ontology(ontology_id)
+    ontology = create_ontology_mock_from_project_element(project_json[0])
 
     converters = {
         "rectangle": bbox_converter_,
