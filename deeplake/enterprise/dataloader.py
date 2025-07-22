@@ -2,6 +2,7 @@ from typing import Callable, Dict, List, Optional, Union
 import deeplake
 from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 from deeplake.enterprise.dummy_dataloader import DummyDataloader  # type: ignore
+from deeplake.util.exceptions import EmptyTensorError
 from deeplake.util.scheduling import create_fetching_schedule, find_primary_tensor
 from deeplake.core.seed import DeeplakeRandom
 from deeplake.enterprise.util import (

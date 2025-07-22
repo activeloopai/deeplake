@@ -261,7 +261,8 @@ class labelbox_type_converter:
                     frames, r, key_frame_feature_map[feature_id]
                 )
                 for st, en in sub_ranges:
-                    assert str(st) in frames
+                    if str(st) in frames:
+                        continue
 
                     start = self.find_object_with_feature_id_(
                         frames[str(st)], feature_id
@@ -273,9 +274,23 @@ class labelbox_type_converter:
                     else:
                         end = start
 
-                    assert start
-                    assert end
-                    assert start["feature_schema_id"] == end["feature_schema_id"]
+                    if not start:
+                        print(
+                            f"Warning: Could not find start object with feature_id {feature_id} in frame {st}"
+                        )
+                        continue
+                    if not end:
+                        print(
+                            f"Warning: Could not find end object with feature_id {feature_id} in frame {en}"
+                        )
+                        continue
+                    if (
+                        start["feature_schema_id"] != end["feature_schema_id"]
+                    ):  # type : ignore
+                        print(
+                            f"Warning: Feature schema ID mismatch between start ({start['feature_schema_id']}) and end ({end['feature_schema_id']})"
+                        )
+                        continue
 
                     for i in range(st + 1, en + 1):
                         # skip if the frame already has the object
