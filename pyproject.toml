@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "deeplake"
-version = "3.9.48"
+version = "3.9.49"
 description = "Activeloop Deep Lake"
 authors = ["activeloop.ai <support@activeloop.ai>"]
 license = "MPL-2.0"
