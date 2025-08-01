@@ -384,7 +384,14 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
         url_presigner = default_presigner
 
     for idx, p in enumerate(project_json):
-        __extract_and_append_frames_from_video(p, idx, data_filler, url_presigner, wrapped_dataset, video_generator_batch_size)
+        __extract_and_append_frames_from_video(
+            p,
+            idx,
+            data_filler,
+            url_presigner,
+            wrapped_dataset,
+            video_generator_batch_size,
+        )
         video_files.append(external_url_from_video_project_(p))
 
     wrapped_dataset.metadata["labelbox_meta"] = {
@@ -395,6 +402,7 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     }
 
     return wrapped_dataset.ds, project_json
+
 
 def __extract_and_append_frames_from_video(
     video_project,
@@ -449,6 +457,7 @@ def __extract_and_append_frames_from_video(
                 f"Video frame count mismatch for {video_url}. "
                 f"Expected {expected_frame_count}, got {video_frame_count} after {max_retries} attempts."
             )
+
 
 def create_dataset_from_video_annotation_project(
     deeplake_ds_path,
