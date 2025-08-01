@@ -36,7 +36,7 @@ def get_label_creator_from_video_project_(project, ctx):
 
 def get_frame_rate_from_video_project_(project, ctx):
     try:
-        return project["media_attributes"]["frame_rate"]
+        return round(project["media_attributes"]["frame_rate"])
     except:
         return None
 

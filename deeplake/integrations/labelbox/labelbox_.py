@@ -7,6 +7,7 @@ from deeplake.integrations.labelbox.labelbox_converter import labelbox_video_con
 from deeplake.integrations.labelbox.converters import *
 from deeplake.integrations.labelbox.labelbox_metadata_utils import *
 from deeplake.integrations.labelbox.deeplake_utils import *
+import time
 
 
 def converter_for_video_project_with_id(
@@ -383,17 +384,14 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
         url_presigner = default_presigner
 
     for idx, p in enumerate(project_json):
-        video_url = p["data_row"]["row_data"]
-        header = None
-        if not os.path.exists(video_url):
-            if not is_remote_resource_public_(video_url):
-                video_url, header = url_presigner(video_url)
-        for frame_indexes, frames in frames_batch_generator_(
-            video_url, header=header, batch_size=video_generator_batch_size
-        ):
-            data_filler["fill_data"](
-                wrapped_dataset, [idx] * len(frames), frame_indexes, frames
-            )
+        __extract_and_append_frames_from_video(
+            p,
+            idx,
+            data_filler,
+            url_presigner,
+            wrapped_dataset,
+            video_generator_batch_size,
+        )
         video_files.append(external_url_from_video_project_(p))
 
     wrapped_dataset.metadata["labelbox_meta"] = {
@@ -404,6 +402,61 @@ def create_dataset_from_video_annotation_project_with_custom_data_filler(
     }
 
     return wrapped_dataset.ds, project_json
+
+
+def __extract_and_append_frames_from_video(
+    video_project,
+    idx,
+    data_filler,
+    url_presigner,
+    wrapped_dataset,
+    video_generator_batch_size,
+    max_retries=3,
+    retry_delay=2,
+):
+    """
+    Extracts frames from a video project and appends them to the dataset.
+    Retries extraction if frame count mismatch occurs.
+    """
+    video_url = video_project["data_row"]["row_data"]
+    header = None
+    if not os.path.exists(video_url):
+        if not is_remote_resource_public_(video_url):
+            video_url, header = url_presigner(video_url)
+
+    expected_frame_count = video_project["media_attributes"]["frame_count"]
+
+    for attempt in range(1, max_retries + 1):
+        video_frame_count = 0
+        all_frame_indexes = []
+        all_frames = []
+        for frame_indexes, frames in frames_batch_generator_(
+            video_url, header=header, batch_size=video_generator_batch_size
+        ):
+            all_frame_indexes.append(frame_indexes)
+            all_frames.append(frames)
+            video_frame_count += len(frames)
+        if video_frame_count == expected_frame_count:
+            # Ingest data only after frame count matches
+            for frame_indexes, frames in zip(all_frame_indexes, all_frames):
+                data_filler["fill_data"](
+                    wrapped_dataset, [idx] * len(frames), frame_indexes, frames
+                )
+            return
+        print(
+            f"ERROR: video frame count mismatch for {video_url}. "
+            f"Labelbox suggests it should be {expected_frame_count}, "
+            f"but got {video_frame_count} frames from video extractions. "
+            f"Attempt {attempt}/{max_retries}."
+        )
+        if attempt < max_retries:
+            print(f"Retrying in {retry_delay} seconds...")
+            time.sleep(retry_delay)
+        else:
+            raise Exception(
+                f"Video frame count mismatch for {video_url}. "
+                f"Expected {expected_frame_count}, got {video_frame_count} after {max_retries} attempts."
+            )
 
 
 def create_dataset_from_video_annotation_project(
