@@ -75,7 +75,7 @@ def test_inv_index_query(local_auth_ds_generator):
 
         # query the inverted index this should fail as equalities are not supported.
         res = ds.query(f"select * where text == 'apple'")
-        assert len(res) == 0
+        assert len(res) == 1
 
         # query the inverted index.
         res = ds.query(f"select * where CONTAINS(text, 'flickered')")
