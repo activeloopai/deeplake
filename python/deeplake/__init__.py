@@ -16,12 +16,13 @@ from ._deeplake import *
 from deeplake.ingestion import from_coco
 
 
-__version__ = "4.2.14"
+__version__ = "4.3.0"
 
 __all__ = [
     "__version__",
     "AgreementError",
     "AgreementNotAcceptedError",
+    "Array",
     "AuthenticationError",
     "AuthorizationError",
     "BadRequestError",
@@ -82,6 +83,7 @@ __all__ = [
     "InvalidType",
     "InvalidTypeAndFormatPair",
     "InvalidTypeDimensions",
+    "InvalidURIError",
     "JSONIndexNotFound",
     "JSONKeyNotFound",
     "LogExistsError",
@@ -89,6 +91,7 @@ __all__ = [
     "Metadata",
     "NotFoundError",
     "NotLoggedInAgreementError",
+    "PermissionDeniedError",
     "PushError",
     "QuantizationType",
     "Random",

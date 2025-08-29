@@ -33,6 +33,9 @@ __all__ = [
     "Inverted",
     "Link",
     "Medical",
+    "NumericIndex",
+    "NumericIndexEnumType",
+    "NumericIndexType",
     "Point",
     "Polygon",
     "QuantizationType",
@@ -48,6 +51,5 @@ __all__ = [
     "UInt16",
     "UInt32",
     "UInt64",
-    "UInt8"
-]
-
+    "UInt8",
+    "Video"]

@@ -34,6 +34,9 @@ __all__ = ["Array",
     "Inverted",
     "Link",
     "Medical",
+    "NumericIndex",
+    "NumericIndexEnumType",
+    "NumericIndexType",
     "Point",
     "Polygon",
     "QuantizationType",
@@ -49,8 +52,8 @@ __all__ = ["Array",
     "UInt16",
     "UInt32",
     "UInt64",
-    "UInt8"
-]
+    "UInt8",
+    "Video"]
 
 class EmbeddingIndexEnumType:
     """
@@ -208,6 +211,55 @@ class TextIndexEnumType:
         """
         ...
 
+
+class NumericIndexEnumType:
+    """
+    Enumeration of available numeric indexing types.
+
+    Members:
+        Inverted:
+            A numeric index that supports keyword lookup. Can be used with ``CONTAINS(column, 'wanted_value')``.
+    """
+
+    Inverted: typing.ClassVar[NumericIndexType]
+
+    __members__: typing.ClassVar[dict[str, NumericIndexEnumType]]
+    def __eq__(self, other: typing.Any) -> bool:
+        ...
+    def __getstate__(self) -> int:
+        ...
+    def __hash__(self) -> int:
+        ...
+    def __index__(self) -> int:
+        ...
+    def __init__(self, value: int) -> None:
+        ...
+    def __int__(self) -> int:
+        ...
+    def __ne__(self, other: typing.Any) -> bool:
+        ...
+    def __repr__(self) -> str:
+        ...
+    def __setstate__(self, state: int) -> None:
+        ...
+    def __str__(self) -> str:
+        ...
+    @property
+    def name(self) -> str:
+        ...
+    @property
+    def value(self) -> int:
+        """
+        Returns:
+            int: The integer value of the numeric index type.
+        """
+        ...
+
+
+class NumericIndexType:
+    def __init__(self, type: NumericIndexEnumType) -> None:
+        ...
+
 class TextIndexType:
     def __init__(self, type: TextIndexEnumType) -> None:
         ...
@@ -223,7 +275,7 @@ class IndexType:
     __hash__: typing.ClassVar[None] = None
     def __eq__(self, other: IndexType) -> bool:
         ...
-    def __init__(self, index_type: TextIndexType | EmbeddingIndexType | EmbeddingsMatrixIndexType) -> None:
+    def __init__(self, index_type: TextIndexType | EmbeddingIndexType | EmbeddingsMatrixIndexType | NumericIndexType) -> None:
         ...
     def __ne__(self, other: IndexType) -> bool:
         ...
@@ -351,6 +403,7 @@ class TypeKind:
     Sequence: typing.ClassVar[TypeKind]
     Text: typing.ClassVar[TypeKind]
     Medical: typing.ClassVar[TypeKind]
+    Video: typing.ClassVar[TypeKind]
     __members__: typing.ClassVar[dict[str, TypeKind]]
 
     def __eq__(self, other: typing.Any) -> bool: ...
@@ -566,7 +619,7 @@ def TextIndex(type: TextIndexEnumType) -> TextIndexType:
     """
     ...
 
-BM25: TextIndexEnumType
+BM25: TextIndexEnumType.BM25
 """
 A BM25-based index of text data.
 
@@ -576,14 +629,14 @@ See Also:
     `BM25 Algorithm <https://en.wikipedia.org/wiki/Okapi_BM25>`_
 """
 
-Inverted: TextIndexEnumType
+Inverted: TextIndexEnumType.Inverted
 """
 A text index that supports keyword lookup.
 
 This index can be used with ``CONTAINS(column, 'wanted_value')``.
 """
 
-Exact: TextIndexEnumType
+Exact: TextIndexEnumType.Exact
 """
 A text index that supports whole text lookup.
 
@@ -932,7 +985,7 @@ def Polygon() -> Type:
         poly1 = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
         poly2 = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
         ds.append({"col1": [[poly1, poly2], [poly1, poly2]]})
-        print(ds[0]["col1"])  
+        print(ds[0]["col1"])
         # Output: [[[1. 2.]
         #          [3. 4.]
         #          [5. 6.]]
@@ -947,7 +1000,7 @@ def Polygon() -> Type:
         #         [[1. 2.]
         #          [3. 4.]
         #          [5. 6.]]]
-        
+
         ```
     """
     ...
@@ -1058,6 +1111,59 @@ def SegmentMask(
     """
     ...
 
+def Video(compression: str = "mp4") -> Type:
+    """
+    Video datatype for storing videos.
+
+    Parameters:
+        compression: The compression format. Only H264 codec is supported at the moment.
+
+    <!--
+    ```python
+    import deeplake
+    from io import BytesIO
+    from deeplake import types
+    from inspect import Signature, Parameter
+    from functools import wraps
+    ds = deeplake.create("tmp://")
+
+    def __open(*args, **kwargs):
+        return BytesIO(b"")
+
+    # Extract the original open signature
+    original_signature = Signature(
+        parameters=[
+            Parameter("file", Parameter.POSITIONAL_OR_KEYWORD),
+            Parameter("mode", Parameter.POSITIONAL_OR_KEYWORD, default="r"),
+            Parameter("buffering", Parameter.POSITIONAL_OR_KEYWORD, default=-1),
+            Parameter("encoding", Parameter.POSITIONAL_OR_KEYWORD, default=None),
+            Parameter("errors", Parameter.POSITIONAL_OR_KEYWORD, default=None),
+            Parameter("newline", Parameter.POSITIONAL_OR_KEYWORD, default=None),
+            Parameter("closefd", Parameter.POSITIONAL_OR_KEYWORD, default=True),
+            Parameter("opener", Parameter.POSITIONAL_OR_KEYWORD, default=None),
+        ]
+    )
+
+    @wraps(__open)
+    def new_open(*args, **kwargs):
+        return __open(*args, **kwargs)
+
+    new_open.__signature__ = original_signature
+
+    open = new_open
+    ```
+    -->
+
+    Examples:
+        ```python
+        ds.add_column("video", types.Video(compression="mp4"))
+
+        with open("path/to/video.mp4", "rb") as f:
+            bytes_data = f.read()
+            ds.append([{"video": bytes_data}])
+        ```
+    """
+
 def Medical(compression: str) -> Type:
     """
     Medical datatype for storing medical images.
@@ -1111,6 +1217,10 @@ def Medical(compression: str) -> Type:
             ds.append([{"col1": bytes_data}])
         ```
     """
+    ...
+
+
+def NumericIndex(type: NumericIndexEnumType) -> NumericIndexType:
     ...
 
 def Struct(fields: dict[str, DataType | str | Type]) -> Type:
