@@ -7,8 +7,7 @@ from deeplake.core.storage import StorageProvider
 from deeplake.core.storage.s3 import S3Provider
 from deeplake.util.threading import terminate_thread
 from deeplake.client.config import (
-    USE_DEV_ENVIRONMENT,
-    USE_STAGING_ENVIRONMENT,
+    USE_BETA_ENVIRONMENT,
     USE_LOCAL_HOST,
 )
 import logging
@@ -113,10 +112,8 @@ visualizer = _Visualizer()
 def _get_visualizer_backend_url():
     if USE_LOCAL_HOST:
         return "http://localhost:3000"
-    elif USE_DEV_ENVIRONMENT:
-        return "https://app-dev.activeloop.dev"
-    elif USE_STAGING_ENVIRONMENT:
-        return "https://app-staging.activeloop.dev"
+    elif USE_BETA_ENVIRONMENT:
+        return "https://app-beta.activeloop.dev"
     else:
         return "https://app.activeloop.ai"
 

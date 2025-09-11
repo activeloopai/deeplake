@@ -20,9 +20,7 @@ from deeplake.client.config import (
     GET_MANAGED_CREDS_SUFFIX,
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
-    HUB_REST_ENDPOINT_DEV,
-    HUB_REST_ENDPOINT_TESTING,
-    HUB_REST_ENDPOINT_STAGING,
+    HUB_REST_ENDPOINT_BETA,
     DEFAULT_REQUEST_TIMEOUT,
     GET_DATASET_CREDENTIALS_SUFFIX,
     CREATE_DATASET_SUFFIX,
@@ -160,13 +158,8 @@ class DeepLakeBackendClient:
     def endpoint(self):
         if deeplake.client.config.USE_LOCAL_HOST:
             return HUB_REST_ENDPOINT_LOCAL
-        if deeplake.client.config.USE_DEV_ENVIRONMENT:
-            return HUB_REST_ENDPOINT_DEV
-        if deeplake.client.config.USE_TESTING_ENVIRONMENT:
-            return HUB_REST_ENDPOINT_TESTING
-        if deeplake.client.config.USE_STAGING_ENVIRONMENT:
-            return HUB_REST_ENDPOINT_STAGING
-
+        if deeplake.client.config.USE_BETA_ENVIRONMENT:
+            return HUB_REST_ENDPOINT_BETA
         return HUB_REST_ENDPOINT
 
     def get_dataset_credentials(
