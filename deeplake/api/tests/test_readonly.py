@@ -49,8 +49,7 @@ def test_readonly_doesnt_exist(local_path):
 
 @pytest.mark.slow
 def test_readonly_viewer(capsys, hub_cloud_dev_token):
-    # testingacc2 is viewer on notify org
-    ds = deeplake.load("hub://notify/p-8M-trp", token=hub_cloud_dev_token)
+    ds = deeplake.load("hub://activeloop/coco-train", token=hub_cloud_dev_token)
 
     out = capsys.readouterr()
     assert (

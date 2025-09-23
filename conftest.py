@@ -14,15 +14,15 @@ logging.disable(logging.INFO)
 
 from deeplake.core.lock import _LOCKS, _REFS
 
-# Use staging environment for tests.
+# Use beta environment for tests.
 import deeplake.client.config
 
-deeplake.client.config.USE_STAGING_ENVIRONMENT = True
+deeplake.client.config.USE_BETA_ENVIRONMENT = True
 
 try:
     from indra import api  # type: ignore
 
-    api.backend.set_endpoint("https://app-staging.activeloop.dev")
+    api.backend.set_endpoint("https://app-beta.activeloop.dev")
 except ImportError:
     pass
 
