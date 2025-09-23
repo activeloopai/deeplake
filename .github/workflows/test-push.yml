@@ -142,6 +142,3 @@ jobs:
       oauth_refresh_token: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
       sonar_token: ${{ secrets.SONAR_TOKEN }}
       labelbox_token: ${{ secrets.LABELBOX_TOKEN }}
-      azure_client_id: ${{ secrets.AZURE_CLIENT_ID }}
-      azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
-      azure_client_secret: ${{ secrets.AZURE_CLIENT_SECRET }}
