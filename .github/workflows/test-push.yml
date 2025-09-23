@@ -37,7 +37,7 @@ jobs:
         run: |
           import os
           import json
-          
+
           matrix = {
               "os": [
                   "ubuntu-latest",
@@ -51,7 +51,7 @@ jobs:
                   "--s3 --gcs --azure --gdrive --memory-skip"
               ]
           }
-          
+
           if "${{ github.event_name }}" == "pull_request":
               if "${{ contains(github.event.pull_request.labels.*.name, 'quick-tests') }}" == "true":
                   matrix = {
@@ -65,7 +65,7 @@ jobs:
                           "local",
                       ]
                   }
-          
+
               if "${{ contains(github.event.pull_request.labels.*.name, 'macos-tests') }}" == "true":
                   matrix["os"].append("macos-latest")
 
@@ -83,7 +83,7 @@ jobs:
                     "--hub-cloud --local",
                     "--s3 --gcs --azure --gdrive --memory-skip"
                   ]
-          
+
           elif "${{ github.event_name }}" == "push":
               if "${{ github.ref_name == 'main' || startsWith( github.ref_name, 'release/' ) }}" == "true":
                   matrix["os"] = [
@@ -99,7 +99,7 @@ jobs:
                   raise Exception("Unexpected branch")
           else:
               raise Exception("Unexpected event")
-          
+
           matrix["exclude"] = [
             {
               "os": "macos-latest",
@@ -118,18 +118,16 @@ jobs:
               "python-version": "3.11",
             },
           ]
-            
+
           with open(os.environ.get("GITHUB_OUTPUT"), "a") as file:
             file.write("matrix=%s\n" % json.dumps(matrix))
 
   test:
     name: Test
     needs: setup
-    uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@main
+    uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@update_20250923
     if: github.repository == 'activeloopai/deeplake'
     with:
-      repo: ${{ github.repository }}
-      ref: ${{ github.sha }}
       testMatrix: ${{ needs.setup.outputs.matrix }}
 
     secrets:
@@ -139,11 +137,11 @@ jobs:
       azure_creds_json: ${{ secrets.AZURE_CREDS_JSON }}
       hub_username: ${{ secrets.ACTIVELOOP_HUB_USERNAME }}
       hub_token: ${{ secrets.ACTIVELOOP_HUB_TOKEN }}
-      kaggle_username: ${{ secrets.KAGGLE_USERNAME }}
-      kaggle_key: ${{ secrets.KAGGLE_KEY }}
       oauth_client_id: ${{ secrets.GDRIVE_CLIENT_ID }}
       oauth_client_secret: ${{ secrets.GDRIVE_CLIENT_SECRET }}
       oauth_refresh_token: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
       sonar_token: ${{ secrets.SONAR_TOKEN }}
       labelbox_token: ${{ secrets.LABELBOX_TOKEN }}
-
+      azure_client_id: ${{ secrets.AZURE_CLIENT_ID }}
+      azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+      azure_client_secret: ${{ secrets.AZURE_CLIENT_SECRET }}
