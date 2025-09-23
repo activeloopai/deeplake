@@ -131,7 +131,6 @@ jobs:
       testMatrix: ${{ needs.setup.outputs.matrix }}
 
     secrets:
-      token: ${{ secrets.GITHUB_TOKEN }}
       aws_role_arn: ${{ secrets.AWS_ROLE_ARN }}
       gcp_sa_credentials_json: ${{ secrets.GCP_SA_CREDENTIALS_JSON }}
       azure_creds_json: ${{ secrets.AZURE_CREDS_JSON }}
