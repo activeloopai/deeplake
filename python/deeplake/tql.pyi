@@ -47,9 +47,9 @@ def register_function(function: typing.Callable) -> None:
         ```python
         def next_number(a):
             return a + 1
-        
+
         deeplake.tql.register_function(next_number)
-        
+
         r = ds.query("SELECT * WHERE next_number(column_name) > 10")
         ```
     """

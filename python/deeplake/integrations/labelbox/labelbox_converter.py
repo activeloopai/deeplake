@@ -5,8 +5,10 @@ from deeplake.integrations.labelbox.deeplake_utils import dataset_wrapper
 try:
     from tqdm import tqdm as progress_bar
 except ImportError:
+
     def progress_bar(iterable, *args, **kwargs):
         return iterable
+
 
 class labelbox_type_converter:
     def __init__(
@@ -256,6 +258,61 @@ class labelbox_type_converter:
             sub_ranges.append((i, end))
         return sub_ranges
 
+    def _interpolate_frames(self, start, end, st, en, frames, feature_id, offset):
+        """Handle interpolation for frames between start and end."""
+        for i in range(st + 1, en + 1):
+            # skip if the frame already has the object
+            if (
+                str(i) in frames
+                and self.find_object_with_feature_id_(frames[str(i)], feature_id)
+                is not None
+            ):
+                continue
+
+            if start["feature_schema_id"] in self.registered_interpolators:
+                obj = self.registered_interpolators[start["feature_schema_id"]](
+                    start, end, (i - st) / (en - st)
+                )
+            else:
+                obj = end
+
+            self.regsistered_actions[obj["feature_schema_id"]](offset + i - 1, obj)
+            # nested classifications are not in the segments
+            for o in obj.get("classifications", []):
+                self.regsistered_actions[o["feature_schema_id"]](offset + i - 1, o)
+
+    def _process_sub_ranges(self, sub_ranges, frames, feature_id, offset):
+        """Process individual sub-ranges for a given feature_id."""
+        for st, en in sub_ranges:
+            if not st or str(st) not in frames:
+                print(
+                    f"Warning: Could not find start object with feature_id {feature_id} in frame {st}"
+                )
+                continue
+            start = self.find_object_with_feature_id_(frames[str(st)], feature_id)
+            if str(en) in frames:
+                end = self.find_object_with_feature_id_(frames[str(en)], feature_id)
+            else:
+                end = start
+
+            if not start:
+                print(
+                    f"Warning: Could not find start object with feature_id {feature_id} in frame {st}"
+                )
+                continue
+            if not end:
+                print(
+                    f"Warning: Could not find end object with feature_id {feature_id} in frame {en}"
+                )
+                continue
+            if start["feature_schema_id"] != end["feature_schema_id"]:
+                print(
+                    f"Warning: Feature schema ID mismatch between start ({start['feature_schema_id']}) and end ({end['feature_schema_id']})"
+                )
+                continue
+
+            self._interpolate_frames(start, end, st, en, frames, feature_id, offset)
+
     def parse_segments_(self, segments, frames, key_frame_feature_map, offset):
         print("total segments count to parse:", len(segments))
         for feature_id, ranges in segments.items():
@@ -264,49 +321,7 @@ class labelbox_type_converter:
                 sub_ranges = self.existing_sub_ranges_(
                     frames, r, key_frame_feature_map[feature_id]
                 )
-                for st, en in sub_ranges:
-                    assert str(st) in frames
-
-                    start = self.find_object_with_feature_id_(
-                        frames[str(st)], feature_id
-                    )
-                    if str(en) in frames:
-                        end = self.find_object_with_feature_id_(
-                            frames[str(en)], feature_id
-                        )
-                    else:
-                        end = start
-
-                    assert start
-                    assert end
-                    assert start["feature_schema_id"] == end["feature_schema_id"]
-
-                    for i in range(st + 1, en + 1):
-                        # skip if the frame already has the object
-                        if (
-                            str(i) in frames
-                            and self.find_object_with_feature_id_(
-                                frames[str(i)], feature_id
-                            )
-                            is not None
-                        ):
-                            continue
-
-                        if start["feature_schema_id"] in self.registered_interpolators:
-                            obj = self.registered_interpolators[
-                                start["feature_schema_id"]
-                            ](start, end, (i - st) / (en - st))
-                        else:
-                            obj = end
-
-                        self.regsistered_actions[obj["feature_schema_id"]](
-                            offset + i - 1, obj
-                        )
-                        # nested classifications are not in the segments
-                        for o in obj.get("classifications", []):
-                            self.regsistered_actions[o["feature_schema_id"]](
-                                offset + i - 1, o
-                            )
+                self._process_sub_ranges(sub_ranges, frames, feature_id, offset)
 
     def apply_cached_values_(self, cache, offset):
         print("applying cached values")
@@ -453,7 +468,6 @@ class labelbox_image_converter(labelbox_type_converter):
                 print("parsing objects for label index: ", lbl_idx)
                 for obj in progress_bar(objects):
                     self.parse_object_(obj, idx_offset)
-
 
             self.apply_cached_values_(self.values_cache, idx_offset)
             if self.metadata_generators_:

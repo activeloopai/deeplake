@@ -247,8 +247,9 @@ def line_converter_(obj, converter, tensor_name, context, generate_labels):
         if len(line) != 0 and not isinstance(line[0], dict):
             # if line is a list of points, convert it to a list of dicts
             line = [{"x": int(l[0]), "y": int(l[1])} for l in line]
+        line_points = [[int(l["x"]), int(l["y"])] for l in line]
         converter.values_cache[tensor_name][row].append(
-            [[int(l["x"]), int(l["y"])] for l in line]
+            np.array(line_points)
         )
 
     converter.regsistered_actions[obj.feature_schema_id] = polygon_converter

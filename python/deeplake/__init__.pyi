@@ -6,10 +6,14 @@ import storage
 from . import schemas
 from . import types
 
+T = typing.TypeVar('T')
+DatasetType = typing.TypeVar('DatasetType', bound='Dataset')
+
 __all__ = [
     "__version__",
     "AgreementError",
     "AgreementNotAcceptedError",
+    "Array",
     "AuthenticationError",
     "AuthorizationError",
     "BadRequestError",
@@ -59,6 +63,7 @@ __all__ = [
     "InvalidColumnValueError",
     "InvalidCredsKeyAssignmentError",
     "InvalidImageCompression",
+    "InvalidTextCompression",
     "InvalidIndexCreationError",
     "InvalidLinkDataError",
     "InvalidLinkType",
@@ -70,6 +75,7 @@ __all__ = [
     "InvalidType",
     "InvalidTypeAndFormatPair",
     "InvalidTypeDimensions",
+    "InvalidURIError",
     "JSONIndexNotFound",
     "JSONKeyNotFound",
     "LogExistsError",
@@ -77,6 +83,7 @@ __all__ = [
     "Metadata",
     "NotFoundError",
     "NotLoggedInAgreementError",
+    "PermissionDeniedError",
     "PushError",
     "QuantizationType",
     "Random",
@@ -96,6 +103,7 @@ __all__ = [
     "StorageKeyAlreadyExists",
     "StorageKeyNotFound",
     "StorageNetworkConnectionError",
+    "StorageProviderMissingError",
     "Tag",
     "TagExistsError",
     "TagNotFoundError",
@@ -134,6 +142,7 @@ __all__ = [
     "delete_async",
     "disconnect",
     "exists",
+    "exists_async",
     "explain_query",
     "from_coco",
     "from_csv",
@@ -154,7 +163,7 @@ __all__ = [
     "telemetry_client"
 ]
 
-class Future:
+class Future(typing.Generic[T]):
     """
     A future representing an asynchronous operation result in ML pipelines.
 
@@ -208,7 +217,7 @@ class Future:
         ```
     """
 
-    def result(self) -> typing.Any:
+    def result(self) -> T:
         """
         Blocks until the Future resolves and returns the result.
 
@@ -303,7 +312,7 @@ class FutureVoid:
         wait() -> None:
             Blocks until operation completes.
 
-        __await__() -> None:
+        __await__() -> typing.Any:
             Enables using with async/await syntax.
 
         is_completed() -> bool:
@@ -364,7 +373,7 @@ class FutureVoid:
         """
         ...
 
-    def __await__(self) -> None:
+    def __await__(self) -> typing.Any:
         """
         Makes the FutureVoid compatible with async/await syntax.
 
@@ -412,6 +421,40 @@ class FutureVoid:
             ```
         """
         ...
+
+class Array:
+    """
+    Wrapper around n dimensional array
+    """
+
+    @property
+    def dtype(self) -> numpy.dtype[typing.Any]:
+        """
+        Returns the data type of the array
+        """
+        ...
+
+    @property
+    def shape(self) -> tuple:
+        """
+        Returns the shape of the array
+        """
+        ...
+
+    def __getitem__(self, index: int | slice | list | tuple ) -> typing.Any:
+        """
+        Returns the value at the given index or slice
+        """
+        ...
+
+    def get_async(self, index: int | slice | list | tuple) -> Future[typing.Any]:
+        """
+        Returns the value at the given index or slice asynchronously
+        """
+        ...
+
+    def __str__(self) -> str: ...
+    def __repr__(self) -> str: ...
 
 class ReadOnlyMetadata:
     """
@@ -629,17 +672,17 @@ def query(query: str, token: str | None = None, creds: dict[str, str] | None = N
         token: Optional Activeloop authentication token
         creds (dict, optional): Dictionary containing credentials used to access the dataset at the path.
 
-          - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-          - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
-          - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
+            - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+            - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+            - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
 
     Returns:
         DatasetView: Query results that can be:
 
-          - Used directly in ML training
-          - Further filtered with additional queries
-          - Converted to PyTorch/TensorFlow dataloaders
-          - Materialized into a new dataset
+            - Used directly in ML training
+            - Further filtered with additional queries
+            - Converted to PyTorch/TensorFlow dataloaders
+            - Materialized into a new dataset
 
     <!-- test-context
     ```python
@@ -717,7 +760,7 @@ def query(query: str, token: str | None = None, creds: dict[str, str] | None = N
     """
     ...
 
-def query_async(query: str, token: str | None = None, creds: dict[str, str] | None = None) -> Future:
+def query_async(query: str, token: str | None = None, creds: dict[str, str] | None = None) -> Future[DatasetView]:
     """
     Asynchronously executes TQL queries optimized for ML data filtering and search.
 
@@ -735,9 +778,9 @@ def query_async(query: str, token: str | None = None, creds: dict[str, str] | No
         token: Optional Activeloop authentication token
         creds (dict, optional): Dictionary containing credentials used to access the dataset at the path.
 
-          - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-          - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
-          - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
+            - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+            - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+            - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
 
     Returns:
         Future: Resolves to DatasetView that can be:
@@ -777,9 +820,8 @@ def query_async(query: str, token: str | None = None, creds: dict[str, str] | No
                 SELECT * FROM "mem://images"
                 ORDER BY COSINE_SIMILARITY(embedding, ARRAY[0.1, 0.2, 0.3]) DESC
                 LIMIT 100
-            ''')
+                ''')
             return results
-
         async def main():
             similar = await search_similar()
         ```
@@ -870,6 +912,12 @@ class Branch:
         """
         ...
 
+    def open_async(self) -> Future[Dataset]:
+        """
+        Asynchronously fetches the dataset corresponding to the branch and returns a Future object.
+        """
+        ...
+
     def rename(self, new_name: str) -> None:
         """
         Renames the branch within the dataset
@@ -949,6 +997,12 @@ class BranchView:
         """
         ...
 
+    def open_async(self) -> Future[ReadOnlyDataset]:
+        """
+        Asynchronously fetches the dataset corresponding to the branch and returns a Future object.
+        """
+        ...
+
 class Branches:
     """
     Provides access to the branches within a dataset.
@@ -1015,7 +1069,7 @@ class Tag:
         """
         The name of the tag
         """
-        
+
     @property
     def message(self) -> str:
         """
@@ -1053,7 +1107,7 @@ class Tag:
         """
         ...
 
-    def open_async(self) -> Future:
+    def open_async(self) -> Future[DatasetView]:
         """
         Asynchronously fetches the dataset corresponding to the tag and returns a Future object.
         """
@@ -1106,7 +1160,7 @@ class TagView:
         """
         ...
 
-    def open_async(self) -> Future:
+    def open_async(self) -> Future[DatasetView]:
         """
         Asynchronously fetches the dataset corresponding to the tag and returns a Future object.
         """
@@ -1274,7 +1328,7 @@ class ColumnView:
         ```
     """
 
-    def __getitem__(self, index: int | slice | list | tuple) -> numpy.ndarray | list | core.Dict | str | bytes | None:
+    def __getitem__(self, index: int | slice | list | tuple) -> numpy.ndarray | list | core.Dict | str | bytes | None | Array:
         """
         Retrieve data from the column at the specified index or range.
 
@@ -1312,7 +1366,7 @@ class ColumnView:
         """
         ...
 
-    def get_async(self, index: int | slice | list | tuple) -> Future:
+    def get_async(self, index: int | slice | list | tuple) -> Future[typing.Any]:
         """
         Asynchronously retrieve data from the column. Useful for large datasets or when
         loading multiple items in ML pipelines.
@@ -1354,7 +1408,7 @@ class ColumnView:
     def get_bytes(self, index: int | slice | list | tuple) -> bytes | list:
         ...
 
-    def get_bytes_async(self, index: int | slice | list | tuple) -> Future:
+    def get_bytes_async(self, index: int | slice | list | tuple) -> Future[bytes | list]:
         ...
 
     def __len__(self) -> int:
@@ -1672,17 +1726,23 @@ class Version:
         """
         ...
 
+    def open_async(self) -> Future[ReadOnlyDataset]:
+        """
+        Asynchronously fetches the dataset corresponding to the version and returns a Future object.
+        """
+        ...
+
 class Row:
     """
     Provides mutable access to a particular row in a dataset.
     """
 
-    def __getitem__(self, column: str) ->  numpy.ndarray | list | core.Dict | str | bytes | None:
+    def __getitem__(self, column: str) ->  numpy.ndarray | list | core.Dict | str | bytes | None | Array:
         """
         The value for the given column
         """
 
-    def get_async(self, column: str) -> Future:
+    def get_async(self, column: str) -> Future[numpy.ndarray | list | core.Dict | str | bytes | None | Array]:
         """
         Asynchronously retrieves data for the specified column and returns a Future object.
 
@@ -1757,7 +1817,7 @@ class Row:
     def get_bytes(self, column: str) ->  bytes | list:
         ...
 
-    def get_bytes_async(self, column: str) -> Future:
+    def get_bytes_async(self, column: str) -> Future[bytes | list]:
         ...
 
     def to_dict(self) -> dict:
@@ -1787,12 +1847,12 @@ class RowRange:
         The number of rows in the row range
         """
 
-    def __getitem__(self, column: str) ->  numpy.ndarray | list | core.Dict | str | bytes | None:
+    def __getitem__(self, column: str) ->  numpy.ndarray | list | core.Dict | str | bytes | None | Array:
         """
         The value for the given column
         """
 
-    def get_async(self, column: str) -> Future:
+    def get_async(self, column: str) -> Future[numpy.ndarray | list | core.Dict | str | bytes | None | Array]:
         """
         Asynchronously retrieves data for the specified column and returns a Future object.
 
@@ -1867,7 +1927,7 @@ class RowRange:
     def get_bytes(self, column: str) ->  bytes | list:
         ...
 
-    def get_bytes_async(self, column: str) -> Future:
+    def get_bytes_async(self, column: str) -> Future[bytes | list]:
         ...
 
     def summary(self) -> None:
@@ -1890,7 +1950,7 @@ class RowRangeView:
         The number of rows in the row range
         """
 
-    def __getitem__(self, column: str) -> numpy.ndarray | list | core.Dict | str | bytes | None:
+    def __getitem__(self, column: str) -> numpy.ndarray | list | core.Dict | str | bytes | None | Array:
         """
         The value for the given column
         """
@@ -1900,7 +1960,7 @@ class RowRangeView:
         Prints a summary of the RowRange.
         """
 
-    def get_async(self, column: str) -> Future:
+    def get_async(self, column: str) -> Future[numpy.ndarray | list | core.Dict | str | bytes | None | Array]:
         """
         Asynchronously retrieves data for the specified column and returns a Future object.
 
@@ -1936,7 +1996,7 @@ class RowRangeView:
     def get_bytes(self, column: str) -> bytes | list:
         ...
 
-    def get_bytes_async(self, column: str) -> Future:
+    def get_bytes_async(self, column: str) -> Future[bytes | list]:
         ...
 
 class RowView:
@@ -1944,12 +2004,12 @@ class RowView:
     Provides access to a particular row in a dataset.
     """
 
-    def __getitem__(self, column: str) -> numpy.ndarray | list | core.Dict | str | bytes | None:
+    def __getitem__(self, column: str) -> numpy.ndarray | list | core.Dict | str | bytes | None | Array:
         """
         The value for the given column
         """
 
-    def get_async(self, column: str) -> Future:
+    def get_async(self, column: str) -> Future[numpy.ndarray | list | core.Dict | str | bytes | None | Array]:
         """
         Asynchronously retrieves data for the specified column and returns a Future object.
 
@@ -1985,7 +2045,7 @@ class RowView:
     def get_bytes(self, column: str) -> bytes | list:
         ...
 
-    def get_bytes_async(self, column: str) -> Future:
+    def get_bytes_async(self, column: str) -> Future[bytes | list]:
         ...
 
     def to_dict(self) -> dict:
@@ -2180,7 +2240,7 @@ class DatasetView:
         """
         ...
 
-    def query_async(self, query: str) -> Future:
+    def query_async(self, query: str) -> Future[DatasetView]:
         """
         Asynchronously executes the given TQL query against the dataset and return a future that will resolve into [deeplake.DatasetView][].
 
@@ -2220,6 +2280,30 @@ class DatasetView:
         """
         The schema of the dataset.
         """
+
+    def to_csv(self, stream: typing.Any) -> None:
+        """
+        Exports the dataset to a stream in CSV format.
+
+        <!-- test-context
+        ```python
+        import io
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("A", "text")
+        ds.add_column("B", "int32")
+        ds.append({"A": ["Alice", "Bob"], "B": [25, 30]})
+        ```
+        -->
+
+        Examples:
+            ```python
+            output = io.StringIO()
+            ds.to_csv(output)
+            print(output.getvalue())
+            ```
+        """
+        ...
 
     def tensorflow(self) -> typing.Any:
         """
@@ -2365,6 +2449,8 @@ class Dataset(DatasetView):
 
     Unlike [deeplake.ReadOnlyDataset][], instances of `Dataset` can be modified.
     """
+    def __init__(self, writer: storage.Writer) -> None:
+        ...
 
     def __str__(self) -> str:
         ...
@@ -2384,7 +2470,7 @@ class Dataset(DatasetView):
         Merge the given branch into the current branch. If no version is given, the current version will be picked up.
 
         Parameters:
-            name: The name of the branch
+            branch_name: The name of the branch
             version: The version of the dataset
 
         <!-- test-context
@@ -2636,13 +2722,13 @@ class Dataset(DatasetView):
 
         Args:
             name: The name of the column
+            default_value: The default value to set for existing rows. If not provided, existing rows will have a `None` value for the new column.
             dtype: The type of the column. Possible values include:
 
-              - Values from `deeplake.types` such as "[deeplake.types.Int32][]()"
-              - Python types: `str`, `int`, `float`
-              - Numpy types: such as `np.int32`
-              - A function reference that returns one of the above types
-            format (DataFormat, optional): The format of the column, if applicable. Only required when the dtype is [deeplake.types.DataType][].
+                - Values from `deeplake.types` such as "[deeplake.types.Int32][]()"
+                - Python types: `str`, `int`, `float`
+                - Numpy types: such as `np.int32`
+                - A function reference that returns one of the above types
 
         Examples:
             ```python
@@ -2907,7 +2993,7 @@ class Dataset(DatasetView):
         """
         Refreshes any new info from the dataset.
 
-        Similar to [deeplake.Dataset.open_read_only][] but the lightweight way.
+        Similar to [deeplake.open_read_only][] but the lightweight way.
         """
         ...
 
@@ -2917,7 +3003,7 @@ class Dataset(DatasetView):
         """
         Asynchronously refreshes any new info from the dataset.
 
-        Similar to [deeplake.Dataset.open_read_only_async][] but the lightweight way.
+        Similar to [deeplake.open_read_only_async][] but the lightweight way.
         """
         ...
 
@@ -2935,6 +3021,9 @@ class Dataset(DatasetView):
         ...
 
 class ReadOnlyDataset(DatasetView):
+    def __init__(self, reader: storage.Reader) -> None:
+        ...
+
     def __iter__(self) -> typing.Iterator[RowView]:
         """
         Row based iteration over the dataset.
@@ -3059,7 +3148,7 @@ class ReadOnlyDataset(DatasetView):
         """
         Refreshes any new info from the dataset.
 
-        Similar to [deeplake.Dataset.open_read_only][] but the lightweight way.
+        Similar to [deeplake.open_read_only][] but the lightweight way.
         """
         ...
 
@@ -3069,7 +3158,7 @@ class ReadOnlyDataset(DatasetView):
         """
         Asynchronously refreshes any new info from the dataset.
 
-        Similar to [deeplake.Dataset.open_read_only_async][] but the lightweight way.
+        Similar to [deeplake.open_read_only_async][] but the lightweight way.
         """
         ...
 
@@ -3092,11 +3181,11 @@ class Executor:
         ...
     def run_single(self) -> DatasetView:
         ...
-    def run_single_async(self) -> Future:
+    def run_single_async(self) -> Future[DatasetView]:
         ...
     def run_batch(self, parameters: list = None) -> list:
         ...
-    def run_batch_async(self, parameters: list = None) -> Future:
+    def run_batch_async(self, parameters: list = None) -> Future[list[DatasetView]]:
         ...
 
 class ExpiredTokenError(Exception):
@@ -3202,6 +3291,9 @@ class TagNotFoundError(Exception):
 class TagExistsError(Exception):
     pass
 
+class PermissionDeniedError(Exception):
+    pass
+
 class PushError(Exception):
     pass
 
@@ -3280,6 +3372,9 @@ class UnsupportedChunkCompression(Exception):
 class InvalidImageCompression(Exception):
     pass
 
+class InvalidTextCompression(Exception):
+    pass
+
 class InvalidSegmentMaskCompression(Exception):
     pass
 
@@ -3338,6 +3433,9 @@ class HTTPBodyIsMissingError(Exception):
     pass
 
 class HTTPBodyIsNotJSONError(Exception):
+    pass
+
+class InvalidURIError(Exception):
     pass
 
 class SchemaView:
@@ -3402,6 +3500,9 @@ class StorageKeyNotFound(Exception):
     pass
 
 class StorageNetworkConnectionError(Exception):
+    pass
+
+class StorageProviderMissingError(Exception):
     pass
 
 class StorageInternalError(Exception):
@@ -3498,7 +3599,7 @@ def create_async(
     creds: dict[str, str] | None = None,
     token: str | None = None,
     schema: dict[str, typing.Any] | typing.Any | None = None,
-) -> Future:
+) -> Future[Dataset]:
     """
     Asynchronously creates a new dataset at the given URL.
 
@@ -3636,6 +3737,18 @@ def exists(
         token: Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
     """
 
+def exists_async(
+    url: str, creds: dict[str, str] | None = None, token: str | None = None
+) -> Future[bool]:
+    """
+    Asynchronously check if a dataset exists at the given URL
+
+    Args:
+        url: URL of the dataset
+        creds: The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
+        token: Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
+    """
+
 def open(
     url: str, creds: dict[str, str] | None = None, token: str | None = None
 ) -> Dataset:
@@ -3698,7 +3811,7 @@ def open(
 
 def open_async(
     url: str, creds: dict[str, str] | None = None, token: str | None = None
-) -> Future:
+) -> Future[Dataset]:
     """
     Asynchronously opens an existing dataset, potentially for modifying its content.
 

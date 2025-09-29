@@ -19,7 +19,7 @@ class Dict:
     def __eq__(self: dict, other: dict | dict) -> bool:
         ...
 
-    def __getitem__(self: dict, key: str) -> numpy.ndarray | list | dict | str | bytes | None:
+    def __getitem__(self: dict, key: str) -> numpy.ndarray | list | dict | str | bytes | None | Array:
         ...
 
     def __len__(self: dict) -> int:

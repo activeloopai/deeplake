@@ -16,12 +16,13 @@ from ._deeplake import *
 from deeplake.ingestion import from_coco
 
 
-__version__ = "4.2.14"
+__version__ = "4.3.3"
 
 __all__ = [
     "__version__",
     "AgreementError",
     "AgreementNotAcceptedError",
+    "Array",
     "AuthenticationError",
     "AuthorizationError",
     "BadRequestError",
@@ -71,6 +72,7 @@ __all__ = [
     "InvalidColumnValueError",
     "InvalidCredsKeyAssignmentError",
     "InvalidImageCompression",
+    "InvalidTextCompression",
     "InvalidIndexCreationError",
     "InvalidLinkDataError",
     "InvalidLinkType",
@@ -82,6 +84,7 @@ __all__ = [
     "InvalidType",
     "InvalidTypeAndFormatPair",
     "InvalidTypeDimensions",
+    "InvalidURIError",
     "JSONIndexNotFound",
     "JSONKeyNotFound",
     "LogExistsError",
@@ -89,6 +92,7 @@ __all__ = [
     "Metadata",
     "NotFoundError",
     "NotLoggedInAgreementError",
+    "PermissionDeniedError",
     "PushError",
     "QuantizationType",
     "Random",
@@ -108,6 +112,7 @@ __all__ = [
     "StorageKeyAlreadyExists",
     "StorageKeyNotFound",
     "StorageNetworkConnectionError",
+    "StorageProviderMissingError",
     "Tag",
     "TagExistsError",
     "TagNotFoundError",
@@ -146,6 +151,7 @@ __all__ = [
     "delete_async",
     "disconnect",
     "exists",
+    "exists_async",
     "explain_query",
     "from_coco",
     "from_csv",
