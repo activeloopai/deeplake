@@ -267,7 +267,12 @@ def download_image_from_url_(url: str, header: Optional[dict[str, Any]] = None) 
     from io import BytesIO
     
     image = Image.open(BytesIO(response.content))
-    return np.array(image)
+    arr = np.array(image)
+    # Normalize grayscale images to have an explicit channel dimension (H, W, 1)
+    # so that batching produces 4D (N, H, W, C) as expected by Image dtype.
+    if arr.ndim == 2:
+        arr = arr[..., np.newaxis]
+    return arr
 
 def create_video_tensors_default_(ds):
     ds.add_column("frames", **image_tensor_create_kwargs_())
