@@ -63,6 +63,7 @@ __all__ = [
     "InvalidColumnValueError",
     "InvalidCredsKeyAssignmentError",
     "InvalidImageCompression",
+    "InvalidTextCompression",
     "InvalidIndexCreationError",
     "InvalidLinkDataError",
     "InvalidLinkType",
@@ -102,6 +103,7 @@ __all__ = [
     "StorageKeyAlreadyExists",
     "StorageKeyNotFound",
     "StorageNetworkConnectionError",
+    "StorageProviderMissingError",
     "Tag",
     "TagExistsError",
     "TagNotFoundError",
@@ -140,6 +142,7 @@ __all__ = [
     "delete_async",
     "disconnect",
     "exists",
+    "exists_async",
     "explain_query",
     "from_coco",
     "from_csv",
@@ -451,6 +454,7 @@ class Array:
         ...
 
     def __str__(self) -> str: ...
+
     def __repr__(self) -> str: ...
 
 class ReadOnlyMetadata:
@@ -669,17 +673,17 @@ def query(query: str, token: str | None = None, creds: dict[str, str] | None = N
         token: Optional Activeloop authentication token
         creds (dict, optional): Dictionary containing credentials used to access the dataset at the path.
 
-          - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-          - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
-          - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
+            - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+            - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+            - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
 
     Returns:
         DatasetView: Query results that can be:
 
-          - Used directly in ML training
-          - Further filtered with additional queries
-          - Converted to PyTorch/TensorFlow dataloaders
-          - Materialized into a new dataset
+            - Used directly in ML training
+            - Further filtered with additional queries
+            - Converted to PyTorch/TensorFlow dataloaders
+            - Materialized into a new dataset
 
     <!-- test-context
     ```python
@@ -775,9 +779,9 @@ def query_async(query: str, token: str | None = None, creds: dict[str, str] | No
         token: Optional Activeloop authentication token
         creds (dict, optional): Dictionary containing credentials used to access the dataset at the path.
 
-          - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
-          - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
-          - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
+            - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+            - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+            - If nothing is given is, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets
 
     Returns:
         Future: Resolves to DatasetView that can be:
@@ -817,9 +821,8 @@ def query_async(query: str, token: str | None = None, creds: dict[str, str] | No
                 SELECT * FROM "mem://images"
                 ORDER BY COSINE_SIMILARITY(embedding, ARRAY[0.1, 0.2, 0.3]) DESC
                 LIMIT 100
-            ''')
+                ''')
             return results
-
         async def main():
             similar = await search_similar()
         ```
@@ -1362,6 +1365,11 @@ class ColumnView:
             items = column[[1, 5, 10]]
             ```
         """
+
+    def __repr__(self) -> str:
+        ...
+
+    def __str__(self) -> str:
         ...
 
     def get_async(self, index: int | slice | list | tuple) -> Future[typing.Any]:
@@ -1432,7 +1440,7 @@ class ColumnView:
         ...
 
     @property
-    def indexes(self) -> list[types.IndexType]:
+    def indexes(self) -> list[types.Index]:
         """
         Get a list of indexes on the column.
 
@@ -1553,6 +1561,11 @@ class Column(ColumnView):
         ds["images"].metadata["std"] = [0.229, 0.224, 0.225]
         ```
     """
+    def __repr__(self) -> str:
+        ...
+
+    def __str__(self) -> str:
+        ...
 
     def __setitem__(self, index: int | slice, value: typing.Any) -> None:
         """
@@ -1587,15 +1600,39 @@ class Column(ColumnView):
             ```
         """
         ...
-    def create_index(self, index_type: types.IndexType) -> None:
+    def create_index(self, index_type: str | types.IndexType | types.TextIndex | types.JsonIndex | types.NumericIndex | types.EmbeddingIndexType | types.EmbeddingsMatrixIndexType | types.Index) -> None:
         """
         Create an index on the column.
 
         Parameters:
-            index_type: Can be:
+            index_type: Index type to create. Can be specified in multiple ways:
 
-              - TextIndexType: Index for text columns
-              - EmbeddingIndexType: Index for embedding columns
+              **Using IndexType Enum (recommended)** - automatically detects column type:
+
+              - ``deeplake.types.Inverted``: Keyword lookup index for text/JSON/numeric data. Use with ``CONTAINS()``
+              - ``deeplake.types.BM25``: BM25-based full-text search for text. Use with ``BM25_SIMILARITY()``
+              - ``deeplake.types.Exact``: Exact match index for text data
+              - ``deeplake.types.Clustered``: Clustered embedding index (default for embeddings)
+              - ``deeplake.types.ClusteredQuantized``: Quantized clustered embedding index (faster, slight accuracy loss)
+              - ``deeplake.types.PooledQuantized``: Pooled quantized index for 2D embedding matrices. Use with ``MAXSIM()``
+
+              **Using String** - automatically detects column type:
+
+              - ``"inverted_index"``: Same as ``deeplake.types.Inverted``
+              - ``"bm25"``: Same as ``deeplake.types.BM25``
+              - ``"exact"``: Same as ``deeplake.types.Exact``
+              - ``"clustered"``: Same as ``deeplake.types.Clustered``
+              - ``"clustered_quantized"``: Same as ``deeplake.types.ClusteredQuantized``
+              - ``"pooled_quantized"``: Same as ``deeplake.types.PooledQuantized``
+
+              **Using Wrapped Types** - explicit type specification:
+
+              - [deeplake.types.TextIndex][]() with ``index_type``: For text columns (Inverted, BM25, Exact)
+              - [deeplake.types.NumericIndex][]() with ``index_type``: For numeric columns (Inverted)
+              - [deeplake.types.JsonIndex][]() with ``index_type``: For Dict columns (Inverted)
+              - [deeplake.types.EmbeddingIndexType][]() with ``index_type``: For embedding columns (Clustered, ClusteredQuantized)
+              - [deeplake.types.EmbeddingsMatrixIndexType][](): For 2D embedding matrix columns (PooledQuantized)
+              - [deeplake.types.Index][]() with ``wrapped_type``: Generic wrapper for any index type
 
         <!-- test-context
         ```python
@@ -1606,22 +1643,80 @@ class Column(ColumnView):
 
         Examples:
             ```python
-            ds.add_column("A", deeplake.types.Text)
-            ds.append({"A": ["Test"]})
-            ds["A"].create_index(deeplake.types.TextIndex(deeplake.types.BM25))
+            # Text column indexing with enum (recommended)
+            ds.add_column("text_col", deeplake.types.Text())
+            ds.append({"text_col": ["machine learning fundamentals"]})
+            ds["text_col"].create_index(deeplake.types.Inverted)  # For CONTAINS queries
+            ```
+
+            ```python
+            # Text column indexing with string
+            ds = deeplake.create("tmp://")
+            ds.add_column("text_col", deeplake.types.Text())
+            ds.append({"text_col": ["machine learning fundamentals"]})
+            ds["text_col"].create_index("bm25")  # For BM25_SIMILARITY queries
+            ```
+
+            ```python
+            # Numeric column indexing
+            ds = deeplake.create("tmp://")
+            ds.add_column("price", deeplake.types.Float32())
+            ds.append({"price": [29.99]})
+            ds["price"].create_index(deeplake.types.Inverted)  # For numeric CONTAINS queries
+            ```
+
+            ```python
+            # Dict (JSON) column indexing with wrapped type
+            ds = deeplake.create("tmp://")
+            ds.add_column("metadata", deeplake.types.Dict())
+            ds.append({"metadata": [{"category": "ml"}]})
+            ds["metadata"].create_index(deeplake.types.JsonIndex(deeplake.types.Inverted))
+            ```
+
+            ```python
+            # 2D Array for embedding matrices (ColBERT-style retrieval)
+            ds = deeplake.create("tmp://")
+            ds.add_column("token_embeddings", deeplake.types.Array("float32", dimensions=2))
+            import numpy as np
+            ds.append({"token_embeddings": [np.random.rand(10, 128)]})
+            ds["token_embeddings"].create_index(deeplake.types.PooledQuantized)  # For MAXSIM queries
             ```
         """
         ...
 
-    def drop_index(self, index_type: types.IndexType) -> None:
+    def drop_index(self, index_type: str | types.IndexType | types.TextIndex | types.JsonIndex | types.NumericIndex | types.EmbeddingIndexType | types.EmbeddingsMatrixIndexType | types.Index) -> None:
         """
-        Drop an index on the column.
+        Drop an index from the column.
 
         Parameters:
-            index_type: Can be:
+            index_type: Index type to drop. Can be specified in multiple ways:
 
-              - TextIndexType: Index for text columns
-              - EmbeddingIndexType: Index for embedding columns
+              **Using IndexType Enum (recommended)** - automatically detects column type:
+
+              - ``deeplake.types.Inverted``: Drop inverted index for text/JSON/numeric data
+              - ``deeplake.types.BM25``: Drop BM25 index for text
+              - ``deeplake.types.Exact``: Drop exact match index for text
+              - ``deeplake.types.Clustered``: Drop clustered embedding index
+              - ``deeplake.types.ClusteredQuantized``: Drop quantized clustered embedding index
+              - ``deeplake.types.PooledQuantized``: Drop pooled quantized index for 2D embedding matrices
+
+              **Using String** - automatically detects column type:
+
+              - ``"inverted_index"``: Same as ``deeplake.types.Inverted``
+              - ``"bm25"``: Same as ``deeplake.types.BM25``
+              - ``"exact"``: Same as ``deeplake.types.Exact``
+              - ``"clustered"``: Same as ``deeplake.types.Clustered``
+              - ``"clustered_quantized"``: Same as ``deeplake.types.ClusteredQuantized``
+              - ``"pooled_quantized"``: Same as ``deeplake.types.PooledQuantized``
+
+              **Using Wrapped Types** - explicit type specification:
+
+              - [deeplake.types.TextIndex][]() with ``index_type``: For text columns (Inverted, BM25, Exact)
+              - [deeplake.types.NumericIndex][]() with ``index_type``: For numeric columns (Inverted)
+              - [deeplake.types.JsonIndex][]() with ``index_type``: For Dict columns (Inverted)
+              - [deeplake.types.EmbeddingIndexType][]() with ``index_type``: For embedding columns (Clustered, ClusteredQuantized)
+              - [deeplake.types.EmbeddingsMatrixIndexType][](): For 2D embedding matrix columns (PooledQuantized)
+              - [deeplake.types.Index][]() with ``wrapped_type``: Generic wrapper for any index type
 
         <!-- test-context
         ```python
@@ -1632,9 +1727,48 @@ class Column(ColumnView):
 
         Examples:
             ```python
-            ds.add_column("A", deeplake.types.Text)
-            ds["A"].create_index(deeplake.types.TextIndex(deeplake.types.BM25))
-            ds["A"].drop_index(deeplake.types.TextIndex(deeplake.types.BM25))
+            # Drop text index using enum (recommended)
+            ds.add_column("text_col", deeplake.types.Text())
+            ds.append({"text_col": ["sample text"]})
+            ds["text_col"].create_index(deeplake.types.Inverted)
+            ds["text_col"].drop_index(deeplake.types.Inverted)
+            ```
+
+            ```python
+            # Drop text index using string
+            ds = deeplake.create("tmp://")
+            ds.add_column("text_col", deeplake.types.Text())
+            ds.append({"text_col": ["sample text"]})
+            ds["text_col"].create_index("bm25")
+            ds["text_col"].drop_index("bm25")
+            ```
+
+            ```python
+            # Drop text index using wrapped type
+            ds = deeplake.create("tmp://")
+            ds.add_column("text_col", deeplake.types.Text())
+            ds.append({"text_col": ["sample text"]})
+            ds["text_col"].create_index(deeplake.types.TextIndex(deeplake.types.Exact))
+            ds["text_col"].drop_index(deeplake.types.TextIndex(deeplake.types.Exact))
+            ```
+
+            ```python
+            # Drop numeric index using wrapped type
+            ds = deeplake.create("tmp://")
+            ds.add_column("price", deeplake.types.Float32())
+            ds.append({"price": [19.99]})
+            ds["price"].create_index(deeplake.types.NumericIndex(deeplake.types.Inverted))
+            ds["price"].drop_index(deeplake.types.NumericIndex(deeplake.types.Inverted))
+            ```
+
+            ```python
+            # Drop 2D embedding matrix index
+            ds = deeplake.create("tmp://")
+            ds.add_column("token_embeddings", deeplake.types.Array("float32", dimensions=2))
+            import numpy as np
+            ds.append({"token_embeddings": [np.random.rand(10, 128)]})
+            ds["token_embeddings"].create_index(deeplake.types.PooledQuantized)
+            ds["token_embeddings"].drop_index(deeplake.types.PooledQuantized)
             ```
         """
         ...
@@ -1690,6 +1824,9 @@ class Version:
     """
 
     def __str__(self) -> str: ...
+
+    def __repr__(self) -> str: ...
+
     @property
     def client_timestamp(self) -> datetime.datetime:
         """
@@ -2447,8 +2584,13 @@ class Dataset(DatasetView):
 
     Unlike [deeplake.ReadOnlyDataset][], instances of `Dataset` can be modified.
     """
+    def __init__(self, writer: storage.Writer) -> None:
+        ...
 
     def __str__(self) -> str:
+        ...
+
+    def __repr__(self) -> str:
         ...
 
     def branch(self, name: str, version: str | None = None) -> Branch:
@@ -2461,13 +2603,14 @@ class Dataset(DatasetView):
         """
         ...
 
-    def merge(self, branch_name: str, version: str | None = None) -> None:
+    def merge(self, branch_name: str, version: str | None = None, message: str | None = None) -> None:
         """
         Merge the given branch into the current branch. If no version is given, the current version will be picked up.
 
         Parameters:
-            name: The name of the branch
+            branch_name: The name of the branch
             version: The version of the dataset
+            message: An optional commit message for the merge commit
 
         <!-- test-context
         ```python
@@ -2718,13 +2861,13 @@ class Dataset(DatasetView):
 
         Args:
             name: The name of the column
+            default_value: The default value to set for existing rows. If not provided, existing rows will have a `None` value for the new column.
             dtype: The type of the column. Possible values include:
 
-              - Values from `deeplake.types` such as "[deeplake.types.Int32][]()"
-              - Python types: `str`, `int`, `float`
-              - Numpy types: such as `np.int32`
-              - A function reference that returns one of the above types
-            format (DataFormat, optional): The format of the column, if applicable. Only required when the dtype is [deeplake.types.DataType][].
+                - Values from `deeplake.types` such as "[deeplake.types.Int32][]()"
+                - Python types: `str`, `int`, `float`
+                - Numpy types: such as `np.int32`
+                - A function reference that returns one of the above types
 
         Examples:
             ```python
@@ -2989,7 +3132,7 @@ class Dataset(DatasetView):
         """
         Refreshes any new info from the dataset.
 
-        Similar to [deeplake.Dataset.open_read_only][] but the lightweight way.
+        Similar to [deeplake.open_read_only][] but the lightweight way.
         """
         ...
 
@@ -2999,7 +3142,7 @@ class Dataset(DatasetView):
         """
         Asynchronously refreshes any new info from the dataset.
 
-        Similar to [deeplake.Dataset.open_read_only_async][] but the lightweight way.
+        Similar to [deeplake.open_read_only_async][] but the lightweight way.
         """
         ...
 
@@ -3017,6 +3160,9 @@ class Dataset(DatasetView):
         ...
 
 class ReadOnlyDataset(DatasetView):
+    def __init__(self, reader: storage.Reader) -> None:
+        ...
+
     def __iter__(self) -> typing.Iterator[RowView]:
         """
         Row based iteration over the dataset.
@@ -3031,6 +3177,9 @@ class ReadOnlyDataset(DatasetView):
         ...
 
     def __str__(self) -> str:
+        ...
+
+    def __repr__(self) -> str:
         ...
 
     @property
@@ -3089,6 +3238,13 @@ class ReadOnlyDataset(DatasetView):
         ...
 
     @property
+    def creds_key(self) -> str | None:
+        """
+        The key used to store the credentials for the dataset.
+        """
+        ...
+
+    @property
     def id(self) -> str:
         """
         The unique identifier of the dataset. Value is auto-generated at creation time.
@@ -3141,7 +3297,7 @@ class ReadOnlyDataset(DatasetView):
         """
         Refreshes any new info from the dataset.
 
-        Similar to [deeplake.Dataset.open_read_only][] but the lightweight way.
+        Similar to [deeplake.open_read_only][] but the lightweight way.
         """
         ...
 
@@ -3151,7 +3307,7 @@ class ReadOnlyDataset(DatasetView):
         """
         Asynchronously refreshes any new info from the dataset.
 
-        Similar to [deeplake.Dataset.open_read_only_async][] but the lightweight way.
+        Similar to [deeplake.open_read_only_async][] but the lightweight way.
         """
         ...
 
@@ -3259,6 +3415,8 @@ class History:
 
     def __str__(self) -> str: ...
 
+    def __repr__(self) -> str: ...
+
 
 class ReadOnlyDatasetModificationError(Exception):
     pass
@@ -3365,6 +3523,9 @@ class UnsupportedChunkCompression(Exception):
 class InvalidImageCompression(Exception):
     pass
 
+class InvalidTextCompression(Exception):
+    pass
+
 class InvalidSegmentMaskCompression(Exception):
     pass
 
@@ -3445,6 +3606,9 @@ class SchemaView:
         """
         ...
 
+    def __repr__(self) -> str:
+        ...
+
     @property
     def columns(self) -> list[ColumnDefinitionView]:
         """
@@ -3471,6 +3635,9 @@ class Schema:
         """
         ...
 
+    def __repr__(self) -> str:
+        ...
+
     @property
     def columns(self) -> list[ColumnDefinition]:
         """
@@ -3490,6 +3657,9 @@ class StorageKeyNotFound(Exception):
     pass
 
 class StorageNetworkConnectionError(Exception):
+    pass
+
+class StorageProviderMissingError(Exception):
     pass
 
 class StorageInternalError(Exception):
@@ -3724,6 +3894,18 @@ def exists(
         token: Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
     """
 
+def exists_async(
+    url: str, creds: dict[str, str] | None = None, token: str | None = None
+) -> Future[bool]:
+    """
+    Asynchronously check if a dataset exists at the given URL
+
+    Args:
+        url: URL of the dataset
+        creds: The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
+        token: Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
+    """
+
 def open(
     url: str, creds: dict[str, str] | None = None, token: str | None = None
 ) -> Dataset:
@@ -3884,20 +4066,27 @@ def connect(
     -->
 
     Examples:
+        #### Connecting Datasets in the Python API
+
+        Connect an existing dataset to your Activeloop organization:
         ```python
+        # Basic connection from S3 to Activeloop
         ds = deeplake.connect("s3://bucket/path/to/dataset",
             "al://my_org/dataset")
 
+        # Connect with managed credentials
         ds = deeplake.connect("s3://bucket/path/to/dataset",
             "al://my_org/dataset", creds_key="my_key")
 
-        # Connect the dataset as al://my_org/dataset
+        # Connect using org_id (dataset name is inferred from source)
         ds = deeplake.connect("s3://bucket/path/to/dataset",
             org_id="my_org")
 
+        # Connect from Azure
         ds = deeplake.connect("az://bucket/path/to/dataset",
             "al://my_org/dataset", creds_key="my_key")
 
+        # Connect from Google Cloud Storage
         ds = deeplake.connect("gcs://bucket/path/to/dataset",
             "al://my_org/dataset", creds_key="my_key")
         ```
@@ -3917,9 +4106,17 @@ def disconnect(url: str, token: str | None = None) -> None:
         token (str, optional): Activeloop token to authenticate user.
 
     Examples:
+        Disconnect a dataset from your Activeloop organization:
         ```python
+        # Basic disconnect
         deeplake.disconnect("al://my_org/dataset_name")
+
+        # Disconnect with authentication token
+        deeplake.disconnect("al://my_org/dataset_name", token="your_token")
         ```
+
+        Note: The data in the original location (S3, GCS, Azure, etc.) remains intact.
+        Only the connection to the Activeloop organization is removed.
     """
 
 def open_read_only(

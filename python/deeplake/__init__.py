@@ -1,4 +1,5 @@
 import os
+import platform
 from typing import Callable, Any, Dict, Optional
 
 try:
@@ -16,7 +17,7 @@ from ._deeplake import *
 from deeplake.ingestion import from_coco
 
 
-__version__ = "4.3.0"
+__version__ = "4.4.1"
 
 __all__ = [
     "__version__",
@@ -72,6 +73,7 @@ __all__ = [
     "InvalidColumnValueError",
     "InvalidCredsKeyAssignmentError",
     "InvalidImageCompression",
+    "InvalidTextCompression",
     "InvalidIndexCreationError",
     "InvalidLinkDataError",
     "InvalidLinkType",
@@ -111,6 +113,7 @@ __all__ = [
     "StorageKeyAlreadyExists",
     "StorageKeyNotFound",
     "StorageNetworkConnectionError",
+    "StorageProviderMissingError",
     "Tag",
     "TagExistsError",
     "TagNotFoundError",
@@ -149,6 +152,7 @@ __all__ = [
     "delete_async",
     "disconnect",
     "exists",
+    "exists_async",
     "explain_query",
     "from_coco",
     "from_csv",
@@ -346,17 +350,19 @@ def __register_at_fork():
     def after_fork_child():
         pass
 
-    os.register_at_fork(
-        before=before_fork,
-        after_in_parent=after_fork_parent,
-        after_in_child=after_fork_child,
-    )
 
-    ff = os.fork
-    def fork():
-        __prepare_atfork()
-        return ff()
+    if platform.system() != "Windows":
+        os.register_at_fork(
+            before=before_fork,
+            after_in_parent=after_fork_parent,
+            after_in_child=after_fork_child,
+        )
 
-    os.fork = fork
+        ff = os.fork
+        def fork():
+            __prepare_atfork()
+            return ff()
+
+        os.fork = fork
 
 __register_at_fork()
