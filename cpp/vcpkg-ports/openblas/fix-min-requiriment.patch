@@ -1,0 +1,13 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 6d09f5658..07ae31a7e 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2,7 +2,7 @@
+ ## Author: Hank Anderson <hank@statease.com>
+ ##
+ 
+-cmake_minimum_required(VERSION 2.8.5)
++cmake_minimum_required(VERSION 3.5)
+ 
+ project(OpenBLAS C ASM)
+ 

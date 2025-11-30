@@ -1,0 +1,186 @@
+{
+    "version": 6,
+    "configurePresets": [
+        {
+            "name": "template-unix",
+            "hidden": true,
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/../builds/${presetName}",
+            "condition": {
+                "type": "notEquals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "template-windows",
+            "hidden": true,
+            "generator": "Visual Studio 17 2022",
+            "binaryDir": "${sourceDir}/../builds/${presetName}",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "tests",
+            "inherits": "template-unix",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "AL_TESTS": "ON",
+                "AL_ASSERTIONS": "ON",
+                "AL_ASAN": "OFF",
+                "AL_TSAN": "OFF",
+                "AL_DEBUG": "ON"
+            }
+        },
+        {
+            "name": "tests-windows",
+            "inherits": "template-windows",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "AL_TESTS": "ON",
+                "AL_ASSERTIONS": "ON",
+                "AL_ASAN": "OFF",
+                "AL_TSAN": "OFF",
+                "AL_DEBUG": "ON"
+            }
+        },
+        {
+            "name": "tests-release",
+            "inherits": "template-unix",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "AL_TESTS": "ON",
+                "AL_ASSERTIONS": "ON",
+                "AL_DEBUG": "OFF"
+            }
+        },
+        {
+            "name": "tests-release-windows",
+            "inherits": "template-windows",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "AL_TESTS": "ON",
+                "AL_ASSERTIONS": "ON",
+                "AL_DEBUG": "OFF"
+            }
+        },
+        {
+            "name": "deeplake-pg-dev",
+            "inherits": "template-unix",
+            "cacheVariables": {
+                "AL_PG": "ON",
+                "AL_ASSERTIONS": "ON",
+                "AL_ENTERPRISE": "OFF",
+                "AL_ENABLE_SENTRY": "OFF",
+                "AL_V4": "ON"
+            }
+        },
+        {
+            "name": "deeplake-pg-dev-windows",
+            "inherits": "template-windows",
+            "cacheVariables": {
+                "AL_PG": "ON",
+                "AL_ASSERTIONS": "ON",
+                "AL_ENTERPRISE": "OFF",
+                "AL_ENABLE_SENTRY": "OFF",
+                "AL_V4": "ON"
+            }
+        },
+        {
+            "name": "deeplake-pg-debug",
+            "inherits": "deeplake-pg-dev",
+            "cacheVariables": {
+                "AL_DEBUG": "ON"
+            }
+        },
+        {
+            "name": "deeplake-pg-debug-windows",
+            "inherits": "deeplake-pg-dev-windows",
+            "cacheVariables": {
+                "AL_DEBUG": "ON"
+            }
+        },
+        {
+            "name": "deeplake-pg-prod",
+            "inherits": "template-unix",
+            "cacheVariables": {
+                "AL_PG": "ON",
+                "AL_ASSERTIONS": "OFF",
+                "AL_DEBUG": "OFF",
+                "AL_V4": "ON"
+            }
+        },
+        {
+            "name": "deeplake-pg-prod-windows",
+            "inherits": "template-windows",
+            "cacheVariables": {
+                "AL_PG": "ON",
+                "AL_ASSERTIONS": "OFF",
+                "AL_DEBUG": "OFF",
+                "AL_V4": "ON"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "basic-template",
+            "hidden": true,
+            "jobs": 10
+        },
+        {
+            "name": "tests",
+            "inherits": "basic-template",
+            "configurePreset": "tests"
+        },
+        {
+            "name": "tests-windows",
+            "inherits": "basic-template",
+            "configurePreset": "tests-windows"
+        },
+        {
+            "name": "tests-release",
+            "inherits": "basic-template",
+            "configurePreset": "tests-release",
+            "configuration": "Release"
+        },
+        {
+            "name": "tests-release-windows",
+            "inherits": "basic-template",
+            "configurePreset": "tests-release-windows",
+            "configuration": "Release"
+        },
+        {
+            "name": "deeplake-pg-dev",
+            "inherits": "basic-template",
+            "configurePreset": "deeplake-pg-dev"
+        },
+        {
+            "name": "deeplake-pg-dev-windows",
+            "inherits": "basic-template",
+            "configurePreset": "deeplake-pg-dev-windows"
+        },
+        {
+            "name": "deeplake-pg-debug",
+            "inherits": "basic-template",
+            "configurePreset": "deeplake-pg-debug"
+        },
+        {
+            "name": "deeplake-pg-debug-windows",
+            "inherits": "basic-template",
+            "configurePreset": "deeplake-pg-debug-windows"
+        },
+        {
+            "name": "deeplake-pg-prod",
+            "inherits": "basic-template",
+            "configurePreset": "deeplake-pg-prod"
+        },
+        {
+            "name": "deeplake-pg-prod-windows",
+            "inherits": "basic-template",
+            "configurePreset": "deeplake-pg-prod-windows"
+        }
+    ]
+}

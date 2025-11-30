@@ -1,0 +1,47 @@
+diff --git a/api/include/opentelemetry/logs/event_logger.h b/api/include/opentelemetry/logs/event_logger.h
+index 2ede6f3f..1a737173 100644
+--- a/api/include/opentelemetry/logs/event_logger.h
++++ b/api/include/opentelemetry/logs/event_logger.h
+@@ -69,9 +69,8 @@ class EventLogger
+       return;
+     }
+ 
+-    IgnoreTraitResult(
+-        detail::LogRecordSetterTrait<typename std::decay<ArgumentType>::type>::template Set(
+-            log_record.get(), std::forward<ArgumentType>(args))...);
++    IgnoreTraitResult(detail::LogRecordSetterTrait<typename std::decay<ArgumentType>::type>::Set(
++                log_record.get(), std::forward<ArgumentType>(args))...);
+ 
+     EmitEvent(event_name, std::move(log_record));
+   }
+diff --git a/api/include/opentelemetry/logs/logger.h b/api/include/opentelemetry/logs/logger.h
+index a2bd2c0b..1ce32540 100644
+--- a/api/include/opentelemetry/logs/logger.h
++++ b/api/include/opentelemetry/logs/logger.h
+@@ -72,9 +72,8 @@ class Logger
+       return;
+     }
+ 
+-    IgnoreTraitResult(
+-        detail::LogRecordSetterTrait<typename std::decay<ArgumentType>::type>::template Set(
+-            log_record.get(), std::forward<ArgumentType>(args))...);
++    IgnoreTraitResult(detail::LogRecordSetterTrait<typename std::decay<ArgumentType>::type>::Set(
++        log_record.get(), std::forward<ArgumentType>(args))...);
+ 
+     EmitLogRecord(std::move(log_record));
+   }
+diff --git a/api/include/opentelemetry/logs/logger_type_traits.h b/api/include/opentelemetry/logs/logger_type_traits.h
+index aea21736..823ec217 100644
+--- a/api/include/opentelemetry/logs/logger_type_traits.h
++++ b/api/include/opentelemetry/logs/logger_type_traits.h
+@@ -161,8 +161,8 @@ struct LogRecordSetterTrait
+                 * = nullptr>
+   inline static LogRecord *Set(LogRecord *log_record, ArgumentType &&arg) noexcept
+   {
+-    return LogRecordSetterTrait<common::KeyValueIterable>::template Set(
+-        log_record, std::forward<ArgumentType>(arg));
++    return LogRecordSetterTrait<common::KeyValueIterable>::Set(log_record,
++            std::forward<ArgumentType>(arg));
+   }
+ 
+   template <class ArgumentType,

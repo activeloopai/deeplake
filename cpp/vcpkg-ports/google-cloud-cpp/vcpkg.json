@@ -1,0 +1,42 @@
+{
+    "name": "google-cloud-cpp",
+    "version": "2.33.0",
+    "description": "C++ Client Libraries for Google Cloud Platform APIs.",
+    "homepage": "https://github.com/googleapis/google-cloud-cpp",
+    "license": "Apache-2.0",
+    "supports": "!uwp",
+    "dependencies": [
+        "abseil",
+        {
+            "name": "openssl",
+            "platform": "!windows"
+        },
+        {
+            "name": "vcpkg-cmake",
+            "host": true
+        },
+        {
+            "name": "vcpkg-cmake-config",
+            "host": true
+        }
+    ],
+    "default-features": [
+        "storage"
+    ],
+    "features": {
+        "storage": {
+            "description": "The Google Cloud Storage C++ client library",
+            "dependencies": [
+                "crc32c",
+                "openssl",
+                {
+                    "name": "curl",
+                    "features": [
+                        "ssl"
+                    ]
+                },
+                "nlohmann-json"
+            ]
+        }
+    }
+}
