@@ -1,0 +1,49 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "es2020",
+    "allowJs": true,
+    "outDir": "./dist",
+    "rootDir": "/source/javascript/",
+    "strict": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true
+  },
+  "typedocOptions": {
+    "name": "Deeplake",
+    "readme": "none",
+    "sort": [
+      "static-first"
+    ],
+    "excludePrivate": true,
+    "excludeProtected": true,
+    "visibilityFilters": {},
+    "entryPoints": [
+      "/source/javascript/deeplake/*"
+    ],
+    "plugin": [
+      "typedoc-plugin-markdown"
+    ],
+    "out": "/docs/docs/api-js",
+    "entryFileName": "index",
+    "mergeReadme": true,
+    "classPropertiesFormat": "table",
+    "enumMembersFormat": "table",
+    "parametersFormat": "table",
+    "propertiesFormat": "table",
+    "propertyMembersFormat": "table",
+    "typeDeclarationFormat": "table",
+    "indexFormat": "table",
+    "useCodeBlocks": true,
+    "expandObjects": false,
+    "hidePageHeader": true,
+    "hideBreadcrumbs": true,
+    "outputFileStrategy": "modules"
+  },
+  "include": [
+    "/source/javascript/deeplake/*.ts"
+  ],
+  "exclude": [
+    "/source/javascript/shared/import_script.ts"
+  ]
+}

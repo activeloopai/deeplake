@@ -1,0 +1,4 @@
+nav:
+  - Quickstart: quickstart.md
+  - Authentication: authentication.md
+  - Storage and Credentials: storage-and-creds

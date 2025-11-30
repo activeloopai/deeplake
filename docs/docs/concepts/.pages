@@ -1,0 +1,4 @@
+nav:
+  - Architecture: architecture.md 
+  - Data Model: data-model.md
+  - Performance: performance.md

@@ -1,0 +1,5 @@
+nav:
+    - Quickstart: deep-learning.ipynb
+    - DataLoader: async-data-loader.md
+    - Object Detection with MM: mmdet.md
+    - Segmentation with MM: mmseg.md
