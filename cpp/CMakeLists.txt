@@ -126,11 +126,6 @@ endif()
 set(DEFAULT_PARENT_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE STRING "Project parent directory")
 set(ENV{DEFAULT_PARENT_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 
-include_directories(./)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/.ext)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/.ext/include)
-
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 set(old_log_level ${CMAKE_MESSAGE_LOG_LEVEL})

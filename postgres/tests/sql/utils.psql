@@ -1,0 +1,377 @@
+\set VERBOSITY verbose
+
+\timing
+-- SET log_min_messages TO debug1;
+-- SET client_min_messages TO debug1;
+select pg_backend_pid();
+
+-- Checks the row count of query specified
+CREATE OR REPLACE FUNCTION assert_query_row_count(expected_count INTEGER, query TEXT) RETURNS VOID AS $$
+DECLARE
+    actual_count INTEGER;
+    debug_query TEXT;
+    result_record RECORD;
+BEGIN
+    debug_query := format('SELECT count(*) FROM (%s) AS subquery', query);
+    RAISE NOTICE 'Executing query: %', debug_query;
+    
+    -- Let's also try to see what the subquery returns
+    RAISE NOTICE 'Testing subquery directly: %', query;
+    FOR result_record IN EXECUTE query LOOP
+        RAISE NOTICE 'Subquery row: %', result_record;
+    END LOOP;
+    
+    EXECUTE debug_query INTO actual_count;
+    RAISE NOTICE 'Actual count: %', actual_count;
+    
+    IF actual_count != expected_count THEN
+        RAISE EXCEPTION 'Check failed: Expected row count = %, but got %', expected_count, actual_count;
+    ELSE
+        RAISE NOTICE 'Check passed: Expected row count = %.', expected_count;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Checks the whole row count of table specified 
+CREATE OR REPLACE FUNCTION assert_table_row_count(expected_count INTEGER, table_name TEXT) RETURNS VOID AS $$
+DECLARE
+    actual_count INTEGER;
+BEGIN
+    EXECUTE format('SELECT count(*) FROM %I', table_name) INTO actual_count;
+
+    IF actual_count != expected_count THEN
+        RAISE EXCEPTION 'Check failed: Expected % rows in %, but got %', expected_count, table_name, actual_count;
+    ELSE
+        RAISE NOTICE 'Check passed: % has % rows as expected.', table_name, expected_count;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+--
+CREATE OR REPLACE FUNCTION assert_query_result(query TEXT, expected_table TEXT) RETURNS VOID AS $$
+DECLARE
+    mismatch_count INTEGER;
+BEGIN
+    -- Check for extra/mismatched rows with order
+    EXECUTE format(
+        'WITH numbered_query AS (
+            SELECT *, row_number() OVER () AS rn FROM (%s) AS subquery
+        ),
+        numbered_expected AS (
+            SELECT *, row_number() OVER () AS rn FROM %I
+        )
+        SELECT COUNT(*) FROM (
+            SELECT * FROM numbered_query EXCEPT SELECT * FROM numbered_expected
+        ) AS differences', 
+        query, expected_table
+    ) INTO mismatch_count;
+
+    IF mismatch_count > 0 THEN
+        RAISE EXCEPTION 'Check failed: Query result has % unexpected/mismatched row(s) considering order', mismatch_count;
+    END IF;
+
+    -- Check for missing rows with order
+    EXECUTE format(
+        'WITH numbered_query AS (
+            SELECT *, row_number() OVER () AS rn FROM (%s) AS subquery
+        ),
+        numbered_expected AS (
+            SELECT *, row_number() OVER () AS rn FROM %I
+        )
+        SELECT COUNT(*) FROM (
+            SELECT * FROM numbered_expected EXCEPT SELECT * FROM numbered_query
+        ) AS missing_rows', 
+        query, expected_table
+    ) INTO mismatch_count;
+
+    IF mismatch_count > 0 THEN
+        RAISE EXCEPTION 'Check failed: Query result is missing % expected row(s) considering order', mismatch_count;
+    END IF;
+
+    -- If no mismatches
+    RAISE NOTICE 'Check passed: Query result matches expected output in order.';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Helper function to generate random float array
+CREATE OR REPLACE FUNCTION generate_random_float_array(length INT) RETURNS FLOAT4[] AS $$
+DECLARE
+    arr FLOAT4[];
+BEGIN
+    -- Generate random float array
+    SELECT array_agg(random()::FLOAT4) INTO arr
+    FROM generate_series(1, length);
+    RETURN arr;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION generate_random_float_2d_array(rows INT, cols INT)
+RETURNS FLOAT4[][] AS $$
+BEGIN
+    RETURN (
+        SELECT array_agg(row_array)
+        FROM (
+            SELECT ARRAY(
+                SELECT random()::FLOAT4
+                FROM generate_series(1, cols)
+            ) AS row_array
+            FROM generate_series(1, rows)
+        ) AS sub
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION execute_query(query TEXT) RETURNS VOID AS $$
+BEGIN
+    EXECUTE query;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION execute_and_check_query_text(query TEXT, expected_result TEXT) RETURNS VOID AS $$
+DECLARE
+    actual_result TEXT;
+BEGIN
+    -- Execute the query and store the result (ensure it returns only one row)
+    EXECUTE query INTO actual_result;
+
+    -- Handle NULL values to avoid unexpected failures
+    IF COALESCE(actual_result, '') != COALESCE(expected_result, '') THEN
+        RAISE EXCEPTION 'Check failed: Expected result "%", but got "%"', expected_result, actual_result;
+    ELSE
+        RAISE NOTICE 'Check passed: Result matches expected output "%"', expected_result;
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error executing query "%": %', query, SQLERRM;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION check_plan_node(node json, node_types TEXT[], check_parallel boolean DEFAULT false)
+RETURNS boolean
+LANGUAGE plpgsql AS $$
+DECLARE
+    child json;
+    node_type TEXT;
+BEGIN
+    -- Get node type
+    node_type := node->>'Node Type';
+    
+    -- Check if this is one of the specified node types
+    IF node_type = ANY(node_types) THEN
+        -- For parallel check, verify the node is parallel aware
+        IF check_parallel THEN
+            RETURN (node->>'Parallel Aware')::boolean = true;
+        ELSE
+            RETURN true;
+        END IF;
+    END IF;
+    
+    -- Recursively check Plans array if it exists
+    IF node->'Plans' IS NOT NULL THEN
+        FOR child IN SELECT json_array_elements(node->'Plans')
+        LOOP
+            IF check_plan_node(child, node_types, check_parallel) THEN
+                RETURN true;
+            END IF;
+        END LOOP;
+    END IF;
+    
+    RETURN false;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION is_using_index_scan(query_text TEXT)
+RETURNS boolean
+LANGUAGE plpgsql AS $$
+DECLARE
+    explain_json json;
+BEGIN
+    -- Execute EXPLAIN in JSON format for easier parsing
+    EXECUTE 'EXPLAIN (FORMAT JSON) ' || query_text INTO explain_json;
+    
+    -- Check the plan tree for index scans
+    RETURN check_plan_node(explain_json->0->'Plan', ARRAY['Index Scan', 'Index Only Scan', 'Bitmap Index Scan']);
+    
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error analyzing query: %', SQLERRM;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION is_using_seq_scan(query_text TEXT)
+RETURNS boolean
+LANGUAGE plpgsql AS $$
+DECLARE
+    explain_json json;
+BEGIN
+    -- Execute EXPLAIN in JSON format for easier parsing
+    EXECUTE 'EXPLAIN (FORMAT JSON) ' || query_text INTO explain_json;
+    
+    -- Check the plan tree for sequential scan
+    RETURN check_plan_node(explain_json->0->'Plan', ARRAY['Seq Scan'], false);
+    
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error analyzing query: %', SQLERRM;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION is_using_parallel_seq_scan(query_text TEXT)
+RETURNS boolean
+LANGUAGE plpgsql AS $$
+DECLARE
+    explain_json json;
+BEGIN
+    -- Execute EXPLAIN in JSON format for easier parsing
+    EXECUTE 'EXPLAIN (FORMAT JSON) ' || query_text INTO explain_json;
+    
+    -- Check the plan tree for parallel sequential scan (Seq Scan with Parallel Aware = true)
+    RETURN check_plan_node(explain_json->0->'Plan', ARRAY['Seq Scan'], true);
+    
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error analyzing query: %', SQLERRM;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION directory_exists(dir_path TEXT) RETURNS BOOLEAN AS $$
+BEGIN
+    BEGIN
+        PERFORM pg_ls_dir(dir_path);
+        RETURN TRUE;
+    EXCEPTION
+        WHEN others THEN
+            RETURN FALSE;
+    END;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION directory_empty(dir_path TEXT) RETURNS BOOLEAN AS $$
+DECLARE
+    file_count INT;
+BEGIN
+    BEGIN
+        -- Count the number of files/directories in the given path
+        SELECT COUNT(*) INTO file_count FROM pg_ls_dir(dir_path);
+        
+        -- If count is 0, directory is empty
+        RETURN file_count = 0;
+    EXCEPTION
+        WHEN OTHERS THEN
+            RETURN FALSE;  -- Return FALSE if directory doesn't exist or there's an error
+    END;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION get_query_result(query TEXT) RETURNS TEXT AS $$
+DECLARE
+    result TEXT;
+BEGIN
+    EXECUTE query INTO result;
+    RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Compare results from two identical queries on different tables
+CREATE OR REPLACE FUNCTION assert_tables_query_match(query1 TEXT, query2 TEXT, test_description TEXT DEFAULT '') RETURNS VOID AS $$
+DECLARE
+    mismatch_count INTEGER;
+    missing_count INTEGER;
+BEGIN
+    -- Check for extra/mismatched rows
+    EXECUTE format(
+        'WITH q1_results AS (%s), q2_results AS (%s)
+         SELECT COUNT(*) FROM (
+             SELECT * FROM q1_results EXCEPT SELECT * FROM q2_results
+         ) AS differences', 
+        query1, query2
+    ) INTO mismatch_count;
+
+    IF mismatch_count > 0 THEN
+        RAISE EXCEPTION 'Check failed%: First query has % row(s) that differ from second query', 
+            CASE WHEN test_description != '' THEN ' (' || test_description || ')' ELSE '' END, 
+            mismatch_count;
+    END IF;
+
+    -- Check for missing rows
+    EXECUTE format(
+        'WITH q1_results AS (%s), q2_results AS (%s)
+         SELECT COUNT(*) FROM (
+             SELECT * FROM q2_results EXCEPT SELECT * FROM q1_results
+         ) AS missing_rows', 
+        query1, query2
+    ) INTO missing_count;
+
+    IF missing_count > 0 THEN
+        RAISE EXCEPTION 'Check failed%: First query is missing % row(s) that exist in second query', 
+            CASE WHEN test_description != '' THEN ' (' || test_description || ')' ELSE '' END, 
+            missing_count;
+    END IF;
+
+    -- If no mismatches
+    RAISE NOTICE 'Check passed%: Query results match exactly.', 
+        CASE WHEN test_description != '' THEN ' (' || test_description || ')' ELSE '' END;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Compare a single column aggregate result between two tables
+CREATE OR REPLACE FUNCTION assert_aggregate_match(table1 TEXT, table2 TEXT, column_name TEXT, aggregate_func TEXT, test_description TEXT DEFAULT '', representation TEXT DEFAULT '') RETURNS VOID AS $$
+DECLARE
+    result1 NUMERIC;
+    result2 NUMERIC;
+    query1 TEXT;
+    query2 TEXT;
+    column_expr TEXT;
+BEGIN
+    -- Build column expression with optional type casting
+    IF representation != '' THEN
+        column_expr := format('%I::%s', column_name, representation);
+    ELSE
+        column_expr := format('%I', column_name);
+    END IF;
+    
+    query1 := format('SELECT %s(%s) FROM %I', aggregate_func, column_expr, table1);
+    query2 := format('SELECT %s(%s) FROM %I', aggregate_func, column_expr, table2);
+    
+    EXECUTE query1 INTO result1;
+    EXECUTE query2 INTO result2;
+
+    IF COALESCE(result1, -999999) != COALESCE(result2, -999999) THEN
+        RAISE EXCEPTION 'Check failed%: %(% %) differs - %: %, %: %', 
+            CASE WHEN test_description != '' THEN ' (' || test_description || ')' ELSE '' END,
+            aggregate_func, column_name,
+            CASE WHEN representation != '' THEN '::' || representation ELSE '' END,
+            table1, result1, table2, result2;
+    ELSE
+        RAISE NOTICE 'Check passed%: %(% %) matches - both tables: %', 
+            CASE WHEN test_description != '' THEN ' (' || test_description || ')' ELSE '' END,
+            aggregate_func, column_name,
+            CASE WHEN representation != '' THEN '::' || representation ELSE '' END,
+            result1;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- For duckdb compatability
+CREATE OR REPLACE FUNCTION from_hex(hexstr text)
+RETURNS bytea AS $$
+BEGIN
+    RETURN decode(hexstr, 'hex');
+END;
+$$ LANGUAGE plpgsql IMMUTABLE STRICT;
+
+-- Generic octet_length function for multiple types
+CREATE OR REPLACE FUNCTION octet_length(val anyelement)
+RETURNS bigint
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Check type and dispatch
+    IF pg_typeof(val) = 'bytea'::regtype THEN
+        RETURN octet_length(val::bytea);
+    ELSE
+        RETURN length(val::text);
+    END IF;
+END;
+$$;

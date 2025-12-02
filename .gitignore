@@ -2,8 +2,10 @@
 ##############
 
 datasets
+builds
 
 PYTEST_TMPDIR
+.buildinfo
 .coverage
 .coverage.*
 htmlcov
@@ -61,6 +63,8 @@ Thumbs.db
 #######################
 *~
 
+postgres/tests/logs
+postgres/tests/results
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
