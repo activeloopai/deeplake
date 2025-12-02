@@ -1,6 +1,6 @@
 #pragma once
 
-#include "impl/f16_impl.hpp"
+#include "f16_wrapper.hpp"
 
 #include "bit_cast.hpp"
 #include "type_traits.hpp"
