@@ -104,10 +104,10 @@ jobs:
         shell: bash
         run: |-
           echo -e "${YELLOW}Building the PostgreSQL extension...${DEFAULT}"
-          
+
           # Determine which versions to build based on input
           PG_VERSION="${{ inputs.pg_version || '18' }}"
-          
+
           if [ "${PG_VERSION}" == "all" ]; then
             # Build all versions
             CMAKE_FLAGS="-DBUILD_PG_16=ON -DBUILD_PG_17=ON -DBUILD_PG_18=ON"
@@ -125,14 +125,14 @@ jobs:
             echo -e "${RED}Invalid PostgreSQL version: ${PG_VERSION}${DEFAULT}"
             exit 1
           fi
-          
+
           # Run the build with the appropriate flags
           cd cpp
           preset="--preset=deeplake-pg-${{ env.BUILD_PRESET }}"
           cmake ${preset} ${CMAKE_FLAGS}
           cmake --build ${preset}
           cd ..
-          
+
           echo -e "${GREEN}Done.${DEFAULT}"
 
       - name: test built packages
@@ -140,10 +140,10 @@ jobs:
         run: |-
           # Only run tests for PostgreSQL 18
           PG_VERSION="${{ inputs.pg_version || '18' }}"
-          
+
           if [ "${PG_VERSION}" == "18" ] || [ "${PG_VERSION}" == "all" ]; then
             echo -e "${YELLOW}Running tests for PostgreSQL 18...${DEFAULT}"
-            
+
             # Check if the extension file exists
             if [ ! -f "postgres/pg_deeplake_18.so" ]; then
               echo -e "${RED}Extension file pg_deeplake_18.so not found${DEFAULT}"
@@ -151,11 +151,11 @@ jobs:
               ls -la postgres/*.so || echo "No .so files found"
               exit 1
             fi
-            
+
             useradd -r -m -U -d /var/lib/postgresql -s /bin/bash postgres
             chown -R postgres:postgres /var/lib/postgresql
             chown -R postgres:postgres "${PWD}"
-            
+
             # Run tests for PostgreSQL 18
             export PG_MAJOR_VERSION=18
             cd postgres/tests && su - postgres -c "cd ${PWD} && make" || {
@@ -163,7 +163,7 @@ jobs:
               exit 1
             }
             cd ../..
-            
+
             echo -e "${GREEN}PostgreSQL 18 tests passed${DEFAULT}"
           else
             echo -e "${YELLOW}Skipping tests - only PostgreSQL 18 is tested (selected version: ${PG_VERSION})${DEFAULT}"
@@ -309,15 +309,3 @@ jobs:
             --platform linux/amd64,linux/arm64 \
             -f Dockerfile.build \
             .
-
-  rerun-workflows:
-    name: communication lost rerun
-    if: failure()
-    needs:
-      - extension-build
-      - repo-build
-      - build_container_images
-    uses: activeloopai/private-github-actions/.github/workflows/job-re-run.yaml@main
-    secrets:
-      token: ${{ secrets.ORG_GH_BOT_PAT }}
-
