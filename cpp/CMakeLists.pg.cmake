@@ -96,9 +96,6 @@ foreach(PG_VERSION ${PG_VERSIONS})
     )
 
     get_filename_component(DUCKDB_LIB_DIR "${DUCKDB_LIB_PATH}" DIRECTORY)
-    file(GLOB DUCKDB_STATIC_LIBS "${DUCKDB_LIB_DIR}/*.a")
-    message(STATUS "DuckDB static libraries: ${DUCKDB_STATIC_LIBS}")
-
     target_link_directories(${PG_LIB} PUBLIC ${postgres_INSTALL_DIR_REL_${PG_VERSION}_0}/lib/ ${CMAKE_CURRENT_SOURCE_DIR}/../lib ${DUCKDB_LIB_DIR})
     target_link_directories(${PG_LIB} PUBLIC ${PNG_LIBRARIES_DIR})
 
@@ -130,7 +127,26 @@ foreach(PG_VERSION ${PG_VERSIONS})
     # Link OpenGL, GLEW, and FreeType
     target_link_libraries(${PG_LIB} PRIVATE OpenGL::GL OpenGL::GLU GLEW Freetype::Freetype)
 
-    target_link_libraries(${PG_LIB} PUBLIC duckdb_static ${DUCKDB_STATIC_LIBS})
+    # Link DuckDB libraries by name (not path) so they're found via link_directories
+    # This works whether DuckDB is pre-built or being built by external project
+    target_link_libraries(${PG_LIB} PUBLIC
+        duckdb_static
+        core_functions_extension
+        duckdb_fastpforlib
+        duckdb_fmt
+        duckdb_fsst
+        duckdb_hyperloglog
+        duckdb_mbedtls
+        duckdb_miniz
+        duckdb_pg_query
+        duckdb_re2
+        duckdb_skiplistlib
+        duckdb_utf8proc
+        duckdb_yyjson
+        duckdb_zstd
+        jemalloc_extension
+        parquet_extension
+    )
 
     set(PG_DEFAULT_LIB_NAME "pg_deeplake${CMAKE_SHARED_LIBRARY_SUFFIX}")
     install(TARGETS ${PG_LIB}
