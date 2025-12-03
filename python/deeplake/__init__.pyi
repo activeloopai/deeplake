@@ -148,6 +148,8 @@ __all__ = [
     "from_csv",
     "from_parquet",
     "like",
+    "link",
+    "link_async",
     "open",
     "open_async",
     "open_read_only",
@@ -155,6 +157,7 @@ __all__ = [
     "prepare_query",
     "query",
     "query_async",
+    "replay_log",
     "schemas",
     "storage",
     "tql",
@@ -953,6 +956,13 @@ class Branch:
         """
         ...
 
+    @property
+    def is_link(self) -> bool:
+        ...
+    @property
+    def link_target(self) -> str | None:
+        ...
+
 class BranchView:
     """
     Describes a read-only branch within the dataset.
@@ -1002,6 +1012,13 @@ class BranchView:
         """
         Asynchronously fetches the dataset corresponding to the branch and returns a Future object.
         """
+        ...
+
+    @property
+    def is_link(self) -> bool:
+        ...
+    @property
+    def link_target(self) -> str | None:
         ...
 
 class Branches:
@@ -3060,6 +3077,16 @@ class Dataset(DatasetView):
         """
         pass
 
+    def start_logging(self) -> None:
+        ...
+
+    def stop_logging(self) -> None:
+        ...
+
+    @property
+    def logging_enabled(self) -> bool:
+        ...
+
     @property
     def creds_key(self) -> str | None:
         """
@@ -3676,6 +3703,7 @@ def create(
     creds: dict[str, str] | None = None,
     token: str | None = None,
     schema: dict[str, typing.Any] | typing.Any | None = None,
+    start_logging: bool = False,
 ) -> Dataset:
     """
     Creates a new dataset at the given URL.
@@ -3756,6 +3784,7 @@ def create_async(
     creds: dict[str, str] | None = None,
     token: str | None = None,
     schema: dict[str, typing.Any] | typing.Any | None = None,
+    start_logging: bool = False,
 ) -> Future[Dataset]:
     """
     Asynchronously creates a new dataset at the given URL.
@@ -3854,6 +3883,17 @@ def copy(
         ```python
         deeplake.copy("al://organization_id/source_dataset", "al://organization_id/destination_dataset")
         ```
+    """
+
+def replay_log(
+    source_path: str,
+    destination_path: str,
+    src_creds: dict[str, str] | None = None,
+    dst_creds: dict[str, str] | None = None,
+    token: str | None = None,
+) -> None:
+    """
+    Replays logged operations from a source dataset's debug logs to a destination dataset.
     """
 
 def delete(
@@ -4036,6 +4076,12 @@ def like(
            dest="s3://bucket/new/dataset")
         ```
     """
+
+def link(source: str, destination: str, creds: dict[str, str] | None = None, token: str | None = None) -> ReadOnlyDataset:
+    ...
+
+def link_async(source: str, destination: str, creds: dict[str, str] | None = None, token: str | None = None) -> Future:
+    ...
 
 def connect(
     src: str,
