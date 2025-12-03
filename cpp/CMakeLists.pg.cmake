@@ -97,8 +97,6 @@ foreach(PG_VERSION ${PG_VERSIONS})
 
     get_filename_component(DUCKDB_LIB_DIR "${DUCKDB_LIB_PATH}" DIRECTORY)
     file(GLOB DUCKDB_STATIC_LIBS "${DUCKDB_LIB_DIR}/*.a")
-    # Ensure libduckdb_fmt.a is explicitly included as it contains required symbols
-    list(FILTER DUCKDB_STATIC_LIBS EXCLUDE REGEX "libduckdb_static\\.a$")
     message(STATUS "DuckDB static libraries: ${DUCKDB_STATIC_LIBS}")
 
     target_link_directories(${PG_LIB} PUBLIC ${postgres_INSTALL_DIR_REL_${PG_VERSION}_0}/lib/ ${CMAKE_CURRENT_SOURCE_DIR}/../lib ${DUCKDB_LIB_DIR})
@@ -113,7 +111,6 @@ foreach(PG_VERSION ${PG_VERSIONS})
         pq ecpg ecpg_compat pgcommon_shlib pgfeutils pgport_shlib pgtypes pgcommon pgport
         -Wl,--whole-archive
         ${DEEPLAKE_STATIC_LIB}
-        ${DUCKDB_STATIC_LIBS}
         -Wl,--no-whole-archive
         ${3RD_PARTY_LIBS} ${FREETYPE_LIBRARIES}
         PRIVATE ${INDRA_STATIC_LINK_LIBS}
@@ -133,8 +130,7 @@ foreach(PG_VERSION ${PG_VERSIONS})
     # Link OpenGL, GLEW, and FreeType
     target_link_libraries(${PG_LIB} PRIVATE OpenGL::GL OpenGL::GLU GLEW Freetype::Freetype)
 
-    # Link DuckDB static library (main library already included with --whole-archive above)
-    target_link_libraries(${PG_LIB} PUBLIC duckdb_static)
+    target_link_libraries(${PG_LIB} PUBLIC duckdb_static ${DUCKDB_STATIC_LIBS})
 
     set(PG_DEFAULT_LIB_NAME "pg_deeplake${CMAKE_SHARED_LIBRARY_SUFFIX}")
     install(TARGETS ${PG_LIB}

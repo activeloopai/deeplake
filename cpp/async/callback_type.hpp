@@ -42,14 +42,14 @@ public:
 
     inline void operator()(result<T>&& v)
     {
-#ifdef AL_ASSERTIONS
+#if defined(AL_ASSERTIONS) && !defined(AL_PG)
         auto sl = callback_.get_source_location();
 #endif
         base::function<void()> c(
             [cb = std::move(callback_), v = std::move(v)]() mutable {
                 cb(std::move(v));
             }
-#ifdef AL_ASSERTIONS
+#if defined(AL_ASSERTIONS) && !defined(AL_PG)
             ,
             std::move(sl)
 #endif
