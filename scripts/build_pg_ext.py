@@ -22,16 +22,44 @@ def download_static_lib(path_to_check):
 
     machine = platform.machine()
 
-    archive_name = f"deeplake-static-4.4.2-linux-{machine}"
+    # Get latest release from GitHub
+    api_url = "https://api.github.com/repos/activeloopai/deeplake/releases/latest"
+    print(f"Fetching latest release from {api_url} ...")
+
+    response = requests.get(api_url)
+    if response.status_code != 200:
+        raise Exception(f"Failed to fetch latest release info. Status code: {response.status_code}")
+
+    release_data = response.json()
+    tag_name = release_data.get("tag_name")
+    if not tag_name:
+        raise Exception("Failed to get tag_name from latest release")
+
+    print(f"Latest release: {tag_name}")
+
+    # Strip 'v' prefix from tag name if present (e.g., v4.4.2 -> 4.4.2)
+    version = tag_name.lstrip('v')
+
+    # Construct asset name based on platform
+    archive_name = f"deeplake-static-{version}-linux-{machine}"
     zip_archive_name = f"{archive_name}.zip"
     tar_archive_name = f"{archive_name}.tar.gz"
-    url = f"http://localhost/{zip_archive_name}"
-    #url = f"https://github.com/activeloopai/deeplake/releases/download/untagged-c8367c0f7c469bab5c99/{zip_archive_name}"
-    print(f"Downloading prebuilt static libraries from {url} ...")
 
-    response = requests.get(url)
+    # Find the matching asset in the release
+    asset_url = None
+    for asset in release_data.get("assets", []):
+        if asset.get("name") == zip_archive_name:
+            asset_url = asset.get("browser_download_url")
+            break
+
+    if not asset_url:
+        raise Exception(f"Could not find asset '{zip_archive_name}' in latest release")
+
+    print(f"Downloading prebuilt static libraries from {asset_url} ...")
+
+    response = requests.get(asset_url)
     if response.status_code != 200:
-        raise Exception(f"Failed to download static libraries from {url}. Status code: {response.status_code}")
+        raise Exception(f"Failed to download static libraries from {asset_url}. Status code: {response.status_code}")
 
     with open(f"{zip_archive_name}", "wb") as f:
         f.write(response.content)
