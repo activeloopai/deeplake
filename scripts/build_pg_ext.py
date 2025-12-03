@@ -12,10 +12,6 @@ Usage: python3 scripts/build_pg_ext.py prod             #Release build
 """
 
 def download_static_lib(path_to_check):
-    if os.path.exists(path_to_check):
-        print("Static libraries already exist. Skipping download.")
-        return
-
     # create directory for the deeplake static library if it does not exist
     deeplake_static_lib_dir = os.path.dirname(path_to_check)
     os.makedirs(deeplake_static_lib_dir, exist_ok=True)
@@ -39,6 +35,21 @@ def download_static_lib(path_to_check):
 
     # Strip 'v' prefix from tag name if present (e.g., v4.4.2 -> 4.4.2)
     version = tag_name.lstrip('v')
+
+    # Check if the versioned library already exists
+    versioned_lib = os.path.join(deeplake_static_lib_dir, f"libdeeplake_static.a.{version}")
+    if os.path.exists(versioned_lib):
+        print(f"Static library version {version} already exists. Skipping download.")
+        # Ensure symlinks are correct
+        _update_symlinks(deeplake_static_lib_dir, version)
+        return
+
+    # Check if a different version exists locally
+    if os.path.exists(path_to_check):
+        # Follow symlink to get actual version
+        actual_path = os.path.realpath(path_to_check)
+        actual_version = os.path.basename(actual_path).replace("libdeeplake_static.a.", "")
+        print(f"Found existing version {actual_version}, but latest is {version}. Downloading latest...")
 
     # Construct asset name based on platform
     archive_name = f"deeplake-static-{version}-linux-{machine}"
@@ -76,6 +87,36 @@ def download_static_lib(path_to_check):
     err = os.system(f"mv {extracted_path}/lib/* {deeplake_static_lib_dir} && rm -rf {extracted_path}")
     if err:
         raise Exception(f"Failed to move static libraries. Command exited with code {err}.")
+
+    # Update symlinks after downloading
+    _update_symlinks(deeplake_static_lib_dir, version)
+
+def _update_symlinks(lib_dir, version):
+    """Update symlinks to point to the versioned library file."""
+    versioned_lib = f"libdeeplake_static.a.{version}"
+    version_parts = version.split('.')
+
+    # Create symlinks: libdeeplake_static.a -> libdeeplake_static.a.X.Y.Z
+    symlinks = [
+        ("libdeeplake_static.a", versioned_lib),
+    ]
+
+    # Add major version symlink if version has parts
+    if len(version_parts) >= 1:
+        symlinks.append((f"libdeeplake_static.a.{version_parts[0]}", versioned_lib))
+
+    # Add major.minor version symlink if version has parts
+    if len(version_parts) >= 2:
+        symlinks.append((f"libdeeplake_static.a.{version_parts[0]}.{version_parts[1]}", versioned_lib))
+
+    for link_name, target in symlinks:
+        link_path = os.path.join(lib_dir, link_name)
+        # Remove existing symlink if it exists
+        if os.path.islink(link_path) or os.path.exists(link_path):
+            os.remove(link_path)
+        # Create new symlink
+        os.symlink(target, link_path)
+        print(f"Created symlink: {link_name} -> {target}")
 
 def run(mode: str, incremental: bool):
     modes = ["debug", "dev", "prod"]
