@@ -17,7 +17,7 @@ from ._deeplake import *
 from deeplake.ingestion import from_coco
 
 
-__version__ = "4.4.1"
+__version__ = "4.4.3"
 
 __all__ = [
     "__version__",
@@ -158,6 +158,8 @@ __all__ = [
     "from_csv",
     "from_parquet",
     "like",
+    "link",
+    "link_async",
     "open",
     "open_async",
     "open_read_only",
@@ -165,6 +167,7 @@ __all__ = [
     "prepare_query",
     "query",
     "query_async",
+    "replay_log",
     "schemas",
     "storage",
     "tql",
