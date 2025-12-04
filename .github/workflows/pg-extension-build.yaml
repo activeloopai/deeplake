@@ -100,6 +100,12 @@ jobs:
           bash scripts/build_scripts/manage_cache.sh download postgres
           git clone https://github.com/microsoft/vcpkg.git && cd vcpkg && git checkout 6f29f12e82a8293156836ad81cc9bf5af41fe836 && ./bootstrap-vcpkg.sh
 
+      - name: install python dependencies
+        shell: bash
+        run: |-
+          python3 -m pip install --upgrade pip
+          python3 -m pip install requests
+
       - name: build pg_deeplake for ${{ matrix.arch }}
         shell: bash
         run: |-
