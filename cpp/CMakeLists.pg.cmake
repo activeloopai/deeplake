@@ -49,14 +49,6 @@ find_package(Boost REQUIRED COMPONENTS
 find_package(boost_json CONFIG REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
-# OpenGL and GLEW dependencies for engine module
-find_package(OpenGL REQUIRED)
-find_package(GLEW 2.0 REQUIRED)
-include_directories(${GLEW_INCLUDE_DIRS})
-
-# FreeType dependency
-find_package(Freetype REQUIRED)
-
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/FindDuckDB.cmake)
 
 # } 
