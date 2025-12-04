@@ -127,11 +127,7 @@ jobs:
           fi
 
           # Run the build with the appropriate flags
-          cd cpp
-          preset="--preset=deeplake-pg-${{ env.BUILD_PRESET }}"
-          cmake ${preset} ${CMAKE_FLAGS} -DUSE_DEEPLAKE_SHARED=OFF
-          cmake --build ${preset}
-          cd ..
+          python3 scripts/build_pg_ext.py --prod --deeplake-static
 
           echo -e "${GREEN}Done.${DEFAULT}"
 
