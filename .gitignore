@@ -46,7 +46,6 @@ dask-worker-space/
 # Logs and databases #
 ######################
 *.log
-*.sql
 *.sqlite
 data/
 **/dummy_data/**/deeplake/
