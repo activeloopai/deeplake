@@ -10,8 +10,6 @@
 #include "memory_tracker.hpp"
 #include "reporter.hpp"
 
-#include <boost/json/src.hpp>
-
 #include <algorithm>
 #include <climits>
 #include <cmath>

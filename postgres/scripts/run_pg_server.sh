@@ -29,7 +29,7 @@ mkdir -p "$RES_DIR"
 
 # Extension-specific settings
 EXTENSION_NAME="pg_deeplake"
-EXTENSION_PATH="$SCRIPT_PATH/../"
+EXTENSION_PATH="$SCRIPT_PATH/.."
 
 export LD_LIBRARY_PATH="$POSTGRES_INSTALL/lib:$LD_LIBRARY_PATH"
 

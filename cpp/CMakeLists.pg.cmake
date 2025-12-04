@@ -42,13 +42,6 @@ list(APPEND INDRA_STATIC_LINK_LIBS ZLIB::ZLIB)
 
 find_package(CURL CONFIG REQUIRED)
 
-find_package(Boost REQUIRED COMPONENTS
-    algorithm system container iterator mpl histogram
-)
-
-find_package(boost_json CONFIG REQUIRED)
-include_directories(${Boost_INCLUDE_DIRS})
-
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/FindDuckDB.cmake)
 
 # } 
@@ -130,7 +123,7 @@ foreach(PG_VERSION ${PG_VERSIONS})
     endif()
 
     target_link_libraries(${PG_LIB} PRIVATE
-        fmt::fmt-header-only OpenSSL::SSL Boost::json
+        fmt::fmt-header-only OpenSSL::SSL
      )
 
     # Link DuckDB libraries by name (not path) so they're found via link_directories
