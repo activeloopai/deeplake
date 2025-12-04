@@ -129,7 +129,7 @@ jobs:
           # Run the build with the appropriate flags
           cd cpp
           preset="--preset=deeplake-pg-${{ env.BUILD_PRESET }}"
-          cmake ${preset} ${CMAKE_FLAGS}
+          cmake ${preset} ${CMAKE_FLAGS} -DUSE_DEEPLAKE_SHARED=OFF
           cmake --build ${preset}
           cd ..
 

@@ -6,15 +6,17 @@ import platform
 import requests
 
 """
-Usage: python3 scripts/build_pg_ext.py debug            #Debug build
-Usage: python3 scripts/build_pg_ext.py dev              #Develop build
-Usage: python3 scripts/build_pg_ext.py prod             #Release build
+Usage: python3 scripts/build_pg_ext.py debug                      #Debug build
+Usage: python3 scripts/build_pg_ext.py dev                        #Develop build
+Usage: python3 scripts/build_pg_ext.py prod                       #Release build
+Usage: python3 scripts/build_pg_ext.py debug --deeplake-shared    #Debug build with shared deeplake_api linking
+Usage: python3 scripts/build_pg_ext.py debug --deeplake-static    #Debug build with static deeplake_api linking (force)
 """
 
-def download_static_lib(path_to_check):
-    # create directory for the deeplake static library if it does not exist
-    deeplake_static_lib_dir = os.path.dirname(path_to_check)
-    os.makedirs(deeplake_static_lib_dir, exist_ok=True)
+def download_api_lib(path_to_check):
+    # create directory for the deeplake api library if it does not exist
+    deeplake_api_lib_dir = os.path.dirname(path_to_check)
+    os.makedirs(deeplake_api_lib_dir, exist_ok=True)
 
     machine = platform.machine()
 
@@ -37,22 +39,22 @@ def download_static_lib(path_to_check):
     version = tag_name.lstrip('v')
 
     # Check if the versioned library already exists
-    versioned_lib = os.path.join(deeplake_static_lib_dir, f"libdeeplake_static.a.{version}")
+    versioned_lib = os.path.join(deeplake_api_lib_dir, f"libdeeplake_api.a.{version}")
     if os.path.exists(versioned_lib):
         print(f"Static library version {version} already exists. Skipping download.")
         # Ensure symlinks are correct
-        _update_symlinks(deeplake_static_lib_dir, version)
+        _update_symlinks(deeplake_api_lib_dir, version)
         return
 
     # Check if a different version exists locally
     if os.path.exists(path_to_check):
         # Follow symlink to get actual version
         actual_path = os.path.realpath(path_to_check)
-        actual_version = os.path.basename(actual_path).replace("libdeeplake_static.a.", "")
+        actual_version = os.path.basename(actual_path).replace("libdeeplake_api.a.", "")
         print(f"Found existing version {actual_version}, but latest is {version}. Downloading latest...")
 
     # Construct asset name based on platform
-    archive_name = f"deeplake-static-{version}-linux-{machine}"
+    archive_name = f"deeplake-api-{version}-linux-{machine}"
     zip_archive_name = f"{archive_name}.zip"
     tar_archive_name = f"{archive_name}.tar.gz"
 
@@ -66,59 +68,62 @@ def download_static_lib(path_to_check):
     if not asset_url:
         raise Exception(f"Could not find asset '{zip_archive_name}' in latest release")
 
-    print(f"Downloading prebuilt static libraries from {asset_url} ...")
+    print(f"Downloading prebuilt api libraries from {asset_url} ...")
 
     response = requests.get(asset_url)
     if response.status_code != 200:
-        raise Exception(f"Failed to download static libraries from {asset_url}. Status code: {response.status_code}")
+        raise Exception(f"Failed to download api libraries from {asset_url}. Status code: {response.status_code}")
 
     with open(f"{zip_archive_name}", "wb") as f:
         f.write(response.content)
 
     err = os.system(f"unzip {zip_archive_name} -d /tmp && rm {zip_archive_name}")
     if err:
-        raise Exception(f"Failed to extract static libraries. Command exited with code {err}.")
+        raise Exception(f"Failed to extract api libraries. Command exited with code {err}.")
 
     err = os.system(f"tar -xzf /tmp/{tar_archive_name} -C /tmp && rm /tmp/{tar_archive_name}")
     if err:
-        raise Exception(f"Failed to extract static libraries. Command exited with code {err}.")
+        raise Exception(f"Failed to extract api libraries. Command exited with code {err}.")
 
     extracted_path = f"/tmp/{archive_name}"
-    err = os.system(f"mv {extracted_path}/lib/* {deeplake_static_lib_dir} && rm -rf {extracted_path}")
+    err = os.system(f"mv {extracted_path}/lib/* {deeplake_api_lib_dir} && rm -rf {extracted_path}")
     if err:
-        raise Exception(f"Failed to move static libraries. Command exited with code {err}.")
+        raise Exception(f"Failed to move api libraries. Command exited with code {err}.")
 
     # Update symlinks after downloading
-    _update_symlinks(deeplake_static_lib_dir, version)
+    _update_symlinks(deeplake_api_lib_dir, version)
 
 def _update_symlinks(lib_dir, version):
-    """Update symlinks to point to the versioned library file."""
-    versioned_lib = f"libdeeplake_static.a.{version}"
+    """Update symlinks to point to the versioned library files (both static and shared)."""
     version_parts = version.split('.')
 
-    # Create symlinks: libdeeplake_static.a -> libdeeplake_static.a.X.Y.Z
-    symlinks = [
-        ("libdeeplake_static.a", versioned_lib),
-    ]
+    # Create symlinks for both static (.a) and shared (.so) libraries
+    for ext in ['a', 'so']:
+        versioned_lib = f"libdeeplake_api.{ext}.{version}"
 
-    # Add major version symlink if version has parts
-    if len(version_parts) >= 1:
-        symlinks.append((f"libdeeplake_static.a.{version_parts[0]}", versioned_lib))
+        # Create symlinks: libdeeplake_api.{ext} -> libdeeplake_api.{ext}.X.Y.Z
+        symlinks = [
+            (f"libdeeplake_api.{ext}", versioned_lib),
+        ]
 
-    # Add major.minor version symlink if version has parts
-    if len(version_parts) >= 2:
-        symlinks.append((f"libdeeplake_static.a.{version_parts[0]}.{version_parts[1]}", versioned_lib))
+        # Add major version symlink if version has parts
+        if len(version_parts) >= 1:
+            symlinks.append((f"libdeeplake_api.{ext}.{version_parts[0]}", versioned_lib))
 
-    for link_name, target in symlinks:
-        link_path = os.path.join(lib_dir, link_name)
-        # Remove existing symlink if it exists
-        if os.path.islink(link_path) or os.path.exists(link_path):
-            os.remove(link_path)
-        # Create new symlink
-        os.symlink(target, link_path)
-        print(f"Created symlink: {link_name} -> {target}")
+        # Add major.minor version symlink if version has parts
+        if len(version_parts) >= 2:
+            symlinks.append((f"libdeeplake_api.{ext}.{version_parts[0]}.{version_parts[1]}", versioned_lib))
 
-def run(mode: str, incremental: bool):
+        for link_name, target in symlinks:
+            link_path = os.path.join(lib_dir, link_name)
+            # Remove existing symlink if it exists
+            if os.path.islink(link_path) or os.path.exists(link_path):
+                os.remove(link_path)
+            # Create new symlink
+            os.symlink(target, link_path)
+            print(f"Created symlink: {link_name} -> {target}")
+
+def run(mode: str, incremental: bool, deeplake_link_type: str = None):
     modes = ["debug", "dev", "prod"]
     if mode not in modes:
         raise Exception(f"Invalid mode - '{mode}'. Possible values - {', '.join(modes)}")
@@ -139,13 +144,20 @@ def run(mode: str, incremental: bool):
             if architectures:
                 cmake_cmd += f"-D CMAKE_OSX_ARCHITECTURES={architectures} "
 
+            # Add deeplake linking type option if specified
+            if deeplake_link_type == "shared":
+                cmake_cmd += "-D USE_DEEPLAKE_SHARED=ON "
+            elif deeplake_link_type == "static":
+                cmake_cmd += "-D USE_DEEPLAKE_SHARED=OFF "
+            # If None, let CMake auto-detect based on file existence
+
             err = os.system(cmake_cmd)
             if err:
                 raise Exception(
                     f"Cmake command failed with exit code {err}. Full command: `{cmake_cmd}`"
                 )
 
-            download_static_lib(".ext/deeplake_static/lib/libdeeplake_static.a")
+            download_api_lib(".ext/deeplake_api/lib/libdeeplake_api.a")
 
         make_cmd = f"cmake --build {preset}"
         err = os.system(make_cmd)
@@ -194,7 +206,19 @@ if __name__ == "__main__":
     if len(sys.argv) == 1:
         run(mode=read_mode(), incremental=True)
     else:
-        if len(sys.argv) == 2:
-            run(mode=sys.argv[1], incremental=False)
-        else:
-            raise Exception("Invalid command line options")
+        mode = sys.argv[1]
+        deeplake_link_type = None
+
+        # Parse optional --deeplake-shared or --deeplake-static flag
+        if len(sys.argv) >= 3:
+            if sys.argv[2] == "--deeplake-shared":
+                deeplake_link_type = "shared"
+            elif sys.argv[2] == "--deeplake-static":
+                deeplake_link_type = "static"
+            else:
+                raise Exception(f"Invalid option '{sys.argv[2]}'. Use --deeplake-shared or --deeplake-static")
+
+        if len(sys.argv) > 3:
+            raise Exception("Too many command line arguments")
+
+        run(mode=mode, incremental=False, deeplake_link_type=deeplake_link_type)

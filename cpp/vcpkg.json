@@ -3,72 +3,11 @@
     "version": "0.0.1",
     "dependencies": [
         "abseil",
-        {
-            "name": "libjpeg-turbo",
-            "platform": "!emscripten"
-        },
-        {
-            "name": "arrow",
-            "platform": "!emscripten",
-            "features": [
-                "csv"
-            ]
-        },
         "cpr",
         "gtest",
-        {
-            "name": "aws-sdk-cpp",
-            "platform": "!emscripten",
-            "features": [
-                "s3",
-                "identity-management"
-            ]
-        },
-        {
-            "name": "azure-core-cpp",
-            "platform": "!emscripten"
-        },
-        {
-            "name": "azure-identity-cpp",
-            "platform": "!emscripten"
-        },
-        {
-            "name": "dcmtk"
-        },
-        {
-            "name": "azure-storage-blobs-cpp",
-            "platform": "!emscripten"
-        },
         "curl",
-        {
-            "name": "google-cloud-cpp",
-            "platform": "!emscripten",
-            "features": [
-                "storage"
-            ]
-        },
         "eigen3",
         "fmt",
-        {
-            "name": "icu",
-            "platform": "!emscripten"
-        },
-        {
-            "name": "liburing",
-            "platform": "linux"
-        },
-                {
-            "name": "freetype",
-            "version>=": "2.12.1"
-        },
-        {
-            "name": "opengl",
-            "platform": "windows"
-        },
-        {
-            "name": "glew",
-            "platform": "windows"
-        },
         "nlohmann-json",
         "nlohmann-fifo-map",
         "boost-algorithm",

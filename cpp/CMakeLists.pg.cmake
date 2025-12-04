@@ -1,6 +1,7 @@
 option(BUILD_PG_16 "Build PostgreSQL 16 extension" OFF)
 option(BUILD_PG_17 "Build PostgreSQL 17 extension" OFF)
 option(BUILD_PG_18 "Build PostgreSQL 18 extension" ON)
+option(USE_DEEPLAKE_SHARED "Use shared library for deeplake_api (default: auto-detect)" OFF)
 
 set(PG_MODULE deeplake_pg)
 set(PG_VERSIONS)
@@ -29,24 +30,24 @@ if(NOT WIN32)
     add_compile_options(-fno-omit-frame-pointer)
 endif()
 
+if(NOT WIN32)
+    # OpenSSL
+    find_package(OpenSSL REQUIRED)
+    list(APPEND INDRA_STATIC_LINK_LIBS OpenSSL::SSL OpenSSL::Crypto)
+endif()
 
-# TODO try to remove {
-set(INDRA_CLOUD_DEPENDENCIES)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/FindLZ4.cmake)
-find_package(ICU REQUIRED COMPONENTS uc i18n data)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Cloud.cmake)
-find_package(libjpeg-turbo CONFIG REQUIRED)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/FindLibPNG.cmake)
-find_package(opentelemetry-cpp CONFIG COMPONENTS opentelemetry_trace REQUIRED)
+# Z
+find_package(ZLIB REQUIRED)
+list(APPEND INDRA_STATIC_LINK_LIBS ZLIB::ZLIB)
+
+find_package(CURL CONFIG REQUIRED)
+
 find_package(Boost REQUIRED COMPONENTS
     algorithm system container iterator mpl histogram
 )
 
 find_package(boost_json CONFIG REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
-
-find_package(DCMTK CONFIG REQUIRED)
-find_package(roaring CONFIG REQUIRED)
 
 # OpenGL and GLEW dependencies for engine module
 find_package(OpenGL REQUIRED)
@@ -99,33 +100,46 @@ foreach(PG_VERSION ${PG_VERSIONS})
     target_link_directories(${PG_LIB} PUBLIC ${postgres_INSTALL_DIR_REL_${PG_VERSION}_0}/lib/ ${CMAKE_CURRENT_SOURCE_DIR}/../lib ${DUCKDB_LIB_DIR})
     target_link_directories(${PG_LIB} PUBLIC ${PNG_LIBRARIES_DIR})
 
-    # Use the unified static library instead of separate libraries
-    set(DEEPLAKE_STATIC_LIB "${CMAKE_CURRENT_SOURCE_DIR}/.ext/deeplake_static/lib/libdeeplake_static.a")
+    # Determine whether to use static or shared library
+    set(DEEPLAKE_STATIC_LIB "${CMAKE_CURRENT_SOURCE_DIR}/.ext/deeplake_api/lib/libdeeplake_api.a")
+    set(DEEPLAKE_SHARED_LIB "${CMAKE_CURRENT_SOURCE_DIR}/.ext/deeplake_api/lib/libdeeplake_api.so")
 
-    message(STATUS "Using unified Deeplake library: ${DEEPLAKE_STATIC_LIB}")
+    # Auto-detect: prefer shared if available, fallback to static
+    if(USE_DEEPLAKE_SHARED)
+        set(USE_SHARED_LIB TRUE)
+    elseif(EXISTS "${DEEPLAKE_SHARED_LIB}")
+        set(USE_SHARED_LIB TRUE)
+        message(STATUS "Auto-detected shared library, using shared linking")
+    else()
+        set(USE_SHARED_LIB FALSE)
+        message(STATUS "Shared library not found, using static linking")
+    endif()
 
-    target_link_libraries(${PG_LIB} PUBLIC
-        pq ecpg ecpg_compat pgcommon_shlib pgfeutils pgport_shlib pgtypes pgcommon pgport
-        -Wl,--whole-archive
-        ${DEEPLAKE_STATIC_LIB}
-        -Wl,--no-whole-archive
-        ${3RD_PARTY_LIBS} ${FREETYPE_LIBRARIES}
-        PRIVATE ${INDRA_STATIC_LINK_LIBS}
-        # Allow multiple definitions due to duplicate object files in unified library
-        -Wl,--allow-multiple-definition
-    )
+    if(USE_SHARED_LIB)
+        message(STATUS "Using shared Deeplake library: ${DEEPLAKE_SHARED_LIB}")
+        target_link_libraries(${PG_LIB} PUBLIC
+            pq ecpg ecpg_compat pgcommon_shlib pgfeutils pgport_shlib pgtypes pgcommon pgport
+            ${DEEPLAKE_SHARED_LIB}
+            ${3RD_PARTY_LIBS} ${FREETYPE_LIBRARIES}
+            PRIVATE ${INDRA_STATIC_LINK_LIBS}
+        )
+    else()
+        message(STATUS "Using static Deeplake library: ${DEEPLAKE_STATIC_LIB}")
+        target_link_libraries(${PG_LIB} PUBLIC
+            pq ecpg ecpg_compat pgcommon_shlib pgfeutils pgport_shlib pgtypes pgcommon pgport
+            -Wl,--whole-archive
+            ${DEEPLAKE_STATIC_LIB}
+            -Wl,--no-whole-archive
+            ${3RD_PARTY_LIBS} ${FREETYPE_LIBRARIES}
+            PRIVATE ${INDRA_STATIC_LINK_LIBS}
+            # Allow multiple definitions due to duplicate object files in unified library
+            -Wl,--allow-multiple-definition
+        )
+    endif()
 
     target_link_libraries(${PG_LIB} PRIVATE
-        ${INDRA_CLOUD_DEPENDENCIES}
-        fmt::fmt-header-only ${OPENTELEMETRY_CPP_LIBRARIES}
-        png lz4_static OpenSSL::SSL ICU::uc ICU::data ICU::i18n Boost::json
-     $<IF:$<TARGET_EXISTS:libjpeg-turbo::turbojpeg>,libjpeg-turbo::turbojpeg,libjpeg-turbo::turbojpeg-static>)
-
-    target_link_libraries(${PG_LIB} PRIVATE DCMTK::dcmdata DCMTK::oflog DCMTK::ofstd DCMTK::dcmimage DCMTK::dcmjpeg)
-    target_link_libraries(${PG_LIB} PRIVATE roaring::roaring)
-
-    # Link OpenGL, GLEW, and FreeType
-    target_link_libraries(${PG_LIB} PRIVATE OpenGL::GL OpenGL::GLU GLEW Freetype::Freetype)
+        fmt::fmt-header-only OpenSSL::SSL Boost::json
+     )
 
     # Link DuckDB libraries by name (not path) so they're found via link_directories
     # This works whether DuckDB is pre-built or being built by external project
