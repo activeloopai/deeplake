@@ -133,7 +133,7 @@ jobs:
           fi
 
           # Run the build with the appropriate flags
-          python3 scripts/build_pg_ext.py --prod --deeplake-static
+          python3 scripts/build_pg_ext.py prod --deeplake-static
 
           echo -e "${GREEN}Done.${DEFAULT}"
 
