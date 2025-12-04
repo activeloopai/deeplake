@@ -42,7 +42,7 @@ public:
     {
     }
 
-    consteval static std::string_view type_name() noexcept
+    constexpr static std::string_view type_name() noexcept
     {
         return "embedding_index";
     }
