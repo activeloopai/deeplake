@@ -70,7 +70,7 @@ jobs:
       fail-fast: true
       matrix:
         arch: [x86_64, aarch64]
-    runs-on: indra-wheels-linux-${{ matrix.arch }}-runner
+    runs-on: deeplake-linux-${{ matrix.arch }}-runner
     container: 067976305224.dkr.ecr.us-east-1.amazonaws.com/gcc-pypa-manylinux_2_28:${{ matrix.arch }}
     env:
       VCPKG_ROOT: ${{ github.workspace }}/vcpkg
@@ -184,7 +184,7 @@ jobs:
     env:
       REPOSITORY: "/tmp/activeloop-packages"
       SUPPORTED_VERSIONS: ${{ needs.setup.outputs.versions-list }}
-    runs-on: indra-ci-runner
+    runs-on: ubuntu-latest
     container: "067976305224.dkr.ecr.us-east-1.amazonaws.com/repo-builder:amd"
     steps:
       - name: checkout
@@ -211,7 +211,7 @@ jobs:
         shell: bash
         run: |-
           for arch in x86_64 aarch64; do
-            s5cmd cp "s3://activeloop-platform-tests/indra/artifacts/postgres/postgres-${arch}.tar" postgres-"${arch}".tar
+            aws s3 cp "s3://activeloop-platform-tests/indra/artifacts/postgres/postgres-${arch}.tar" postgres-"${arch}".tar
             tar xf postgres-"${arch}".tar
           done
 
