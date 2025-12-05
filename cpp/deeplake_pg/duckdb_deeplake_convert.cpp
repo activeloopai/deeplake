@@ -75,6 +75,11 @@ T to_cpp_value(const duckdb::Value& val)
         return val.GetValue<int32_t>();
     } else if constexpr (std::is_same_v<T, int64_t>) {
         return val.GetValue<int64_t>();
+    } else if constexpr (std::is_same_v<T, bytea_type>) {
+        // For bytea/blob types, get the string_t and convert to span
+        // Use GetValueUnsafe since GetValue<string_t> template may not be instantiated
+        auto str_val = val.GetValueUnsafe<duckdb::string_t>();
+        return bytea_type(reinterpret_cast<const uint8_t*>(str_val.GetData()), str_val.GetSize());
     } else {
         return val.GetValue<T>();
     }

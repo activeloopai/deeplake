@@ -743,7 +743,7 @@ static void process_utility(PlannedStmt* pstmt,
     }
 }
 
-PlannedStmt* planner(Query* parse, const char* query_string, int32_t cursorOptions, ParamListInfo boundParams)
+static PlannedStmt* deeplake_planner(Query* parse, const char* query_string, int32_t cursorOptions, ParamListInfo boundParams)
 {
     pg::init_deeplake();
 
@@ -1055,7 +1055,7 @@ PGDLLEXPORT void _PG_init()
     ProcessUtility_hook = process_utility;
 
     prev_planner_hook = planner_hook;
-    planner_hook = planner;
+    planner_hook = deeplake_planner;
 
     prev_set_rel_pathlist_hook = set_rel_pathlist_hook;
     set_rel_pathlist_hook = set_rel_pathlist;
