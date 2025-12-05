@@ -283,6 +283,18 @@ jobs:
           password: "${{ steps.load-1pass.outputs.QUAY_PASSWORD }}"
           registry: quay.io
 
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          role-to-assume: arn:aws:iam::067976305224:role/github
+          aws-region: us-east-1
+          role-duration-seconds: "7200"
+
+      - name: ecr login
+        uses: aws-actions/amazon-ecr-login@v2.0.1
+        with:
+          mask-password: 'true'
+
       - name: setup docker qemu
         uses: docker/setup-qemu-action@v3.6.0
 
