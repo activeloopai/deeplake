@@ -10,7 +10,7 @@ file(TO_CMAKE_PATH "${VCPKG_ROOT_PATH}" VCPKG_ROOT_PATH)
 set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT_PATH}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file" FORCE)
 message(STATUS "Using toolchain file: ${CMAKE_TOOLCHAIN_FILE}")
 
-project(indra)
+project(pg_deeplake)
 
 set(CMAKE_CXX_STANDARD 20 CACHE STRING "C++ standard" FORCE)
 set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "Require C++ standard" FORCE)
