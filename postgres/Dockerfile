@@ -5,11 +5,11 @@ ARG TARGETARCH
 LABEL name="pg-deeplake" \
       version="${VERSION}" \
       vendor="Snark AI DB Inc." \
-      license="/LICENSE.txt" \
+      license="/LICENSE" \
       description="PostgreSQL with DeepLake Extension installed." \
       contact="support@activeloop.ai"
 
-ENV DEEPLAKE_LICENSE_FILE=/LICENSE.txt
+ENV DEEPLAKE_LICENSE_FILE=/LICENSE
 RUN apt-get update && \
   apt-get install -y \
   barman \
@@ -25,7 +25,7 @@ RUN apt-get update && \
   ln -s /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt
 
 COPY ./debs/ /tmp/debs/
-COPY --chmod=444 ./LICENSE.txt /LICENSE.txt
+COPY --chmod=444 ./LICENSE /LICENSE
 COPY ./postgres/docker-entrypoint.d/ /docker-entrypoint-initdb.d/
 RUN apt install -y /tmp/debs/pg-deeplake-${VERSION}_${TARGETARCH}.deb && rm -rf /tmp/debs/
 USER 999
