@@ -1,0 +1,10 @@
+#pragma once
+
+#include "tcb.hpp"
+
+namespace std {
+
+using tcb::span;
+
+}
+

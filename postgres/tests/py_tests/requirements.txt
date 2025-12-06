@@ -1,0 +1,15 @@
+# PostgreSQL async driver
+asyncpg>=0.29.0
+
+# Testing framework
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+
+# Parallel test execution (optional)
+pytest-xdist>=3.3.0
+
+# Code coverage (optional)
+pytest-cov>=4.1.0
+
+# For better assertion output
+pytest-clarity>=1.0.1

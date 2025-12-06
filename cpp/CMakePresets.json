@@ -1,0 +1,112 @@
+{
+    "version": 6,
+    "configurePresets": [
+        {
+            "name": "template-unix",
+            "hidden": true,
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/../builds/${presetName}",
+            "condition": {
+                "type": "notEquals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "template-windows",
+            "hidden": true,
+            "generator": "Visual Studio 17 2022",
+            "binaryDir": "${sourceDir}/../builds/${presetName}",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "deeplake-pg-dev",
+            "inherits": "template-unix",
+            "cacheVariables": {
+                "AL_PG": "ON",
+                "AL_ASSERTIONS": "ON"
+            }
+        },
+        {
+            "name": "deeplake-pg-dev-windows",
+            "inherits": "template-windows",
+            "cacheVariables": {
+                "AL_PG": "ON",
+                "AL_ASSERTIONS": "ON"
+            }
+        },
+        {
+            "name": "deeplake-pg-debug",
+            "inherits": "deeplake-pg-dev",
+            "cacheVariables": {
+                "AL_DEBUG": "ON"
+            }
+        },
+        {
+            "name": "deeplake-pg-debug-windows",
+            "inherits": "deeplake-pg-dev-windows",
+            "cacheVariables": {
+                "AL_DEBUG": "ON"
+            }
+        },
+        {
+            "name": "deeplake-pg-prod",
+            "inherits": "template-unix",
+            "cacheVariables": {
+                "AL_PG": "ON",
+                "AL_ASSERTIONS": "OFF",
+                "AL_DEBUG": "OFF"
+            }
+        },
+        {
+            "name": "deeplake-pg-prod-windows",
+            "inherits": "template-windows",
+            "cacheVariables": {
+                "AL_PG": "ON",
+                "AL_ASSERTIONS": "OFF",
+                "AL_DEBUG": "OFF"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "basic-template",
+            "hidden": true,
+            "jobs": 10
+        },
+        {
+            "name": "deeplake-pg-dev",
+            "inherits": "basic-template",
+            "configurePreset": "deeplake-pg-dev"
+        },
+        {
+            "name": "deeplake-pg-dev-windows",
+            "inherits": "basic-template",
+            "configurePreset": "deeplake-pg-dev-windows"
+        },
+        {
+            "name": "deeplake-pg-debug",
+            "inherits": "basic-template",
+            "configurePreset": "deeplake-pg-debug"
+        },
+        {
+            "name": "deeplake-pg-debug-windows",
+            "inherits": "basic-template",
+            "configurePreset": "deeplake-pg-debug-windows"
+        },
+        {
+            "name": "deeplake-pg-prod",
+            "inherits": "basic-template",
+            "configurePreset": "deeplake-pg-prod"
+        },
+        {
+            "name": "deeplake-pg-prod-windows",
+            "inherits": "basic-template",
+            "configurePreset": "deeplake-pg-prod-windows"
+        }
+    ]
+}

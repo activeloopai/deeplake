@@ -1,0 +1,35 @@
+{
+    "name": "deeplake",
+    "version": "0.0.1",
+    "dependencies": [
+        "abseil",
+        "cpr",
+        "gtest",
+        "curl",
+        "eigen3",
+        "fmt",
+        "nlohmann-json",
+        "nlohmann-fifo-map",
+        "boost-algorithm",
+        "boost-container",
+        "boost-iterator",
+        "boost-histogram",
+        "boost-mpl",
+        "boost-json",
+        "boost-format",
+        "boost-tti",
+        "openssl",
+        {
+            "name": "opentelemetry-cpp",
+            "platform": "!emscripten",
+            "features": [
+                "otlp-http"
+            ]
+        },
+        "indicators",
+        "rapidjson",
+        "roaring",
+        "zlib",
+        "minimp3"
+    ]
+}

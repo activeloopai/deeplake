@@ -1,0 +1,136 @@
+site_name: ""
+site_url: https://docs.deeplake.ai/
+repo_url: https://github.com/activeloopai/deeplake
+repo_name: ""
+theme:
+  icon:
+    repo: fontawesome/brands/github
+  name: material
+  custom_dir: overrides
+  logo: images/deeplake.logo.svg
+  favicon: /images/deeplake.favicon.png
+  static_templates:
+    - 404.html
+  features:
+    - navigation.top
+    #    - navigation.tabs
+    #    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.path
+    #    - navigation.expand
+    #    - content.action.edit
+    #    - content.action.view
+    - content.code.copy
+    - palette.toggle
+    # - header.autohide # Uncomment to enable autohiding header
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: "white"
+      background: "white"
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+
+hooks:
+  - hooks/custom_hooks.py
+extra:
+  version:
+    provider: mike
+    default: latest
+    alias: true
+  generator: false
+  analytics:
+    provider: google
+    property: G-S41VYMMQEB
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 4
+
+plugins:
+  - awesome-pages
+  - glightbox
+  - al-social:
+      cards_layout: default
+      cards_layout_options:
+        background_color: "#30323aef"
+        color: white
+        font_family: Noto Sans TC
+
+  - mkdocs-jupyter:
+      include_source: True
+      ignore_h1_titles: True
+  - mkdocstrings:
+      default_handler: python
+      #      custom_templates: templates
+      handlers:
+        python:
+          paths: [/source/python]
+          options:
+            allow_inspection: True
+            show_if_no_docstring: True
+            line_length: 60
+            show_symbol_type_heading: True
+            show_source: False
+            show_if_no_docstring: True
+            show_signature_annotations: True
+            show_root_heading: True
+            show_root_full_path: True
+            group_by_category: False
+            show_category_heading: False
+            inherited_members: True
+            separate_signature: True
+            signature_crossrefs: True
+            filters:
+              - "!^_"
+              - "^__"
+              - "!^__repr__"
+              - "!^__str__"
+              - "!^__eq__"
+              - "!^__ne__"
+              - "!^__all__"
+              - "!^__getstate__"
+              - "!^__setstate__"
+  - redirects:
+      redirect_maps:
+  - search
+
+extra_css:
+  - css/custom.css
+  - https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css
+  - https://fonts.googleapis.com/icon?family=Material+Icons
+
+extra_javascript:
+  - js/custom.js
+
+
+watch:
+  - /source

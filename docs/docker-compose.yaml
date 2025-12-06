@@ -1,0 +1,13 @@
+services:
+  docs:
+    container_name: deeplake-docs
+    build:
+      context: ..
+      dockerfile: dockerfiles/Dockerfile
+    ports:
+      - '8000:8000'
+    volumes:
+      - ${PWD}:/docs
+      - ${PWD}/../python:/source/python
+      - ${PWD}/../typescript:/source/typescript
+      - ${PWD}/../node_modules:/source/typescript/node_modules

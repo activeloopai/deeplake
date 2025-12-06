@@ -1,0 +1,5 @@
+.venv/
+dockerfiles/Dockerfile
+dockerfiles/Dockerfile.base
+dockerfiles/Dockerfile.playwright
+site/

@@ -8,9 +8,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Extension Version to use in package and container images"
-        required: false
-        default: "FROM_REPO_VERSION"
+        description: "Extension Version"
+        required: true
       pg_version:
         description: "PostgreSQL version to build (16, 17, 18, or all)"
         required: false
@@ -37,6 +36,8 @@ env:
   GREEN: "\e[92m"
   RED: \e[91m"
   DEFAULT: "\e[0m"
+  VERSION: "${{ inputs.version }}"
+
 
 jobs:
   setup:
@@ -70,7 +71,7 @@ jobs:
       fail-fast: true
       matrix:
         arch: [x86_64, aarch64]
-    runs-on: indra-wheels-linux-${{ matrix.arch }}-runner
+    runs-on: deeplake-linux-${{ matrix.arch }}-runner
     container: 067976305224.dkr.ecr.us-east-1.amazonaws.com/gcc-pypa-manylinux_2_28:${{ matrix.arch }}
     env:
       VCPKG_ROOT: ${{ github.workspace }}/vcpkg
@@ -100,14 +101,20 @@ jobs:
           bash scripts/build_scripts/manage_cache.sh download postgres
           git clone https://github.com/microsoft/vcpkg.git && cd vcpkg && git checkout 6f29f12e82a8293156836ad81cc9bf5af41fe836 && ./bootstrap-vcpkg.sh
 
+      - name: install python dependencies
+        shell: bash
+        run: |-
+          python3 -m pip install --upgrade pip
+          python3 -m pip install requests
+
       - name: build pg_deeplake for ${{ matrix.arch }}
         shell: bash
         run: |-
           echo -e "${YELLOW}Building the PostgreSQL extension...${DEFAULT}"
-          
+
           # Determine which versions to build based on input
           PG_VERSION="${{ inputs.pg_version || '18' }}"
-          
+
           if [ "${PG_VERSION}" == "all" ]; then
             # Build all versions
             CMAKE_FLAGS="-DBUILD_PG_16=ON -DBUILD_PG_17=ON -DBUILD_PG_18=ON"
@@ -125,14 +132,10 @@ jobs:
             echo -e "${RED}Invalid PostgreSQL version: ${PG_VERSION}${DEFAULT}"
             exit 1
           fi
-          
+
           # Run the build with the appropriate flags
-          cd cpp
-          preset="--preset=deeplake-pg-${{ env.BUILD_PRESET }}"
-          cmake ${preset} ${CMAKE_FLAGS}
-          cmake --build ${preset}
-          cd ..
-          
+          python3 scripts/build_pg_ext.py prod --deeplake-static
+
           echo -e "${GREEN}Done.${DEFAULT}"
 
       - name: test built packages
@@ -140,10 +143,10 @@ jobs:
         run: |-
           # Only run tests for PostgreSQL 18
           PG_VERSION="${{ inputs.pg_version || '18' }}"
-          
+
           if [ "${PG_VERSION}" == "18" ] || [ "${PG_VERSION}" == "all" ]; then
             echo -e "${YELLOW}Running tests for PostgreSQL 18...${DEFAULT}"
-            
+
             # Check if the extension file exists
             if [ ! -f "postgres/pg_deeplake_18.so" ]; then
               echo -e "${RED}Extension file pg_deeplake_18.so not found${DEFAULT}"
@@ -151,11 +154,11 @@ jobs:
               ls -la postgres/*.so || echo "No .so files found"
               exit 1
             fi
-            
+
             useradd -r -m -U -d /var/lib/postgresql -s /bin/bash postgres
             chown -R postgres:postgres /var/lib/postgresql
             chown -R postgres:postgres "${PWD}"
-            
+
             # Run tests for PostgreSQL 18
             export PG_MAJOR_VERSION=18
             cd postgres/tests && su - postgres -c "cd ${PWD} && make" || {
@@ -163,7 +166,7 @@ jobs:
               exit 1
             }
             cd ../..
-            
+
             echo -e "${GREEN}PostgreSQL 18 tests passed${DEFAULT}"
           else
             echo -e "${YELLOW}Skipping tests - only PostgreSQL 18 is tested (selected version: ${PG_VERSION})${DEFAULT}"
@@ -184,8 +187,8 @@ jobs:
     env:
       REPOSITORY: "/tmp/activeloop-packages"
       SUPPORTED_VERSIONS: ${{ needs.setup.outputs.versions-list }}
-    runs-on: indra-ci-runner
-    container: "067976305224.dkr.ecr.us-east-1.amazonaws.com/repo-builder:amd"
+    runs-on: ubuntu-latest
+    container: "quay.io/activeloopai/repo-builder:latest"
     steps:
       - name: checkout
         uses: actions/checkout@v4.2.2
@@ -228,11 +231,6 @@ jobs:
           --import-options show-only \
           --import public.asc | grep '^pub' | cut -d: -f5)
           rm -f public.asc; rm -f private.asc
-          if [ "${{ inputs.version }}" == "FROM_REPO_VERSION" ]; then
-            VERSION=$(yq -otoml '.tool.poetry.version' python/pyproject.toml)
-          else
-            VERSION="${{ inputs.version }}"
-          fi
           mkdir -p "${REPOSITORY}"/scripts/pg-deeplake/ &&
           cp -f postgres/scripts/install.sh "${REPOSITORY}"/scripts/pg-deeplake/
           for type in deb rpm; do
@@ -293,31 +291,15 @@ jobs:
           PG_VERSION: ${{ matrix.version }}
         run: |-
           mkdir -p ./debs
-          if [ "${{ inputs.version }}" == "FROM_REPO_VERSION" ]; then
-            DEEPLAKE_VERSION=$(yq -otoml '.tool.poetry.version' python/pyproject.toml)
-          else
-            DEEPLAKE_VERSION="${{ inputs.version }}"
-          fi
-          wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-${PG_VERSION}_${DEEPLAKE_VERSION}-1_amd64.deb -O ./debs/pg-deeplake-${PG_VERSION}_${DEEPLAKE_VERSION}-1_amd64.deb
-          wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-${PG_VERSION}_${DEEPLAKE_VERSION}-1_arm64.deb -O ./debs/pg-deeplake-${PG_VERSION}_${DEEPLAKE_VERSION}-1_arm64.deb
+          VERSION="${{ inputs.version }}"
+          wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-${PG_VERSION}_${VERSION}-1_amd64.deb -O ./debs/pg-deeplake-${PG_VERSION}_${VERSION}-1_amd64.deb
+          wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-${PG_VERSION}_${VERSION}-1_arm64.deb -O ./debs/pg-deeplake-${PG_VERSION}_${VERSION}-1_arm64.deb
           sed s/BASE_IMAGE/postgres:${PG_VERSION}-bookworm/g postgres/Dockerfile > Dockerfile.build
           docker buildx build \
             --push \
-            --tag quay.io/activeloopai/pg-deeplake:${PG_VERSION}_${DEEPLAKE_VERSION} \
+            --tag quay.io/activeloopai/pg-deeplake:${PG_VERSION}_${VERSION} \
             --tag quay.io/activeloopai/pg-deeplake:${PG_VERSION} \
-            --build-arg VERSION=${PG_VERSION}_${DEEPLAKE_VERSION}-1 \
+            --build-arg VERSION=${PG_VERSION}_${VERSION}-1 \
             --platform linux/amd64,linux/arm64 \
             -f Dockerfile.build \
             .
-
-  rerun-workflows:
-    name: communication lost rerun
-    if: failure()
-    needs:
-      - extension-build
-      - repo-build
-      - build_container_images
-    uses: activeloopai/private-github-actions/.github/workflows/job-re-run.yaml@main
-    secrets:
-      token: ${{ secrets.ORG_GH_BOT_PAT }}
-

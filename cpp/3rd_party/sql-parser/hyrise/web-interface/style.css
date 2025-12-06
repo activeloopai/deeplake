@@ -1,0 +1,38 @@
+
+body {
+	text-align: center;
+}
+
+div {
+	margin: auto;
+}
+
+button {
+	margin-left: 1px;
+	margin-right: 1px;
+}
+
+table {
+	font-size: 14px;
+}
+
+
+.content {
+	width: 90%;
+	margin: auto;
+	margin-top: 10px;
+}
+
+textarea#queryInput {
+	font-family: 'Monospace';
+	height: 500px;
+	resize: none;
+}
+
+
+h1, h2, h3, h4, h5, h6 {
+	margin-top: 0px;
+}
+h4 {
+	font-size: 14px;
+}

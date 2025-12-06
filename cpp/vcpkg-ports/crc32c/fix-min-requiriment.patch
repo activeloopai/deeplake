@@ -1,0 +1,13 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 8490728..8490f6d 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style license that can be
+ # found in the LICENSE file. See the AUTHORS file for names of contributors.
+ 
+-cmake_minimum_required(VERSION 3.1)
++cmake_minimum_required(VERSION 3.5)
+ project(Crc32c VERSION 1.1.0 LANGUAGES C CXX)
+ 
+ # C standard can be overridden when this is used as a sub-project.

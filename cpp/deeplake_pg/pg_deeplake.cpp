@@ -1,0 +1,309 @@
+#include "pg_deeplake.hpp"
+#include "logger.hpp"
+#include "table_storage.hpp"
+
+#include <deeplake_api/deeplake_api.hpp>
+#include <deeplake_core/deeplake_index_type.hpp>
+
+namespace pg {
+
+QueryDesc* query_info::current_query_desc = nullptr;
+
+void index_info::create_deeplake_indexes()
+{
+    ASSERT(dataset_ != nullptr);
+    dataset_->set_indexing_mode(deeplake::indexing_mode::always);
+    bool index_created = false;
+    for (auto& column_name : column_names_) {
+        /// 'none' means hybrid index type
+        if (is_hybrid_index()) {
+            index_type_ = deeplake_core::deeplake_index_type::type::none;
+        } else if (pg_index::get_oid(table_name_, column_name) != InvalidOid) {
+            ereport(
+                ERROR,
+                (errcode(ERRCODE_INTERNAL_ERROR),
+                 errmsg("Failed to create index on table '%s', column '%s'", table_name_.c_str(), column_name.c_str()),
+                 errdetail("Multiple indexes on the same column are not supported yet."),
+                 errhint("Drop the existing index before creating a new one.")));
+        }
+        auto& column = dataset_->get_column(column_name);
+        auto index_holder = column.index_holder();
+        if (index_holder != nullptr) {
+            auto existing_idx_type = deeplake_core::deeplake_index_type::from_string(index_holder->to_string());
+            if (index_type_ == deeplake_core::deeplake_index_type::type::none) {
+                index_type_ = existing_idx_type;
+            }
+            if (is_hybrid_index() && column.type().data_type().get_dtype() == nd::dtype::string &&
+                existing_idx_type != deeplake_core::deeplake_index_type::type::bm25) {
+                elog(ERROR,
+                     "Conflicting index types for column '%s' in table '%s': existing index type '%s', new index type "
+                     "'bm25'",
+                     column_name.c_str(),
+                     table_name_.c_str(),
+                     deeplake_core::deeplake_index_type::to_string(existing_idx_type).data());
+            }
+            if (index_type_ != existing_idx_type) {
+                elog(ERROR,
+                     "Conflicting index types for column '%s' in table '%s': existing index type '%s', new index type "
+                     "'%s'",
+                     column_name.c_str(),
+                     table_name_.c_str(),
+                     deeplake_core::deeplake_index_type::to_string(index_type_).data(),
+                     deeplake_core::deeplake_index_type::to_string(existing_idx_type).data());
+            }
+            continue;
+        }
+        auto column_type_kind = column.type().kind();
+        if (column_type_kind == deeplake_core::type_kind::text) {
+            // Determine text index type
+            if (index_type_ == deeplake_core::deeplake_index_type::type::none) {
+                index_type_ = deeplake_core::deeplake_index_type::type::bm25;
+            }
+            if (index_type_ != deeplake_core::deeplake_index_type::type::bm25 &&
+                index_type_ != deeplake_core::deeplake_index_type::type::exact_text &&
+                index_type_ != deeplake_core::deeplake_index_type::type::inverted_index) {
+                elog(ERROR,
+                     "Invalid index type '%s' for text column. Use 'inverted', 'bm25' or 'exact_text'",
+                     deeplake_core::deeplake_index_type::to_string(index_type_).data());
+            }
+            column.create_index(deeplake_core::index_type(deeplake_core::text_index_type(index_type_)));
+            index_created = true;
+        } else if (column_type_kind == deeplake_core::type_kind::generic && !column.type().data_type().is_array() &&
+                   nd::dtype_is_numeric(column.type().data_type().get_dtype())) {
+            if (index_type_ == deeplake_core::deeplake_index_type::type::none) {
+                index_type_ = deeplake_core::deeplake_index_type::type::inverted_index;
+            }
+            column.create_index(deeplake_core::index_type(deeplake_core::numeric_index_type(index_type_)));
+            index_created = true;
+        } else if (column_type_kind == deeplake_core::type_kind::embedding ||
+                   column_type_kind == deeplake_core::type_kind::generic) {
+            if (!column.type().data_type().is_array() ||
+                column.type().data_type().get_scalar_type().get_dtype() != nd::dtype::float32) {
+                elog(
+                    ERROR, "Column %s is not float32 array, hence not supported yet for indexing", column_name.c_str());
+            }
+            const auto dimensions = column.type().data_type().dimensions();
+            if (dimensions == 1) {
+                // Determine embedding index type
+                if (index_type_ == deeplake_core::deeplake_index_type::type::none) {
+                    index_type_ = deeplake_core::deeplake_index_type::type::clustered;
+                }
+                if (index_type_ != deeplake_core::deeplake_index_type::type::clustered &&
+                    index_type_ != deeplake_core::deeplake_index_type::type::clustered_quantized &&
+                    index_type_ != deeplake_core::deeplake_index_type::type::pooled_quantized) {
+                    elog(ERROR,
+                         "Invalid index type '%s' for embedding column. Use 'clustered', 'clustered_quantized', or "
+                         "'pooled_quantized'",
+                         deeplake_core::deeplake_index_type::to_string(index_type_).data());
+                }
+                column.create_index(deeplake_core::index_type(deeplake_core::embedding_index_type(index_type_)));
+            } else if (dimensions == 2) {
+                if (index_type_ == deeplake_core::deeplake_index_type::type::none) {
+                    index_type_ = deeplake_core::deeplake_index_type::type::pooled_quantized;
+                }
+                column.create_index(deeplake_core::index_type(deeplake_core::embeddings_matrix_index_type()));
+            } else {
+                elog(ERROR,
+                     "Column %s has dimensions %d, which is not supported yet for indexing",
+                     column_name.c_str(),
+                     dimensions);
+            }
+            index_created = true;
+        } else if (column_type_kind == deeplake_core::type_kind::dict) {
+            if (index_type_ == deeplake_core::deeplake_index_type::type::none) {
+                index_type_ = deeplake_core::deeplake_index_type::type::inverted_index;
+            }
+            column.create_index(deeplake_core::index_type(deeplake_core::json_index_type(index_type_)));
+            index_created = true;
+        } else {
+            elog(ERROR, "Column %s is not supported yet for indexing", column_name.c_str());
+        }
+    }
+    if (is_hybrid_index()) {
+        index_type_ = deeplake_core::deeplake_index_type::type::none;
+    }
+    if (index_created) {
+        table_storage::instance().get_table_data(table_name_).commit(true);
+    }
+}
+
+void index_info::drop_deeplake_indexes()
+{
+    ASSERT(dataset_ != nullptr);
+    bool index_dropped = false;
+    for (auto& column_name : column_names_) {
+        auto& column = dataset_->get_column(column_name);
+        auto index_holder = column.index_holder();
+        if (index_holder == nullptr) {
+            continue;
+        }
+        auto deeplake_indexes = index_holder->get_indexes();
+        for (const auto& index : deeplake_indexes) {
+            elog(DEBUG1,
+                 "Dropping index on column '%s' in table '%s', type '%s'",
+                 column_name.c_str(),
+                 table_name_.c_str(),
+                 index.to_string().data());
+            column.drop_index(index);
+            index_dropped = true;
+        }
+    }
+    if (index_dropped) {
+        table_storage::instance().get_table_data(table_name_).commit(false);
+    }
+}
+
+void index_info::create()
+{
+    base::log_debug(base::log_channel::index, "Create index info");
+    ASSERT(dataset_ == nullptr);
+    ASSERT(!table_name_.empty());
+    ASSERT(!column_names_.empty());
+    ASSERT(table_storage::instance().table_exists(table_name_));
+    auto& deeplake_table_data = table_storage::instance().get_table_data(table_name_);
+    dataset_ = deeplake_table_data.get_dataset();
+    create_deeplake_indexes();
+}
+
+/// @name Index metadata management
+/// @description: Functions to manage index metadata in the database
+/// @{
+
+void erase_indexer_data(const std::string& table_name, const std::string& column_name, const std::string& index_name)
+{
+    if (!pg::utils::check_table_exists("pg_deeplake_metadata")) {
+        return;
+    }
+    pg::utils::memory_context_switcher context_switcher;
+    StringInfoData buf;
+    initStringInfo(&buf);
+    if (!index_name.empty()) {
+        appendStringInfo(&buf,
+                         "DELETE FROM public.pg_deeplake_metadata WHERE index_name = %s",
+                         quote_literal_cstr(index_name.c_str()));
+    } else if (!table_name.empty() && !column_name.empty()) {
+        appendStringInfo(&buf,
+                         "DELETE FROM public.pg_deeplake_metadata WHERE table_name = %s AND column_name = %s",
+                         quote_literal_cstr(table_name.c_str()),
+                         quote_literal_cstr(column_name.c_str()));
+    } else if (!table_name.empty()) {
+        appendStringInfo(&buf,
+                         "DELETE FROM public.pg_deeplake_metadata WHERE table_name = %s",
+                         quote_literal_cstr(table_name.c_str()));
+    } else {
+        ASSERT(false);
+    }
+    pg::utils::spi_connector connector;
+    if (SPI_execute(buf.data, false, 0) != SPI_OK_DELETE) {
+        ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Failed to erase metadata")));
+    }
+}
+
+void save_index_metadata(Oid oid)
+{
+    pg::utils::memory_context_switcher context_switcher;
+    const pg::index_info& idx_info = pg::pg_index::get_index_info(oid);
+    StringInfoData buf;
+    initStringInfo(&buf);
+
+    appendStringInfo(&buf,
+                     "INSERT INTO public.pg_deeplake_metadata (table_name, column_name, index_name, index_type, "
+                     "order_type, index_id) "
+                     "VALUES (%s, %s, %s, %s, %d, %d) "
+                     "ON CONFLICT (table_name, column_name) "
+                     "DO UPDATE SET index_name = EXCLUDED.index_name, "
+                     "index_type = EXCLUDED.index_type, "
+                     "order_type = EXCLUDED.order_type, "
+                     "index_id = EXCLUDED.index_id",
+                     quote_literal_cstr(idx_info.table_name().c_str()),
+                     quote_literal_cstr(idx_info.get_column_names_string().c_str()),
+                     quote_literal_cstr(idx_info.index_name().c_str()),
+                     quote_literal_cstr(deeplake_core::deeplake_index_type::to_string(idx_info.index_type()).data()),
+                     static_cast<int32_t>(idx_info.order_type()),
+                     oid);
+
+    pg::utils::spi_connector connector;
+    if (SPI_execute(buf.data, false, 0) != SPI_OK_INSERT) {
+        ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Failed to save metadata")));
+    }
+}
+
+void load_index_metadata()
+{
+    if (!pg::utils::check_table_exists("pg_deeplake_metadata")) {
+        return;
+    }
+    pg::table_storage::instance().force_load_table_metadata();
+    pg::utils::memory_context_switcher context_switcher;
+
+    const char* query = "SELECT table_name, column_name, index_name, index_type, order_type, index_id "
+                        "FROM public.pg_deeplake_metadata";
+
+    pg::utils::spi_connector connector;
+    if (SPI_execute(query, true, 0) != SPI_OK_SELECT) {
+        base::log_warning(base::log_channel::index, "Failed to query metadata table");
+        return;
+    }
+
+    const auto proc = SPI_processed;
+    const bool res = (proc > 0 && SPI_tuptable != nullptr);
+    if (res) {
+        TupleDesc tupdesc = SPI_tuptable->tupdesc;
+        SPITupleTable* tuptable = SPI_tuptable;
+
+        for (int32_t i = 0; i < proc; ++i) {
+            pg::index_info::current().reset();
+            HeapTuple tuple = tuptable->vals[i];
+
+            char* val = nullptr;
+            if ((val = SPI_getvalue(tuple, tupdesc, 1)) != nullptr) {
+                pg::index_info::current().set_table_name(val);
+                if (!pg::table_storage::instance().table_exists(val)) {
+                    elog(ERROR, "Table %s does not have DeepLake access method, can't create index.", val);
+                }
+            }
+            if ((val = SPI_getvalue(tuple, tupdesc, 2)) != nullptr) {
+                pg::index_info::current().set_column_name(val);
+            }
+            if ((val = SPI_getvalue(tuple, tupdesc, 3)) != nullptr) {
+                pg::index_info::current().set_index_name(val);
+            }
+            if ((val = SPI_getvalue(tuple, tupdesc, 4)) != nullptr) {
+                pg::index_info::current().set_index_type(val);
+            }
+
+            bool is_null = false;
+            Datum datum_order_type = SPI_getbinval(tuple, tupdesc, 5, &is_null);
+            const int32_t order_type = is_null ? 0 : DatumGetInt32(datum_order_type);
+            pg::index_info::current().set_order_type(static_cast<query_core::order_type>(order_type));
+
+            is_null = false;
+            datum_order_type = SPI_getbinval(tuple, tupdesc, 6, &is_null);
+            const uint32_t oid = is_null ? 0 : DatumGetUInt32(datum_order_type);
+
+            if (!pg::pg_index::has_index_info(oid)) {
+                pg::pg_index::create_index_info(oid);
+            } else {
+                pg::index_info::current().reset();
+            }
+            context_switcher.reset();
+        }
+    }
+}
+
+/// @}
+
+void init_deeplake()
+{
+    static bool initialized = false;
+    if (initialized) {
+        return;
+    }
+    initialized = true;
+
+    deeplake_api::initialize(std::make_shared<pg::logger_adapter>(), 8 * base::system_report::cpu_cores());
+
+    pg::table_storage::instance(); /// initialize table storage
+}
+
+} // namespace pg

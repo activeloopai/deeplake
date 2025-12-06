@@ -1,0 +1,4 @@
+comment = 'Vector indexing extension using deeplake clustered index'
+default_version = '1.0'
+relocatable = true
+module_pathname = '$libdir/pg_deeplake'

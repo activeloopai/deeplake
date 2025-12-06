@@ -1,0 +1,158 @@
+  [data-md-color-scheme="slate"] {
+    --md-primary-fg-color:        #1f2129;
+    --md-primary-fg-color--light: #ECB7B7;
+    --md-primary-fg-color--dark:  #90030C;
+  }
+
+
+.md-search {
+    margin: 0 6px 0 0;
+}
+
+.md-content {
+    margin-bottom: 100px;
+}
+
+.doc-function, .doc-attribute {
+    border-bottom: 2px lightgrey dashed;
+    margin-bottom: 40px;
+}
+.md-nav__link {
+    padding: 5px ;
+    margin: 0 !important
+}
+.md-nav__link--active {
+    font-weight: 700;
+    font-size: 16px;
+    color: #0b61ff !important;
+}
+#next-steps {
+    font-size: 30px;
+    font-weight: bold;
+}
+.md-header__source {
+    margin: 0px !important;
+    position: relative;
+    z-index: 2;
+    width: auto;
+    display: block !important;
+}
+.md-header--shadow {
+    box-shadow: none;
+    border-bottom: .05rem solid #00000012;
+}
+[data-md-color-scheme="slate"] .md-header--shadow {
+    border-bottom: .05rem solid #484848; /* Dark mode color */
+}
+.md-header__source .md-source {
+    width: 200px;
+}
+.md-header-nav__button {
+    position: relative;
+    z-index: 1;
+}
+
+/*Remove the site title from the header while keeping the version selector*/
+.md-header__topic .md-ellipsis {
+    display: none;
+}
+.jupiter_download .md-content__button {
+    border-top: 1px dashed lightgray;
+    padding-top: 8px;
+    float: none;
+    display: block !important;
+    color: darkgrey
+}
+.md-content__button:nth-child(1){
+    display: none;
+}
+.md-footer {
+    display: none;
+}
+
+[data-md-color-scheme="slate"] .md-nav__link:hover {
+    color: #fff !important;
+    background: rgba(255, 255, 255, 0.2);
+}
+[data-md-color-scheme="default"] .md-nav__link:hover {
+    color: #000 !important;
+    background: rgba(233, 233, 233, 0.6);
+}
+[data-md-color-scheme="slate"] .md-nav__link:focus {
+    color: #fff !important;
+    font-weight: 700;
+}
+[data-md-color-scheme="default"] .md-nav__link:focus {
+    color: #000 !important;
+    font-weight: 700;
+}
+[data-md-color-scheme="slate"] .md-nav__link--active {
+    color: #fff !important;
+}
+[data-md-color-scheme="default"] .md-nav__link--active {
+    color: #000 !important;
+}
+
+[data-md-color-scheme="default"] .md-header__ellipsis a {
+    color: #000 !important;
+}
+[data-md-color-scheme="default"] .v3-docs-btn {
+    color: #000 !important;
+    border: 1px solid rgb(237 237 237) !important;
+}
+
+[data-md-color-scheme="default"] .notFound p {
+    color: #666666
+}
+
+[data-md-color-scheme="default"] .v3-info {
+    color: #666666
+}
+
+@media screen and (max-width: 500px) {
+    .md-header__source {
+        width: 60px
+    }
+    .md-source__repository {
+        display: none;
+    }
+}
+
+  .screenshot {
+      border: 1px solid lightgrey;
+  }
+
+
+  .md-nav__link:before {
+    content: "";
+  }
+
+  [data-md-color-scheme="default"] .md-version__link:hover, .md-version__link:focus {
+    color: #000 !important;
+    background: #ffffff !important;
+  }
+  
+  [data-md-color-scheme="slate"] .md-version__link:hover, .md-version__link:focus {
+    color: #fff !important;
+    background: #1f2129 !important;
+  }
+  
+  #__nav_1_label::before {
+    content: '🏗️'; /* Emoji for Quick Start */
+    padding-left: 7px;
+  }
+  
+  #__nav_2_label::before {
+    content: '📚'; /* Emoji for Setup */
+    padding-left: 7px;
+  }
+  
+  #__nav_3_label::before {
+    content: '🔬'; /* Emoji for User Guides */
+    padding-left: 7px;
+  }
+
+  #__nav_4_label::before {
+      content: '🐍'; /* Emoji for User Guides */
+      padding-left: 7px;
+  }

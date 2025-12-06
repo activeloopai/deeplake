@@ -1,0 +1,5 @@
+nav:
+  - Best Practices: best-practices.md
+  - TQL Syntax: tql.md
+  - Visualize Datasets: visualize.md
+  - Synchronize Datasets: sync.md
