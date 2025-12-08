@@ -1,0 +1,8 @@
+nav:
+  - Dataset: dataset.md
+  - Column: column.md
+  - Types: types.md
+  - Query: query.md
+  - Version Control: version_control.md
+  - Schemas: schemas.md
+  - Metadata: metadata.md

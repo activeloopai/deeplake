@@ -2,8 +2,10 @@
 ##############
 
 datasets
+builds
 
 PYTEST_TMPDIR
+.buildinfo
 .coverage
 .coverage.*
 htmlcov
@@ -44,7 +46,6 @@ dask-worker-space/
 # Logs and databases #
 ######################
 *.log
-*.sql
 *.sqlite
 data/
 **/dummy_data/**/deeplake/
@@ -61,6 +62,8 @@ Thumbs.db
 #######################
 *~
 
+postgres/tests/logs
+postgres/tests/results
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -218,3 +221,14 @@ benchmarks/torch_data
 # API docs
 api_docs/
 
+cpp/.ext
+docs/*.iml
+docs/.venv/
+docs/env/
+docs/site/
+/docs/api-js/
+docs/*.DS_Store
+docs/test.env
+docs/.cache/
+python/build/*
+python/MANIFEST.in

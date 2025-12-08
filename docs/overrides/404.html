@@ -1,0 +1,84 @@
+{% extends "main.html" %}
+
+<!-- Content -->
+
+{% block container %}
+
+<style>
+  section.notFound {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 80vh;
+    text-align: center;
+    width: 100%;
+  }
+
+  section.notFound h1 {
+    color: #ff8922;
+    font-size: 48px;
+    margin-bottom: 20px;
+    font-weight: bold;
+  }
+
+  section.notFound p {
+    font-size: 20px;
+    margin-bottom: 20px;
+    color: #dcdcdc;
+  }
+  .v3-info {
+    color: #dcdcdc;
+    font-size: 16px;
+    margin-bottom: 20px;
+  }
+
+  .home-link {
+    color: #ff8922;
+    font-size: 18px;
+    text-decoration: none;
+    padding: 10px 20px;
+    border: 2px solid #ff8922;
+    border-radius: 5px;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  .container {
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+  }
+
+  .home-link:hover {
+    background-color: #ff8922;
+    color: #fff;
+  }
+
+  @media only screen and (max-width: 600px) {
+    section.notFound h1 {
+      font-size: 32px;
+    }
+    section.notFound p {
+      font-size: 16px;
+    }
+    .home-link {
+      font-size: 16px;
+      padding: 8px 16px;
+    }
+  }
+</style>
+
+<section class="notFound">
+  <h1>Oops! Page Not Found</h1>
+  <p>
+    It looks like the page you're looking for doesn't exist.<br />
+    Let's head back to the home page and start fresh.
+  </p>
+  <span class="v3-info">
+    If you are looking for the Deep Lake 3.x docs, they have moved to <a href="https://docs.deeplake.ai/3.9/">https://docs.deeplake.ai/3.9/</a>
+  </span>
+  <div class="container">
+    <a href="/" class="home-link">Take me Home</a>
+  </div>
+</section>
+
+{% endblock %}

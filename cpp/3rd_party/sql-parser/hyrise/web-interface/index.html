@@ -1,0 +1,95 @@
+<html>
+  <head>
+    <script type="text/javascript" src="jquery-1.11.1.min.js"></script>
+    <link href="bootstrap.min.css" rel="stylesheet">
+
+    <script type="text/javascript" src="hyrise-connector.js"></script>
+    <script type="text/javascript" src="ui.js"></script>
+    <link href="style.css" rel="stylesheet" />
+    <title>Hyrise SQL Frontend</title>
+  </head>
+  <body>
+    <div class="content">
+      <div class="row">
+        <div class="col-lg-5">
+          <!-- Config -->
+          <div class="row">
+            <div class="form-group col-sm-12">
+              <input type="text" class="form-control" id="endpointInput" placeholder="Hyrise Host" value="http://localhost:5000/query" />
+            </div>
+          </div>
+
+          <!-- Sample Queries -->
+          <div class="row" style="margin-bottom: 10px;">
+            <div class="col-sm-12" id="sampleQueries"></div>
+            <!-- <div class="col-sm-4" id="buggyQueries"></div> -->
+          </div>
+
+          <!-- Input -->
+          <div class="row">
+            <div class="col-sm-12">
+              <textarea id="queryInput" class="form-control" placeholder="Enter your SQL query here..."></textarea>
+            </div>
+          </div>
+
+          <!-- Submit -->
+          <div class="row" style="margin: 10px 0px;">
+            <div class="col-sm-6">
+              <button type="button" class="btn btn-primary" id="submitBtn">Submit Query (Shift + Enter)</button>
+            </div>
+            <div class="col-sm-6">
+              <div class="input-group">
+                <span class="input-group-addon" id="basic-addon1"># times</span>
+                <input type="text" class="form-control" id="benchmarkInput" placeholder="Number of times to run" value="10" />
+                <span class="input-group-btn">
+                  <button class="btn btn-primary" type="button" id="benchmarkBtn">Benchmark</button>
+                </span>
+              </div><!-- /input-group -->
+            </div>
+          </div>
+
+        </div>
+
+
+
+
+        <div class="col-lg-7">
+
+          <div class="row">
+            <div class="col-sm-12">
+              <!-- View: Performance Data -->
+              <h3>Performance Data</h3>
+              <h4 id="timeInfo"></h4>
+              
+              <table id="performanceDataTable" class="table table-bordered table-striped table-hover">
+                <thead>
+                  <tr>
+                    <th data-key="id">ID</th>
+                    <th data-key="name">Name</th>
+                    <th data-key="duration">Duration</th>
+                    <th data-key="time_ms">Time (ms)</th>
+                    <th data-key="startTime">Start Time</th>
+                    <th data-key="endTime">End Time</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-12">
+              <!-- View: Result Table -->
+              <h3>Results (first 100 rows)</h3>
+              <div id="msgContainer" class="alert alert-success" role="alert">
+                <div id="resultInfo">Frontend Ready</div>
+              </div>
+              <table id="resultTable" class="table table-bordered table-striped table-hover"></table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

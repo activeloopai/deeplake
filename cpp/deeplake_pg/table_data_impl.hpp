@@ -1,0 +1,626 @@
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Must be first to avoid macro conflicts
+#include <postgres.h>
+#undef gettext
+#undef dgettext
+#undef ngettext
+#undef dngettext
+
+#ifdef __cplusplus
+}
+#endif
+
+#include "memory_tracker.hpp"
+#include "table_version.hpp"
+#include "utils.hpp"
+
+#include <heimdall_common/filtered_tensor.hpp>
+
+#include <access/parallel.h>
+
+// Inline implementation functions for table_data
+// This file should be included at the end of table_data.hpp
+
+namespace pg {
+
+namespace impl {
+
+inline icm::string_map<nd::array> convert_slot_to_row(const table_data& td, TupleTableSlot* slot)
+{
+    slot_getallattrs(slot);
+    icm::string_map<nd::array> row;
+    for (int32_t i = 0; i < td.num_columns(); ++i) {
+        const std::string column_name = td.get_atttypename(i);
+        auto& column = row[column_name];
+        if (slot->tts_isnull[i]) {
+            auto dt = td.get_read_only_dataset()->get_column_view(i).dtype();
+            column = (nd::dtype_is_numeric(dt) ? nd::adapt(0) : nd::none(dt, 1));
+            continue;
+        }
+        column = pg::utils::datum_to_nd(slot->tts_values[i], td.get_base_atttypid(i), td.get_atttypmod(i));
+    }
+    return row;
+}
+
+} // namespace impl
+
+inline table_data::table_data(
+    Oid table_oid, const std::string& table_name, TupleDesc tupdesc, std::string dataset_path, icm::string_map<> creds)
+    : table_name_(table_name)
+    , table_oid_(table_oid)
+    , tuple_descriptor_(tupdesc)
+    , dataset_path_(std::move(dataset_path))
+    , creds_(std::move(creds))
+{
+    requested_columns_.resize(tuple_descriptor_->natts, false);
+    base_typeids_.resize(tuple_descriptor_->natts);
+    // Cache base type OIDs for performance (avoid repeated syscache lookups)
+    for (int32_t i = 0; i < tuple_descriptor_->natts; ++i) {
+        Form_pg_attribute attr = TupleDescAttr(tuple_descriptor_, i);
+        base_typeids_[i] = pg::utils::get_base_type(attr->atttypid);
+    }
+}
+
+inline void table_data::commit(bool show_progress)
+{
+    try {
+        pg::utils::commit_dataset(get_dataset(), show_progress);
+    } catch (const std::exception& e) {
+        reset_insert_rows();
+        clear_delete_rows();
+        clear_update_rows();
+        set_num_uncommitted_rows(0);
+        elog(ERROR, "Failed to commit dataset: %s", e.what());
+    } catch (...) {
+        reset_insert_rows();
+        clear_delete_rows();
+        clear_update_rows();
+        set_num_uncommitted_rows(0);
+        elog(ERROR, "Failed to commit dataset, unknown exception");
+    }
+    num_uncommitted_rows_ = 0;
+    streamers_.reset();
+    force_refresh();
+}
+
+inline void table_data::append_row(icm::string_map<nd::array> row)
+{
+    ++num_uncommitted_rows_;
+    pg::utils::append_row(get_dataset(), std::move(row));
+}
+
+inline void table_data::open_dataset(bool create)
+{
+    elog(DEBUG1, "Opening dataset at path: %s (create=%s)", dataset_path_.url().c_str(), create ? "true" : "false");
+    try {
+        auto creds = creds_;
+        if (create) {
+            dataset_ = deeplake_api::create(dataset_path_, std::move(creds)).get_future().get();
+        } else {
+            dataset_ = deeplake_api::open(dataset_path_, std::move(creds)).get_future().get();
+        }
+
+        // Enable logging if GUC parameter is set
+        if (pg::enable_dataset_logging && dataset_ && !dataset_->is_logging_enabled()) {
+            dataset_->start_logging();
+            elog(DEBUG1, "Dataset logging enabled for: %s", table_name_.c_str());
+        }
+
+        read_only_dataset_ = open_read_only().get_future().get();
+    } catch (const std::exception& e) {
+        auto s = create ? "create" : "open";
+        ereport(ERROR,
+                (errcode(ERRCODE_INTERNAL_ERROR),
+                 errmsg("Failed to %s table storage: %s", s, e.what()),
+                 errdetail("Table name: %s, Dataset path: %s", table_name_.c_str(), dataset_path_.url().c_str()),
+                 errhint("Check if the dataset path is accessible and has proper permissions")));
+    }
+}
+
+inline async::promise<std::shared_ptr<deeplake_api::read_only_dataset>> table_data::open_read_only() const noexcept
+{
+    ASSERT(get_dataset() != nullptr);
+#if 0
+    // Lock actually behaves like commit/refresh,
+    // so if we call 'lock' we should revisit all the usages of mutable dataset
+    // and make sure that 'lock' operation is finished.
+    // Note that mutable dataset is passed to pg::index_info as well,
+    // which used as for create/drop index as well as for querying.
+    // For query we can pass read-only dataset,
+    // but in that case we should update index_info's read-only dataset accordingly.
+    return get_dataset()->lock();
+#else
+    auto creds = creds_;
+    return deeplake_api::open_read_only(dataset_path_, std::move(creds));
+#endif
+}
+
+inline void table_data::refresh() noexcept
+{
+    auto current_ds = get_read_only_dataset();
+    if (!pg::use_shared_mem_for_refresh) {
+        if (refresh_promise_ && !refresh_promise_.is_ready()) {
+            return; // Already refreshing
+        } else if (refresh_promise_ && refresh_promise_.is_ready()) {
+            auto ds = std::move(refresh_promise_).get();
+            if (ds->version() != current_ds->version()) { // refresh happend!
+                streamers_.reset();
+                read_only_dataset_ = std::move(ds);
+            }
+        }
+        // trigger new refresh
+        refresh_promise_ = open_read_only();
+    } else {
+        // Check if table version has changed and trigger refresh if needed
+        const uint64_t current_version = table_version_tracker::get_version(table_oid_);
+        if (current_version != cached_version_) {
+            cached_version_ = current_version;
+            std::vector<async::promise<void>> refresh_promises;
+            refresh_promises.reserve(2);
+            refresh_promises.emplace_back(dataset_->refresh());
+            refresh_promises.emplace_back(read_only_dataset_->refresh());
+            async::combine(std::move(refresh_promises)).get_future().get();
+            streamers_.reset();
+        }
+    }
+}
+
+inline void table_data::force_refresh()
+{
+    if (refresh_promise_) {
+        read_only_dataset_ = refresh_promise_.get_future().get();
+    }
+    refresh_promise_ = open_read_only();
+    read_only_dataset_ = refresh_promise_.get_future().get();
+    refresh_promise_ = async::promise<std::shared_ptr<deeplake_api::read_only_dataset>>();
+}
+
+inline const std::string& table_data::get_table_name() const noexcept
+{
+    return table_name_;
+}
+
+inline const std::shared_ptr<deeplake_api::dataset>& table_data::get_dataset() const noexcept
+{
+    if (dataset_ == nullptr) {
+        const_cast<table_data*>(this)->open_dataset();
+    }
+    return dataset_;
+}
+
+inline const std::shared_ptr<deeplake_api::read_only_dataset>& table_data::get_read_only_dataset() const noexcept
+{
+    if (read_only_dataset_ == nullptr) {
+        const_cast<table_data*>(this)->open_dataset();
+    }
+    return read_only_dataset_;
+}
+
+inline const http::uri& table_data::get_dataset_path() const noexcept
+{
+    return dataset_path_;
+}
+
+inline heimdall::column_view_ptr table_data::get_column_view(int32_t column_idx) const
+{
+    return get_read_only_dataset()->get_column_view(column_idx).shared_from_this();
+}
+
+inline TupleDesc table_data::get_tuple_descriptor() const noexcept
+{
+    return tuple_descriptor_;
+}
+
+inline Oid table_data::get_atttypid(AttrNumber attr_num) const noexcept
+{
+    return get_base_atttypid(attr_num);
+}
+
+inline int32_t table_data::get_atttypmod(AttrNumber attr_num) const noexcept
+{
+    return TupleDescAttr(tuple_descriptor_, attr_num)->atttypmod;
+}
+
+inline Oid table_data::get_base_atttypid(AttrNumber attr_num) const noexcept
+{
+    return base_typeids_[attr_num];
+}
+
+inline int32_t table_data::get_attndims(AttrNumber attr_num) const noexcept
+{
+    return TupleDescAttr(tuple_descriptor_, attr_num)->attndims;
+}
+
+inline std::string table_data::get_atttypename(AttrNumber attr_num) const noexcept
+{
+    return NameStr(TupleDescAttr(tuple_descriptor_, attr_num)->attname);
+}
+
+inline bool table_data::is_column_nullable(AttrNumber attr_num) const noexcept
+{
+    return TupleDescAttr(tuple_descriptor_, attr_num)->attnotnull ? false : true;
+}
+
+inline bool table_data::is_column_indexed(AttrNumber attr_num) const noexcept
+{
+    return pg::pg_index::get_oid(table_name_, get_atttypename(attr_num)) != InvalidOid;
+}
+
+inline int32_t table_data::num_columns() const noexcept
+{
+    return tuple_descriptor_->natts;
+}
+
+inline int64_t table_data::num_rows() const noexcept
+{
+    return get_read_only_dataset()->num_rows();
+}
+
+inline int64_t table_data::num_uncommitted_rows() const noexcept
+{
+    return num_uncommitted_rows_;
+}
+
+inline int64_t table_data::num_total_rows() const noexcept
+{
+    return num_rows() + num_uncommitted_rows();
+}
+
+inline void table_data::set_num_uncommitted_rows(int64_t num_uncommitted_rows) noexcept
+{
+    num_uncommitted_rows_ = num_uncommitted_rows;
+}
+
+inline void table_data::reset_insert_rows() noexcept
+{
+    insert_rows_.clear();
+}
+
+inline void table_data::add_insert_slots(int32_t nslots, TupleTableSlot** slots)
+{
+    num_uncommitted_rows_ += nslots;
+    for (auto i = 0; i < nslots; ++i) {
+        insert_rows_.emplace_back(impl::convert_slot_to_row(*this, slots[i]));
+    }
+}
+
+inline void table_data::add_delete_row(int64_t row_id)
+{
+    delete_rows_.push_back(row_id);
+}
+
+inline void table_data::clear_delete_rows() noexcept
+{
+    delete_rows_.clear();
+}
+
+inline void table_data::add_update_row(int64_t row_id, icm::string_map<nd::array> update_row)
+{
+    for (auto& [column_name, new_value] : update_row) {
+        if (new_value.is_none() && new_value.dtype() == nd::dtype::unknown) {
+            continue; // Skip updates with None values
+        }
+        update_rows_.emplace_back(row_id, std::move(column_name), std::move(new_value));
+    }
+}
+
+inline void table_data::clear_update_rows() noexcept
+{
+    update_rows_.clear();
+}
+
+inline table_data::streamer_info& table_data::get_streamers() noexcept
+{
+    return streamers_;
+}
+
+inline bool table_data::column_has_streamer(uint32_t idx) const noexcept
+{
+    return streamers_.streamers.size() > idx && streamers_.streamers[idx] != nullptr;
+}
+
+inline void table_data::reset_streamers() noexcept
+{
+    streamers_.reset();
+}
+
+inline nd::array table_data::get_column_value(int32_t column_number, int64_t row_number) const noexcept
+{
+    return async::run_on_main([ds = get_read_only_dataset(), column_number, row_number]() {
+               return ds->get_column_view(column_number).request_sample(row_number, {});
+           })
+        .get_future()
+        .get();
+}
+
+inline nd::array table_data::get_sample(int32_t column_number, int64_t row_number)
+{
+    if (!column_has_streamer(column_number)) {
+        return get_column_value(column_number, row_number);
+    }
+    return streamers_.get_sample(column_number, row_number);
+}
+
+inline bool table_data::is_column_requested(int32_t column_number) const noexcept
+{
+    return requested_columns_[column_number];
+}
+
+inline void table_data::set_column_requested(int32_t column_number, bool requested) noexcept
+{
+    is_star_selected_ = false;
+    requested_columns_[column_number] = requested;
+}
+
+inline void table_data::reset_requested_columns() noexcept
+{
+    is_star_selected_ = true;
+    requested_columns_.assign(tuple_descriptor_->natts, false);
+}
+
+inline bool table_data::is_star_selected() const noexcept
+{
+    return is_star_selected_;
+}
+
+inline bool table_data::can_stream_column(int32_t column_number) const noexcept
+{
+    if (column_number < 0 || column_number >= tuple_descriptor_->natts || num_rows() == 0 ||
+        type_is_array(get_atttypid(column_number))) {
+        return false;
+    }
+    const auto column_width =
+        pg::utils::get_column_width(get_base_atttypid(column_number), get_atttypmod(column_number));
+    return column_width > 0 && column_width < pg::max_streamable_column_width;
+}
+
+inline bool table_data::flush_inserts()
+{
+    if (insert_rows_.empty()) {
+        return true;
+    }
+
+    // Flush the insert tuples to the dataset
+    try {
+        if (insert_rows_.size() == 1) {
+            append_row(std::move(insert_rows_[0]));
+        } else {
+            std::vector<std::vector<nd::array>> collected;
+            collected.resize(insert_rows_[0].size());
+            std::ranges::for_each(collected, [s = insert_rows_.size()](auto& v) {
+                v.reserve(s);
+            });
+            for (auto& row : insert_rows_) {
+                auto i = 0;
+                for (auto& [_, value] : row) {
+                    collected[i++].push_back(std::move(value));
+                }
+            }
+            icm::string_map<nd::array> merged = std::move(insert_rows_[0]);
+            auto i = 0;
+            for (auto& [_, value] : merged) {
+                value = nd::dynamic(collected[i++]);
+            }
+            get_dataset()->append_rows(std::move(merged)).get_future().get();
+        }
+
+        commit();
+    } catch (const base::exception& e) {
+        elog(WARNING, "Failed to flush inserts: %s", e.what());
+        insert_rows_.clear();
+        return false;
+    }
+
+    insert_rows_.clear();
+    return true;
+}
+
+inline bool table_data::flush_deletes()
+{
+    if (delete_rows_.empty()) {
+        return true;
+    }
+
+    // Flush the delete rows to the dataset
+    try {
+        get_dataset()->delete_rows(delete_rows_);
+        commit();
+    } catch (const base::exception& e) {
+        elog(WARNING, "Failed to flush deletes: %s", e.what());
+        delete_rows_.clear();
+        return false;
+    }
+
+    delete_rows_.clear();
+    return true;
+}
+
+inline bool table_data::flush_updates()
+{
+    if (update_rows_.empty()) {
+        return true;
+    }
+
+    // Flush the update rows to the dataset
+    try {
+        std::vector<async::promise<void>> update_promises;
+        update_promises.reserve(update_rows_.size());
+        for (const auto& [row_number, column_name, new_value] : update_rows_) {
+            update_promises.emplace_back(get_dataset()->update_row(row_number, column_name, new_value));
+        }
+        async::combine(std::move(update_promises)).get_future().get();
+        commit();
+    } catch (const base::exception& e) {
+        elog(WARNING, "Failed to flush updates: %s", e.what());
+        update_rows_.clear();
+        return false;
+    }
+
+    update_rows_.clear();
+    return true;
+}
+
+inline void table_data::set_primary_keys(const std::set<std::string>& primary_keys)
+{
+    get_dataset()->set_indexing_mode(deeplake::indexing_mode::always);
+    bool index_created = false;
+    for (const auto& column_name : primary_keys) {
+        auto& column = get_dataset()->get_column(column_name);
+        auto index_holder = column.index_holder();
+        if (index_holder != nullptr) {
+            continue;
+        }
+        auto column_type_kind = column.type().kind();
+        if (column_type_kind == deeplake_core::type_kind::generic && !column.type().data_type().is_array() &&
+            nd::dtype_is_numeric(column.type().data_type().get_dtype())) {
+            column.create_index(deeplake_core::index_type(
+                deeplake_core::numeric_index_type(deeplake_core::deeplake_index_type::type::inverted_index)));
+            index_created = true;
+            elog(DEBUG1, "Created numeric index on table '%s' column '%s'", table_name_.c_str(), column_name.c_str());
+        } else {
+            elog(DEBUG1, "Column %s is not supported yet for indexing", column_name.c_str());
+        }
+    }
+    if (index_created) {
+        commit();
+    }
+}
+
+inline Oid table_data::get_table_oid() const noexcept
+{
+    return table_oid_;
+}
+
+inline std::pair<int64_t, int64_t> table_data::get_row_range(int32_t worker_id) const
+{
+    ASSERT(worker_id >= 0 && worker_id < max_parallel_workers);
+    const auto total_rows = num_rows();
+    const auto total_workers = max_parallel_workers;
+    int64_t rows_per_worker = total_rows / total_workers;
+    int64_t remaining_rows = total_rows % total_workers;
+    auto start_row = worker_id * rows_per_worker;
+    auto end_row = start_row + rows_per_worker;
+    if (worker_id == 0) {
+        end_row += remaining_rows; // First worker gets the remaining rows
+    }
+    return {start_row, end_row};
+}
+
+inline void table_data::create_streamer(int32_t idx, int32_t worker_id)
+{
+    if (streamers_.streamers.empty()) {
+        const auto s = num_columns();
+        streamers_.streamers.resize(s);
+        std::vector<streamer_info::column_data> temp_data(s);
+        streamers_.column_to_batches.swap(temp_data);
+    }
+    if (!streamers_.streamers[idx]) {
+        if (pg::memory_tracker::has_memory_limit()) {
+            const auto column_size =
+                pg::utils::get_column_width(get_base_atttypid(idx), get_atttypmod(idx)) * num_rows();
+            pg::memory_tracker::ensure_memory_available(column_size);
+        }
+        if (worker_id != -1) {
+            auto [start_row, end_row] = get_row_range(worker_id);
+            auto new_column = heimdall_common::create_filtered_tensor(
+                *(get_column_view(idx)), icm::index_mapping_t<int64_t>::slice({start_row, end_row, 1}));
+            streamers_.streamers[idx] = std::make_unique<bifrost::column_streamer>(new_column, batch_size_);
+        } else {
+            streamers_.streamers[idx] = std::make_unique<bifrost::column_streamer>(get_column_view(idx), batch_size_);
+        }
+        const int64_t batch_index = (num_rows() - 1) / batch_size_;
+        streamers_.column_to_batches[idx].batches.resize(batch_index + 1);
+    }
+}
+
+inline nd::array table_data::streamer_info::get_sample(int32_t column_number, int64_t row_number)
+{
+    const int64_t batch_index = row_number >> batch_size_log2_;
+    const int64_t row_in_batch = row_number & batch_mask_;
+
+    auto& batches = column_to_batches[column_number].batches;
+    auto& batch = batches[batch_index];
+    if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
+        std::scoped_lock lock(column_to_batches[column_number].mutex);
+        for (auto i = 0; i <= batch_index; ++i) {
+            if (!batches[i].initialized_.load(std::memory_order_relaxed)) {
+                batches[i].owner_ = streamers[column_number]->next_batch();
+                batches[i].initialized_.store(true, std::memory_order_release);
+            }
+        }
+    }
+    return batch.owner_[row_in_batch];
+}
+
+template <typename T>
+inline T table_data::streamer_info::value(int32_t column_number, int64_t row_number)
+{
+    const int64_t batch_index = row_number >> batch_size_log2_;
+    const int64_t row_in_batch = row_number & batch_mask_;
+
+    auto& batches = column_to_batches[column_number].batches;
+    auto& batch = batches[batch_index];
+    if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
+        std::scoped_lock lock(column_to_batches[column_number].mutex);
+        for (auto i = 0; i <= batch_index; ++i) {
+            if (!batches[i].initialized_.load(std::memory_order_relaxed)) {
+                batches[i].owner_ = nd::eval(streamers[column_number]->next_batch());
+                batches[i].data_ = batches[i].owner_.data().data();
+                batches[i].initialized_.store(true, std::memory_order_release);
+            }
+        }
+    }
+
+    return reinterpret_cast<const T*>(batch.data_)[row_in_batch];
+}
+
+template <typename T>
+inline const T* table_data::streamer_info::value_ptr(int32_t column_number, int64_t row_number)
+{
+    const int64_t batch_index = row_number >> batch_size_log2_;
+    const int64_t row_in_batch = row_number & batch_mask_;
+
+    auto& batches = column_to_batches[column_number].batches;
+    auto& batch = batches[batch_index];
+    if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
+        std::scoped_lock lock(column_to_batches[column_number].mutex);
+        for (auto i = 0; i <= batch_index; ++i) {
+            if (!batches[i].initialized_.load(std::memory_order_relaxed)) {
+                batches[i].owner_ = nd::eval(streamers[column_number]->next_batch());
+                batches[i].data_ = batches[i].owner_.data().data();
+                batches[i].initialized_.store(true, std::memory_order_release);
+            }
+        }
+    }
+
+    return reinterpret_cast<const T*>(batch.data_) + row_in_batch;
+}
+
+template <>
+inline std::string_view table_data::streamer_info::value(int32_t column_number, int64_t row_number)
+{
+    const int64_t batch_index = row_number >> batch_size_log2_;
+    const int64_t row_in_batch = row_number & batch_mask_;
+
+    auto& batches = column_to_batches[column_number].batches;
+    auto& batch = batches[batch_index];
+    if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
+        std::scoped_lock lock(column_to_batches[column_number].mutex);
+        for (auto i = 0; i <= batch_index; ++i) {
+            if (!batches[i].initialized_.load(std::memory_order_relaxed)) {
+                batches[i].owner_ = streamers[column_number]->next_batch();
+                batches[i].holder_ = impl::string_stream_array_holder(batches[i].owner_);
+                batches[i].initialized_.store(true, std::memory_order_release);
+            }
+        }
+    }
+
+    return batch.holder_.data(row_in_batch);
+}
+
+} // namespace pg
