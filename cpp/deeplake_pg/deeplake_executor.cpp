@@ -250,12 +250,25 @@ void deeplake_executor_begin_scan(CustomScanState* node, EState* estate, int32_t
         state->total_rows = state->result_dataset->num_rows();
         state->current_row = 0;
         state->column_samples.reserve(state->result_dataset->size());
+
+        // Launch all column fetch requests in parallel
+        std::vector<async::promise<nd::array>> column_fetch_promises;
+        column_fetch_promises.reserve(state->result_dataset->size());
         for (auto& col : *state->result_dataset) {
-            state->column_samples.emplace_back(col.request_full({}).get_future().get());
-            if (!state->column_samples.back().is_dynamic() && nd::dtype_is_numeric(state->column_samples.back().dtype())) {
-                state->column_samples.back() = nd::eval(state->column_samples.back());
-            }
+            column_fetch_promises.push_back(col.request_full({}));
         }
+
+        // Wait for all columns to be fetched in parallel
+        auto fetched_columns = async::combine(std::move(column_fetch_promises)).get_future().get();
+
+        // Post-process fetched columns
+        for (auto& arr : fetched_columns) {
+            if (!arr.is_dynamic() && nd::dtype_is_numeric(arr.dtype())) {
+                arr = nd::eval(arr);
+            }
+            state->column_samples.emplace_back(std::move(arr));
+        }
+
         elog(DEBUG1, "DeepLake Executor: Query returned %zu rows with %zu columns", state->total_rows, state->column_samples.size());
     } catch (const std::exception& e) {
         elog(ERROR, "DeepLake Executor: Query execution failed: %s", e.what());
