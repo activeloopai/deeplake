@@ -916,6 +916,7 @@ private:
         }
 
         ASSERT(output_.ColumnCount() == global_state_.column_ids.size());
+        std::vector<async::promise<void>> column_promises;
         // Fill output vectors column by column using table_data streamers
         for (unsigned i = 0; i < global_state_.column_ids.size(); ++i) {
             const auto col_idx = global_state_.column_ids[i];
@@ -931,20 +932,22 @@ private:
 
             if (has_index_search()) {
                 auto& col_view = (*global_state_.index_search_result)[col_idx];
-                auto samples = col_view.request_range(current_row, current_row + output_.size(), {}).get_future().get();
-                set_column_output(i, std::move(samples));
+                column_promises.emplace_back(col_view.request_range(current_row, current_row + output_.size(), {})
+                                                 .then([this, i](nd::array&& samples) {
+                                                     set_column_output(i, std::move(samples));
+                                                 }));
             } else if (bind_data_.table_data.column_has_streamer(col_idx)) {
                 set_streaming_column_output(i, current_row);
             } else {
-                // No streamer - fetch samples directly
-                auto samples = bind_data_.table_data.get_read_only_dataset()
-                                   ->get_column_view(col_idx)
-                                   .request_range(current_row, current_row + output_.size(), {})
-                                   .get_future()
-                                   .get();
-                set_column_output(i, std::move(samples));
+                column_promises.emplace_back(bind_data_.table_data.get_read_only_dataset()
+                                                 ->get_column_view(col_idx)
+                                                 .request_range(current_row, current_row + output_.size(), {})
+                                                 .then([this, i](nd::array&& samples) {
+                                                     set_column_output(i, std::move(samples));
+                                                 }));
             }
         }
+        async::combine(std::move(column_promises)).get_future().get();
     }
 };
 

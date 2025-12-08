@@ -251,7 +251,7 @@ void deeplake_executor_begin_scan(CustomScanState* node, EState* estate, int32_t
         state->current_row = 0;
         state->column_samples.reserve(state->result_dataset->size());
         for (auto& col : *state->result_dataset) {
-            state->column_samples.emplace_back(std::move(col.request_full({}).get_future().get()));
+            state->column_samples.emplace_back(col.request_full({}).get_future().get());
             if (!state->column_samples.back().is_dynamic() && nd::dtype_is_numeric(state->column_samples.back().dtype())) {
                 state->column_samples.back() = nd::eval(state->column_samples.back());
             }
