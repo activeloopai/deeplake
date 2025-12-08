@@ -154,7 +154,7 @@ public:
     {
         // Rollback all changes in all tables
         for (auto& [_, table_data] : tables_) {
-            table_data.set_insert_rows({});
+            table_data.reset_insert_rows();
             table_data.clear_delete_rows();
             table_data.set_num_uncommitted_rows(0);
         }

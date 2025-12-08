@@ -73,7 +73,7 @@ struct table_data
     inline int64_t num_uncommitted_rows() const noexcept;
     inline int64_t num_total_rows() const noexcept;
     inline void set_num_uncommitted_rows(int64_t num_uncommitted_rows) noexcept;
-    inline void set_insert_rows(std::vector<icm::string_map<nd::array>>&& insert_rows) noexcept;
+    inline void reset_insert_rows() noexcept;
     inline void add_insert_slots(int32_t nslots, TupleTableSlot** slots);
     bool flush_inserts();
     inline void add_delete_row(int64_t row_id);

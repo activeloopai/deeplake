@@ -71,13 +71,13 @@ inline void table_data::commit(bool show_progress)
     try {
         pg::utils::commit_dataset(get_dataset(), show_progress);
     } catch (const std::exception& e) {
-        set_insert_rows({});
+        reset_insert_rows();
         clear_delete_rows();
         clear_update_rows();
         set_num_uncommitted_rows(0);
         elog(ERROR, "Failed to commit dataset: %s", e.what());
     } catch (...) {
-        set_insert_rows({});
+        reset_insert_rows();
         clear_delete_rows();
         clear_update_rows();
         set_num_uncommitted_rows(0);
@@ -276,10 +276,9 @@ inline void table_data::set_num_uncommitted_rows(int64_t num_uncommitted_rows) n
     num_uncommitted_rows_ = num_uncommitted_rows;
 }
 
-inline void table_data::set_insert_rows(std::vector<icm::string_map<nd::array>>&& insert_rows) noexcept
+inline void table_data::reset_insert_rows() noexcept
 {
-    num_uncommitted_rows_ += insert_rows.size();
-    insert_rows_ = std::move(insert_rows);
+    insert_rows_.clear();
 }
 
 inline void table_data::add_insert_slots(int32_t nslots, TupleTableSlot** slots)
