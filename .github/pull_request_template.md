@@ -11,16 +11,16 @@
 ### Description
 
 <!--
-A clear and concise description of the change being made.  
+A clear and concise description of the change being made.
 
 The title should introduce what was/will be done
-  - Titles show in release notes and search results, so make them useful 
+  - Titles show in release notes and search results, so make them useful
   - Be specific about what was fixed or changed
   - Imagine yourself looking for this PR in 6 months -- what will make it findable and valuable to future you?
   - Good Example: `Correctly apply passed S3 credentials when using VectorStore`
-  - Bad Example: `Fixed creds issue`  
+  - Bad Example: `Fixed creds issue`
 
-The description gives the details on what was/will be done 
+The description gives the details on what was/will be done
 - If there is an existing issue this addresses, include "Fixes #XXXX" to auto-link the issue to this PR
 - If there is NOT an existing issue, consider creating one.
   - In general, issues describe wanted change from an end-user perspective and PRs describe the technical change.
@@ -42,7 +42,7 @@ The description gives the details on what was/will be done
 
 <!--
 - List any questions or concerns you have with the change
-- List unknowns you have 
+- List unknowns you have
 -->
 
 ### Additional Context

@@ -16,7 +16,7 @@
 namespace base {
 
 /**
- * @brief Base class for all indra exceptions.
+ * @brief Base class for all deeplake exceptions.
  */
 class exception : public std::exception
 {

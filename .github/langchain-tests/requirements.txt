@@ -1,7 +1,0 @@
-pytest
-lark
-libdeeplake
-git+https://github.com/activeloopai/deeplake.git
-openai
-tiktoken
-python-dotenv
