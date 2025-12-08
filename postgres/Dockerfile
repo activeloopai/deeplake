@@ -4,7 +4,7 @@ ARG TARGETARCH
 
 LABEL name="pg-deeplake" \
       version="${VERSION}" \
-      vendor="Snark AI DB Inc." \
+      vendor="Activeloop" \
       license="/LICENSE" \
       description="PostgreSQL with DeepLake Extension installed." \
       contact="support@activeloop.ai"
