@@ -3,7 +3,7 @@
 /**
  * @defgroup tql
  * @{
- * @brief Tensor Query Language - Query engine of Indra.
+ * @brief Tensor Query Language - Query engine of Deeplake.
  *
  * @}
  */

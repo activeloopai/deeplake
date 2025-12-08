@@ -12,7 +12,7 @@
 /**
  * @defgroup base
  * @{
- * @brief Defines lowest level functionality and utilities for indra.
+ * @brief Defines lowest level functionality and utilities for deeplake.
  *
  * @}
  */
