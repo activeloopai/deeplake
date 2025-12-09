@@ -16,6 +16,7 @@ extern "C" {
 #endif
 
 #include "memory_tracker.hpp"
+#include "progress_utils.hpp"
 #include "table_version.hpp"
 #include "utils.hpp"
 
@@ -47,6 +48,19 @@ inline icm::string_map<nd::array> convert_slot_to_row(const table_data& td, Tupl
     return row;
 }
 
+inline void commit_dataset(std::shared_ptr<deeplake_api::dataset> dataset, bool show_progress)
+{
+    constexpr auto high_num_rows = 50000;
+    const bool print_progress = (show_progress && dataset->num_rows() > high_num_rows && dataset->has_uncommitted_changes());
+    auto promise = async::run_on_main([ds = std::move(dataset)](){ return ds->commit(); });
+    if (print_progress) {
+        const std::string message = fmt::format("Committing dataset (samples: {})", dataset->num_rows());
+        pg::utils::print_progress_and_wait(std::move(promise), message);
+    } else {
+        promise.get_future().get();
+    }
+}
+
 } // namespace impl
 
 inline table_data::table_data(
@@ -69,7 +83,7 @@ inline table_data::table_data(
 inline void table_data::commit(bool show_progress)
 {
     try {
-        pg::utils::commit_dataset(get_dataset(), show_progress);
+        impl::commit_dataset(get_dataset(), show_progress);
     } catch (const std::exception& e) {
         reset_insert_rows();
         clear_delete_rows();
@@ -86,12 +100,6 @@ inline void table_data::commit(bool show_progress)
     num_uncommitted_rows_ = 0;
     streamers_.reset();
     force_refresh();
-}
-
-inline void table_data::append_row(icm::string_map<nd::array> row)
-{
-    ++num_uncommitted_rows_;
-    pg::utils::append_row(get_dataset(), std::move(row));
 }
 
 inline void table_data::open_dataset(bool create)
@@ -387,29 +395,37 @@ inline bool table_data::flush_inserts()
 
     // Flush the insert tuples to the dataset
     try {
-        if (insert_rows_.size() == 1) {
-            append_row(std::move(insert_rows_[0]));
-        } else {
-            std::vector<std::vector<nd::array>> collected;
-            collected.resize(insert_rows_[0].size());
-            std::ranges::for_each(collected, [s = insert_rows_.size()](auto& v) {
-                v.reserve(s);
-            });
-            for (auto& row : insert_rows_) {
-                auto i = 0;
-                for (auto& [_, value] : row) {
-                    collected[i++].push_back(std::move(value));
-                }
-            }
-            icm::string_map<nd::array> merged = std::move(insert_rows_[0]);
+        elog(WARNING, "Flushing %zu insert rows to dataset '%s'", insert_rows_.size(), table_name_.c_str());
+        auto start = std::chrono::high_resolution_clock::now();
+        std::vector<std::vector<nd::array>> collected;
+        collected.resize(insert_rows_[0].size());
+        std::ranges::for_each(collected, [s = insert_rows_.size()](auto& v) {
+            v.reserve(s);
+        });
+        for (auto& row : insert_rows_) {
             auto i = 0;
-            for (auto& [_, value] : merged) {
-                value = nd::dynamic(collected[i++]);
+            for (auto& [_, value] : row) {
+                collected[i++].push_back(std::move(value));
             }
-            get_dataset()->append_rows(std::move(merged)).get_future().get();
         }
-
+        icm::string_map<nd::array> merged = std::move(insert_rows_[0]);
+        auto i = 0;
+        for (auto& [_, value] : merged) {
+            value = nd::dynamic(collected[i++]);
+        }
+        get_dataset()->append_rows(std::move(merged)).get_future().get();
+        auto end = std::chrono::high_resolution_clock::now();
+        elog(WARNING,
+             "Flushed %zu insert rows to dataset '%s' in %.2f seconds",
+             insert_rows_.size(),
+             table_name_.c_str(),
+             std::chrono::duration<double>(end - start).count());
         commit();
+        auto end_commit = std::chrono::high_resolution_clock::now();
+        elog(WARNING,
+             "Committed dataset '%s' in %.2f seconds",
+             table_name_.c_str(),
+             std::chrono::duration<double>(end_commit - end).count());
     } catch (const base::exception& e) {
         elog(WARNING, "Failed to flush inserts: %s", e.what());
         insert_rows_.clear();

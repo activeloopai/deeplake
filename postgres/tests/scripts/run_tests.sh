@@ -81,9 +81,8 @@ is_test_disabled() {
 
 run_single_test() {
     local test_file="$1"
-    local base_name
+    local base_name=$(basename "$test_file" .sql)
     local result_file="$RES_DIR/${base_name}_result.log"
-    base_name=$(basename "$test_file" .sql)
     echo -e "${YELLOW}Running test: $base_name${NC}"
 
     # Run the test and capture all output
