@@ -1,9 +1,10 @@
 #pragma once
 
-#include <postgres.h>
-
 #include <cstddef>
 #include <cstdint>
+
+using Oid = unsigned int;
+using Datum = unsigned long;
 
 namespace duckdb {
 class Vector;

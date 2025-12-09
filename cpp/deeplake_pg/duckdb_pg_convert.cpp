@@ -5,11 +5,12 @@
 #include "utils.hpp"
 
 extern "C" {
-#include <catalog/pg_type_d.h>
 #include <postgres.h>
+#include <catalog/pg_type_d.h>
 #include <utils/array.h>
 #include <utils/builtins.h>
 #include <utils/date.h>
+#include <utils/elog.h>
 #include <utils/jsonb.h>
 #include <utils/lsyscache.h>
 #include <utils/timestamp.h>
@@ -245,9 +246,12 @@ Datum duckdb_value_to_pg_datum(
                 return PointerGetDatum(cstring_to_text_with_len(str_data, str_len));
             case JSONOID:
                 return PointerGetDatum(cstring_to_text_with_len(str_data, str_len));
-            case JSONBOID:
+            case JSONBOID: {
                 // Need to convert JSON string to JSONB
-                return DirectFunctionCall1(jsonb_in, CStringGetDatum(pnstrdup(str_data, str_len)));
+                // CStringGetDatum expects null-terminated string, so copy to std::string
+                std::string json_str(str_data, str_len);
+                return DirectFunctionCall1(jsonb_in, CStringGetDatum(json_str.c_str()));
+            }
             default:
                 elog(ERROR, "Unsupported target type %u for VARCHAR", target_type);
                 return (Datum)0;
