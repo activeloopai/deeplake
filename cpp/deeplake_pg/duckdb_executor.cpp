@@ -1,4 +1,3 @@
-// Include DuckDB headers in implementation file only. Keep first to not conflict with PG headers
 #include <duckdb.hpp>
 
 #include "duckdb_executor.hpp"
@@ -47,10 +46,11 @@ void register_table(duckdb::Connection* con, const std::string& table_name, Oid 
         auto schema_name = table_name.substr(0, dot_pos);
 
         // Create a VIEW that calls deeplake_scan with pointer to table_data
-        std::string create_view_sql = fmt::format(
-            "CREATE OR REPLACE VIEW \"{}\".\"{}\" AS SELECT * FROM deeplake_scan(CAST({} AS UINTEGER))",
-            schema_name, table_name.substr(dot_pos + 1), table_id
-        );
+        std::string create_view_sql =
+            fmt::format("CREATE OR REPLACE VIEW \"{}\".\"{}\" AS SELECT * FROM deeplake_scan(CAST({} AS UINTEGER))",
+                        schema_name,
+                        table_name.substr(dot_pos + 1),
+                        table_id);
 
         // Start transaction, create view, and commit
         con->BeginTransaction();
@@ -79,7 +79,8 @@ void register_views(duckdb::Connection* con)
 {
     try {
         con->BeginTransaction();
-        const auto set_search_path = fmt::format("SET search_path TO \"{}\"", pg::table_storage::instance().get_schema_name());
+        const auto set_search_path =
+            fmt::format("SET search_path TO \"{}\"", pg::table_storage::instance().get_schema_name());
         if (auto res = con->Query(set_search_path); res->HasError()) {
             con->Rollback();
             con->BeginTransaction();
@@ -119,107 +120,6 @@ std::unique_ptr<duckdb::QueryResult> execute_query(duckdb::Connection* con, cons
         elog(ERROR, "Query failed: %s", result->GetError().c_str());
     }
     return result;
-}
-
-std::shared_ptr<deeplake_api::dataset_view> convert_result_to_dataset_generic(duckdb::QueryResult* result)
-{
-    std::vector<duckdb::vector<duckdb::Value>> column_data(result->ColumnCount());
-    while (true) {
-        auto data_chunk = result->Fetch();
-        if (!data_chunk || data_chunk->size() == 0) {
-            break;
-        }
-
-        ASSERT(data_chunk->ColumnCount() == result->ColumnCount());
-        for (size_t i = 0; i < data_chunk->ColumnCount(); ++i) {
-            auto& cd = column_data[i];
-            for (size_t j = 0; j < data_chunk->size(); ++j) {
-                cd.emplace_back(data_chunk->GetValue(i, j));
-            }
-        }
-    }
-
-    std::vector<heimdall::column_view_ptr> columns;
-    for (size_t i = 0; i < result->ColumnCount(); ++i) {
-        const auto& duckdb_type = result->types[i];
-        auto type = pg::to_deeplake_type(duckdb_type);
-        auto arr = pg::to_deeplake_value(duckdb::Value::LIST(duckdb_type, std::move(column_data[i])));
-        columns.emplace_back(std::make_shared<heimdall_common::array_column>(result->names[i], type, std::move(arr)));
-    }
-
-    return heimdall_common::create_dataset_with_tensors(std::move(columns));
-}
-
-// consider handling date/timestamp types
-// consider merge with above
-std::shared_ptr<deeplake_api::dataset_view> convert_result_to_dataset_arithmetic(duckdb::QueryResult* result)
-{
-    size_t total_rows = 0;
-
-    std::vector<std::unique_ptr<duckdb::DataChunk>> all_chunks;
-    while (true) {
-        auto data_chunk = result->Fetch();
-        if (!data_chunk || data_chunk->size() == 0) {
-            break;
-        }
-        total_rows += data_chunk->size();
-        all_chunks.push_back(std::move(data_chunk));
-    }
-
-    // Consolidate all chunks into a single Vector per column for zero-copy optimization
-    std::vector<std::shared_ptr<duckdb::Vector>> column_vectors;
-    column_vectors.reserve(result->ColumnCount());
-    for (size_t col_idx = 0; col_idx < result->ColumnCount(); ++col_idx) {
-        const auto& duckdb_type = result->types[col_idx];
-
-        // Create a single large Vector for the entire column
-        auto consolidated_vector = std::make_shared<duckdb::Vector>(duckdb_type, total_rows);
-
-        size_t offset = 0;
-        for (const auto& chunk : all_chunks) {
-            ASSERT(chunk->ColumnCount() == result->ColumnCount());
-            const auto& src_vec = chunk->data[col_idx];
-            const size_t chunk_size = chunk->size();
-
-            // Copy chunk data into consolidated vector at offset
-            duckdb::VectorOperations::Copy(src_vec, *consolidated_vector, chunk_size, 0, offset);
-            offset += chunk_size;
-        }
-
-        ASSERT(offset == total_rows);
-        column_vectors.emplace_back(std::move(consolidated_vector));
-    }
-
-    // Create columns using zero-copy access to DuckDB vector data
-    std::vector<heimdall::column_view_ptr> columns;
-    for (size_t i = 0; i < result->ColumnCount(); ++i) {
-        const auto& duckdb_type = result->types[i];
-        auto type = pg::to_deeplake_type(duckdb_type);
-
-        // Create nd::array with zero-copy from DuckDB vector
-        // The vector is kept alive by being stored in nd::array as owner
-        auto arr = pg::to_deeplake_value(std::move(column_vectors[i]), total_rows);
-        columns.emplace_back(std::make_shared<heimdall_common::array_column>(result->names[i], type, std::move(arr)));
-    }
-
-    return heimdall_common::create_dataset_with_tensors(std::move(columns));
-}
-
-std::shared_ptr<deeplake_api::dataset_view> convert_result_to_dataset(duckdb::QueryResult* result)
-{
-    bool all_types_are_arithmetic = true;
-    for (size_t i = 0; i < result->ColumnCount(); ++i) {
-        const auto& duckdb_type = result->types[i];
-        // Trace hugeint(s) as non-arithmetic, as we dont have hugeint in deeplake
-        if (!duckdb_type.IsNumeric() || duckdb::GetTypeIdSize(duckdb_type.InternalType()) > 8) {
-            all_types_are_arithmetic = false;
-            break;
-        }
-    }
-    if (all_types_are_arithmetic) {
-        return convert_result_to_dataset_arithmetic(result);
-    }
-    return convert_result_to_dataset_generic(result);
 }
 
 void explain_query(duckdb::Connection* con, const std::string& query_string)
@@ -310,7 +210,33 @@ void explain_query(duckdb::Connection* con, const std::string& query_string)
 
 namespace pg {
 
-std::shared_ptr<deeplake_api::dataset_view> execute_sql_query(const std::string& query_string)
+// Implementation of duckdb_result_holder methods
+duckdb_result_holder::duckdb_result_holder() = default;
+
+duckdb_result_holder::~duckdb_result_holder() = default;
+
+duckdb_result_holder::duckdb_result_holder(duckdb_result_holder&&) noexcept = default;
+
+duckdb_result_holder& duckdb_result_holder::operator=(duckdb_result_holder&&) noexcept = default;
+
+std::pair<size_t, size_t> duckdb_result_holder::get_chunk_and_offset(size_t global_row) const
+{
+    // DuckDB uses fixed chunk size (typically 2048)
+    // We need to iterate through chunks to find the right one
+    size_t accumulated_rows = 0;
+    for (size_t chunk_idx = 0; chunk_idx < chunks.size(); ++chunk_idx) {
+        size_t chunk_size = chunks[chunk_idx]->size();
+        if (global_row < accumulated_rows + chunk_size) {
+            return {chunk_idx, global_row - accumulated_rows};
+        }
+        accumulated_rows += chunk_size;
+    }
+    // Should not reach here if global_row < total_rows
+    return {chunks.size() - 1, chunks.back()->size() - 1};
+}
+
+// Execute SQL query and return DuckDB results directly without conversion
+duckdb_result_holder execute_sql_query_direct(const std::string& query_string)
 {
     static std::unique_ptr<duckdb::Connection> con;
     if (con == nullptr || !pg::table_storage::instance().is_up_to_date()) {
@@ -335,9 +261,22 @@ std::shared_ptr<deeplake_api::dataset_view> execute_sql_query(const std::string&
         ASSERT(result != nullptr);
     }
 
-    // Convert result back to dataset format
-    pg::runtime_printer printer("Convert DuckDB result to deeplake dataset");
-    return convert_result_to_dataset(result.get());
+    // Fetch all chunks without converting to dataset_view
+    duckdb_result_holder holder;
+    holder.query_result = std::move(result);
+    holder.total_rows = 0;
+
+    while (true) {
+        auto chunk = holder.query_result->Fetch();
+        if (!chunk || chunk->size() == 0) {
+            break;
+        }
+        holder.total_rows += chunk->size();
+        holder.chunks.push_back(std::move(chunk));
+    }
+
+    elog(DEBUG1, "DuckDB query returned %zu rows in %zu chunks", holder.total_rows, holder.chunks.size());
+    return holder;
 }
 
-} // pg namespace
+} // namespace pg

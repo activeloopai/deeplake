@@ -1,8 +1,6 @@
-#include "duckdb_deeplake_convert.hpp"
-
 #include <duckdb.hpp>
-#include <duckdb/common/types/blob.hpp>
 
+#include "duckdb_deeplake_convert.hpp"
 #include "utils.hpp"
 
 #include <codecs/compression.hpp>

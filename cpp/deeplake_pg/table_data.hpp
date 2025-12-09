@@ -1,6 +1,5 @@
 #pragma once
 
-#include "deeplake_utils.hpp"
 #include "nd_utils.hpp"
 #include "utils.hpp"
 
@@ -52,7 +51,6 @@ struct table_data
     }
 
     inline void commit(bool show_progress = false);
-    inline void append_row(icm::string_map<nd::array> row);
     inline void open_dataset(bool create = false);
     inline void refresh() noexcept;
     inline const std::string& get_table_name() const noexcept;

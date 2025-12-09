@@ -1,21 +1,16 @@
-// deeplake_executor.cpp
-// Direct query execution for DeepLake - passes SQL to DeepLake engine and returns results
+#include <duckdb.hpp>
+
+#include "duckdb_executor.hpp"
+#include "duckdb_pg_convert.hpp"
+
+#include <deeplake_api/dataset_view.hpp>
 
 #include "deeplake_executor.hpp"
-#include "duckdb_executor.hpp"
 #include "pg_deeplake.hpp"
 #include "reporter.hpp"
 #include "table_storage.hpp"
 
-#include <deeplake_api/dataset_view.hpp>
-
-#include <memory>
-#include <string>
-#include <vector>
-
 extern "C" {
-#include <postgres.h>
-
 #include <access/table.h>
 #include <catalog/pg_type_d.h>
 #include <executor/executor.h>
@@ -50,7 +45,7 @@ void analyze_plan(PlannedStmt* plan)
     }
     ListCell* lc;
     bool all_tables_are_deeplake = true;
-    foreach(lc, plan->permInfos) {
+    foreach (lc, plan->permInfos) {
         RTEPermissionInfo* perminfo = (RTEPermissionInfo*)lfirst(lc);
         if (perminfo->relid == InvalidOid) {
             continue;
@@ -100,8 +95,7 @@ struct DeeplakeExecutorState
 
     // Query execution state
     std::string query_string;
-    std::shared_ptr<deeplake_api::dataset_view> result_dataset;
-    std::vector<nd::array> column_samples;
+    pg::duckdb_result_holder duckdb_result; // Direct DuckDB results (no conversion!)
     pg::runtime_printer<std::milli> printer;
     TupleDesc output_tupdesc = nullptr;
     std::vector<Oid> output_base_type_oids;
@@ -115,7 +109,7 @@ struct DeeplakeExecutorState
 
     ~DeeplakeExecutorState()
     {
-        result_dataset.reset();
+        // duckdb_result will be automatically cleaned up
     }
 
     DeeplakeExecutorState(const DeeplakeExecutorState&) = delete;
@@ -135,7 +129,7 @@ struct DeeplakeExecutorState
     }
 };
 
-Node* deeplake_executor_create_scan_state(CustomScan *cscan);
+Node* deeplake_executor_create_scan_state(CustomScan* cscan);
 void deeplake_executor_begin_scan(CustomScanState* node, EState* estate, int32_t eflags);
 TupleTableSlot* deeplake_executor_exec_scan(CustomScanState* node);
 void deeplake_executor_end_scan(CustomScanState* node);
@@ -170,7 +164,8 @@ static void init_executor_methods()
 }
 
 // Helper: Convert deeplake sample to PostgreSQL Datum
-Datum deeplake_sample_to_datum(const nd::array& samples, size_t index, Oid target_type, int32_t attr_typmod, bool& is_null)
+Datum deeplake_sample_to_datum(
+    const nd::array& samples, size_t index, Oid target_type, int32_t attr_typmod, bool& is_null)
 {
     try {
         if (!type_is_array(target_type) && nd::dtype_is_numeric(samples.dtype())) {
@@ -241,35 +236,17 @@ void deeplake_executor_begin_scan(CustomScanState* node, EState* estate, int32_t
     }
     ASSERT(!state->query_string.empty());
 
-    // Execute the query through DeepLake
+    // Execute the query through DuckDB and get results directly
     try {
-        // Use the DeepLake API to execute the query
-        state->result_dataset = pg::execute_sql_query(state->query_string);
-        ASSERT(state->result_dataset != nullptr);
-        // TODO: Validate that result dataset schema matches with expected output (state->output_tupdesc)
-        state->total_rows = state->result_dataset->num_rows();
+        // Execute SQL query and get DuckDB results without conversion
+        state->duckdb_result = pg::execute_sql_query_direct(state->query_string);
+        state->total_rows = state->duckdb_result.total_rows;
         state->current_row = 0;
-        state->column_samples.reserve(state->result_dataset->size());
 
-        // Launch all column fetch requests in parallel
-        std::vector<async::promise<nd::array>> column_fetch_promises;
-        column_fetch_promises.reserve(state->result_dataset->size());
-        for (auto& col : *state->result_dataset) {
-            column_fetch_promises.push_back(col.request_full({}));
-        }
-
-        // Wait for all columns to be fetched in parallel
-        auto fetched_columns = async::combine(std::move(column_fetch_promises)).get_future().get();
-
-        // Post-process fetched columns
-        for (auto& arr : fetched_columns) {
-            if (!arr.is_dynamic() && nd::dtype_is_numeric(arr.dtype())) {
-                arr = nd::eval(arr);
-            }
-            state->column_samples.emplace_back(std::move(arr));
-        }
-
-        elog(DEBUG1, "DeepLake Executor: Query returned %zu rows with %zu columns", state->total_rows, state->column_samples.size());
+        elog(DEBUG1,
+             "DeepLake Executor: Query returned %zu rows with %zu columns (direct from DuckDB)",
+             state->total_rows,
+             state->duckdb_result.query_result ? state->duckdb_result.query_result->ColumnCount() : 0);
     } catch (const std::exception& e) {
         elog(ERROR, "DeepLake Executor: Query execution failed: %s", e.what());
     }
@@ -284,12 +261,17 @@ TupleTableSlot* deeplake_executor_exec_scan(CustomScanState* node)
     ExecClearTuple(slot);
 
     if (state->current_row < state->total_rows) {
-        for (size_t col_idx = 0; col_idx < state->column_samples.size(); ++col_idx) {
-            slot->tts_values[col_idx] = deeplake_sample_to_datum(state->column_samples[col_idx],
-                                                                 state->current_row,
-                                                                 state->get_output_base_type_oid(col_idx),
-                                                                 state->get_output_atttypmod(col_idx),
-                                                                 slot->tts_isnull[col_idx]);
+        // Get the chunk and offset for the current row
+        auto [chunk_idx, row_in_chunk] = state->duckdb_result.get_chunk_and_offset(state->current_row);
+        auto& chunk = state->duckdb_result.chunks[chunk_idx];
+
+        // Convert each column value directly from DuckDB to PostgreSQL
+        for (size_t col_idx = 0; col_idx < chunk->ColumnCount(); ++col_idx) {
+            slot->tts_values[col_idx] = pg::duckdb_value_to_pg_datum(chunk->data[col_idx],
+                                                                     row_in_chunk,
+                                                                     state->get_output_base_type_oid(col_idx),
+                                                                     state->get_output_atttypmod(col_idx),
+                                                                     slot->tts_isnull[col_idx]);
         }
         ExecStoreVirtualTuple(slot);
         ++state->current_row;
@@ -318,8 +300,9 @@ void deeplake_executor_explain(CustomScanState* node, List* ancestors, ExplainSt
 {
     DeeplakeExecutorState* state = (DeeplakeExecutorState*)node;
     ExplainPropertyText("DeepLake Query", state->query_string.c_str(), es);
-    if (state->result_dataset != nullptr) {
+    if (state->total_rows > 0) {
         ExplainPropertyInteger("Rows", nullptr, state->total_rows, es);
+        ExplainPropertyInteger("Chunks", nullptr, state->duckdb_result.chunks.size(), es);
     }
 }
 
@@ -331,26 +314,21 @@ List* create_simple_targetlist(List* original_targetlist)
     ListCell* lc;
     AttrNumber attno = 1;
 
-    foreach(lc, original_targetlist) {
+    foreach (lc, original_targetlist) {
         TargetEntry* tle = (TargetEntry*)lfirst(lc);
 
         // Create a new Var node representing this output column
-        Var* var = makeVar(
-            INDEX_VAR,                       // varno - special value for scan output
-            attno,                           // varattno - column position
-            exprType((Node*)tle->expr),      // vartype
-            exprTypmod((Node*)tle->expr),    // vartypmod
-            exprCollation((Node*)tle->expr), // varcollid
-            0                                // varlevelsup
+        Var* var = makeVar(INDEX_VAR,                       // varno - special value for scan output
+                           attno,                           // varattno - column position
+                           exprType((Node*)tle->expr),      // vartype
+                           exprTypmod((Node*)tle->expr),    // vartypmod
+                           exprCollation((Node*)tle->expr), // varcollid
+                           0                                // varlevelsup
         );
 
         // Create a new target entry with the Var
-        TargetEntry* new_tle = makeTargetEntry(
-            (Expr*)var,
-            attno,
-            tle->resname ? pstrdup(tle->resname) : NULL,
-            tle->resjunk
-        );
+        TargetEntry* new_tle =
+            makeTargetEntry((Expr*)var, attno, tle->resname ? pstrdup(tle->resname) : NULL, tle->resjunk);
 
         new_targetlist = lappend(new_targetlist, new_tle);
         attno++;
@@ -369,11 +347,10 @@ extern "C" void register_deeplake_executor()
 }
 
 // Create a planned statement for direct deeplake execution
-extern "C" PlannedStmt* deeplake_create_direct_execution_plan(
-    Query* parse, 
-    const char* query_string, 
-    int32_t cursorOptions, 
-    ParamListInfo boundParams) 
+extern "C" PlannedStmt* deeplake_create_direct_execution_plan(Query* parse,
+                                                              const char* query_string,
+                                                              int32_t cursorOptions,
+                                                              ParamListInfo boundParams)
 {
     // Only handle SELECT queries
     if (parse->commandType != CMD_SELECT || parse->rtable == NIL || list_length(parse->rtable) == 0) {
@@ -397,7 +374,7 @@ extern "C" PlannedStmt* deeplake_create_direct_execution_plan(
     // Create a simple targetlist with Var nodes (no Aggref or complex expressions)
     // This represents the output columns that DeepLake will return
     cscan->scan.plan.targetlist = create_simple_targetlist(std_plan->planTree->targetlist);
-    cscan->scan.plan.qual = NIL;  // DeepLake handles all filtering
+    cscan->scan.plan.qual = NIL; // DeepLake handles all filtering
     cscan->scan.scanrelid = 0;
     cscan->flags = 0;
     cscan->methods = &deeplake_executor_scan_methods;
@@ -409,15 +386,7 @@ extern "C" PlannedStmt* deeplake_create_direct_execution_plan(
     cscan->scan.plan.plan_width = std_plan->planTree->plan_width;
 
     // Store the query string in custom_private
-    Const* query_const = makeConst(
-        TEXTOID,
-        -1,
-        InvalidOid,
-        -1,
-        CStringGetTextDatum(query_string),
-        false,
-        false
-    );
+    Const* query_const = makeConst(TEXTOID, -1, InvalidOid, -1, CStringGetTextDatum(query_string), false, false);
     cscan->custom_private = list_make1(query_const);
 
     // Replace the entire plan tree with our custom scan
