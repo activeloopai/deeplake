@@ -31,21 +31,22 @@ namespace pg {
 
 namespace impl {
 
-inline icm::string_map<nd::array> convert_slot_to_row(const table_data& td, TupleTableSlot* slot)
+inline void append_row(std::shared_ptr<deeplake_api::dataset> dataset, icm::string_map<nd::array> row)
 {
-    slot_getallattrs(slot);
-    icm::string_map<nd::array> row;
-    for (int32_t i = 0; i < td.num_columns(); ++i) {
-        const std::string column_name = td.get_atttypename(i);
-        auto& column = row[column_name];
-        if (slot->tts_isnull[i]) {
-            auto dt = td.get_read_only_dataset()->get_column_view(i).dtype();
-            column = (nd::dtype_is_numeric(dt) ? nd::adapt(0) : nd::none(dt, 1));
-            continue;
-        }
-        column = pg::utils::datum_to_nd(slot->tts_values[i], td.get_base_atttypid(i), td.get_atttypmod(i));
-    }
-    return row;
+    async::run_on_main([dataset = std::move(dataset), row = std::move(row)]() mutable {
+        return dataset->append_row(std::move(row));
+    })
+        .get_future()
+        .get();
+}
+
+inline void append_rows(std::shared_ptr<deeplake_api::dataset> dataset, icm::string_map<nd::array> rows)
+{
+    async::run_on_main([dataset = std::move(dataset), rows = std::move(rows)]() mutable {
+        return dataset->append_rows(std::move(rows));
+    })
+        .get_future()
+        .get();
 }
 
 inline void commit_dataset(std::shared_ptr<deeplake_api::dataset> dataset, bool show_progress)
@@ -88,16 +89,13 @@ inline void table_data::commit(bool show_progress)
         reset_insert_rows();
         clear_delete_rows();
         clear_update_rows();
-        set_num_uncommitted_rows(0);
         elog(ERROR, "Failed to commit dataset: %s", e.what());
     } catch (...) {
         reset_insert_rows();
         clear_delete_rows();
         clear_update_rows();
-        set_num_uncommitted_rows(0);
         elog(ERROR, "Failed to commit dataset, unknown exception");
     }
-    num_uncommitted_rows_ = 0;
     streamers_.reset();
     force_refresh();
 }
@@ -271,17 +269,15 @@ inline int64_t table_data::num_rows() const noexcept
 
 inline int64_t table_data::num_uncommitted_rows() const noexcept
 {
-    return num_uncommitted_rows_;
+    if (insert_rows_.empty()) {
+        return 0;
+    }
+    return insert_rows_.begin()->second.size();
 }
 
 inline int64_t table_data::num_total_rows() const noexcept
 {
     return num_rows() + num_uncommitted_rows();
-}
-
-inline void table_data::set_num_uncommitted_rows(int64_t num_uncommitted_rows) noexcept
-{
-    num_uncommitted_rows_ = num_uncommitted_rows;
 }
 
 inline void table_data::reset_insert_rows() noexcept
@@ -291,9 +287,20 @@ inline void table_data::reset_insert_rows() noexcept
 
 inline void table_data::add_insert_slots(int32_t nslots, TupleTableSlot** slots)
 {
-    num_uncommitted_rows_ += nslots;
-    for (auto i = 0; i < nslots; ++i) {
-        insert_rows_.emplace_back(impl::convert_slot_to_row(*this, slots[i]));
+    for (auto k = 0; k < nslots; ++k) {
+        auto slot = slots[k];
+        slot_getallattrs(slot);
+        for (int32_t i = 0; i < num_columns(); ++i) {
+            nd::array val;
+            if (slot->tts_isnull[i]) {
+                auto dt = get_read_only_dataset()->get_column_view(i).dtype();
+                val = (nd::dtype_is_numeric(dt) ? nd::adapt(0) : nd::none(dt, 1));
+            } else {
+                val = pg::utils::datum_to_nd(slot->tts_values[i], get_base_atttypid(i), get_atttypmod(i));
+            }
+            std::string column_name = get_atttypename(i);
+            insert_rows_[std::move(column_name)].push_back(std::move(val));
+        }
     }
 }
 
@@ -389,43 +396,33 @@ inline bool table_data::can_stream_column(int32_t column_number) const noexcept
 
 inline bool table_data::flush_inserts()
 {
-    if (insert_rows_.empty()) {
+    const auto num_inserts = num_uncommitted_rows();
+    if (num_inserts == 0) {
         return true;
     }
 
     // Flush the insert tuples to the dataset
     try {
-        elog(WARNING, "Flushing %zu insert rows to dataset '%s'", insert_rows_.size(), table_name_.c_str());
-        auto start = std::chrono::high_resolution_clock::now();
-        std::vector<std::vector<nd::array>> collected;
-        collected.resize(insert_rows_[0].size());
-        std::ranges::for_each(collected, [s = insert_rows_.size()](auto& v) {
-            v.reserve(s);
-        });
-        for (auto& row : insert_rows_) {
-            auto i = 0;
-            for (auto& [_, value] : row) {
-                collected[i++].push_back(std::move(value));
+        elog(WARNING, "Flushing %zu insert rows to dataset '%s'", num_inserts, table_name_.c_str());
+        const auto start = std::chrono::high_resolution_clock::now();
+
+        icm::string_map<nd::array> merged;
+        if (num_inserts == 1) {
+            for (auto& [column_name, values] : insert_rows_) {
+                merged[column_name] = std::move(values.front());
             }
+            impl::append_row(get_dataset(), std::move(merged));
+        } else {
+            for (auto& [column_name, values] : insert_rows_) {
+                merged[column_name] = nd::dynamic(std::move(values));
+            }
+            impl::append_rows(get_dataset(), std::move(merged));
         }
-        icm::string_map<nd::array> merged = std::move(insert_rows_[0]);
-        auto i = 0;
-        for (auto& [_, value] : merged) {
-            value = nd::dynamic(collected[i++]);
-        }
-        get_dataset()->append_rows(std::move(merged)).get_future().get();
-        auto end = std::chrono::high_resolution_clock::now();
+        const auto end = std::chrono::high_resolution_clock::now();
         elog(WARNING,
-             "Flushed %zu insert rows to dataset '%s' in %.2f seconds",
-             insert_rows_.size(),
+             "Flushed insert rows to dataset '%s' in %.2f seconds",
              table_name_.c_str(),
              std::chrono::duration<double>(end - start).count());
-        commit();
-        auto end_commit = std::chrono::high_resolution_clock::now();
-        elog(WARNING,
-             "Committed dataset '%s' in %.2f seconds",
-             table_name_.c_str(),
-             std::chrono::duration<double>(end_commit - end).count());
     } catch (const base::exception& e) {
         elog(WARNING, "Failed to flush inserts: %s", e.what());
         insert_rows_.clear();
@@ -445,7 +442,6 @@ inline bool table_data::flush_deletes()
     // Flush the delete rows to the dataset
     try {
         get_dataset()->delete_rows(delete_rows_);
-        commit();
     } catch (const base::exception& e) {
         elog(WARNING, "Failed to flush deletes: %s", e.what());
         delete_rows_.clear();
@@ -470,7 +466,6 @@ inline bool table_data::flush_updates()
             update_promises.emplace_back(get_dataset()->update_row(row_number, column_name, new_value));
         }
         async::combine(std::move(update_promises)).get_future().get();
-        commit();
     } catch (const base::exception& e) {
         elog(WARNING, "Failed to flush updates: %s", e.what());
         update_rows_.clear();
@@ -637,6 +632,18 @@ inline std::string_view table_data::streamer_info::value(int32_t column_number, 
     }
 
     return batch.holder_.data(row_in_batch);
+}
+
+inline bool table_data::flush()
+{
+    const bool s1 = flush_inserts();
+    const bool s2 = flush_deletes();
+    const bool s3 = flush_updates();
+    const bool r = s1 && s2 && s3;
+    if (r) {
+        commit();
+    }
+    return r;
 }
 
 } // namespace pg

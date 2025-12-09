@@ -70,20 +70,20 @@ struct table_data
     inline int64_t num_rows() const noexcept;
     inline int64_t num_uncommitted_rows() const noexcept;
     inline int64_t num_total_rows() const noexcept;
-    inline void set_num_uncommitted_rows(int64_t num_uncommitted_rows) noexcept;
     inline void reset_insert_rows() noexcept;
     inline void add_insert_slots(int32_t nslots, TupleTableSlot** slots);
-    bool flush_inserts();
     inline void add_delete_row(int64_t row_id);
     inline void clear_delete_rows() noexcept;
-    bool flush_deletes();
     inline void add_update_row(int64_t row_id, icm::string_map<nd::array> update_row);
     inline void clear_update_rows() noexcept;
-    bool flush_updates();
     inline void set_primary_keys(const std::set<std::string>& primary_keys);
     inline Oid get_table_oid() const noexcept;
+    inline bool flush();
 
 private:
+    bool flush_inserts();
+    bool flush_deletes();
+    bool flush_updates();
     inline void force_refresh();
     inline async::promise<std::shared_ptr<deeplake_api::read_only_dataset>> open_read_only() const noexcept;
 
@@ -168,7 +168,7 @@ private:
     constexpr static int64_t batch_mask_ = batch_size_ - 1;
 
     streamer_info streamers_;
-    std::vector<icm::string_map<nd::array>> insert_rows_;
+    icm::string_map<std::vector<nd::array>> insert_rows_;
     std::vector<int64_t> delete_rows_;
     std::vector<std::tuple<int64_t, std::string, nd::array>> update_rows_;
     std::shared_ptr<deeplake_api::dataset> dataset_;
@@ -181,7 +181,6 @@ private:
     http::uri dataset_path_ = http::uri(std::string());
     std::string table_name_;
     Oid table_oid_ = InvalidOid;
-    int32_t num_uncommitted_rows_ = 0;
     bool is_star_selected_ = true;
     uint64_t cached_version_ = 0; // Cached version from shared memory for detecting changes
 };

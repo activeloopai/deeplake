@@ -641,7 +641,7 @@ void table_storage::insert_slots(Oid table_id, int32_t nslots, TupleTableSlot** 
     table_data.add_insert_slots(nslots, slots);
     if (nslots > 1) {
         table_data.reset_streamers();
-        table_data.flush_inserts();
+        table_data.flush();
     }
 }
 
