@@ -211,7 +211,6 @@ struct index_info
         column_names_.clear();
         index_name_.clear();
         index_type_ = deeplake_core::deeplake_index_type::type::none;
-        num_uncommitted_rows_ = 0;
         order_type_ = query_core::order_type::descending;
     }
 
@@ -297,11 +296,6 @@ struct index_info
     inline deeplake_core::deeplake_index_type::type index_type() const noexcept
     {
         return index_type_;
-    }
-
-    inline auto num_uncommitted_rows() const noexcept
-    {
-        return num_uncommitted_rows_;
     }
 
     inline void set_order_type(query_core::order_type o) noexcept
@@ -428,7 +422,6 @@ private:
     std::vector<std::string> column_names_;
     std::string index_name_;
     deeplake_core::deeplake_index_type::type index_type_ = deeplake_core::deeplake_index_type::type::none;
-    int32_t num_uncommitted_rows_ = 0;
     query_core::order_type order_type_ = query_core::order_type::descending;
 };
 

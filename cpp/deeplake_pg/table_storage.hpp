@@ -143,7 +143,7 @@ public:
     {
         /// Flush all inserts
         for (auto& [_, table_data] : tables_) {
-            if (!table_data.flush_deletes() || !table_data.flush_updates() || !table_data.flush_inserts()) {
+            if (!table_data.flush()) {
                 return false;
             }
         }
@@ -156,7 +156,6 @@ public:
         for (auto& [_, table_data] : tables_) {
             table_data.reset_insert_rows();
             table_data.clear_delete_rows();
-            table_data.set_num_uncommitted_rows(0);
         }
     }
 
