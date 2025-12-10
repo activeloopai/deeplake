@@ -66,50 +66,9 @@ LIMIT 10;
 ### Requirements
 
 - pkg-config
-- autoconf-archive
-- libglew
-- libiconv
 - CMake 3.29.2 or upper
-- Clang 16 or upper
+- Clang 16 or gcc 11 or upper
 - vcpkg
-
-For building from python:
-- python-venv
-- python-dev (e.g., python3.10-dev)
-
-### Installing Dependencies
-
-```bash
-sudo apt update
-sudo apt install curl zip unzip tar -y
-sudo apt install pkg-config -y
-sudo apt install autoconf-archive -y
-sudo apt install make -y
-sudo apt install flex -y
-sudo apt install bison -y
-sudo apt install libglew-dev -y
-
-wget https://apt.llvm.org/llvm.sh
-chmod +x llvm.sh
-sudo ./llvm.sh 18  # For Clang 18
-sudo update-alternatives --install /usr/bin/cc cc /usr/bin/clang-18 100
-sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-18 100
-
-wget https://ftp.gnu.org/gnu/libiconv/libiconv-1.17.tar.gz
-tar -xzf libiconv-1.17.tar.gz
-cd libiconv-1.17
-./configure --prefix=/usr/local
-make
-sudo make install
-cd ../
-
-wget https://github.com/Kitware/CMake/releases/download/v4.0.5/cmake-4.0.5-linux-x86_64.sh
-chmod +x cmake-4.0.5-linux-x86_64.sh
-./cmake-4.0.5-linux-x86_64.sh
-cd cmake-4.0.5-linux-x86_64/bin/
-echo "export PATH=$PATH:`pwd`" >> ~/.bashrc # or path to your shell config file
-cd ../../
-```
 
 ### vcpkg Configuration
 
