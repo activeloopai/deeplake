@@ -48,18 +48,18 @@ jobs:
         id: set-versions
         run: |-
           if [ "${PG_VERSION}" == "all" ]; then
-            echo "versions=[\"16\",\"17\",\"18\"]" >> $GITHUB_OUTPUT
-            echo "versions-list=16,17,18" >> $GITHUB_OUTPUT
+            echo "versions=[\"16\",\"17\",\"18\"]" >> "${GITHUB_OUTPUT}"
+            echo "versions-list=16,17,18" >> "${GITHUB_OUTPUT}"
           else
-            echo "versions=[\"${PG_VERSION}\"]" >> $GITHUB_OUTPUT
-            echo "versions-list=${PG_VERSION}" >> $GITHUB_OUTPUT
+            echo "versions=[\"${PG_VERSION}\"]" >> "${GITHUB_OUTPUT}"
+            echo "versions-list=${PG_VERSION}" >> "${GITHUB_OUTPUT}"
           fi
 
       - name: Get Deep Lake version
         id: get-deeplake-version
         run: |-
           DEEPLAKE_VERSION=$(grep -E '^__version__ *= *"' deeplake/python/deeplake/__init__.py | cut -d'"' -f2)
-          echo "deeplake-version=${DEEPLAKE_VERSION}" >> $GITHUB_OUTPUT
+          echo "deeplake-version=${DEEPLAKE_VERSION}" >> "${GITHUB_OUTPUT}"
 
   extension-build:
     name: Build PostgreSQL Extension
@@ -74,7 +74,7 @@ jobs:
       matrix:
         arch: [x86_64, aarch64]
     runs-on: "deeplake-linux-${{ matrix.arch }}-runner"
-    container: quay.io/activeloop/gcc-pypa-manylinux:2_28
+    container: "quay.io/activeloop/gcc-pypa-manylinux:2_28"
     env:
       VCPKG_ROOT: "${{ github.workspace }}/vcpkg"
       VCPKG_FEATURE_FLAGS: dependencygraph
@@ -88,7 +88,7 @@ jobs:
           ORG_GH_BOT_PAT: "${{ secrets.ORG_GH_BOT_PAT }}"
         run: |-
           branch="${{ github.head_ref || github.ref_name }}"
-          git clone -b "${branch}" https://activeloop-bot:${ORG_GH_BOT_PAT}@github.com/${{ github.repository }} .
+          git clone -b "${branch}" "https://activeloop-bot:${ORG_GH_BOT_PAT}@github.com/${{ github.repository }}" .
 
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@v4.0.2
@@ -109,7 +109,7 @@ jobs:
           python3 -m pip install -U pip
           python3 -m pip install requests
 
-      - name: "build pg_deeplake for ${{ matrix.arch }}"
+      - name: build pg_deeplake for "${{ matrix.arch }}"
         shell: bash
         run: |-
           echo -e "${YELLOW}Building the PostgreSQL extension...${DEFAULT}"
@@ -272,14 +272,14 @@ jobs:
         shell: bash
         run: |-
           mkdir -p ./debs
-          wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-${PG_VERSION}_${VERSION}-1_amd64.deb -O ./debs/pg-deeplake-${PG_VERSION}_${VERSION}-1_amd64.deb
-          wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-${PG_VERSION}_${VERSION}-1_arm64.deb -O ./debs/pg-deeplake-${PG_VERSION}_${VERSION}-1_arm64.deb
-          sed s/BASE_IMAGE/postgres:${PG_VERSION}-bookworm/g postgres/Dockerfile > Dockerfile.build
+          wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-"${PG_VERSION}"_"${VERSION}"-1_amd64.deb -O ./debs/pg-deeplake-"${PG_VERSION}"_"${VERSION}"-1_amd64.deb
+          wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-"${PG_VERSION}"_"${VERSION}"-1_arm64.deb -O ./debs/pg-deeplake-"${PG_VERSION}"_"${VERSION}"-1_arm64.deb
+          sed s/BASE_IMAGE/postgres:"${PG_VERSION}"-bookworm/g postgres/Dockerfile > Dockerfile.build
           docker buildx build \
             --push \
-            --tag quay.io/activeloopai/pg-deeplake:${PG_VERSION}_${VERSION} \
-            --tag quay.io/activeloopai/pg-deeplake:${PG_VERSION} \
-            --build-arg VERSION=${PG_VERSION}_${VERSION}-1 \
+            --tag quay.io/activeloopai/pg-deeplake:"${PG_VERSION}"_"${VERSION}" \
+            --tag quay.io/activeloopai/pg-deeplake:"${PG_VERSION}" \
+            --build-arg VERSION="${PG_VERSION}"_"${VERSION}"-1 \
             --platform linux/amd64,linux/arm64 \
             -f Dockerfile.build \
             .
