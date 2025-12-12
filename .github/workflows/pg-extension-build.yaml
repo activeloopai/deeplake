@@ -18,13 +18,14 @@ on:
           - "18"
           - all
   pull_request:
+    branches:
+      - main
     types:
-      - labeled
+      - opened
+      - synchronize
   push:
     tags:
       - v*
-    branches:
-      - refactor-actions
 
 concurrency:
   group: "${{ github.workflow }}-${{ github.ref_name }}"
@@ -69,11 +70,6 @@ jobs:
   extension-build:
     name: Build PostgreSQL Extension
     needs: [setup]
-    if: >-
-      (github.event_name == 'push') ||
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event_name == 'pull_request' &&
-      (github.event.action == 'labeled' && contains(join(github.event.pull_request.labels.*.name, ','), 'pg_extension')))
     strategy:
       fail-fast: true
       matrix:
@@ -246,6 +242,7 @@ jobs:
 
   build_container_images:
     name: Build Container Images
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     needs: [setup, repo-build]
     env:
       OP_SERVICE_ACCOUNT_TOKEN: "${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}"
