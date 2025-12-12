@@ -207,8 +207,8 @@ jobs:
             tar xf postgres-"${arch}".tar
           done
 
-      # - name: Debugging with tmate
-      #   uses: mxschmitt/action-tmate@v3.23
+      - name: Debugging with tmate
+        uses: mxschmitt/action-tmate@v3.23
 
       - name: build deb and rpm repositories
         shell: bash
