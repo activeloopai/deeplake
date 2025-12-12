@@ -35,7 +35,7 @@ env:
   GREEN: "\e[92m"
   RED: "\e[91m"
   DEFAULT: "\e[0m"
-  PG_VERSION: "${{ inputs.pg_version }}"
+  PG_VERSION: "${{ inputs.pg_version || '18' }}"
 
 jobs:
   setup:
@@ -49,9 +49,6 @@ jobs:
       - name: Set versions to build
         id: set-versions
         run: |-
-          if [ "${{ github.event_name }}" == 'push']; then
-            PG_VERSION="all"
-          fi
           if [ "${PG_VERSION}" == "all" ]; then
             echo "versions=[\"16\",\"17\",\"18\"]" >> "${GITHUB_OUTPUT}"
             echo "versions-list=16,17,18" >> "${GITHUB_OUTPUT}"
