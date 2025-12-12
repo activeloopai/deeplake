@@ -10,13 +10,13 @@ on:
       pg_version:
         description: "PostgreSQL version to build (16, 17, 18, or all)"
         required: false
-        default: all
+        default: "18"
         type: choice
         options:
-          - all
           - "16"
           - "17"
           - "18"
+          - all
   pull_request:
     types:
       - labeled
@@ -46,10 +46,12 @@ jobs:
       versions: "${{ steps.set-versions.outputs.versions }}"
       versions-list: "${{ steps.set-versions.outputs.versions-list }}"
     steps:
-      - name: Set versions to build
+      - name: checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: set versions to build
         id: set-versions
         run: |-
-          PG_VERSION="${{ inputs.pg_version || '18' }}"
           if [ "${PG_VERSION}" == "all" ]; then
             echo "versions=[\"16\",\"17\",\"18\"]" >> "${GITHUB_OUTPUT}"
             echo "versions-list=16,17,18" >> "${GITHUB_OUTPUT}"
@@ -58,7 +60,7 @@ jobs:
             echo "versions-list=${PG_VERSION}" >> "${GITHUB_OUTPUT}"
           fi
 
-      - name: Get Deep Lake version
+      - name: get deeplake version
         id: get-deeplake-version
         run: |-
           DEEPLAKE_VERSION=$(grep -E '^__version__ *= *"' python/deeplake/__init__.py | cut -d'"' -f2)
@@ -173,7 +175,6 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     needs: [setup, extension-build]
     env:
-      OP_SERVICE_ACCOUNT_TOKEN: "${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}"
       REPOSITORY: /tmp/activeloop-packages
       SUPPORTED_VERSIONS: "${{ needs.setup.outputs.versions-list }}"
       VERSION: "${{ needs.setup.outputs.deeplake-version }}"
@@ -188,6 +189,7 @@ jobs:
         with:
           export-env: true
         env:
+          OP_SERVICE_ACCOUNT_TOKEN: "${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}"
           R2_ACCESS_KEY_ID: "op://GitHub Actions/registry-creds/cloudflare/CF_R2_ACCESS_KEY"
           R2_SECRET_ACCESS_KEY: "op://GitHub Actions/registry-creds/cloudflare/CF_R2_SECRET_KEY"
           R2_BUCKET_NAME: "op://GitHub Actions/common/REPOSITORY_BUCKET"
