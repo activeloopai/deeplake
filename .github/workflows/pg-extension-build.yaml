@@ -49,6 +49,7 @@ jobs:
       - name: Set versions to build
         id: set-versions
         run: |-
+          PG_VERSION="${{ inputs.pg_version || '18' }}"
           if [ "${PG_VERSION}" == "all" ]; then
             echo "versions=[\"16\",\"17\",\"18\"]" >> "${GITHUB_OUTPUT}"
             echo "versions-list=16,17,18" >> "${GITHUB_OUTPUT}"
