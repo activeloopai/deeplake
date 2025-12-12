@@ -171,7 +171,7 @@ jobs:
   repo-build:
     name: Build PostgreSQL Extension Repo
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    needs: [extension-build]
+    needs: [setup, extension-build]
     env:
       OP_SERVICE_ACCOUNT_TOKEN: "${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}"
       REPOSITORY: /tmp/activeloop-packages
@@ -247,7 +247,7 @@ jobs:
 
   build_container_images:
     name: Build Container Images
-    needs: [repo-build]
+    needs: [setup, repo-build]
     env:
       VERSION: "${{ needs.setup.outputs.deeplake-version }}"
     runs-on: ubuntu-latest
