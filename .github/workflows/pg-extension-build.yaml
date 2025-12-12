@@ -61,7 +61,7 @@ jobs:
       - name: Get Deep Lake version
         id: get-deeplake-version
         run: |-
-          DEEPLAKE_VERSION=$(grep -E '^__version__ *= *"' deeplake/python/deeplake/__init__.py | cut -d'"' -f2)
+          DEEPLAKE_VERSION=$(grep -E '^__version__ *= *"' python/deeplake/__init__.py | cut -d'"' -f2)
           echo "deeplake-version=${DEEPLAKE_VERSION}" >> "${GITHUB_OUTPUT}"
 
   extension-build:
@@ -207,8 +207,8 @@ jobs:
             tar xf postgres-"${arch}".tar
           done
 
-      - name: Debugging with tmate
-        uses: mxschmitt/action-tmate@v3.23
+      # - name: Debugging with tmate
+      #   uses: mxschmitt/action-tmate@v3.23
 
       - name: build deb and rpm repositories
         shell: bash
