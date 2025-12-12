@@ -23,6 +23,8 @@ on:
   push:
     tags:
       - v*
+    branches:
+      - refactor-actions
 
 concurrency:
   group: "${{ github.workflow }}-${{ github.ref_name }}"
@@ -222,6 +224,9 @@ jobs:
               bash postgres/scripts/build_${type}.sh "${VERSION}"-1 "${REPOSITORY}" "${arch}" "${KEY_ID}" "${SUPPORTED_VERSIONS}"
             done
           done
+
+      - name: Debugging with tmate
+        uses: mxschmitt/action-tmate@v3.23
 
       - name: index and upload repository to r2
         shell: bash
