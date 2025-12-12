@@ -168,7 +168,7 @@ jobs:
 
   repo-build:
     name: Build PostgreSQL Extension Repo
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     needs: [setup, extension-build]
     env:
       OP_SERVICE_ACCOUNT_TOKEN: "${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}"
@@ -242,7 +242,7 @@ jobs:
 
   build_container_images:
     name: Build Container Images
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     needs: [setup, repo-build]
     env:
       OP_SERVICE_ACCOUNT_TOKEN: "${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}"
