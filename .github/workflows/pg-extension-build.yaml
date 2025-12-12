@@ -175,6 +175,7 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     needs: [setup, extension-build]
     env:
+      OP_SERVICE_ACCOUNT_TOKEN: "${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}"
       REPOSITORY: /tmp/activeloop-packages
       SUPPORTED_VERSIONS: "${{ needs.setup.outputs.versions-list }}"
       VERSION: "${{ needs.setup.outputs.deeplake-version }}"
@@ -189,7 +190,6 @@ jobs:
         with:
           export-env: true
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: "${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}"
           R2_ACCESS_KEY_ID: "op://GitHub Actions/registry-creds/cloudflare/CF_R2_ACCESS_KEY"
           R2_SECRET_ACCESS_KEY: "op://GitHub Actions/registry-creds/cloudflare/CF_R2_SECRET_KEY"
           R2_BUCKET_NAME: "op://GitHub Actions/common/REPOSITORY_BUCKET"
@@ -208,9 +208,6 @@ jobs:
             s5cmd cp "s3://activeloop-platform-tests/indra/artifacts/postgres/postgres-${arch}.tar" postgres-"${arch}".tar
             tar xf postgres-"${arch}".tar
           done
-
-      - name: Debugging with tmate
-        uses: mxschmitt/action-tmate@v3.23
 
       - name: build deb and rpm repositories
         shell: bash
@@ -251,6 +248,7 @@ jobs:
     name: Build Container Images
     needs: [setup, repo-build]
     env:
+      OP_SERVICE_ACCOUNT_TOKEN: "${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}"
       VERSION: "${{ needs.setup.outputs.deeplake-version }}"
     runs-on: ubuntu-latest
     strategy:
@@ -265,7 +263,6 @@ jobs:
         id: load-1pass
         uses: 1password/load-secrets-action@v3
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: "${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}"
           QUAY_USERNAME: "op://GitHub Actions/registry-creds/quay/QUAY_USERNAME"
           QUAY_PASSWORD: "op://GitHub Actions/registry-creds/quay/QUAY_PASSWORD"
 
