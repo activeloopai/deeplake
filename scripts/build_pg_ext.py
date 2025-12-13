@@ -6,11 +6,14 @@ import platform
 import requests
 
 """
-Usage: python3 scripts/build_pg_ext.py debug                      #Debug build
-Usage: python3 scripts/build_pg_ext.py dev                        #Develop build
-Usage: python3 scripts/build_pg_ext.py prod                       #Release build
-Usage: python3 scripts/build_pg_ext.py debug --deeplake-shared    #Debug build with shared deeplake_api linking
-Usage: python3 scripts/build_pg_ext.py debug --deeplake-static    #Debug build with static deeplake_api linking (force)
+Usage: python3 scripts/build_pg_ext.py debug                               #Debug build
+Usage: python3 scripts/build_pg_ext.py dev                                 #Develop build
+Usage: python3 scripts/build_pg_ext.py prod                                #Release build
+Usage: python3 scripts/build_pg_ext.py debug --deeplake-shared             #Debug build with shared deeplake_api linking
+Usage: python3 scripts/build_pg_ext.py debug --deeplake-static             #Debug build with static deeplake_api linking (force)
+Usage: python3 scripts/build_pg_ext.py dev --pg-versions 16,17,18          #Build for PostgreSQL 16, 17, and 18
+Usage: python3 scripts/build_pg_ext.py dev --pg-versions 16                #Build for PostgreSQL 16 only
+Usage: python3 scripts/build_pg_ext.py prod --pg-versions all              #Build for all supported PostgreSQL versions
 """
 
 def download_api_lib(path_to_check):
@@ -123,7 +126,7 @@ def _update_symlinks(lib_dir, version):
             os.symlink(target, link_path)
             print(f"Created symlink: {link_name} -> {target}")
 
-def run(mode: str, incremental: bool, deeplake_link_type: str = None):
+def run(mode: str, incremental: bool, deeplake_link_type: str = None, pg_versions: list = None):
     modes = ["debug", "dev", "prod"]
     if mode not in modes:
         raise Exception(f"Invalid mode - '{mode}'. Possible values - {', '.join(modes)}")
@@ -143,6 +146,16 @@ def run(mode: str, incremental: bool, deeplake_link_type: str = None):
             architectures = os.environ.get("CMAKE_OSX_ARCHITECTURES", "")
             if architectures:
                 cmake_cmd += f"-D CMAKE_OSX_ARCHITECTURES={architectures} "
+
+            # Add PostgreSQL version options if specified
+            if pg_versions is not None:
+                supported_versions = {16, 17, 18}
+                # Set all versions to OFF by default
+                for ver in supported_versions:
+                    if ver in pg_versions:
+                        cmake_cmd += f"-D BUILD_PG_{ver}=ON "
+                    else:
+                        cmake_cmd += f"-D BUILD_PG_{ver}=OFF "
 
             # Add deeplake linking type option if specified
             if deeplake_link_type == "shared":
@@ -208,17 +221,36 @@ if __name__ == "__main__":
     else:
         mode = sys.argv[1]
         deeplake_link_type = None
+        pg_versions = None
 
-        # Parse optional --deeplake-shared or --deeplake-static flag
-        if len(sys.argv) >= 3:
-            if sys.argv[2] == "--deeplake-shared":
+        # Parse optional flags
+        i = 2
+        while i < len(sys.argv):
+            arg = sys.argv[i]
+            if arg == "--deeplake-shared":
                 deeplake_link_type = "shared"
-            elif sys.argv[2] == "--deeplake-static":
+                i += 1
+            elif arg == "--deeplake-static":
                 deeplake_link_type = "static"
+                i += 1
+            elif arg == "--pg-versions":
+                if i + 1 >= len(sys.argv):
+                    raise Exception("--pg-versions requires a value (e.g., '16,17,18' or 'all')")
+                versions_str = sys.argv[i + 1]
+                if versions_str == "all":
+                    pg_versions = [16, 17, 18]
+                else:
+                    try:
+                        pg_versions = [int(v.strip()) for v in versions_str.split(',')]
+                        # Validate versions
+                        supported = {16, 17, 18}
+                        invalid = set(pg_versions) - supported
+                        if invalid:
+                            raise Exception(f"Invalid PostgreSQL versions: {invalid}. Supported: {supported}")
+                    except ValueError:
+                        raise Exception(f"Invalid --pg-versions format: '{versions_str}'. Use comma-separated numbers (e.g., '16,17,18') or 'all'")
+                i += 2
             else:
-                raise Exception(f"Invalid option '{sys.argv[2]}'. Use --deeplake-shared or --deeplake-static")
+                raise Exception(f"Invalid option '{arg}'. Use --deeplake-shared, --deeplake-static, or --pg-versions")
 
-        if len(sys.argv) > 3:
-            raise Exception("Too many command line arguments")
-
-        run(mode=mode, incremental=False, deeplake_link_type=deeplake_link_type)
+        run(mode=mode, incremental=False, deeplake_link_type=deeplake_link_type, pg_versions=pg_versions)

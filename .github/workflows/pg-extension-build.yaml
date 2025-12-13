@@ -114,6 +114,15 @@ jobs:
         shell: bash
         run: |-
           echo -e "${YELLOW}Building the PostgreSQL extension...${DEFAULT}"
+
+          # Determine which versions to build based on input
+          PG_VERSION="${{ inputs.pg_version || '18' }}"
+
+          echo "Building for PostgreSQL version(s): ${PG_VERSION}"
+
+          # Run the build with the appropriate --pg-versions flag
+          python3 scripts/build_pg_ext.py prod --deeplake-static --pg-versions "${PG_VERSION}"
+
           if [ "${PG_VERSION}" == "all" ]; then
             CMAKE_FLAGS="-DBUILD_PG_16=ON -DBUILD_PG_17=ON -DBUILD_PG_18=ON"
             echo "Building for PostgreSQL versions: 16, 17, 18"
