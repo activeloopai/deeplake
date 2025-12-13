@@ -115,26 +115,10 @@ jobs:
           # Determine which versions to build based on input
           PG_VERSION="${{ inputs.pg_version || '18' }}"
 
-          if [ "${PG_VERSION}" == "all" ]; then
-            # Build all versions
-            CMAKE_FLAGS="-DBUILD_PG_16=ON -DBUILD_PG_17=ON -DBUILD_PG_18=ON"
-            echo "Building for PostgreSQL versions: 16, 17, 18"
-          elif [ "${PG_VERSION}" == "16" ]; then
-            CMAKE_FLAGS="-DBUILD_PG_16=ON -DBUILD_PG_17=OFF -DBUILD_PG_18=OFF"
-            echo "Building for PostgreSQL version: 16"
-          elif [ "${PG_VERSION}" == "17" ]; then
-            CMAKE_FLAGS="-DBUILD_PG_16=OFF -DBUILD_PG_17=ON -DBUILD_PG_18=OFF"
-            echo "Building for PostgreSQL version: 17"
-          elif [ "${PG_VERSION}" == "18" ]; then
-            CMAKE_FLAGS="-DBUILD_PG_16=OFF -DBUILD_PG_17=OFF -DBUILD_PG_18=ON"
-            echo "Building for PostgreSQL version: 18"
-          else
-            echo -e "${RED}Invalid PostgreSQL version: ${PG_VERSION}${DEFAULT}"
-            exit 1
-          fi
+          echo "Building for PostgreSQL version(s): ${PG_VERSION}"
 
-          # Run the build with the appropriate flags
-          python3 scripts/build_pg_ext.py prod --deeplake-static
+          # Run the build with the appropriate --pg-versions flag
+          python3 scripts/build_pg_ext.py prod --deeplake-static --pg-versions "${PG_VERSION}"
 
           echo -e "${GREEN}Done.${DEFAULT}"
 
