@@ -158,9 +158,6 @@ jobs:
             echo -e "${YELLOW}Skipping tests - only PostgreSQL 18 is tested (selected version: ${PG_VERSION})${DEFAULT}"
           fi
 
-      - name: Debugging with tmate
-        uses: mxschmitt/action-tmate@v3.23
-
       - name: save cache and build artifacts
         shell: bash
         run: |-
