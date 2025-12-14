@@ -33,12 +33,12 @@ endif()
 if(NOT WIN32)
     # OpenSSL
     find_package(OpenSSL REQUIRED)
-    list(APPEND INDRA_STATIC_LINK_LIBS OpenSSL::SSL OpenSSL::Crypto)
+    list(APPEND DEEPLAKE_STATIC_LINK_LIBS OpenSSL::SSL OpenSSL::Crypto)
 endif()
 
 # Z
 find_package(ZLIB REQUIRED)
-list(APPEND INDRA_STATIC_LINK_LIBS ZLIB::ZLIB)
+list(APPEND DEEPLAKE_STATIC_LINK_LIBS ZLIB::ZLIB)
 
 find_package(CURL CONFIG REQUIRED)
 
@@ -88,14 +88,28 @@ foreach(PG_VERSION ${PG_VERSIONS})
     target_link_directories(${PG_LIB} PUBLIC ${postgres_INSTALL_DIR_REL_${PG_VERSION}_0}/lib/ ${CMAKE_CURRENT_SOURCE_DIR}/../lib ${DUCKDB_LIB_DIR})
     target_link_directories(${PG_LIB} PUBLIC ${PNG_LIBRARIES_DIR})
 
-    # Link DeepLake API using imported target (includes headers and library automatically)
-    # The target automatically handles static/shared library selection
-    target_link_libraries(${PG_LIB} PUBLIC
-        pq ecpg ecpg_compat pgcommon_shlib pgfeutils pgport_shlib pgtypes pgcommon pgport
-        DeepLakeAPI::deeplake_api
-        ${3RD_PARTY_LIBS} ${FREETYPE_LIBRARIES}
-        PRIVATE ${INDRA_STATIC_LINK_LIBS}
-    )
+    # Link DeepLake API using the appropriate target (static or shared)
+    if(USE_DEEPLAKE_SHARED)
+        message(STATUS "Linking ${PG_LIB} with DeepLake API shared library")
+        target_link_libraries(${PG_LIB} PUBLIC
+            pq ecpg ecpg_compat pgcommon_shlib pgfeutils pgport_shlib pgtypes pgcommon pgport
+            DeepLakeAPI::deeplake_api_shared
+            ${3RD_PARTY_LIBS}
+            PRIVATE ${DEEPLAKE_STATIC_LINK_LIBS}
+        )
+    else()
+        message(STATUS "Linking ${PG_LIB} with DeepLake API static library")
+        target_link_libraries(${PG_LIB} PUBLIC
+            pq ecpg ecpg_compat pgcommon_shlib pgfeutils pgport_shlib pgtypes pgcommon pgport
+            -Wl,--whole-archive
+            DeepLakeAPI::deeplake_api_static
+            -Wl,--no-whole-archive
+            ${3RD_PARTY_LIBS}
+            PRIVATE ${DEEPLAKE_STATIC_LINK_LIBS}
+            # Allow multiple definitions due to duplicate object files in unified library
+            -Wl,--allow-multiple-definition
+        )
+    endif()
 
     target_link_libraries(${PG_LIB} PRIVATE
         fmt::fmt-header-only OpenSSL::SSL
