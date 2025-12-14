@@ -67,6 +67,8 @@ jobs:
       (github.event_name == 'workflow_dispatch') ||
       (github.event_name == 'pull_request' &&
       (github.event.action == 'labeled' && contains(join(github.event.pull_request.labels.*.name, ','), 'pg_extension')))
+    outputs:
+      version: ${{ steps.extract-version.outputs.version }}
     strategy:
       fail-fast: true
       matrix:
@@ -122,6 +124,26 @@ jobs:
 
           echo -e "${GREEN}Done.${DEFAULT}"
 
+      - name: extract version
+        id: extract-version
+        shell: bash
+        run: |-
+          # Use provided version or extract from pkg-config or git tag
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+            echo "Using provided version: ${VERSION}"
+          elif [ -f "cpp/.ext/deeplake_api/lib/pkgconfig/deeplake_api.pc" ]; then
+            VERSION=$(PKG_CONFIG_PATH="cpp/.ext/deeplake_api/lib/pkgconfig" pkg-config --modversion deeplake_api)
+            echo "Extracted version from pkg-config: ${VERSION}"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            echo "Extracted version from git tag: ${VERSION}"
+          else
+            echo "Error: Could not determine version"
+            exit 1
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
       - name: test built packages
         shell: bash
         run: |-
@@ -171,6 +193,7 @@ jobs:
     env:
       REPOSITORY: "/tmp/activeloop-packages"
       SUPPORTED_VERSIONS: ${{ needs.setup.outputs.versions-list }}
+      PACKAGE_VERSION: ${{ needs.extension-build.outputs.version }}
     runs-on: ubuntu-latest
     container: "quay.io/activeloopai/repo-builder:latest"
     steps:
@@ -218,14 +241,13 @@ jobs:
           mkdir -p "${REPOSITORY}"/scripts/pg-deeplake/ &&
           cp -f postgres/scripts/install.sh "${REPOSITORY}"/scripts/pg-deeplake/
 
-          # Extract version using pkg-config if VERSION is not set
-          if [ -z "${VERSION}" ]; then
-            echo -e "${YELLOW}VERSION not set, extracting from pkg-config...${DEFAULT}"
-            PKG_VERSION=$(PKG_CONFIG_PATH="cpp/.ext/deeplake_api/lib/pkgconfig" pkg-config --modversion deeplake_api)
-            VERSION="${PKG_VERSION}-1"
-            echo -e "${GREEN}Detected version: ${VERSION}${DEFAULT}"
+          # Use version from extension-build job output
+          if [ -n "${PACKAGE_VERSION}" ]; then
+            VERSION="${PACKAGE_VERSION}-1"
+            echo -e "${GREEN}Using version from build job: ${VERSION}${DEFAULT}"
           else
-            VERSION="${VERSION}-1"
+            echo -e "${RED}Error: PACKAGE_VERSION not set${DEFAULT}"
+            exit 1
           fi
 
           for type in deb rpm; do
@@ -249,7 +271,7 @@ jobs:
 
   build_container_images:
     name: Build Container Images
-    needs: [setup, repo-build]
+    needs: [setup, extension-build, repo-build]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -284,19 +306,17 @@ jobs:
         shell: bash
         env:
           PG_VERSION: ${{ matrix.version }}
+          PACKAGE_VERSION: ${{ needs.extension-build.outputs.version }}
         run: |-
           mkdir -p ./debs
 
-          # Extract version from tag or use default
-          if [ -n "${{ inputs.version }}" ]; then
-            VERSION="${{ inputs.version }}"
-          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            # Extract version from tag (e.g., v4.4.4 -> 4.4.4)
-            VERSION="${GITHUB_REF#refs/tags/v}"
-          else
-            # Default version if neither input nor tag is available
-            VERSION="latest"
+          # Use version from extension-build job output
+          if [ -z "${PACKAGE_VERSION}" ]; then
+            echo "Error: PACKAGE_VERSION not set"
+            exit 1
           fi
+          VERSION="${PACKAGE_VERSION}"
+          echo "Using package version: ${VERSION}"
 
           wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-${PG_VERSION}_${VERSION}-1_amd64.deb -O ./debs/pg-deeplake-${PG_VERSION}_${VERSION}-1_amd64.deb
           wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-${PG_VERSION}_${VERSION}-1_arm64.deb -O ./debs/pg-deeplake-${PG_VERSION}_${VERSION}-1_arm64.deb
