@@ -12,16 +12,41 @@ GREEN="\e[92m"
 RED="\e[91m"
 DEFAULT="\e[0m"
 
-# Define usage function
-usage() {
-    echo -e "Usage: bash $0 <version-release> <repository> <architecture> <gpg-keyid> <supported-versions>\n\
-For example: bash $0 1.2.5-2 /tmp/repo arm64 1F8B584DBEA11E9D"
+# Function to extract version using pkg-config
+extract_version_from_pkgconfig() {
+    local pkgconfig_path="cpp/.ext/deeplake_api/lib/pkgconfig"
+
+    if [ ! -d "$pkgconfig_path" ]; then
+        echo -e "${RED}Error: pkg-config directory not found at $pkgconfig_path${DEFAULT}" >&2
+        echo -e "${RED}Make sure the DeepLake API library is downloaded first.${DEFAULT}" >&2
+        exit 1
+    fi
+
+    # Set PKG_CONFIG_PATH and query version
+    local version=$(PKG_CONFIG_PATH="$pkgconfig_path" pkg-config --modversion deeplake_api 2>/dev/null)
+
+    if [ -z "$version" ]; then
+        echo -e "${RED}Error: Could not extract version using pkg-config${DEFAULT}" >&2
+        exit 1
+    fi
+
+    echo "$version"
 }
 
-# Check if the arguments are passed
-if [ "$#" -ne 5 ]; then
-    usage && exit 1
-fi
+# Define usage function
+usage() {
+    echo -e "Usage: bash $0 [version-release] <repository> <architecture> <gpg-keyid> <supported-versions>"
+    echo -e "\nArguments:"
+    echo -e "  version-release:    Optional. Version with release suffix (e.g., 4.4.4-1)."
+    echo -e "                      If not provided, version is extracted from DeepLake API pkg-config."
+    echo -e "  repository:         Repository directory path"
+    echo -e "  architecture:       amd64 or arm64"
+    echo -e "  gpg-keyid:          GPG key ID for signing"
+    echo -e "  supported-versions: Comma-separated PostgreSQL versions (e.g., 16,17,18)"
+    echo -e "\nExamples:"
+    echo -e "  bash $0 4.4.4-1 /tmp/repo arm64 1F8B584DBEA11E9D 16,17,18"
+    echo -e "  bash $0 /tmp/repo arm64 1F8B584DBEA11E9D 16,17,18  # Auto-detect version"
+}
 
 # Error handling function
 if_failed() {
@@ -32,12 +57,30 @@ if_failed() {
     fi
 }
 
-VERSION=$1
-REPOSITORY=$2
-ARCH=$3
-GPG_KEY=$4
+# Parse arguments (support both 4 and 5 argument formats)
+if [ "$#" -eq 4 ]; then
+    # Auto-extract version from pkg-config
+    echo -e "${YELLOW}Extracting version from DeepLake API pkg-config...${DEFAULT}"
+    AUTO_VERSION=$(extract_version_from_pkgconfig)
+    VERSION="${AUTO_VERSION}-1"  # Default to -1 release suffix
+    echo -e "${GREEN}Detected version: ${VERSION}${DEFAULT}\n"
+    REPOSITORY=$1
+    ARCH=$2
+    GPG_KEY=$3
+    SUPPORTED_VERSIONS_ARG=$4
+elif [ "$#" -eq 5 ]; then
+    # Use provided version
+    VERSION=$1
+    REPOSITORY=$2
+    ARCH=$3
+    GPG_KEY=$4
+    SUPPORTED_VERSIONS_ARG=$5
+else
+    usage && exit 1
+fi
+
 CLEAN_VERSION=${VERSION/-*/}
-readarray -t -d',' SUPPORTED_VERSIONS < <(printf "%s" "$5")
+readarray -t -d',' SUPPORTED_VERSIONS < <(printf "%s" "$SUPPORTED_VERSIONS_ARG")
 
 # Determine artifact directory
 if [ "${ARCH}" == "amd64" ]; then
