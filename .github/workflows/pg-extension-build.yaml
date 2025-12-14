@@ -217,10 +217,21 @@ jobs:
           rm -f public.asc; rm -f private.asc
           mkdir -p "${REPOSITORY}"/scripts/pg-deeplake/ &&
           cp -f postgres/scripts/install.sh "${REPOSITORY}"/scripts/pg-deeplake/
+
+          # Extract version using pkg-config if VERSION is not set
+          if [ -z "${VERSION}" ]; then
+            echo -e "${YELLOW}VERSION not set, extracting from pkg-config...${DEFAULT}"
+            PKG_VERSION=$(PKG_CONFIG_PATH="cpp/.ext/deeplake_api/lib/pkgconfig" pkg-config --modversion deeplake_api)
+            VERSION="${PKG_VERSION}-1"
+            echo -e "${GREEN}Detected version: ${VERSION}${DEFAULT}"
+          else
+            VERSION="${VERSION}-1"
+          fi
+
           for type in deb rpm; do
             for arch in amd64 arm64; do
               echo -e "${YELLOW}Building the ${type} repository...${DEFAULT}"
-              bash postgres/scripts/build_${type}.sh "${VERSION}"-1 "${REPOSITORY}" "${arch}" "${KEY_ID}" "${SUPPORTED_VERSIONS}"
+              bash postgres/scripts/build_${type}.sh "${VERSION}" "${REPOSITORY}" "${arch}" "${KEY_ID}" "${SUPPORTED_VERSIONS}"
             done
           done
 
@@ -275,7 +286,18 @@ jobs:
           PG_VERSION: ${{ matrix.version }}
         run: |-
           mkdir -p ./debs
-          VERSION="${{ inputs.version }}"
+
+          # Extract version from tag or use default
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            # Extract version from tag (e.g., v4.4.4 -> 4.4.4)
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            # Default version if neither input nor tag is available
+            VERSION="latest"
+          fi
+
           wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-${PG_VERSION}_${VERSION}-1_amd64.deb -O ./debs/pg-deeplake-${PG_VERSION}_${VERSION}-1_amd64.deb
           wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-${PG_VERSION}_${VERSION}-1_arm64.deb -O ./debs/pg-deeplake-${PG_VERSION}_${VERSION}-1_arm64.deb
           sed s/BASE_IMAGE/postgres:${PG_VERSION}-bookworm/g postgres/Dockerfile > Dockerfile.build
