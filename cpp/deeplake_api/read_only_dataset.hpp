@@ -12,6 +12,7 @@
 
 #include <heimdall/dataset_view.hpp>
 #include <icm/string_set.hpp>
+#include <query_core/search_config.hpp>
 
 #include <memory>
 
@@ -52,11 +53,36 @@ public:
     [[nodiscard]] std::vector<std::pair<std::string, int64_t>> get_datafiles() const;
     [[nodiscard]] std::map<std::string, deeplake::column_datafiles_info> get_datafiles_report() const;
 
+    /**
+     * @brief Get the query configuration for this dataset.
+     *
+     * This configuration is used as the default for all queries on this dataset
+     * unless overridden by per-query configuration.
+     *
+     * @return Reference to the query configuration object
+     */
+    query_core::search_config& get_query_config();
+    const query_core::search_config& get_query_config() const;
+
+    /**
+     * @brief Get the index build configuration for this dataset.
+     *
+     * This configuration controls how indices are built for this dataset.
+     *
+     * @return Reference to the index build configuration object
+     */
+    query_core::index_build_config& get_indexing_config();
+    const query_core::index_build_config& get_indexing_config() const;
+
 public:
     read_only_dataset(std::shared_ptr<deeplake::dataset_view> dataset,
                       std::shared_ptr<deeplake::data_container_view> data_container);
     [[nodiscard]] icm::json to_json() const override;
     [[nodiscard]] static async::promise<std::shared_ptr<read_only_dataset>> from_json(const icm::const_json& json);
+
+protected:
+    query_core::search_config default_search_config_;
+    query_core::index_build_config default_index_build_config_;
 
 private:
     std::shared_ptr<deeplake::dataset_view> dataset_;

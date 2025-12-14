@@ -9,9 +9,6 @@
 #include "table_storage.hpp"
 #include "utils.hpp"
 
-#include <heimdall_common/array_column_view.hpp>
-#include <heimdall_common/dataset_filtered_by_tensors.hpp>
-
 #include <memory>
 #include <string>
 #include <vector>

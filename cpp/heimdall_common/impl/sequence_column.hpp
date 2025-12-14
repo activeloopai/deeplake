@@ -1,14 +1,14 @@
 #pragma once
 
-#include "group_tensor.hpp"
+#include "group_column.hpp"
 
 namespace heimdall_common::impl {
 
-class sequence_tensor : public group_tensor
+class sequence_column : public group_column
 {
 public:
-    sequence_tensor(heimdall::column_view_ptr source, const std::vector<int64_t>& sequence_lengths)
-        : group_tensor(source, sequence_lengths)
+    sequence_column(heimdall::column_view_ptr source, const std::vector<int64_t>& sequence_lengths)
+        : group_column(source, sequence_lengths)
     {
     }
 

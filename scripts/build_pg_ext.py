@@ -16,10 +16,16 @@ Usage: python3 scripts/build_pg_ext.py dev --pg-versions 16                #Buil
 Usage: python3 scripts/build_pg_ext.py prod --pg-versions all              #Build for all supported PostgreSQL versions
 """
 
-def download_api_lib(path_to_check):
+def download_api_lib(api_root_dir, overwrite=True):
+    """
+    Download and extract the full deeplake API library including:
+    - include/ headers
+    - lib/ libraries
+    - cmake configurations
+    - pkg-config files
+    """
     # create directory for the deeplake api library if it does not exist
-    deeplake_api_lib_dir = os.path.dirname(path_to_check)
-    os.makedirs(deeplake_api_lib_dir, exist_ok=True)
+    os.makedirs(api_root_dir, exist_ok=True)
 
     machine = platform.machine()
 
@@ -41,20 +47,18 @@ def download_api_lib(path_to_check):
     # Strip 'v' prefix from tag name if present (e.g., v4.4.2 -> 4.4.2)
     version = tag_name.lstrip('v')
 
-    # Check if the versioned library already exists
-    versioned_lib = os.path.join(deeplake_api_lib_dir, f"libdeeplake_api.a.{version}")
-    if os.path.exists(versioned_lib):
-        print(f"Static library version {version} already exists. Skipping download.")
-        # Ensure symlinks are correct
-        _update_symlinks(deeplake_api_lib_dir, version)
-        return
+    # Check if library already exists
+    lib_dir = os.path.join(api_root_dir, "lib")
+    version_marker = os.path.join(api_root_dir, ".version")
 
-    # Check if a different version exists locally
-    if os.path.exists(path_to_check):
-        # Follow symlink to get actual version
-        actual_path = os.path.realpath(path_to_check)
-        actual_version = os.path.basename(actual_path).replace("libdeeplake_api.a.", "")
-        print(f"Found existing version {actual_version}, but latest is {version}. Downloading latest...")
+    if os.path.exists(version_marker) and not overwrite:
+        with open(version_marker, 'r') as f:
+            existing_version = f.read().strip()
+        if existing_version == version:
+            print(f"Library version {version} already exists. Skipping download.")
+            return
+        else:
+            print(f"Found existing version {existing_version}, but latest is {version}. Downloading latest...")
 
     # Construct asset name based on platform
     archive_name = f"deeplake-api-{version}-linux-{machine}"
@@ -80,7 +84,8 @@ def download_api_lib(path_to_check):
     with open(f"{zip_archive_name}", "wb") as f:
         f.write(response.content)
 
-    err = os.system(f"unzip {zip_archive_name} -d /tmp && rm {zip_archive_name}")
+    print("Extracting archives...")
+    err = os.system(f"unzip -o {zip_archive_name} -d /tmp && rm {zip_archive_name}")
     if err:
         raise Exception(f"Failed to extract api libraries. Command exited with code {err}.")
 
@@ -89,42 +94,26 @@ def download_api_lib(path_to_check):
         raise Exception(f"Failed to extract api libraries. Command exited with code {err}.")
 
     extracted_path = f"/tmp/{archive_name}"
-    err = os.system(f"mv {extracted_path}/lib/* {deeplake_api_lib_dir} && rm -rf {extracted_path}")
+
+    # Remove existing library directory if overwrite is enabled
+    if overwrite:
+        print(f"Removing existing library at {api_root_dir}...")
+        err = os.system(f"rm -rf {api_root_dir}/*")
+        if err:
+            raise Exception(f"Failed to remove existing library. Command exited with code {err}.")
+
+    # Copy entire library structure (include/, lib/, cmake configs, pkg-config, etc.)
+    print(f"Installing full library structure to {api_root_dir}...")
+    err = os.system(f"cp -r {extracted_path}/* {api_root_dir}/ && rm -rf {extracted_path}")
     if err:
-        raise Exception(f"Failed to move api libraries. Command exited with code {err}.")
+        raise Exception(f"Failed to copy api library structure. Command exited with code {err}.")
 
-    # Update symlinks after downloading
-    _update_symlinks(deeplake_api_lib_dir, version)
+    # Write version marker
+    with open(version_marker, 'w') as f:
+        f.write(version)
 
-def _update_symlinks(lib_dir, version):
-    """Update symlinks to point to the versioned library files (both static and shared)."""
-    version_parts = version.split('.')
+    print(f"Successfully installed deeplake API library version {version}")
 
-    # Create symlinks for both static (.a) and shared (.so) libraries
-    for ext in ['a', 'so']:
-        versioned_lib = f"libdeeplake_api.{ext}.{version}"
-
-        # Create symlinks: libdeeplake_api.{ext} -> libdeeplake_api.{ext}.X.Y.Z
-        symlinks = [
-            (f"libdeeplake_api.{ext}", versioned_lib),
-        ]
-
-        # Add major version symlink if version has parts
-        if len(version_parts) >= 1:
-            symlinks.append((f"libdeeplake_api.{ext}.{version_parts[0]}", versioned_lib))
-
-        # Add major.minor version symlink if version has parts
-        if len(version_parts) >= 2:
-            symlinks.append((f"libdeeplake_api.{ext}.{version_parts[0]}.{version_parts[1]}", versioned_lib))
-
-        for link_name, target in symlinks:
-            link_path = os.path.join(lib_dir, link_name)
-            # Remove existing symlink if it exists
-            if os.path.islink(link_path) or os.path.exists(link_path):
-                os.remove(link_path)
-            # Create new symlink
-            os.symlink(target, link_path)
-            print(f"Created symlink: {link_name} -> {target}")
 
 def run(mode: str, incremental: bool, deeplake_link_type: str = None, pg_versions: list = None):
     modes = ["debug", "dev", "prod"]
@@ -170,7 +159,7 @@ def run(mode: str, incremental: bool, deeplake_link_type: str = None, pg_version
                     f"Cmake command failed with exit code {err}. Full command: `{cmake_cmd}`"
                 )
 
-            download_api_lib(".ext/deeplake_api/lib/libdeeplake_api.a")
+            download_api_lib(".ext/deeplake_api")
 
         make_cmd = f"cmake --build {preset}"
         err = os.system(make_cmd)

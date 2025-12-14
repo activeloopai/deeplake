@@ -9,7 +9,7 @@ namespace heimdall_common {
 
 /**
  * @brief Creates a sliced dataset from the source dataset.
- * The sliced dataset will contain tensors with the same tensor name, dtype, and htype of samples
+ * The sliced dataset will contain columns with the same column name, dtype, and htype of samples
  * as the source dataset, but the samples will be sliced with the given slice.
  *
  * @param source The source dataset.

@@ -104,7 +104,7 @@ public:
 
     async::promise<nd::array> request_bytes_full(storage::fetch_options options) override
     {
-        throw heimdall::invalid_operation("Can't fetch bytes of the virtual tensor.");
+        throw heimdall::invalid_operation("Can't fetch bytes of the virtual column.");
     }
 
 public:
@@ -140,13 +140,13 @@ protected:
     request_range_shape_(int64_t start_index, int64_t end_index, storage::fetch_options options) override;
     async::promise<nd::array> request_bytes_(int64_t index, storage::fetch_options options) override
     {
-        throw heimdall::invalid_operation("Can't fetch bytes of the virtual tensor.");
+        throw heimdall::invalid_operation("Can't fetch bytes of the virtual column.");
     }
 
     async::promise<nd::array>
     request_range_bytes_(int64_t start_index, int64_t end_index, storage::fetch_options options) override
     {
-        throw heimdall::invalid_operation("Can't fetch bytes of the virtual tensor.");
+        throw heimdall::invalid_operation("Can't fetch bytes of the virtual column.");
     }
 
 private:

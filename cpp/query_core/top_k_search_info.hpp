@@ -2,6 +2,7 @@
 
 #include "expr.hpp"
 #include "order_type.hpp"
+#include "search_config.hpp"
 #include "static_data_t.hpp"
 
 // Query-core wrapper types for Top-K search info. Uses query_core expr/order types.
@@ -32,6 +33,9 @@ struct top_k_search_info
     expr order_expr;
     int k = 0;
     order_type t = order_type::ascending;
+
+    // Search configuration for this query
+    search_config config = search_config::default_config();
 };
 
 struct top_k_binary_function_search_info
@@ -56,6 +60,9 @@ struct top_k_binary_function_search_info
     std::string function_name;
     int k = 0;
     order_type order_type_ = order_type::ascending;
+
+    // Search configuration for this query
+    search_config config = search_config::default_config();
 };
 
 } // namespace query_core

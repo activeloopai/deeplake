@@ -33,7 +33,7 @@ inline void free_env_impl(char* ptr) {
 }
 
 template <typename T>
-requires std::is_same_v<T, std::string> || std::is_same_v<T, bool>
+requires std::is_same_v<T, std::string> || std::is_same_v<T, bool> || std::is_integral_v<T>
 inline T getenv(const std::string& name, T default_value = T{})
 {
     char* value = detail::get_env_impl(name.c_str());
@@ -45,14 +45,26 @@ inline T getenv(const std::string& name, T default_value = T{})
         std::string result(value);
         detail::free_env_impl(value);
         return result;
-    } else {
-        static_assert(std::is_same_v<T, bool>, "Type T must be either std::string or bool");
+    } else if constexpr (std::is_same_v<T, bool>) {
         std::string str(value);
         detail::free_env_impl(value);
         std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
             return std::tolower(c);
         });
         return str == "1" || str == "true" || str == "yes";
+    } else {
+        static_assert(std::is_integral_v<T>, "Type T must be std::string, bool, or an integral type");
+        std::string str(value);
+        detail::free_env_impl(value);
+        try {
+            if constexpr (std::is_signed_v<T>) {
+                return static_cast<T>(std::stoll(str));
+            } else {
+                return static_cast<T>(std::stoull(str));
+            }
+        } catch (...) {
+            return default_value;
+        }
     }
 }
 

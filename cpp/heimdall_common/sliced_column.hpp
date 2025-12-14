@@ -11,10 +11,10 @@
 
 namespace heimdall_common {
 
-class sliced_tensor: public chained_column_view
+class sliced_column: public chained_column_view
 {
 public:
-    sliced_tensor(heimdall::column_view_ptr s, const icm::indexable_vector& slice)
+    sliced_column(heimdall::column_view_ptr s, const icm::indexable_vector& slice)
         : chained_column_view()
         , source_(s)
         , slice_(slice)
@@ -22,11 +22,11 @@ public:
         calculate_shapes();
     }
 
-    sliced_tensor(const sliced_tensor&) = default;
-    sliced_tensor& operator=(const sliced_tensor&) = default;
-    sliced_tensor(sliced_tensor&&) = default;
-    sliced_tensor& operator=(sliced_tensor&&) = default;
-    ~sliced_tensor() override = default;
+    sliced_column(const sliced_column&) = default;
+    sliced_column& operator=(const sliced_column&) = default;
+    sliced_column(sliced_column&&) = default;
+    sliced_column& operator=(sliced_column&&) = default;
+    ~sliced_column() override = default;
 
 public:
     inline icm::shape max_shape() const noexcept override
@@ -78,7 +78,7 @@ public:
 
     async::promise<nd::array> request_bytes_full(storage::fetch_options options) override
     {
-        throw invalid_operation("Can't fetch bytes of the sliced tensor.");
+        throw invalid_operation("Can't fetch bytes of the sliced column.");
         return async::promise<nd::array>();
     }
 
@@ -95,14 +95,14 @@ protected:
     async::promise<nd::array> request_range_shape_(int64_t start_index, int64_t end_index, storage::fetch_options options) override;
     async::promise<nd::array> request_bytes_(int64_t index, storage::fetch_options options) override
     {
-        throw invalid_operation("Can't fetch bytes of the sliced tensor.");
+        throw invalid_operation("Can't fetch bytes of the sliced column.");
         return async::promise<nd::array>();
     }
 
     async::promise<nd::array> request_range_bytes_(int64_t start_index, int64_t end_index,
                                                   storage::fetch_options options) override
     {
-        throw invalid_operation("Can't fetch bytes of the sliced tensor.");
+        throw invalid_operation("Can't fetch bytes of the sliced column.");
         return async::promise<nd::array>();
     }
 
@@ -117,11 +117,11 @@ private:
 };
 
 /**
- * @brief Creates a sliced tensor from the source tensor.
- * @param source The source tensor.
+ * @brief Creates a sliced column from the source column.
+ * @param source The source column.
  * @param slice The slice of the samples.
- * @return column_view_ptr The sliced tensor.
+ * @return column_view_ptr The sliced column.
  */
-heimdall::column_view_ptr create_sliced_tensor(heimdall::column_view& source, const icm::indexable_vector& slice);
+heimdall::column_view_ptr create_sliced_column(heimdall::column_view& source, const icm::indexable_vector& slice);
 
 }

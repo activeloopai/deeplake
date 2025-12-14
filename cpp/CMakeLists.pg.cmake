@@ -44,7 +44,11 @@ find_package(CURL CONFIG REQUIRED)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/FindDuckDB.cmake)
 
-# } 
+# Find DeepLake API library
+set(CMAKE_PREFIX_PATH ${CMAKE_CURRENT_SOURCE_DIR}/.ext/deeplake_api ${CMAKE_PREFIX_PATH})
+find_package(DeepLakeAPI REQUIRED PATHS ${CMAKE_CURRENT_SOURCE_DIR}/.ext/deeplake_api/lib/cmake/deeplake_api NO_DEFAULT_PATH)
+
+# }
 
 include_directories(${DEFAULT_PARENT_DIR}/.ext/duckdb/src/include)
 
@@ -77,7 +81,6 @@ foreach(PG_VERSION ${PG_VERSIONS})
     target_include_directories(${PG_LIB}
         SYSTEM PRIVATE ${PG_SERVER_INCLUDE_DIR}
         PRIVATE
-        ${CMAKE_SOURCE_DIR}
         ${indicators_INCLUDE_DIRS}
     )
 
@@ -85,42 +88,14 @@ foreach(PG_VERSION ${PG_VERSIONS})
     target_link_directories(${PG_LIB} PUBLIC ${postgres_INSTALL_DIR_REL_${PG_VERSION}_0}/lib/ ${CMAKE_CURRENT_SOURCE_DIR}/../lib ${DUCKDB_LIB_DIR})
     target_link_directories(${PG_LIB} PUBLIC ${PNG_LIBRARIES_DIR})
 
-    # Determine whether to use static or shared library
-    set(DEEPLAKE_STATIC_LIB "${CMAKE_CURRENT_SOURCE_DIR}/.ext/deeplake_api/lib/libdeeplake_api.a")
-    set(DEEPLAKE_SHARED_LIB "${CMAKE_CURRENT_SOURCE_DIR}/.ext/deeplake_api/lib/libdeeplake_api.so")
-
-    # Auto-detect: prefer shared if available, fallback to static
-    if(USE_DEEPLAKE_SHARED)
-        set(USE_SHARED_LIB TRUE)
-    elseif(EXISTS "${DEEPLAKE_SHARED_LIB}")
-        set(USE_SHARED_LIB TRUE)
-        message(STATUS "Auto-detected shared library, using shared linking")
-    else()
-        set(USE_SHARED_LIB FALSE)
-        message(STATUS "Shared library not found, using static linking")
-    endif()
-
-    if(USE_SHARED_LIB)
-        message(STATUS "Using shared Deeplake library: ${DEEPLAKE_SHARED_LIB}")
-        target_link_libraries(${PG_LIB} PUBLIC
-            pq ecpg ecpg_compat pgcommon_shlib pgfeutils pgport_shlib pgtypes pgcommon pgport
-            ${DEEPLAKE_SHARED_LIB}
-            ${3RD_PARTY_LIBS} ${FREETYPE_LIBRARIES}
-            PRIVATE ${INDRA_STATIC_LINK_LIBS}
-        )
-    else()
-        message(STATUS "Using static Deeplake library: ${DEEPLAKE_STATIC_LIB}")
-        target_link_libraries(${PG_LIB} PUBLIC
-            pq ecpg ecpg_compat pgcommon_shlib pgfeutils pgport_shlib pgtypes pgcommon pgport
-            -Wl,--whole-archive
-            ${DEEPLAKE_STATIC_LIB}
-            -Wl,--no-whole-archive
-            ${3RD_PARTY_LIBS} ${FREETYPE_LIBRARIES}
-            PRIVATE ${INDRA_STATIC_LINK_LIBS}
-            # Allow multiple definitions due to duplicate object files in unified library
-            -Wl,--allow-multiple-definition
-        )
-    endif()
+    # Link DeepLake API using imported target (includes headers and library automatically)
+    # The target automatically handles static/shared library selection
+    target_link_libraries(${PG_LIB} PUBLIC
+        pq ecpg ecpg_compat pgcommon_shlib pgfeutils pgport_shlib pgtypes pgcommon pgport
+        DeepLakeAPI::deeplake_api
+        ${3RD_PARTY_LIBS} ${FREETYPE_LIBRARIES}
+        PRIVATE ${INDRA_STATIC_LINK_LIBS}
+    )
 
     target_link_libraries(${PG_LIB} PRIVATE
         fmt::fmt-header-only OpenSSL::SSL

@@ -2,7 +2,7 @@
 
 /**
  * @file exceptions.hpp
- * @brief Definitions of the exceptions for `hub` module.
+ * @brief Definitions of the exceptions for `storage` module.
  */
 
 #include <base/concat.hpp>

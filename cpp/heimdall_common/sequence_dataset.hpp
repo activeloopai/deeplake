@@ -7,7 +7,7 @@
 namespace heimdall_common {
 /**
  * @brief Creates a sequence dataset from the source dataset.
- * The sequence dataset will contain tensors with the same tensor name, dtype, and htype of samples
+ * The sequence dataset will contain columns with the same column name, dtype, and htype of samples
  * as the source dataset, but the samples will be merged into sequences of the given lengths. That will add an
  * additional dimension to the samples.
  *
