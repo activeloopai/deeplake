@@ -2,6 +2,8 @@
 
 # postgres/tests/scripts/run_tests.sh
 
+set -eo pipefail
+
 MAJOR_VERSION=18
 MINOR_VERSION=0
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
