@@ -9,10 +9,10 @@
 
 namespace heimdall_common::impl {
 
-class filtered_tensor : public chained_column_view, public query_core::index_holder
+class filtered_column : public chained_column_view, public query_core::index_holder
 {
 public:
-    filtered_tensor(heimdall::column_view_ptr s, icm::index_mapping_t<int64_t> i)
+    filtered_column(heimdall::column_view_ptr s, icm::index_mapping_t<int64_t> i)
         : chained_column_view()
         , source_(std::move(s))
         , indices_(std::move(i))
@@ -57,9 +57,9 @@ public:
     }
 
 private:
-    std::shared_ptr<filtered_tensor> shared_from_this_()
+    std::shared_ptr<filtered_column> shared_from_this_()
     {
-        return std::static_pointer_cast<filtered_tensor>(heimdall::column_view::shared_from_this());
+        return std::static_pointer_cast<filtered_column>(heimdall::column_view::shared_from_this());
     }
 
     void reset_index_data() override
@@ -230,13 +230,13 @@ private:
     icm::index_mapping_t<int64_t> indices_;
 };
 
-class filtered_sample_info_holder : public filtered_tensor, public heimdall::sample_info_holder
+class filtered_sample_info_holder : public filtered_column, public heimdall::sample_info_holder
 {
 public:
     filtered_sample_info_holder(heimdall::column_view_ptr s,
                                 std::shared_ptr<heimdall::sample_info_holder> h,
                                 icm::index_mapping_t<int64_t> i)
-        : filtered_tensor(std::move(s), std::move(i))
+        : filtered_column(std::move(s), std::move(i))
         , sample_info_source_(h)
     {
         ASSERT(h != nullptr);

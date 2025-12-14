@@ -10,10 +10,10 @@ class array;
 
 namespace heimdall_common {
 
-class resized_tensor: public chained_column_view
+class resized_column: public chained_column_view
 {
 public:
-    resized_tensor(heimdall::column_view_ptr s, int64_t size)
+    resized_column(heimdall::column_view_ptr s, int64_t size)
         : chained_column_view()
         , source_(s)
         , size_(size)
@@ -90,6 +90,6 @@ private:
     int64_t size_;
 };
 
-heimdall::column_view_ptr create_resized_tensor(heimdall::column_view& s, int64_t size);
+heimdall::column_view_ptr create_resized_column(heimdall::column_view& s, int64_t size);
 
 }

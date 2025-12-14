@@ -5,6 +5,8 @@
  * @brief Macro for indra specific ASSERT.
  */
 
+#include "config.hpp"
+
 #ifdef AL_ASSERTIONS
 
 #include "backtrace.hpp"

@@ -12,6 +12,7 @@
 #include "storage.hpp"
 
 #include <async/promise.hpp>
+#include <base/function.hpp>
 #include <base/read_buffer.hpp>
 
 #include <icm/const_json.hpp>
@@ -26,6 +27,14 @@ namespace storage {
 
 class writer;
 
+/**
+ * @brief Result of a single page from list_paginated.
+ */
+struct list_page_result
+{
+    std::vector<resource_meta> entries;
+    std::string continuation_token; // Empty string indicates no more pages
+};
 
 class reader : public virtual provider_base
 {
@@ -43,8 +52,30 @@ public:
      * does not exist, return an empty vector.
      *
      * @param prefix Returns objects from the given prefix only.
+     * @param start_token Optional continuation token to start listing from a specific point.
+     * @param end_token Optional token to stop listing before. Objects >= end_token will be excluded.
      */
-    virtual async::promise<std::vector<resource_meta>> list(const std::string& prefix) const
+    virtual async::promise<std::vector<resource_meta>>
+    list(const std::string& prefix, const std::string& start_token = "", const std::string& end_token = "") const
+    {
+        throw reader_error{prefix, 501, "not_implemented"};
+    }
+
+    /**
+     * @brief list the content of the provided bucket in paginated form, calling a callback for each page.
+     * This is useful for listing large buckets without loading all results into memory at once.
+     *
+     * @param prefix Returns objects from the given prefix only.
+     * @param callback Function called for each page of results with entries and continuation token.
+     *                 Returns true to continue, false to stop early.
+     * @param start_token Optional continuation token to resume listing from a specific point.
+     * @param end_token Optional token to stop listing before. Objects >= end_token will be excluded.
+     * @return promise<void> Completes when all pages have been processed or callback returns false.
+     */
+    virtual async::promise<void> list_paginated(const std::string& prefix,
+                                                base::function<bool(const list_page_result&)> callback,
+                                                const std::string& start_token = "",
+                                                const std::string& end_token = "") const
     {
         throw reader_error{prefix, 501, "not_implemented"};
     }
@@ -102,7 +133,8 @@ public:
      * @return promise<icm::const_json> The JSON data object.
      * @return int Unique id of the request.
      */
-    async::promise<icm::const_json> download_json(const std::string& path, fetch_options options = fetch_options()) const;
+    async::promise<icm::const_json> download_json(const std::string& path,
+                                                  fetch_options options = fetch_options()) const;
 
     /**
      * @brief Downloads the entire resource and parses it as a JSONL object.

@@ -7,7 +7,7 @@
 
 namespace heimdall_common {
 
-/// @brief An abstract chained tensor view from another tensor view.
+/// @brief An abstract chained column view from another column view.
 class chained_column_view : public heimdall::column_view
 {
 public:
@@ -48,12 +48,12 @@ public:
 
     int64_t chunk_size_hint() const override
     {
-        throw invalid_operation("The tensor is not chunked.");
+        throw invalid_operation("The column is not chunked.");
     }
 
     std::vector<int64_t> chunk_ranges() const override
     {
-        throw invalid_operation("The tensor is not chunked.");
+        throw invalid_operation("The column is not chunked.");
     }
 
 public:
@@ -62,20 +62,20 @@ public:
 };
 
 /**
- * @brief Finds the original tensor associated with the given tensor over the chain.
+ * @brief Finds the original column associated with the given column over the chain.
  *
  * @param t
- * @return column_view& Original tensor.
+ * @return column_view& Original column.
  */
-heimdall::column_view& original_tensor_over_chain(heimdall::column_view& t);
+heimdall::column_view& original_column_over_chain(heimdall::column_view& t);
 
 /**
- * @brief Finds the original tensor associated with the given tensor over the chain.
+ * @brief Finds the original column associated with the given column over the chain.
  *
  * @param t
- * @return column_view& Original tensor.
+ * @return column_view& Original column.
  */
-const heimdall::column_view& original_tensor_over_chain(const heimdall::column_view& t);
+const heimdall::column_view& original_column_over_chain(const heimdall::column_view& t);
 
 /**
  * @brief Finds the index_mapping applied to the original dataset.
@@ -83,6 +83,6 @@ const heimdall::column_view& original_tensor_over_chain(const heimdall::column_v
  * @param t
  * @return index_mapping
  */
-icm::index_mapping_t<int64_t> index_mapping_on_tensor(const heimdall::column_view& t);
+icm::index_mapping_t<int64_t> index_mapping_on_column(const heimdall::column_view& t);
 
 } // namespace heimdall_common

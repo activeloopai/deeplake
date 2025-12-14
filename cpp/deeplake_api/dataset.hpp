@@ -9,6 +9,8 @@
 #include "tags.hpp"
 #include "types.hpp"
 
+#include <query_core/search_config.hpp>
+
 #include <async/promise.hpp>
 #include <async/queue.hpp>
 #include <async/timer_manager.hpp>
@@ -41,6 +43,46 @@ public:
     std::chrono::system_clock::time_point created_time() const;
     deeplake::indexing_mode get_indexing_mode() const;
     void set_indexing_mode(deeplake::indexing_mode mode);
+
+    /**
+     * @brief Get the query configuration for this dataset.
+     *
+     * This configuration is used as the default for all queries on this dataset
+     * unless overridden by per-query configuration.
+     *
+     * @return Reference to the query configuration object
+     */
+    query_core::search_config& get_query_config();
+    const query_core::search_config& get_query_config() const;
+
+    /**
+     * @brief Get the index build configuration for this dataset.
+     *
+     * This configuration controls how indices are built for this dataset.
+     *
+     * @return Reference to the index build configuration object
+     */
+    query_core::index_build_config& get_indexing_config();
+    const query_core::index_build_config& get_indexing_config() const;
+
+    /**
+     * @brief Set the index build configuration for this dataset.
+     *
+     * This configuration controls how indices are built for this dataset.
+     * Updates both the dataset's config and propagates it to the data container.
+     *
+     * @param config The new index build configuration
+     */
+    void set_index_build_config(const query_core::index_build_config& config);
+
+    /**
+     * @brief Sync the index build configuration to the data container.
+     *
+     * Called internally to ensure config changes made through the indexing_config
+     * reference are propagated to the data container.
+     */
+    void sync_index_build_config();
+
     branch get_current_branch() const;
     branches get_branches() const;
     std::shared_ptr<tags> get_tags() const;
@@ -198,6 +240,10 @@ private:
     std::unique_ptr<async::bg_queue> log_queue_;
     std::vector<async::promise<void>> pending_log_writes_;
     void log_operation(const std::string& operation_name, const icm::json& args);
+
+    // Instance-level configuration
+    query_core::search_config default_search_config_;
+    query_core::index_build_config default_index_build_config_;
 
 public:
     void start_logging();

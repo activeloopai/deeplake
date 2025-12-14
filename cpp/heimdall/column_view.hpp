@@ -31,12 +31,12 @@ class array;
 namespace heimdall {
 
 /**
- * @brief Abstraction over tensors.
+ * @brief Abstraction over columns.
  *
- * This class represents abstract tensor with the interface to get metadata of the tensor, such as
+ * This class represents abstract column with the interface to get metadata of the column, such as
  * `dtype`, `htype`, `shape`, etc. As well as request the specific samples and sample ranges.
  *
- * Tensor view should always be managed by shared pointer.
+ * Column view should always be managed by shared pointer.
  *
  */
 class column_view : public std::enable_shared_from_this<column_view>
@@ -48,7 +48,7 @@ public:
     /// @name Metadata access
     /// @{
 
-    /// @brief Name of tensor.
+    /// @brief Name of column.
     virtual const std::string& name() const noexcept = 0;
 
     virtual const deeplake_core::type type() const noexcept = 0;
@@ -187,7 +187,7 @@ public:
     }
 
     /**
-     * @brief Request all samples in the tensor.
+     * @brief Request all samples in the column.
      * @param options Fetch options.
      * @return Promise with all samples.
      */
@@ -224,7 +224,7 @@ public:
     }
 
     /**
-     * @brief Request the shapes of all samples in the tensor.
+     * @brief Request the shapes of all samples in the column.
      * @param options Fetch options.
      * @return Promise with the shapes of all samples.
      */
@@ -235,7 +235,7 @@ public:
     /// @name Bytes fetching.
     /// @{
 
-    /// @brief Check if the tensor can fetch bytes.
+    /// @brief Check if the column can fetch bytes.
     virtual bool can_fetch_bytes() const noexcept = 0;
 
     /**
@@ -265,7 +265,7 @@ public:
     }
 
     /**
-     * @brief Request the bytes of all samples in the tensor.
+     * @brief Request the bytes of all samples in the column.
      * @param options Fetch options.
      * @return Promise with the bytes of all samples.
      */
@@ -276,7 +276,7 @@ public:
     /// @name Chunking.
     /// @{
 
-    /// @brief Check if the tensor is chunked.
+    /// @brief Check if the column is chunked.
     virtual bool is_chunked() const noexcept = 0;
 
     /// @brief Get the number of chunks.
@@ -294,7 +294,7 @@ public:
     /// @name Stats.
     /// @{
 
-    /// @brief Get the approximate total bytes of the tensor.
+    /// @brief Get the approximate total bytes of the column.
     virtual uint64_t approximate_total_bytes() const;
     /// @}
 

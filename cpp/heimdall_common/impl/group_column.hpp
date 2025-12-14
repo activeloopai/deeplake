@@ -5,10 +5,10 @@ namespace heimdall_common::impl {
 
 // abstract class
 // child classes must override is_sequence() method.
-class group_tensor : public chained_column_view
+class group_column : public chained_column_view
 {
 public:
-    group_tensor(heimdall::column_view_ptr source, const std::vector<int64_t>& sequence_lengths)
+    group_column(heimdall::column_view_ptr source, const std::vector<int64_t>& sequence_lengths)
         : chained_column_view(), sequence_lengths_(sequence_lengths), source_(std::move(source))
     {
         calculate_offsets_and_shapes(*source_);
