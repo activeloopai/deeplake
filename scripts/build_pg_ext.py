@@ -129,6 +129,10 @@ def run(mode: str, incremental: bool, deeplake_link_type: str = None, pg_version
 
     try:
         if not incremental:
+            # Download DeepLake API library before CMake configuration
+            # (CMake's find_package needs it to exist during configuration)
+            download_api_lib(".ext/deeplake_api")
+
             cmake_cmd = (f"cmake "
                          f"{preset} ")
 
@@ -158,8 +162,6 @@ def run(mode: str, incremental: bool, deeplake_link_type: str = None, pg_version
                 raise Exception(
                     f"Cmake command failed with exit code {err}. Full command: `{cmake_cmd}`"
                 )
-
-            download_api_lib(".ext/deeplake_api")
 
         make_cmd = f"cmake --build {preset}"
         err = os.system(make_cmd)
