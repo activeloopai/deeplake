@@ -125,7 +125,7 @@ jobs:
             echo "Error: Could not determine version"
             exit 1
           fi
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
 
       - name: Debugging with tmate
         uses: mxschmitt/action-tmate@v3.23
@@ -143,16 +143,13 @@ jobs:
             fi
             useradd -r -m -U -d /var/lib/postgresql -s /bin/bash postgres
             chown -R postgres:postgres /var/lib/postgresql
-            echo -e "${YELLOW}Installing Python test dependencies...${DEFAULT}"
-            python3 -m pip install -r postgres/tests/py_tests/requirements.txt
-            echo -e "${YELLOW}Running Python tests...${DEFAULT}"
+            chown -R postgres:postgres "${PWD}"
             export PG_MAJOR_VERSION=18
-            export USER=postgres
-            cd postgres/tests/py_tests
-            python3 -m pytest -v -m 'not slow and not tpch' --tb=short || {
+            cd postgres/tests && su - postgres -c "cd ${PWD} && make" || {
               echo -e "${RED}Tests failed for PostgreSQL 18${DEFAULT}"
               exit 1
             }
+            cd ../..
             echo -e "${GREEN}PostgreSQL 18 tests passed${DEFAULT}"
           else
             echo -e "${YELLOW}Skipping tests - only PostgreSQL 18 is tested (selected version: ${PG_VERSION})${DEFAULT}"
