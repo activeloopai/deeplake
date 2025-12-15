@@ -43,13 +43,9 @@ jobs:
     name: Determine PostgreSQL Versions
     runs-on: ubuntu-latest
     outputs:
-      deeplake-version: "${{ steps.get-deeplake-version.outputs.deeplake-version }}"
       versions: "${{ steps.set-versions.outputs.versions }}"
       versions-list: "${{ steps.set-versions.outputs.versions-list }}"
     steps:
-      - name: checkout
-        uses: actions/checkout@v4.2.2
-
       - name: set versions to build
         id: set-versions
         run: |-
@@ -61,15 +57,11 @@ jobs:
             echo "versions-list=${PG_VERSION}" >> "${GITHUB_OUTPUT}"
           fi
 
-      - name: get deeplake version
-        id: get-deeplake-version
-        run: |-
-          DEEPLAKE_VERSION=$(grep -E '^__version__ *= *"' python/deeplake/__init__.py | cut -d'"' -f2)
-          echo "deeplake-version=${DEEPLAKE_VERSION}" >> "${GITHUB_OUTPUT}"
-
   extension-build:
     name: Build PostgreSQL Extension
     needs: [setup]
+    outputs:
+      version: ${{ steps.extract-version.outputs.version }}
     strategy:
       fail-fast: true
       matrix:
@@ -117,6 +109,23 @@ jobs:
           echo "Building for PostgreSQL version(s): ${PG_VERSION}"
           python3 scripts/build_pg_ext.py prod --deeplake-static --pg-versions "${PG_VERSION}"
           echo -e "${GREEN}Done.${DEFAULT}"
+      - name: extract version
+        id: extract-version
+        shell: bash
+        run: |-
+          if [ -f "cpp/.ext/deeplake_api/lib/pkgconfig/deeplake_api.pc" ]; then
+            VERSION=$(PKG_CONFIG_PATH="cpp/.ext/deeplake_api/lib/pkgconfig" pkg-config --modversion deeplake_api)
+            echo "Extracted version from pkg-config: ${VERSION}"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            echo "Extracted version from git tag: ${VERSION}"
+          elif [[ -f "python/deeplake/__init__.py" ]] then
+            VERSION=$(grep -E '^__version__ *= *"' python/deeplake/__init__.py | cut -d'"' -f2)
+          else
+            echo "Error: Could not determine version"
+            exit 1
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Debugging with tmate
         uses: mxschmitt/action-tmate@v3.23
@@ -134,13 +143,16 @@ jobs:
             fi
             useradd -r -m -U -d /var/lib/postgresql -s /bin/bash postgres
             chown -R postgres:postgres /var/lib/postgresql
-            chown -R postgres:postgres "${PWD}"
+            echo -e "${YELLOW}Installing Python test dependencies...${DEFAULT}"
+            python3 -m pip install -r postgres/tests/py_tests/requirements.txt
+            echo -e "${YELLOW}Running Python tests...${DEFAULT}"
             export PG_MAJOR_VERSION=18
-            cd postgres/tests && su - postgres -c "cd ${PWD} && make" || {
+            export USER=postgres
+            cd postgres/tests/py_tests
+            python3 -m pytest -v -m 'not slow and not tpch' --tb=short || {
               echo -e "${RED}Tests failed for PostgreSQL 18${DEFAULT}"
               exit 1
             }
-            cd ../..
             echo -e "${GREEN}PostgreSQL 18 tests passed${DEFAULT}"
           else
             echo -e "${YELLOW}Skipping tests - only PostgreSQL 18 is tested (selected version: ${PG_VERSION})${DEFAULT}"
@@ -162,7 +174,7 @@ jobs:
       OP_SERVICE_ACCOUNT_TOKEN: "${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}"
       REPOSITORY: /tmp/activeloop-packages
       SUPPORTED_VERSIONS: "${{ needs.setup.outputs.versions-list }}"
-      VERSION: "${{ needs.setup.outputs.deeplake-version }}"
+      VERSION: "${{ needs.extension-build.outputs.version }}"
     runs-on: ubuntu-latest
     container: "quay.io/activeloopai/repo-builder:latest"
     steps:
@@ -231,10 +243,10 @@ jobs:
   build_container_images:
     name: Build Container Images
     if: github.event_name == 'workflow_dispatch'
-    needs: [setup, repo-build]
+    needs: [setup, extension-build, repo-build]
     env:
       OP_SERVICE_ACCOUNT_TOKEN: "${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}"
-      VERSION: "${{ needs.setup.outputs.deeplake-version }}"
+      VERSION: "${{ needs.extension-build.outputs.version }}"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
