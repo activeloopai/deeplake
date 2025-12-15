@@ -119,7 +119,7 @@ jobs:
           elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
             echo "Extracted version from git tag: ${VERSION}"
-          elif [[ -f "python/deeplake/__init__.py" ]] then
+          elif [[ -f "python/deeplake/__init__.py" ]]; then
             VERSION=$(grep -E '^__version__ *= *"' python/deeplake/__init__.py | cut -d'"' -f2)
           else
             echo "Error: Could not determine version"
