@@ -173,11 +173,11 @@ jobs:
             echo -e "${YELLOW}Running Python tests...${DEFAULT}"
             export PG_MAJOR_VERSION=18
             export USER=postgres
-            cd postgres/tests/py_tests && python3 -m pytest -v -m 'not slow and not tpch' --tb=short || {
+            cd postgres/tests/py_tests
+            python3 -m pytest -v -m 'not slow and not tpch' --tb=short || {
               echo -e "${RED}Tests failed for PostgreSQL 18${DEFAULT}"
               exit 1
             }
-            cd ../../..
 
             echo -e "${GREEN}PostgreSQL 18 tests passed${DEFAULT}"
           else
