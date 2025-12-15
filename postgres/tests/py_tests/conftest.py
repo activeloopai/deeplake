@@ -134,11 +134,16 @@ def pg_server(pg_config):
     # Initialize database cluster
     user = os.environ.get("USER", "postgres")
     print(f"Initializing database cluster as user: {user}")
-    subprocess.run(
+    result = subprocess.run(
         [str(initdb), "-D", str(data_dir), "-U", user],
-        check=True,
-        capture_output=True
+        capture_output=True,
+        text=True
     )
+    if result.returncode != 0:
+        print(f"initdb failed with return code {result.returncode}")
+        print(f"stdout: {result.stdout}")
+        print(f"stderr: {result.stderr}")
+        raise RuntimeError(f"Failed to initialize database cluster: {result.stderr}")
 
     # Configure shared_preload_libraries and increase connection limits for stress tests
     with open(data_dir / "postgresql.conf", "a") as f:
