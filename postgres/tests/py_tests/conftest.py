@@ -1,6 +1,7 @@
 """
 pytest configuration and fixtures for PostgreSQL extension tests.
 """
+import sys
 import asyncio
 import asyncpg
 import pytest
@@ -10,6 +11,9 @@ import os
 import shutil
 from pathlib import Path
 from typing import Dict, AsyncGenerator
+
+# Ensure the test directory is in Python path for lib imports
+sys.path.insert(0, str(Path(__file__).parent))
 
 
 def get_pg_config() -> Dict[str, Path]:
