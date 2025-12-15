@@ -16,17 +16,17 @@ test:
 # Run Python-based tests
 pytest:
 	@echo "Running Python tests with pytest..."
-	@cd py_tests && PYTHONPATH=. pytest -v
+	@cd py_tests && export PYTHONPATH=. && pytest -v
 
 # Run Python tests in parallel
 pytest-parallel:
 	@echo "Running Python tests in parallel..."
-	@cd py_tests && PYTHONPATH=. pytest -v -n auto
+	@cd py_tests && export PYTHONPATH=. && pytest -v -n auto
 
 # Run Python tests with coverage
 pytest-coverage:
 	@echo "Running Python tests with coverage..."
-	@cd py_tests && PYTHONPATH=. pytest -v --cov=. --cov-report=html --cov-report=term
+	@cd py_tests && export PYTHONPATH=. && pytest -v --cov=. --cov-report=html --cov-report=term
 	@echo "Coverage report generated in py_tests/htmlcov/index.html"
 
 # Generate test targets for each SQL file
