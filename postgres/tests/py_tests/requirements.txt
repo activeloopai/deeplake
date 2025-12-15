@@ -1,5 +1,6 @@
 # PostgreSQL async driver
 asyncpg>=0.29.0
+numpy
 
 # Testing framework
 pytest>=7.4.0
