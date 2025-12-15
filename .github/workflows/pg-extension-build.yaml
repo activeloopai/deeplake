@@ -174,7 +174,7 @@ jobs:
             export PG_MAJOR_VERSION=18
             export USER=postgres
             cd postgres/tests/py_tests
-            python3 -m pytest -v -m 'not slow and not tpch' --tb=short || {
+            PYTHONPATH=. python3 -m pytest -v -m 'not slow and not tpch' --tb=short || {
               echo -e "${RED}Tests failed for PostgreSQL 18${DEFAULT}"
               exit 1
             }
