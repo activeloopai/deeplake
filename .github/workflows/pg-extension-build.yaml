@@ -165,9 +165,9 @@ jobs:
             chown -R postgres:postgres /var/lib/postgresql
             chown -R postgres:postgres "${PWD}"
 
-            # Install Python test dependencies
+            # Install Python test dependencies as postgres user
             echo -e "${YELLOW}Installing Python test dependencies...${DEFAULT}"
-            python3 -m pip install -r postgres/tests/py_tests/requirements.txt
+            su - postgres -c "python3 -m pip install --user -r ${PWD}/postgres/tests/py_tests/requirements.txt"
 
             # Run Python tests for PostgreSQL 18
             export PG_MAJOR_VERSION=18
