@@ -161,24 +161,19 @@ jobs:
               exit 1
             fi
 
+            # Create postgres user for PostgreSQL to run as
             useradd -r -m -U -d /var/lib/postgresql -s /bin/bash postgres
             chown -R postgres:postgres /var/lib/postgresql
-            chown -R postgres:postgres "${PWD}"
 
-            # Ensure pip is installed
-            echo -e "${YELLOW}Setting up Python environment...${DEFAULT}"
-            python3 -m ensurepip --default-pip 2>/dev/null || python3 -m pip --version || {
-              echo "Installing pip..."
-              curl -sS https://bootstrap.pypa.io/get-pip.py | python3
-            }
-
-            # Install Python test dependencies system-wide
+            # Install Python test dependencies (pip already available from earlier step)
             echo -e "${YELLOW}Installing Python test dependencies...${DEFAULT}"
-            python3 -m pip install --break-system-packages -r postgres/tests/py_tests/requirements.txt
+            python3 -m pip install -r postgres/tests/py_tests/requirements.txt
 
-            # Run Python tests for PostgreSQL 18
+            # Run Python tests for PostgreSQL 18 (run as root in container)
+            echo -e "${YELLOW}Running Python tests...${DEFAULT}"
             export PG_MAJOR_VERSION=18
-            cd postgres/tests/py_tests && su - postgres -c "cd ${PWD} && PG_MAJOR_VERSION=18 python3 -m pytest -v -m 'not slow and not tpch' --tb=short" || {
+            export USER=postgres
+            cd postgres/tests/py_tests && python3 -m pytest -v -m 'not slow and not tpch' --tb=short || {
               echo -e "${RED}Tests failed for PostgreSQL 18${DEFAULT}"
               exit 1
             }
