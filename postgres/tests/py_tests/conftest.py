@@ -75,10 +75,17 @@ def install_extension(config: Dict[str, Path]) -> None:
 
 def is_postgres_running(pg_ctl: Path, data_dir: Path) -> bool:
     """Check if PostgreSQL server is running."""
-    result = subprocess.run(
-        [str(pg_ctl), "status", "-D", str(data_dir)],
-        capture_output=True
-    )
+    user = os.environ.get("USER", "postgres")
+    if os.geteuid() == 0:  # Running as root
+        result = subprocess.run(
+            ["su", "-", user, "-c", f"{pg_ctl} status -D {data_dir}"],
+            capture_output=True
+        )
+    else:
+        result = subprocess.run(
+            [str(pg_ctl), "status", "-D", str(data_dir)],
+            capture_output=True
+        )
     return result.returncode == 0
 
 

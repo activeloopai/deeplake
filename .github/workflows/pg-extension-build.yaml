@@ -144,11 +144,6 @@ jobs:
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-        with:
-          limit-access-to-actor: true
-
       - name: test built packages
         shell: bash
         run: |-
@@ -169,6 +164,7 @@ jobs:
             # Create postgres user for PostgreSQL to run as
             useradd -r -m -U -d /var/lib/postgresql -s /bin/bash postgres
             chown -R postgres:postgres /var/lib/postgresql
+            chown -R postgres postgres/
 
             # Install Python test dependencies (pip already available from earlier step)
             echo -e "${YELLOW}Installing Python test dependencies...${DEFAULT}"
