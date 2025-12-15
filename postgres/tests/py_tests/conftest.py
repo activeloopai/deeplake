@@ -38,7 +38,7 @@ def get_pg_config() -> Dict[str, Path]:
         "install": postgres_source / "install",
         "data": postgres_source / "data",
         "extension_path": extension_path,
-        "log_file": tests_dir / "logs" / "pytest_server.log",
+        "log_file": tests_dir / "pytest_server.log",
     }
 
 
@@ -130,9 +130,6 @@ def pg_server(pg_config):
     log_file = pg_config["log_file"]
     pg_ctl = install_dir / "bin" / "pg_ctl"
     initdb = install_dir / "bin" / "initdb"
-
-    # Ensure log directory exists
-    log_file.parent.mkdir(parents=True, exist_ok=True)
 
     # Stop any existing server
     stop_postgres(pg_ctl, data_dir)
