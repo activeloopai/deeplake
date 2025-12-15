@@ -167,7 +167,7 @@ jobs:
 
             # Install Python test dependencies
             echo -e "${YELLOW}Installing Python test dependencies...${DEFAULT}"
-            python3 -m pip install pytest pytest-asyncio asyncpg
+            python3 -m pip install -r postgres/tests/py_tests/requirements.txt
 
             # Run Python tests for PostgreSQL 18
             export PG_MAJOR_VERSION=18
