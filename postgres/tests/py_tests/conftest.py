@@ -85,10 +85,17 @@ def is_postgres_running(pg_ctl: Path, data_dir: Path) -> bool:
 def stop_postgres(pg_ctl: Path, data_dir: Path) -> None:
     """Stop PostgreSQL server."""
     if is_postgres_running(pg_ctl, data_dir):
-        subprocess.run(
-            [str(pg_ctl), "stop", "-D", str(data_dir), "-m", "fast"],
-            capture_output=True
-        )
+        user = os.environ.get("USER", "postgres")
+        if os.geteuid() == 0:  # Running as root
+            subprocess.run(
+                ["su", "-", user, "-c", f"{pg_ctl} stop -D {data_dir} -m fast"],
+                capture_output=True
+            )
+        else:
+            subprocess.run(
+                [str(pg_ctl), "stop", "-D", str(data_dir), "-m", "fast"],
+                capture_output=True
+            )
         time.sleep(2)
 
 
@@ -134,11 +141,26 @@ def pg_server(pg_config):
     # Initialize database cluster
     user = os.environ.get("USER", "postgres")
     print(f"Initializing database cluster as user: {user}")
-    result = subprocess.run(
-        [str(initdb), "-D", str(data_dir), "-U", user],
-        capture_output=True,
-        text=True
-    )
+
+    # Ensure data directory is owned by postgres user
+    if os.geteuid() == 0:  # Running as root
+        shutil.chown(str(data_dir.parent), user=user, group=user)
+        if data_dir.exists():
+            shutil.chown(str(data_dir), user=user, group=user)
+        # Run initdb as postgres user using su
+        result = subprocess.run(
+            ["su", "-", user, "-c", f"{initdb} -D {data_dir} -U {user}"],
+            capture_output=True,
+            text=True
+        )
+    else:
+        # Not running as root, run directly
+        result = subprocess.run(
+            [str(initdb), "-D", str(data_dir), "-U", user],
+            capture_output=True,
+            text=True
+        )
+
     if result.returncode != 0:
         print(f"initdb failed with return code {result.returncode}")
         print(f"stdout: {result.stdout}")
@@ -161,11 +183,19 @@ def pg_server(pg_config):
 
     # Start PostgreSQL server
     print(f"Starting PostgreSQL server...")
-    subprocess.run(
-        [str(pg_ctl), "-D", str(data_dir), "-l", str(log_file), "start"],
-        check=True,
-        env=env
-    )
+    if os.geteuid() == 0:  # Running as root
+        # Run pg_ctl as postgres user
+        env_str = " ".join([f"{k}={v}" for k, v in env.items()])
+        subprocess.run(
+            ["su", "-", user, "-c", f"{env_str} {pg_ctl} -D {data_dir} -l {log_file} start"],
+            check=True,
+        )
+    else:
+        subprocess.run(
+            [str(pg_ctl), "-D", str(data_dir), "-l", str(log_file), "start"],
+            check=True,
+            env=env
+        )
     time.sleep(3)
 
     # Verify server is running
