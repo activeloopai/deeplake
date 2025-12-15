@@ -184,10 +184,10 @@ def pg_server(pg_config):
     # Start PostgreSQL server
     print(f"Starting PostgreSQL server...")
     if os.geteuid() == 0:  # Running as root
-        # Run pg_ctl as postgres user
-        env_str = " ".join([f"{k}={v}" for k, v in env.items()])
+        # Run pg_ctl as postgres user with only essential environment variables
+        ld_library_path = env.get("LD_LIBRARY_PATH", "")
         subprocess.run(
-            ["su", "-", user, "-c", f"{env_str} {pg_ctl} -D {data_dir} -l {log_file} start"],
+            ["su", "-", user, "-c", f"LD_LIBRARY_PATH={ld_library_path} {pg_ctl} -D {data_dir} -l {log_file} start"],
             check=True,
         )
     else:
