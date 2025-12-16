@@ -83,6 +83,7 @@ install_extension
 echo "shared_preload_libraries = 'pg_deeplake'" >> "$POSTGRES_DATA/postgresql.conf"
 echo "max_connections = 300" >> "$POSTGRES_DATA/postgresql.conf"
 echo "shared_buffers = 128MB" >> "$POSTGRES_DATA/postgresql.conf"
+#echo "log_min_messages = debug1" >> "$POSTGRES_DATA/postgresql.conf"
 
 # Start PostgreSQL
 "$POSTGRES_INSTALL/bin/pg_ctl" -D "$POSTGRES_DATA" -l "$TEST_LOGFILE" start

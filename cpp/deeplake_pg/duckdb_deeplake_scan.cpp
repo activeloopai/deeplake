@@ -907,6 +907,16 @@ private:
         return current_row;
     }
 
+    auto request_range_and_set_column_output(heimdall::column_view_ptr cv, unsigned column_id, int64_t start_row)
+    {
+        const auto end_row = start_row + output_.size();
+        return async::run_on_main([cv, start_row, end_row]() {
+            return cv->request_range(start_row, end_row, {});
+        }).then([this, column_id](nd::array&& samples) {
+            set_column_output(column_id, std::move(samples));
+        });
+    }
+
     void do_scan()
     {
         do_index_search();
@@ -931,20 +941,13 @@ private:
             auto& mask = duckdb::FlatVector::Validity(output_vector);
 
             if (has_index_search()) {
-                auto& col_view = (*global_state_.index_search_result)[col_idx];
-                column_promises.emplace_back(col_view.request_range(current_row, current_row + output_.size(), {})
-                                                 .then([this, i](nd::array&& samples) {
-                                                     set_column_output(i, std::move(samples));
-                                                 }));
+                auto cv = ((*global_state_.index_search_result)[col_idx]).shared_from_this();
+                column_promises.emplace_back(request_range_and_set_column_output(cv, i, current_row));
             } else if (bind_data_.table_data.column_has_streamer(col_idx)) {
                 set_streaming_column_output(i, current_row);
             } else {
-                column_promises.emplace_back(bind_data_.table_data.get_read_only_dataset()
-                                                 ->get_column_view(col_idx)
-                                                 .request_range(current_row, current_row + output_.size(), {})
-                                                 .then([this, i](nd::array&& samples) {
-                                                     set_column_output(i, std::move(samples));
-                                                 }));
+                auto cv = bind_data_.table_data.get_column_view(col_idx);
+                column_promises.emplace_back(request_range_and_set_column_output(cv, i, current_row));
             }
         }
         async::combine(std::move(column_promises)).get_future().get();
@@ -954,7 +957,15 @@ private:
 void deeplake_scan_function(duckdb::ClientContext& context, duckdb::TableFunctionInput& data, duckdb::DataChunk& output)
 {
     deeplake_scan_function_helper helper(context, data, output);
-    helper.scan();
+    try {
+        helper.scan();
+    } catch (const duckdb::Exception& e) {
+        elog(ERROR, "DuckDB exception during Deeplake scan: %s", e.what());
+    } catch (const std::exception& e) {
+        elog(ERROR, "STD exception during Deeplake scan: %s", e.what());
+    } catch (...) {
+        elog(ERROR, "Unknown exception during Deeplake scan");
+    }
 }
 
 // Cardinality function: Return exact row count

@@ -84,6 +84,7 @@ inline table_data::table_data(
 inline void table_data::commit(bool show_progress)
 {
     try {
+        flush();
         impl::commit_dataset(get_dataset(), show_progress);
     } catch (const std::exception& e) {
         reset_insert_rows();
@@ -110,6 +111,7 @@ inline void table_data::open_dataset(bool create)
         } else {
             dataset_ = deeplake_api::open(dataset_path_, std::move(creds)).get_future().get();
         }
+        ASSERT(dataset_ != nullptr);
 
         // Enable logging if GUC parameter is set
         if (pg::enable_dataset_logging && dataset_ && !dataset_->is_logging_enabled()) {
@@ -117,7 +119,11 @@ inline void table_data::open_dataset(bool create)
             elog(DEBUG1, "Dataset logging enabled for: %s", table_name_.c_str());
         }
 
-        read_only_dataset_ = open_read_only().get_future().get();
+        if (!pg::use_shared_mem_for_refresh) {
+            refreshing_dataset_ = dataset_->clone();
+            ASSERT(refreshing_dataset_ != nullptr);
+            refreshing_dataset_->set_indexing_mode(deeplake::indexing_mode::off);
+        }
     } catch (const std::exception& e) {
         auto s = create ? "create" : "open";
         ereport(ERROR,
@@ -128,62 +134,56 @@ inline void table_data::open_dataset(bool create)
     }
 }
 
-inline async::promise<std::shared_ptr<deeplake_api::read_only_dataset>> table_data::open_read_only() const noexcept
+inline void table_data::refresh()
 {
-    ASSERT(get_dataset() != nullptr);
-#if 0
-    // Lock actually behaves like commit/refresh,
-    // so if we call 'lock' we should revisit all the usages of mutable dataset
-    // and make sure that 'lock' operation is finished.
-    // Note that mutable dataset is passed to pg::index_info as well,
-    // which used as for create/drop index as well as for querying.
-    // For query we can pass read-only dataset,
-    // but in that case we should update index_info's read-only dataset accordingly.
-    return get_dataset()->lock();
-#else
-    auto creds = creds_;
-    return deeplake_api::open_read_only(dataset_path_, std::move(creds));
-#endif
-}
-
-inline void table_data::refresh() noexcept
-{
-    auto current_ds = get_read_only_dataset();
-    if (!pg::use_shared_mem_for_refresh) {
-        if (refresh_promise_ && !refresh_promise_.is_ready()) {
-            return; // Already refreshing
-        } else if (refresh_promise_ && refresh_promise_.is_ready()) {
-            auto ds = std::move(refresh_promise_).get();
-            if (ds->version() != current_ds->version()) { // refresh happend!
-                streamers_.reset();
-                read_only_dataset_ = std::move(ds);
-            }
-        }
-        // trigger new refresh
-        refresh_promise_ = open_read_only();
-    } else {
+    if (!dataset_ || dataset_->has_uncommitted_changes()) {
+        return;
+    }
+    if (pg::use_shared_mem_for_refresh) {
         // Check if table version has changed and trigger refresh if needed
         const uint64_t current_version = table_version_tracker::get_version(table_oid_);
         if (current_version != cached_version_) {
             cached_version_ = current_version;
-            std::vector<async::promise<void>> refresh_promises;
-            refresh_promises.reserve(2);
-            refresh_promises.emplace_back(dataset_->refresh());
-            refresh_promises.emplace_back(read_only_dataset_->refresh());
-            async::combine(std::move(refresh_promises)).get_future().get();
             streamers_.reset();
+            async::run_on_main([this]() {
+                return dataset_->refresh();
+            })
+                .get_future()
+                .get();
         }
+    } else {
+        ASSERT(refreshing_dataset_ != nullptr);
+        if (refresh_promise_ && !refresh_promise_.is_ready()) {
+            return; // Already refreshing
+        } else if (refresh_promise_ && refresh_promise_.is_ready()) {
+            std::move(refresh_promise_).get();
+            if (refreshing_dataset_->version() != dataset_->version()) { // refresh happend!
+                streamers_.reset();
+                const auto ds_indexing_mode = dataset_->get_indexing_mode();
+                std::swap(dataset_, refreshing_dataset_);
+                dataset_->set_indexing_mode(ds_indexing_mode);
+                refreshing_dataset_->set_indexing_mode(deeplake::indexing_mode::off);
+            }
+        }
+        // trigger new refresh
+        refresh_promise_ = async::run_on_main([d = refreshing_dataset_]() {
+            return d->refresh();
+        });
     }
 }
 
 inline void table_data::force_refresh()
 {
-    if (refresh_promise_) {
-        read_only_dataset_ = refresh_promise_.get_future().get();
+    if (pg::use_shared_mem_for_refresh) {
+        return;
     }
-    refresh_promise_ = open_read_only();
-    read_only_dataset_ = refresh_promise_.get_future().get();
-    refresh_promise_ = async::promise<std::shared_ptr<deeplake_api::read_only_dataset>>();
+    if (refresh_promise_ && !refresh_promise_.cancel()) {
+        refresh_promise_.get_future().get();
+    }
+    ASSERT(refreshing_dataset_ != nullptr);
+    refresh_promise_ = async::run_on_main([d = refreshing_dataset_]() {
+        return d->refresh();
+    });
 }
 
 inline const std::string& table_data::get_table_name() const noexcept
@@ -199,12 +199,9 @@ inline const std::shared_ptr<deeplake_api::dataset>& table_data::get_dataset() c
     return dataset_;
 }
 
-inline const std::shared_ptr<deeplake_api::read_only_dataset>& table_data::get_read_only_dataset() const noexcept
+inline const std::shared_ptr<deeplake_api::dataset>& table_data::get_read_only_dataset() const noexcept
 {
-    if (read_only_dataset_ == nullptr) {
-        const_cast<table_data*>(this)->open_dataset();
-    }
-    return read_only_dataset_;
+    return get_dataset();
 }
 
 inline const http::uri& table_data::get_dataset_path() const noexcept
@@ -214,7 +211,7 @@ inline const http::uri& table_data::get_dataset_path() const noexcept
 
 inline heimdall::column_view_ptr table_data::get_column_view(int32_t column_idx) const
 {
-    return get_read_only_dataset()->get_column_view(column_idx).shared_from_this();
+    return (*get_read_only_dataset())[column_idx].shared_from_this();
 }
 
 inline TupleDesc table_data::get_tuple_descriptor() const noexcept
@@ -293,7 +290,7 @@ inline void table_data::add_insert_slots(int32_t nslots, TupleTableSlot** slots)
         for (int32_t i = 0; i < num_columns(); ++i) {
             nd::array val;
             if (slot->tts_isnull[i]) {
-                auto dt = get_read_only_dataset()->get_column_view(i).dtype();
+                auto dt = get_column_view(i)->dtype();
                 val = (nd::dtype_is_numeric(dt) ? nd::adapt(0) : nd::none(dt, 0));
             } else {
                 val = pg::utils::datum_to_nd(slot->tts_values[i], get_base_atttypid(i), get_atttypmod(i));
@@ -346,8 +343,8 @@ inline void table_data::reset_streamers() noexcept
 
 inline nd::array table_data::get_column_value(int32_t column_number, int64_t row_number) const noexcept
 {
-    return async::run_on_main([ds = get_read_only_dataset(), column_number, row_number]() {
-               return ds->get_column_view(column_number).request_sample(row_number, {});
+    return async::run_on_main([cv = get_column_view(column_number), row_number]() {
+               return cv->request_sample(row_number, {});
            })
         .get_future()
         .get();
@@ -403,6 +400,7 @@ inline bool table_data::flush_inserts()
 
     // Flush the insert tuples to the dataset
     try {
+        streamers_.reset();
         elog(WARNING, "Flushing %zu insert rows to dataset '%s'", num_inserts, table_name_.c_str());
         const auto start = std::chrono::high_resolution_clock::now();
 
@@ -441,6 +439,7 @@ inline bool table_data::flush_deletes()
 
     // Flush the delete rows to the dataset
     try {
+        streamers_.reset();
         get_dataset()->delete_rows(delete_rows_);
     } catch (const base::exception& e) {
         elog(WARNING, "Failed to flush deletes: %s", e.what());
@@ -460,6 +459,7 @@ inline bool table_data::flush_updates()
 
     // Flush the update rows to the dataset
     try {
+        streamers_.reset();
         std::vector<async::promise<void>> update_promises;
         update_promises.reserve(update_rows_.size());
         for (const auto& [row_number, column_name, new_value] : update_rows_) {
@@ -524,6 +524,7 @@ inline std::pair<int64_t, int64_t> table_data::get_row_range(int32_t worker_id) 
 
 inline void table_data::create_streamer(int32_t idx, int32_t worker_id)
 {
+    return;
     if (streamers_.streamers.empty()) {
         const auto s = num_columns();
         streamers_.streamers.resize(s);
@@ -639,11 +640,7 @@ inline bool table_data::flush()
     const bool s1 = flush_inserts();
     const bool s2 = flush_deletes();
     const bool s3 = flush_updates();
-    const bool r = s1 && s2 && s3;
-    if (r) {
-        commit();
-    }
-    return r;
+    return s1 && s2 && s3;
 }
 
 } // namespace pg

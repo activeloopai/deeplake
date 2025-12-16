@@ -23,6 +23,14 @@ END $$;
 -- COPY outside the DO block
 COPY people (name, last_name, age) FROM STDIN WITH CSV;
 n7,l7,7
+\.
+
+DO $$ BEGIN
+    PERFORM assert_table_row_count(8, 'people');
+END $$;
+
+-- COPY outside the DO block
+COPY people (name, last_name, age) FROM STDIN WITH CSV;
 n8,l8,8
 n9,l9,9
 \.

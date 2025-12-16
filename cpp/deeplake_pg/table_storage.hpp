@@ -150,6 +150,14 @@ public:
         return true;
     }
 
+    void commit_all()
+    {
+        /// Flush all inserts
+        for (auto& [_, table_data] : tables_) {
+            table_data.commit();
+        }
+    }
+
     void rollback_all()
     {
         // Rollback all changes in all tables
