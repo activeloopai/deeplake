@@ -134,26 +134,6 @@ jobs:
           fi
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
 
-      - name: extract version
-        id: extract-version
-        shell: bash
-        run: |-
-          # Use provided version or extract from pkg-config or git tag
-          if [ -n "${{ inputs.version }}" ]; then
-            VERSION="${{ inputs.version }}"
-            echo "Using provided version: ${VERSION}"
-          elif [ -f "cpp/.ext/deeplake_api/lib/pkgconfig/deeplake_api.pc" ]; then
-            VERSION=$(PKG_CONFIG_PATH="cpp/.ext/deeplake_api/lib/pkgconfig" pkg-config --modversion deeplake_api)
-            echo "Extracted version from pkg-config: ${VERSION}"
-          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/v}"
-            echo "Extracted version from git tag: ${VERSION}"
-          else
-            echo "Error: Could not determine version"
-            exit 1
-          fi
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-
       - name: test built packages
         shell: bash
         run: |-
