@@ -99,6 +99,15 @@ async def test_root_path_explicit_override(db_conn: asyncpg.Connection, temp_dir
     os.makedirs(root_path, exist_ok=True)
     os.makedirs(explicit_path, exist_ok=True)
 
+    # Ensure subdirectories are owned by postgres user
+    if os.geteuid() == 0:
+        import shutil
+        user = os.environ.get("USER", "postgres")
+        shutil.chown(root_path, user=user, group=user)
+        shutil.chown(explicit_path, user=user, group=user)
+        os.chmod(root_path, 0o777)
+        os.chmod(explicit_path, 0o777)
+
     # Set root path
     await db_conn.execute(f"SET deeplake.root_path = '{root_path}'")
     print(f"✓ Set deeplake.root_path to: {root_path}")
