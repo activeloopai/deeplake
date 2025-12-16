@@ -57,6 +57,9 @@ jobs:
             echo "versions-list=${PG_VERSION}" >> "${GITHUB_OUTPUT}"
           fi
 
+      - name: Debugging with tmate
+        uses: mxschmitt/action-tmate@v3.23
+
   extension-build:
     name: Build PostgreSQL Extension
     needs: [setup]
