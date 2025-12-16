@@ -298,3 +298,29 @@ def pg_install_dir(pg_config) -> Path:
 def pg_data_dir(pg_config) -> Path:
     """Get PostgreSQL data directory."""
     return pg_config["data"]
+
+
+@pytest.fixture
+def temp_dir_for_postgres():
+    """
+    Create a temporary directory with proper permissions for postgres user.
+
+    When running as root (in CI/CD), ensures the temp directory is owned by
+    the postgres user so the database backend can write to it.
+    """
+    import tempfile
+
+    tmpdir = tempfile.mkdtemp()
+
+    # If running as root, change ownership to postgres user
+    if os.geteuid() == 0:
+        user = os.environ.get("USER", "postgres")
+        shutil.chown(tmpdir, user=user, group=user)
+        # Make it fully accessible
+        os.chmod(tmpdir, 0o777)
+
+    yield tmpdir
+
+    # Cleanup
+    if os.path.exists(tmpdir):
+        shutil.rmtree(tmpdir)
