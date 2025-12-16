@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -eo pipefail
+
 CONF="${PGDATA:-/var/lib/postgresql/data}/postgresql.conf"
 
 if ! ( grep "^shared_preload_libraries" "${CONF}" &>/dev/null ); then

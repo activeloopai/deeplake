@@ -2,6 +2,8 @@
 
 # postgres/tests/scripts/run_tests.sh
 
+set -eo pipefail
+
 MAJOR_VERSION=18
 MINOR_VERSION=0
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -70,7 +72,7 @@ check_logs_for_errors() {
 is_test_disabled() {
     local test_name="$1"
     local disabled_tests="$2"
-    
+
     for disabled in $disabled_tests; do
         if [ "$test_name" = "$disabled" ]; then
             return 0  # Test is disabled
@@ -150,13 +152,13 @@ for test_file in sql/*.sql; do
     if [ -f "$test_file" ]; then
         base_name=$(basename "$test_file" .sql)
         total_tests=$((total_tests + 1))
-        
+
         if is_test_disabled "$base_name" "$DISABLED_TESTS"; then
             echo -e "${YELLOW}Skipping disabled test: $base_name${NC}"
             skipped_tests=$((skipped_tests + 1))
             continue
         fi
-        
+
         if ! run_single_test "$test_file"; then
             failed_tests=$((failed_tests + 1))
         fi

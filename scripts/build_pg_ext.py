@@ -114,7 +114,6 @@ def download_api_lib(api_root_dir, overwrite=True):
 
     print(f"Successfully installed deeplake API library version {version}")
 
-
 def run(mode: str, incremental: bool, deeplake_link_type: str = None, pg_versions: list = None):
     modes = ["debug", "dev", "prod"]
     if mode not in modes:
