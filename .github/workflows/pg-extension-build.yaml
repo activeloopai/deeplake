@@ -84,7 +84,7 @@ jobs:
           git clone -b "${branch}" "https://activeloop-bot:${ORG_GH_BOT_PAT}@github.com/${{ github.repository }}" .
 
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@v4.0.2
+        uses: aws-actions/configure-aws-credentials@v5.1.1
         with:
           role-to-assume: "arn:aws:iam::067976305224:role/github"
           aws-region: us-east-1
@@ -179,10 +179,10 @@ jobs:
     container: "quay.io/activeloopai/repo-builder:latest"
     steps:
       - name: checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6.0.1
 
       - name: load 1pass
-        uses: 1password/load-secrets-action@v3
+        uses: 1password/load-secrets-action@v3.0.0
         with:
           export-env: true
         env:
@@ -192,7 +192,7 @@ jobs:
           R2_ENDPOINT_URL: "op://GitHub Actions/common/REPOSITORY_BUCKET_ENDPOINT"
 
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@v4.0.3
+        uses: aws-actions/configure-aws-credentials@v5.1.1
         with:
           role-to-assume: "arn:aws:iam::067976305224:role/github"
           aws-region: us-east-1
@@ -254,24 +254,24 @@ jobs:
         version: "${{ fromJson(needs.setup.outputs.versions) }}"
     steps:
       - name: checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6.0.1
 
       - name: load 1pass
         id: load-1pass
-        uses: 1password/load-secrets-action@v3
+        uses: 1password/load-secrets-action@v3.0.0
         env:
           QUAY_USERNAME: "op://GitHub Actions/registry-creds/quay/QUAY_USERNAME"
           QUAY_PASSWORD: "op://GitHub Actions/registry-creds/quay/QUAY_PASSWORD"
 
       - name: login to quay
-        uses: docker/login-action@v3.5.0
+        uses: docker/login-action@v3.6.0
         with:
           username: "${{ steps.load-1pass.outputs.QUAY_USERNAME }}"
           password: "${{ steps.load-1pass.outputs.QUAY_PASSWORD }}"
           registry: quay.io
 
       - name: setup docker qemu
-        uses: docker/setup-qemu-action@v3.6.0
+        uses: docker/setup-qemu-action@v3.7.0
 
       - name: setup docker buildx
         uses: docker/setup-buildx-action@v3.11.1
