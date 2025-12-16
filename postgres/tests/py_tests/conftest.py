@@ -1,6 +1,7 @@
 """
 pytest configuration and fixtures for PostgreSQL extension tests.
 """
+import sys
 import asyncio
 import asyncpg
 import pytest
@@ -10,6 +11,9 @@ import os
 import shutil
 from pathlib import Path
 from typing import Dict, AsyncGenerator
+
+# Ensure the test directory is in Python path for lib imports
+sys.path.insert(0, str(Path(__file__).parent))
 
 
 def get_pg_config() -> Dict[str, Path]:
@@ -34,7 +38,7 @@ def get_pg_config() -> Dict[str, Path]:
         "install": postgres_source / "install",
         "data": postgres_source / "data",
         "extension_path": extension_path,
-        "log_file": tests_dir / "logs" / "pytest_server.log",
+        "log_file": tests_dir / "pytest_server.log",
     }
 
 
@@ -71,20 +75,34 @@ def install_extension(config: Dict[str, Path]) -> None:
 
 def is_postgres_running(pg_ctl: Path, data_dir: Path) -> bool:
     """Check if PostgreSQL server is running."""
-    result = subprocess.run(
-        [str(pg_ctl), "status", "-D", str(data_dir)],
-        capture_output=True
-    )
+    user = os.environ.get("USER", "postgres")
+    if os.geteuid() == 0:  # Running as root
+        result = subprocess.run(
+            ["su", "-", user, "-c", f"{pg_ctl} status -D {data_dir}"],
+            capture_output=True
+        )
+    else:
+        result = subprocess.run(
+            [str(pg_ctl), "status", "-D", str(data_dir)],
+            capture_output=True
+        )
     return result.returncode == 0
 
 
 def stop_postgres(pg_ctl: Path, data_dir: Path) -> None:
     """Stop PostgreSQL server."""
     if is_postgres_running(pg_ctl, data_dir):
-        subprocess.run(
-            [str(pg_ctl), "stop", "-D", str(data_dir), "-m", "fast"],
-            capture_output=True
-        )
+        user = os.environ.get("USER", "postgres")
+        if os.geteuid() == 0:  # Running as root
+            subprocess.run(
+                ["su", "-", user, "-c", f"{pg_ctl} stop -D {data_dir} -m fast"],
+                capture_output=True
+            )
+        else:
+            subprocess.run(
+                [str(pg_ctl), "stop", "-D", str(data_dir), "-m", "fast"],
+                capture_output=True
+            )
         time.sleep(2)
 
 
@@ -113,9 +131,6 @@ def pg_server(pg_config):
     pg_ctl = install_dir / "bin" / "pg_ctl"
     initdb = install_dir / "bin" / "initdb"
 
-    # Ensure log directory exists
-    log_file.parent.mkdir(parents=True, exist_ok=True)
-
     # Stop any existing server
     stop_postgres(pg_ctl, data_dir)
 
@@ -130,11 +145,31 @@ def pg_server(pg_config):
     # Initialize database cluster
     user = os.environ.get("USER", "postgres")
     print(f"Initializing database cluster as user: {user}")
-    subprocess.run(
-        [str(initdb), "-D", str(data_dir), "-U", user],
-        check=True,
-        capture_output=True
-    )
+
+    # Ensure data directory is owned by postgres user
+    if os.geteuid() == 0:  # Running as root
+        shutil.chown(str(data_dir.parent), user=user, group=user)
+        if data_dir.exists():
+            shutil.chown(str(data_dir), user=user, group=user)
+        # Run initdb as postgres user using su
+        result = subprocess.run(
+            ["su", "-", user, "-c", f"{initdb} -D {data_dir} -U {user}"],
+            capture_output=True,
+            text=True
+        )
+    else:
+        # Not running as root, run directly
+        result = subprocess.run(
+            [str(initdb), "-D", str(data_dir), "-U", user],
+            capture_output=True,
+            text=True
+        )
+
+    if result.returncode != 0:
+        print(f"initdb failed with return code {result.returncode}")
+        print(f"stdout: {result.stdout}")
+        print(f"stderr: {result.stderr}")
+        raise RuntimeError(f"Failed to initialize database cluster: {result.stderr}")
 
     # Configure shared_preload_libraries and increase connection limits for stress tests
     with open(data_dir / "postgresql.conf", "a") as f:
@@ -152,11 +187,19 @@ def pg_server(pg_config):
 
     # Start PostgreSQL server
     print(f"Starting PostgreSQL server...")
-    subprocess.run(
-        [str(pg_ctl), "-D", str(data_dir), "-l", str(log_file), "start"],
-        check=True,
-        env=env
-    )
+    if os.geteuid() == 0:  # Running as root
+        # Run pg_ctl as postgres user with only essential environment variables
+        ld_library_path = env.get("LD_LIBRARY_PATH", "")
+        subprocess.run(
+            ["su", "-", user, "-c", f"LD_LIBRARY_PATH={ld_library_path} {pg_ctl} -D {data_dir} -l {log_file} start"],
+            check=True,
+        )
+    else:
+        subprocess.run(
+            [str(pg_ctl), "-D", str(data_dir), "-l", str(log_file), "start"],
+            check=True,
+            env=env
+        )
     time.sleep(3)
 
     # Verify server is running
@@ -255,3 +298,29 @@ def pg_install_dir(pg_config) -> Path:
 def pg_data_dir(pg_config) -> Path:
     """Get PostgreSQL data directory."""
     return pg_config["data"]
+
+
+@pytest.fixture
+def temp_dir_for_postgres():
+    """
+    Create a temporary directory with proper permissions for postgres user.
+
+    When running as root (in CI/CD), ensures the temp directory is owned by
+    the postgres user so the database backend can write to it.
+    """
+    import tempfile
+
+    tmpdir = tempfile.mkdtemp()
+
+    # If running as root, change ownership to postgres user
+    if os.geteuid() == 0:
+        user = os.environ.get("USER", "postgres")
+        shutil.chown(tmpdir, user=user, group=user)
+        # Make it fully accessible
+        os.chmod(tmpdir, 0o777)
+
+    yield tmpdir
+
+    # Cleanup
+    if os.path.exists(tmpdir):
+        shutil.rmtree(tmpdir)

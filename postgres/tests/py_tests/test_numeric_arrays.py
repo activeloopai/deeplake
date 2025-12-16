@@ -12,7 +12,7 @@ With support for multidimensional arrays up to 255 dimensions.
 """
 import pytest
 import asyncpg
-from lib.assertions import Assertions
+from test_utils.assertions import Assertions
 
 
 @pytest.mark.asyncio

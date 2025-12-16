@@ -6,7 +6,7 @@ Ported from: postgres/tests/sql/reconnect_test.sql
 import pytest
 import asyncpg
 import os
-from lib.assertions import Assertions
+from test_utils.assertions import Assertions
 
 
 @pytest.mark.asyncio

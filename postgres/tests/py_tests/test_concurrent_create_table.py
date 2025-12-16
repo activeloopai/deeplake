@@ -13,7 +13,7 @@ import asyncpg
 import asyncio
 import tempfile
 import os
-from lib.assertions import Assertions
+from test_utils.assertions import Assertions
 
 
 async def create_table_worker(worker_id: int, schema_name: str, table_name: str):

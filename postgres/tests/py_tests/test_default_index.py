@@ -5,7 +5,7 @@ Ported from: postgres/tests/sql/default_index.sql
 """
 import pytest
 import asyncpg
-from lib.assertions import Assertions
+from test_utils.assertions import Assertions
 
 
 @pytest.mark.asyncio

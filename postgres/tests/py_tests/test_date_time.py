@@ -6,7 +6,7 @@ Ported from: postgres/tests/sql/date_time.sql
 import pytest
 import asyncpg
 from datetime import date, time, datetime
-from lib.assertions import Assertions
+from test_utils.assertions import Assertions
 
 
 @pytest.mark.asyncio

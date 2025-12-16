@@ -7,8 +7,8 @@ import pytest
 import asyncpg
 import numpy as np
 import random
-from lib.assertions import Assertions
-from lib.helpers import generate_random_float_array
+from test_utils.assertions import Assertions
+from test_utils.helpers import generate_random_float_array
 
 
 @pytest.mark.asyncio

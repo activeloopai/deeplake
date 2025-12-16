@@ -164,6 +164,7 @@ jobs:
             # Create postgres user for PostgreSQL to run as
             useradd -r -m -U -d /var/lib/postgresql -s /bin/bash postgres
             chown -R postgres:postgres /var/lib/postgresql
+            chown -R postgres postgres/
 
             # Install Python test dependencies (pip already available from earlier step)
             echo -e "${YELLOW}Installing Python test dependencies...${DEFAULT}"
@@ -174,7 +175,7 @@ jobs:
             export PG_MAJOR_VERSION=18
             export USER=postgres
             cd postgres/tests/py_tests
-            PYTHONPATH=. python3 -m pytest -v -m 'not slow and not tpch' --tb=short || {
+            python3 -m pytest -v -m 'not slow and not tpch' --tb=short || {
               echo -e "${RED}Tests failed for PostgreSQL 18${DEFAULT}"
               exit 1
             }
