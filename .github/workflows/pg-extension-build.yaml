@@ -178,6 +178,9 @@ jobs:
     runs-on: ubuntu-latest
     container: "quay.io/activeloopai/repo-builder:latest"
     steps:
+      - name: Debugging with tmate
+        uses: mxschmitt/action-tmate@v3.23
+
       - name: checkout
         uses: actions/checkout@v6.0.1
 
