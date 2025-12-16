@@ -247,9 +247,6 @@ jobs:
             done
           done
 
-      - name: Debugging with tmate
-        uses: mxschmitt/action-tmate@v3.23
-
       - name: index and upload repository to r2
         shell: bash
         run: |-
