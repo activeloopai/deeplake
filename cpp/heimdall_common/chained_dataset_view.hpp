@@ -55,30 +55,30 @@ private:
 };
 
 /**
- * @brief A chained dataset view that is based on a source dataset and list of tensors.
+ * @brief A chained dataset view that is based on a source dataset and list of columns.
  */
 class chained_dataset : public chained_dataset_view
 {
 public:
-    chained_dataset(heimdall::dataset_view_ptr source, std::vector<heimdall::column_view_ptr>&& tensors)
+    chained_dataset(heimdall::dataset_view_ptr source, std::vector<heimdall::column_view_ptr>&& columns)
         : chained_dataset_view(source)
-        , tensors_(std::move(tensors))
+        , columns_(std::move(columns))
     {
     }
 
 public:
     int columns_count() const override
     {
-        return static_cast<int>(tensors_.size());
+        return static_cast<int>(columns_.size());
     }
 
     heimdall::column_view& get_column_view(int index) override
     {
-        return *tensors_[index];
+        return *columns_[index];
     }
 
 private:
-    std::vector<heimdall::column_view_ptr> tensors_;
+    std::vector<heimdall::column_view_ptr> columns_;
 };
 
 /// @brief Dataset that chains multiple dataset views.
@@ -86,21 +86,21 @@ class multiple_chained_dataset : public heimdall::dataset_view
 {
 public:
     multiple_chained_dataset(std::vector<heimdall::dataset_view_ptr> sources,
-                             std::vector<heimdall::column_view_ptr>&& tensors)
+                             std::vector<heimdall::column_view_ptr>&& columns)
         : sources_(std::move(sources))
-        , tensors_(std::move(tensors))
+        , columns_(std::move(columns))
     {
     }
 
 public:
     int columns_count() const override
     {
-        return static_cast<int>(tensors_.size());
+        return static_cast<int>(columns_.size());
     }
 
     heimdall::column_view& get_column_view(int index) override
     {
-        return *tensors_[index];
+        return *columns_[index];
     }
 
     const std::vector<heimdall::dataset_view_ptr>& sources() const noexcept
@@ -123,7 +123,7 @@ private:
 
 private:
     std::vector<heimdall::dataset_view_ptr> sources_;
-    std::vector<heimdall::column_view_ptr> tensors_;
+    std::vector<heimdall::column_view_ptr> columns_;
     std::string query_string_;
 };
 

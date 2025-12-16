@@ -22,11 +22,10 @@ Usage:
     pytest -v test_tpch.py::test_tpch_query_1 test_tpch.py::test_tpch_query_2 test_tpch.py::test_tpch_query_3 test_tpch.py::test_tpch_query_4 test_tpch.py::test_tpch_query_5
 """
 import pytest
+import pytest_asyncio
 import asyncpg
-import asyncio
 from pathlib import Path
 from typing import AsyncGenerator
-
 
 def read_sql_file(file_path: Path, tests_dir: Path) -> str:
     """
@@ -129,32 +128,115 @@ async def execute_sql_file(conn: asyncpg.Connection, sql_content: str) -> None:
 
 
 @pytest.fixture(scope="module")
-def event_loop():
+def tpch_db_setup(pg_server):
     """
-    Create an event loop for the entire test module.
+    Set up TPC-H database schema, data, and indexes once for all tests.
 
-    This is required because tpch_db is module-scoped, but the default
-    event_loop fixture from pytest-asyncio is function-scoped.
+    This fixture runs synchronously and doesn't create a connection, avoiding
+    event loop binding issues. Each test will create its own connection.
     """
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+    import os
+    import asyncio
+
+    user = os.environ.get("USER", "postgres")
+
+    # Get paths
+    script_path = Path(__file__).parent  # py_tests/
+    tests_dir = script_path.parent  # tests/
+    tpch_dir = tests_dir / "sql" / "tpch"
+
+    async def setup():
+        conn = await asyncpg.connect(
+            database="postgres",
+            user=user,
+            host="localhost"
+        )
+
+        try:
+            print("\n" + "=" * 70)
+            print("TPC-H Database Setup (runs once for all queries)")
+            print("=" * 70)
+
+            # Clean extension state
+            await conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
+            await conn.execute("CREATE EXTENSION pg_deeplake")
+
+            # Step 1: Create schema
+            print("\nStep 1: Creating TPC-H schema...")
+            schema_sql = read_sql_file(tpch_dir / "create_schema.sql", tests_dir)
+            await execute_sql_file(conn, schema_sql)
+            print("✓ Schema created (8 tables + 1 view)")
+
+            # Step 2: Insert data
+            print("\nStep 2: Loading TPC-H data...")
+            print("  This may take several minutes for large datasets...")
+            insert_sql = read_sql_file(tpch_dir / "insert.sql", tests_dir)
+            await execute_sql_file(conn, insert_sql)
+            print("✓ Data loaded")
+
+            # Step 3: Create indexes
+            print("\nStep 3: Creating indexes...")
+            await conn.execute("""
+                CREATE UNIQUE INDEX idx_region_pk    ON region(r_regionkey);
+                CREATE UNIQUE INDEX idx_nation_pk    ON nation(n_nationkey);
+                CREATE UNIQUE INDEX idx_supplier_pk  ON supplier(s_suppkey);
+                CREATE UNIQUE INDEX idx_customer_pk  ON customer(c_custkey);
+                CREATE UNIQUE INDEX idx_orders_pk    ON orders(o_orderkey);
+                CREATE UNIQUE INDEX idx_part_pk      ON part(p_partkey);
+                CREATE UNIQUE INDEX idx_partsupp_pk  ON partsupp(ps_partkey, ps_suppkey);
+                CREATE UNIQUE INDEX idx_lineitem_pk  ON lineitem(l_orderkey, l_linenumber);
+                CREATE INDEX idx_deeplake_part_brand_container ON part USING btree (p_brand, p_container);
+                CREATE INDEX idx_deeplake_lineitem_partkey_qty ON lineitem USING btree (l_partkey, l_quantity);
+            """)
+            print("✓ Indexes created")
+
+            print("\n" + "=" * 70)
+            print("✓ TPC-H database ready for queries")
+            print("=" * 70 + "\n")
+        finally:
+            await conn.close()
+
+    async def cleanup():
+        conn = await asyncpg.connect(
+            database="postgres",
+            user=user,
+            host="localhost"
+        )
+        try:
+            print("\n" + "=" * 70)
+            print("TPC-H Database Cleanup")
+            print("=" * 70)
+            await conn.execute("DROP VIEW IF EXISTS revenue0 CASCADE")
+            await conn.execute("DROP TABLE IF EXISTS customer CASCADE")
+            await conn.execute("DROP TABLE IF EXISTS lineitem CASCADE")
+            await conn.execute("DROP TABLE IF EXISTS nation CASCADE")
+            await conn.execute("DROP TABLE IF EXISTS orders CASCADE")
+            await conn.execute("DROP TABLE IF EXISTS part CASCADE")
+            await conn.execute("DROP TABLE IF EXISTS partsupp CASCADE")
+            await conn.execute("DROP TABLE IF EXISTS region CASCADE")
+            await conn.execute("DROP TABLE IF EXISTS supplier CASCADE")
+            await conn.execute("RESET pg_deeplake.use_deeplake_executor")
+            print("✓ Cleanup complete\n")
+        finally:
+            await conn.close()
+
+    # Run setup
+    asyncio.run(setup())
+
+    # Yield to tests
+    yield
+
+    # Run cleanup
+    asyncio.run(cleanup())
 
 
-@pytest.fixture(scope="module")
-async def tpch_db(pg_server) -> AsyncGenerator[asyncpg.Connection, None]:
+@pytest_asyncio.fixture
+async def tpch_db(tpch_db_setup) -> AsyncGenerator[asyncpg.Connection, None]:
     """
-    Set up TPC-H database with schema, data, and indexes.
+    Create a connection for each test.
 
-    This fixture runs once per test module and is shared by all TPC-H query tests.
-    It:
-    1. Creates a dedicated connection
-    2. Drops and recreates pg_deeplake extension
-    3. Creates TPC-H schema (8 tables + 1 view)
-    4. Loads TPC-H data
-    5. Creates indexes
-    6. Yields the connection to all tests
-    7. Cleans up on teardown
+    This fixture depends on tpch_db_setup which ensures the database is populated.
+    Each test gets its own connection in its own event loop, avoiding loop binding issues.
     """
     import os
 
@@ -165,72 +247,10 @@ async def tpch_db(pg_server) -> AsyncGenerator[asyncpg.Connection, None]:
         host="localhost"
     )
 
-    # Get paths
-    script_path = Path(__file__).parent  # py_tests/
-    tests_dir = script_path.parent  # tests/
-    tpch_dir = tests_dir / "sql" / "tpch"
-
     try:
-        print("\n" + "=" * 70)
-        print("TPC-H Database Setup (runs once for all queries)")
-        print("=" * 70)
-
-        # Clean extension state
-        await conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
-        await conn.execute("CREATE EXTENSION pg_deeplake")
-
-        # Step 1: Create schema
-        print("\nStep 1: Creating TPC-H schema...")
-        schema_sql = read_sql_file(tpch_dir / "create_schema.sql", tests_dir)
-        await execute_sql_file(conn, schema_sql)
-        print("✓ Schema created (8 tables + 1 view)")
-
-        # Step 2: Insert data
-        print("\nStep 2: Loading TPC-H data...")
-        print("  This may take several minutes for large datasets...")
-        insert_sql = read_sql_file(tpch_dir / "insert.sql", tests_dir)
-        await execute_sql_file(conn, insert_sql)
-        print("✓ Data loaded")
-
-        # Step 3: Create indexes
-        print("\nStep 3: Creating indexes...")
-        await conn.execute("""
-            CREATE UNIQUE INDEX idx_region_pk    ON region(r_regionkey);
-            CREATE UNIQUE INDEX idx_nation_pk    ON nation(n_nationkey);
-            CREATE UNIQUE INDEX idx_supplier_pk  ON supplier(s_suppkey);
-            CREATE UNIQUE INDEX idx_customer_pk  ON customer(c_custkey);
-            CREATE UNIQUE INDEX idx_orders_pk    ON orders(o_orderkey);
-            CREATE UNIQUE INDEX idx_part_pk      ON part(p_partkey);
-            CREATE UNIQUE INDEX idx_partsupp_pk  ON partsupp(ps_partkey, ps_suppkey);
-            CREATE UNIQUE INDEX idx_lineitem_pk  ON lineitem(l_orderkey, l_linenumber);
-            CREATE INDEX idx_deeplake_part_brand_container ON part USING btree (p_brand, p_container);
-            CREATE INDEX idx_deeplake_lineitem_partkey_qty ON lineitem USING btree (l_partkey, l_quantity);
-        """)
-        print("✓ Indexes created")
-
-        print("\n" + "=" * 70)
-        print("✓ TPC-H database ready for queries")
-        print("=" * 70 + "\n")
-
         yield conn
-
     finally:
-        # Cleanup: Drop tables and view
-        print("\n" + "=" * 70)
-        print("TPC-H Database Cleanup")
-        print("=" * 70)
-        await conn.execute("DROP VIEW IF EXISTS revenue0 CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS customer CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS lineitem CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS nation CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS orders CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS part CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS partsupp CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS region CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS supplier CASCADE")
-        await conn.execute("RESET pg_deeplake.use_deeplake_executor")
         await conn.close()
-        print("✓ Cleanup complete\n")
 
 
 def run_tpch_query(query_num: int, expected_count: int):

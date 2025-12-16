@@ -1,13 +1,13 @@
 #pragma once
-#include "group_tensor.hpp"
+#include "group_column.hpp"
 
 namespace heimdall_common::impl {
 
-class spatial_tensor : public group_tensor
+class spatial_column : public group_column
 {
 public:
-    spatial_tensor(heimdall::column_view_ptr source, const std::vector<int64_t>& sequence_lengths)
-        : group_tensor(source, sequence_lengths)
+    spatial_column(heimdall::column_view_ptr source, const std::vector<int64_t>& sequence_lengths)
+        : group_column(source, sequence_lengths)
     {
     }
 

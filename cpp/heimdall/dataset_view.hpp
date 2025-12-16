@@ -23,8 +23,8 @@ class const_dataset_iterator;
  * @brief Abstraction over the dataset
  *
  * Provides minimal interface dataset should have:
- * - Tensors count
- * - Access to tensors
+ * - Columns count
+ * - Access to columns
  *
  * There are two main groups of "things" called dataset:
  * - materialized datasets or storage level datasets
@@ -139,19 +139,19 @@ public:
     /// @brief Returns the iterator to the first column of the dataset.
     impl::dataset_iterator begin();
 
-    /// @brief Returns the iterator to the column after the last tensor of the dataset.
+    /// @brief Returns the iterator to the column after the last column of the dataset.
     impl::dataset_iterator end();
 
     /// @brief Returns the iterator to the first column of the dataset.
     impl::const_dataset_iterator begin() const;
 
-    /// @brief Returns the iterator to the column after the last tensor of the dataset.
+    /// @brief Returns the iterator to the column after the last column of the dataset.
     impl::const_dataset_iterator end() const;
 
     /// @brief Returns the iterator to the first column of the dataset.
     impl::const_dataset_iterator cbegin() const;
 
-    /// @brief Returns the iterator to the column after the last tensor of the dataset.
+    /// @brief Returns the iterator to the column after the last column of the dataset.
     impl::const_dataset_iterator cend() const;
 
     [[nodiscard]] virtual std::shared_ptr<schema_view> get_schema_view() const;
@@ -182,7 +182,7 @@ public:
     }
 
     /// @brief Returns the number of rows in the dataset.
-    /// If the tensors have different number of rows, the maximal number of rows is returned.
+    /// If the columns have different number of rows, the maximal number of rows is returned.
     virtual int64_t num_rows() const;
 
     /// @brief Returns true if the dataset is empty.
@@ -294,12 +294,12 @@ uint64_t dataset_sample_bytes(const dataset_view& d);
 uint64_t dataset_total_bytes(const dataset_view& d);
 
 /**
- * @brief Returns the minimal length across all the tensors.
+ * @brief Returns the minimal length across all the columns.
  */
 int64_t min_size(const dataset_view& d);
 
 /**
- * @brief Returns the maximal length across all the tensors.
+ * @brief Returns the maximal length across all the columns.
  */
 int64_t max_size(const dataset_view& d);
 

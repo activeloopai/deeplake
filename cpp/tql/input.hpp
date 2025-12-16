@@ -111,7 +111,7 @@ inline async::promise<functions_t> request_functions(const std::vector<input_fun
     auto function_registry_finder = [](heimdall::column_view& t) {
         auto r = dynamic_cast<functions_registry*>(&t);
         if (r == nullptr) {
-            auto& orig = heimdall_common::original_tensor_over_chain(t);
+            auto& orig = heimdall_common::original_column_over_chain(t);
             r = dynamic_cast<functions_registry*>(&orig);
         }
         return r;

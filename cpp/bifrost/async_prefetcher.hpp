@@ -25,7 +25,7 @@ public:
     async_prefetcher(heimdall::dataset_view_ptr ds,
                      bool drop_last,
                      std::optional<int64_t> batch_size = std::nullopt,
-                     icm::string_set raw_tensors = {},
+                     icm::string_set raw_columns = {},
                      bool ignore_errors = false);
 
     ~async_prefetcher();

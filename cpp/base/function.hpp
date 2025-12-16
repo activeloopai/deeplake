@@ -3,14 +3,16 @@
 /**
  * @file function.hpp
  * @brief Definition of the `function` class
- */ 
+ */
+
+#include "config.hpp"
 #include "source_location_holder.hpp"
 
 #include <absl/functional/any_invocable.h>
 
 namespace base {
 
-#if defined(AL_ASSERTIONS) && !defined(AL_PG)
+#if defined(AL_ASSERTIONS)
 
 template <typename F>
 class function_with_location;

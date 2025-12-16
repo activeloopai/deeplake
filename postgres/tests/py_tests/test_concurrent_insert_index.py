@@ -14,7 +14,7 @@ import multiprocessing
 import time
 import subprocess
 import signal
-from lib.assertions import Assertions
+from test_utils.assertions import Assertions
 
 
 # Number of insert iterations

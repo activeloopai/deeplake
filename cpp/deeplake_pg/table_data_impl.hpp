@@ -20,7 +20,7 @@ extern "C" {
 #include "table_version.hpp"
 #include "utils.hpp"
 
-#include <heimdall_common/filtered_tensor.hpp>
+#include <heimdall_common/filtered_column.hpp>
 
 #include <access/parallel.h>
 
@@ -294,7 +294,7 @@ inline void table_data::add_insert_slots(int32_t nslots, TupleTableSlot** slots)
             nd::array val;
             if (slot->tts_isnull[i]) {
                 auto dt = get_read_only_dataset()->get_column_view(i).dtype();
-                val = (nd::dtype_is_numeric(dt) ? nd::adapt(0) : nd::none(dt, 1));
+                val = (nd::dtype_is_numeric(dt) ? nd::adapt(0) : nd::none(dt, 0));
             } else {
                 val = pg::utils::datum_to_nd(slot->tts_values[i], get_base_atttypid(i), get_atttypmod(i));
             }
@@ -538,7 +538,7 @@ inline void table_data::create_streamer(int32_t idx, int32_t worker_id)
         }
         if (worker_id != -1) {
             auto [start_row, end_row] = get_row_range(worker_id);
-            auto new_column = heimdall_common::create_filtered_tensor(
+            auto new_column = heimdall_common::create_filtered_column(
                 *(get_column_view(idx)), icm::index_mapping_t<int64_t>::slice({start_row, end_row, 1}));
             streamers_.streamers[idx] = std::make_unique<bifrost::column_streamer>(new_column, batch_size_);
         } else {

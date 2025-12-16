@@ -1,5 +1,7 @@
 #pragma once
 
+#include <query_core/search_config.hpp>
+
 namespace tql {
 
 struct options
@@ -10,6 +12,9 @@ struct options
     bool allow_ungroup = false;
     bool use_index = false;
     bool parsing_only = false;
+
+    // Search configuration for vector similarity searches
+    query_core::search_config search_config = query_core::search_config::default_config();
 
     static options default_config();
 
