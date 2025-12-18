@@ -311,7 +311,9 @@ void deeplake_xact_callback(XactEvent event, void *arg)
         break;
     case XACT_EVENT_ABORT:
 	case XACT_EVENT_PARALLEL_ABORT:
-        elog(ERROR, "Deeplake does not support transaction aborts");
+        // Handle transaction abort by rolling back changes
+        // Don't throw ERROR here as it would trigger cascading abort loop
+        pg::table_storage::instance().rollback_all();
         break;
     default:
         break;
