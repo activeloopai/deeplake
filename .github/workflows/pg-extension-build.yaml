@@ -61,7 +61,7 @@ jobs:
     name: Build PostgreSQL Extension
     needs: [setup]
     outputs:
-      version: ${{ steps.extract-version.outputs.version }}
+      version: "${{ steps.extract-version.outputs.version }}"
     strategy:
       fail-fast: true
       matrix:
@@ -84,7 +84,7 @@ jobs:
           git clone -b "${branch}" "https://activeloop-bot:${ORG_GH_BOT_PAT}@github.com/${{ github.repository }}" .
 
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@v4.0.2
+        uses: aws-actions/configure-aws-credentials@v5.1.1
         with:
           role-to-assume: "arn:aws:iam::067976305224:role/github"
           aws-region: us-east-1
@@ -106,16 +106,10 @@ jobs:
         shell: bash
         run: |-
           echo -e "${YELLOW}Building the PostgreSQL extension...${DEFAULT}"
-
-          # Determine which versions to build based on input
-          PG_VERSION="${{ inputs.pg_version || '18' }}"
-
           echo "Building for PostgreSQL version(s): ${PG_VERSION}"
-
-          # Run the build with the appropriate --pg-versions flag
           python3 scripts/build_pg_ext.py prod --deeplake-static --pg-versions "${PG_VERSION}"
-
           echo -e "${GREEN}Done.${DEFAULT}"
+
       - name: extract version
         id: extract-version
         shell: bash
@@ -145,21 +139,15 @@ jobs:
               ls -la postgres/*.so || echo "No .so files found"
               exit 1
             fi
-
-            # Create postgres user for PostgreSQL to run as
             useradd -r -m -U -d /var/lib/postgresql -s /bin/bash postgres
             chown -R postgres:postgres /var/lib/postgresql
             chown -R postgres postgres/
-
-            # Install Python test dependencies (pip already available from earlier step)
             echo -e "${YELLOW}Installing Python test dependencies...${DEFAULT}"
             python3 -m pip install -r postgres/tests/py_tests/requirements.txt
-
-            # Run Python tests for PostgreSQL 18 (run as root in container)
             echo -e "${YELLOW}Running Python tests...${DEFAULT}"
             export PG_MAJOR_VERSION=18
             export USER=postgres
-            cd postgres/tests/py_tests
+            cd postgres/tests/py_tests || exit 1
             python3 -m pytest -v -m 'not slow and not tpch' --tb=short || {
               echo -e "${RED}Tests failed for PostgreSQL 18${DEFAULT}"
               exit 1
@@ -191,10 +179,10 @@ jobs:
     container: "quay.io/activeloopai/repo-builder:latest"
     steps:
       - name: checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6.0.1
 
       - name: load 1pass
-        uses: 1password/load-secrets-action@v3
+        uses: 1password/load-secrets-action@v3.0.0
         with:
           export-env: true
         env:
@@ -204,7 +192,7 @@ jobs:
           R2_ENDPOINT_URL: "op://GitHub Actions/common/REPOSITORY_BUCKET_ENDPOINT"
 
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@v4.0.3
+        uses: aws-actions/configure-aws-credentials@v5.1.1
         with:
           role-to-assume: "arn:aws:iam::067976305224:role/github"
           aws-region: us-east-1
@@ -230,22 +218,18 @@ jobs:
           rm -f public.asc; rm -f private.asc
           mkdir -p "${REPOSITORY}"/scripts/pg-deeplake/ &&
           cp -f postgres/scripts/install.sh "${REPOSITORY}"/scripts/pg-deeplake/
-
-          # Use version from extension-build job output
-          if [ -n "${PACKAGE_VERSION}" ]; then
-            VERSION="${PACKAGE_VERSION}-1"
-            echo -e "${GREEN}Using version from build job: ${VERSION}${DEFAULT}"
-          else
-            echo -e "${RED}Error: PACKAGE_VERSION not set${DEFAULT}"
-            exit 1
-          fi
-
           for type in deb rpm; do
             for arch in amd64 arm64; do
               echo -e "${YELLOW}Building the ${type} repository...${DEFAULT}"
-              bash postgres/scripts/build_${type}.sh "${VERSION}" "${REPOSITORY}" "${arch}" "${KEY_ID}" "${SUPPORTED_VERSIONS}"
+              bash postgres/scripts/build_${type}.sh "${VERSION}"-1 "${REPOSITORY}" "${arch}" "${KEY_ID}" "${SUPPORTED_VERSIONS}"
             done
           done
+
+      - name: install aws cli
+        shell: bash
+        run: |-
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-$(arch).zip" -o "awscliv2.zip"
+          unzip awscliv2.zip && ./aws/install
 
       - name: index and upload repository to r2
         shell: bash
@@ -273,24 +257,24 @@ jobs:
         version: "${{ fromJson(needs.setup.outputs.versions) }}"
     steps:
       - name: checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6.0.1
 
       - name: load 1pass
         id: load-1pass
-        uses: 1password/load-secrets-action@v3
+        uses: 1password/load-secrets-action@v3.0.0
         env:
           QUAY_USERNAME: "op://GitHub Actions/registry-creds/quay/QUAY_USERNAME"
           QUAY_PASSWORD: "op://GitHub Actions/registry-creds/quay/QUAY_PASSWORD"
 
       - name: login to quay
-        uses: docker/login-action@v3.5.0
+        uses: docker/login-action@v3.6.0
         with:
           username: "${{ steps.load-1pass.outputs.QUAY_USERNAME }}"
           password: "${{ steps.load-1pass.outputs.QUAY_PASSWORD }}"
           registry: quay.io
 
       - name: setup docker qemu
-        uses: docker/setup-qemu-action@v3.6.0
+        uses: docker/setup-qemu-action@v3.7.0
 
       - name: setup docker buildx
         uses: docker/setup-buildx-action@v3.11.1
@@ -298,22 +282,14 @@ jobs:
       - name: build and push container images
         shell: bash
         env:
-          PG_VERSION: ${{ matrix.version }}
-          PACKAGE_VERSION: ${{ needs.extension-build.outputs.version }}
+          PG_VERSION: "${{ matrix.version }}"
+          VERSION: "${{ needs.extension-build.outputs.version }}"
         run: |-
           mkdir -p ./debs
-
-          # Use version from extension-build job output
-          if [ -z "${PACKAGE_VERSION}" ]; then
-            echo "Error: PACKAGE_VERSION not set"
-            exit 1
-          fi
-          VERSION="${PACKAGE_VERSION}"
           echo "Using package version: ${VERSION}"
-
-          wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-${PG_VERSION}_${VERSION}-1_amd64.deb -O ./debs/pg-deeplake-${PG_VERSION}_${VERSION}-1_amd64.deb
-          wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-${PG_VERSION}_${VERSION}-1_arm64.deb -O ./debs/pg-deeplake-${PG_VERSION}_${VERSION}-1_arm64.deb
-          sed s/BASE_IMAGE/postgres:${PG_VERSION}-bookworm/g postgres/Dockerfile > Dockerfile.build
+          wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-"${PG_VERSION}"_"${VERSION}"-1_amd64.deb -O ./debs/pg-deeplake-"${PG_VERSION}"_"${VERSION}"-1_amd64.deb
+          wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-"${PG_VERSION}"_"${VERSION}"-1_arm64.deb -O ./debs/pg-deeplake-"${PG_VERSION}"_"${VERSION}"-1_arm64.deb
+          sed s/BASE_IMAGE/postgres:"${PG_VERSION}"-bookworm/g postgres/Dockerfile > Dockerfile.build
           docker buildx build \
             --push \
             --tag quay.io/activeloopai/pg-deeplake:"${PG_VERSION}"_"${VERSION}" \

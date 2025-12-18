@@ -41,6 +41,17 @@ extern "C" {
 
 namespace {
 
+std::string get_qualified_table_name(Relation rel)
+{
+    Oid nspid = RelationGetNamespace(rel);
+    char* nspname = get_namespace_name(nspid);
+    std::string qualified_name = std::string(nspname ? nspname : "public") + "." + RelationGetRelationName(rel);
+    if (nspname) {
+        pfree(nspname);
+    }
+    return qualified_name;
+}
+
 // Helper function to split schema.table_name
 std::pair<std::string, std::string> split_table_name(const std::string& full_name)
 {
@@ -234,8 +245,13 @@ void table_storage::load_table_metadata()
             }
             {
                 pg::utils::memory_context_switcher context_switcher(TopMemoryContext);
+                // Use the actual relation name from PostgreSQL catalog, not the cached metadata name
+                // This ensures we have the current name even if the table was renamed
+                std::string actual_table_name = get_qualified_table_name(rel);
+                elog(DEBUG1, "Loading table from metadata: cached_name=%s, actual_name=%s",
+                     table_name, actual_table_name.c_str());
                 table_data td(
-                    relid, table_name, CreateTupleDescCopy(RelationGetDescr(rel)), std::string(ds_path), creds);
+                    relid, actual_table_name, CreateTupleDescCopy(RelationGetDescr(rel)), std::string(ds_path), creds);
                 auto it2status = tables_.emplace(relid, std::move(td));
                 up_to_date_ = false;
                 ASSERT(it2status.second);

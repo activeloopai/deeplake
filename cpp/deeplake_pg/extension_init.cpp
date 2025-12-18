@@ -938,9 +938,15 @@ static void executor_run(QueryDesc* query_desc, ScanDirection direction, uint64 
         if (pg::query_info::current().has_deferred_fetch()) {
             query_desc->dest = orig;
         }
-        pg::table_storage::instance().rollback_all();
-        pg::query_info::cleanup();
-        pg::table_storage::instance().reset_requested_columns();
+        try {
+            pg::table_storage::instance().rollback_all();
+            pg::query_info::cleanup();
+            pg::table_storage::instance().reset_requested_columns();
+        } catch (const std::exception& e) {
+            elog(WARNING, "Error during transaction cleanup: %s", e.what());
+        } catch (...) {
+            elog(WARNING, "Unknown error during transaction cleanup");
+        }
         PG_RE_THROW();
     }
     PG_END_TRY();
