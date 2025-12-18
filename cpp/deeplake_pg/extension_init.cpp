@@ -792,10 +792,13 @@ static void executor_start(QueryDesc* query_desc, int32_t eflags)
 {
     pg::runtime_printer executor_start_timer("Executor Start");
     pg::init_deeplake();
-    if (prev_executor_start != nullptr) {
-        prev_executor_start(query_desc, eflags);
-    } else {
-        standard_ExecutorStart(query_desc, eflags);
+    {
+        pg::runtime_printer pg_executor_start_timer("PostgreSQL ExecutorStart");
+        if (prev_executor_start != nullptr) {
+            prev_executor_start(query_desc, eflags);
+        } else {
+            standard_ExecutorStart(query_desc, eflags);
+        }
     }
 
     if (!pg::query_info::is_in_top_context() ||
@@ -922,18 +925,21 @@ static void executor_run(QueryDesc* query_desc, ScanDirection direction, uint64 
 
     PG_TRY();
     {
-        if (prev_executor_run != nullptr) {
-            prev_executor_run(query_desc, direction, count
-                #if PG_VERSION_NUM < PG_VERSION_NUM_18
-                , execute_once
-                #endif
-            );
-        } else {
-            standard_ExecutorRun(query_desc, direction, count
-                #if PG_VERSION_NUM < PG_VERSION_NUM_18
-                , execute_once
-                #endif
-            );
+        {
+            pg::runtime_printer pg_executor_timer("PostgreSQL Executor");
+            if (prev_executor_run != nullptr) {
+                prev_executor_run(query_desc, direction, count
+                    #if PG_VERSION_NUM < PG_VERSION_NUM_18
+                    , execute_once
+                    #endif
+                );
+            } else {
+                standard_ExecutorRun(query_desc, direction, count
+                    #if PG_VERSION_NUM < PG_VERSION_NUM_18
+                    , execute_once
+                    #endif
+                );
+            }
         }
         if (pg::query_info::current().has_deferred_fetch()) {
             query_desc->dest = orig;
@@ -955,10 +961,13 @@ static void executor_run(QueryDesc* query_desc, ScanDirection direction, uint64 
 static void executor_end(QueryDesc* query_desc)
 {
     pg::runtime_printer executor_end_timer("Executor End");
-    if (prev_executor_end != nullptr) {
-        prev_executor_end(query_desc);
-    } else {
-        standard_ExecutorEnd(query_desc);
+    {
+        pg::runtime_printer pg_executor_end_timer("PostgreSQL ExecutorEnd");
+        if (prev_executor_end != nullptr) {
+            prev_executor_end(query_desc);
+        } else {
+            standard_ExecutorEnd(query_desc);
+        }
     }
 
     if (pg::query_info::is_in_executor_context(query_desc)) {
