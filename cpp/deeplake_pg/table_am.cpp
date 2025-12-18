@@ -34,6 +34,7 @@ extern "C" {
 #include "pg_deeplake.hpp"
 #include "pg_version_compat.h"
 #include "progress_utils.hpp"
+#include "reporter.hpp"
 #include "table_scan.hpp"
 #include "table_storage.hpp"
 #include "table_version.hpp"
