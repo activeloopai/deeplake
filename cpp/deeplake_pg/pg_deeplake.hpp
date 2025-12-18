@@ -206,7 +206,6 @@ struct index_info
 
     void reset()
     {
-        dataset_ = nullptr;
         table_name_.clear();
         column_names_.clear();
         index_name_.clear();
@@ -216,10 +215,7 @@ struct index_info
 
     void create();
 
-    auto& dataset()
-    {
-        return dataset_;
-    }
+    const std::shared_ptr<deeplake_api::dataset>& dataset() const;
 
     inline void set_table_name(std::string_view table_name) noexcept
     {
@@ -318,13 +314,13 @@ struct index_info
         if (column_names_.size() != 1) {
             return false;
         }
-        const auto& col = dataset_->get_column(column_name());
+        const auto& col = dataset()->get_column(column_name());
         return !col.type().data_type().is_array() && nd::dtype_is_numeric(col.type().data_type().get_dtype());
     }
 
     bool can_run_query(const query_core::top_k_search_info& info, const std::string& column_name) const
     {
-        auto& col = dataset_->get_column(column_name);
+        auto& col = dataset()->get_column(column_name);
         auto index_holder = col.index_holder();
         if (index_holder == nullptr) {
             return false;
@@ -334,7 +330,7 @@ struct index_info
 
     query_core::query_result run_query(query_core::top_k_search_info info, const std::string& column_name)
     {
-        auto& col = dataset_->get_column(column_name);
+        auto& col = dataset()->get_column(column_name);
         auto index_holder = col.index_holder();
         if (index_holder == nullptr) {
             return {};
@@ -348,7 +344,7 @@ struct index_info
 
     bool can_run_query(const query_core::inverted_index_search_info& info) const
     {
-        auto& col = dataset_->get_column(column_name());
+        auto& col = dataset()->get_column(column_name());
         auto index_holder = col.index_holder();
         if (index_holder == nullptr) {
             return false;
@@ -358,7 +354,7 @@ struct index_info
 
     icm::roaring run_query(const query_core::inverted_index_search_info& info)
     {
-        auto& col = dataset_->get_column(column_name());
+        auto& col = dataset()->get_column(column_name());
         auto index_holder = col.index_holder();
         ASSERT(index_holder != nullptr);
         auto indices = index_holder->run_query(info).get_future().get();
@@ -368,7 +364,7 @@ struct index_info
 
     bool can_run_query(const query_core::text_search_info& info) const
     {
-        auto& col = dataset_->get_column(column_name());
+        auto& col = dataset()->get_column(column_name());
         auto index_holder = col.index_holder();
         if (index_holder == nullptr) {
             return false;
@@ -378,7 +374,7 @@ struct index_info
 
     icm::roaring run_query(const query_core::text_search_info& info)
     {
-        auto& col = dataset_->get_column(column_name());
+        auto& col = dataset()->get_column(column_name());
         auto index_holder = col.index_holder();
         ASSERT(index_holder != nullptr);
         auto indices = index_holder->run_query(info).get_future().get();
@@ -417,7 +413,6 @@ struct index_info
     void drop_deeplake_indexes();
 
 private:
-    std::shared_ptr<deeplake_api::dataset> dataset_;
     std::string table_name_;
     std::vector<std::string> column_names_;
     std::string index_name_;

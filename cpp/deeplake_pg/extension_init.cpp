@@ -679,6 +679,23 @@ static void process_utility(PlannedStmt* pstmt,
         standard_ProcessUtility(pstmt, queryString, readOnlyTree, context, params, queryEnv, dest, completionTag);
     }
 
+    if (IsA(pstmt->utilityStmt, CopyStmt)) {
+        CopyStmt* copy_stmt = (CopyStmt*)pstmt->utilityStmt;
+        if (copy_stmt->relation) {
+            // Build the qualified table name
+            const char* schema = copy_stmt->relation->schemaname ? copy_stmt->relation->schemaname : "public";
+            const char* table = copy_stmt->relation->relname;
+            std::string table_name = std::string(schema) + "." + table;
+            // If this is a deeplake table, flush/commit
+            auto* td = pg::table_storage::instance().get_table_data_if_exists(table_name);
+            if (td) {
+                if (!td->flush()) {
+                    ereport(ERROR, (errmsg("Failed to flush inserts after COPY")));
+                }
+            }
+        }
+    }
+
     // Handle CREATE VIEW statement - check after view is created
     if (IsA(pstmt->utilityStmt, ViewStmt)) {
         ViewStmt* stmt = (ViewStmt*)pstmt->utilityStmt;
@@ -946,7 +963,7 @@ static void executor_end(QueryDesc* query_desc)
 
     if (pg::query_info::is_in_executor_context(query_desc)) {
         if (query_desc->operation == CMD_INSERT || query_desc->operation == CMD_UPDATE ||
-            query_desc->operation == CMD_DELETE) {
+            query_desc->operation == CMD_DELETE || query_desc->operation == CMD_UTILITY) {
             pg::runtime_printer flush_timer("Flush All Tables");
             if (!pg::table_storage::instance().flush_all()) {
                 pg::table_storage::instance().rollback_all();

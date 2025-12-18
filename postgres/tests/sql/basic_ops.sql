@@ -27,7 +27,7 @@ DO $$ BEGIN
         -- Test index usage
         SET enable_seqscan = off;
         CREATE TEMP TABLE expected_vectors (id INTEGER, score REAL);
-        INSERT INTO expected_vectors VALUES 
+        INSERT INTO expected_vectors VALUES
         (1, 1),
         (2, 0.97463185),
         (3, 0.959412),

@@ -11,8 +11,9 @@ QueryDesc* query_info::current_query_desc = nullptr;
 
 void index_info::create_deeplake_indexes()
 {
-    ASSERT(dataset_ != nullptr);
-    dataset_->set_indexing_mode(deeplake::indexing_mode::always);
+    auto ds = dataset();
+    ASSERT(ds != nullptr);
+    ds->set_indexing_mode(deeplake::indexing_mode::always);
     bool index_created = false;
     for (auto& column_name : column_names_) {
         /// 'none' means hybrid index type
@@ -26,7 +27,7 @@ void index_info::create_deeplake_indexes()
                  errdetail("Multiple indexes on the same column are not supported yet."),
                  errhint("Drop the existing index before creating a new one.")));
         }
-        auto& column = dataset_->get_column(column_name);
+        auto& column = ds->get_column(column_name);
         auto index_holder = column.index_holder();
         if (index_holder != nullptr) {
             auto existing_idx_type = deeplake_core::deeplake_index_type::from_string(index_holder->to_string());
@@ -129,10 +130,11 @@ void index_info::create_deeplake_indexes()
 
 void index_info::drop_deeplake_indexes()
 {
-    ASSERT(dataset_ != nullptr);
+    auto& ds = dataset();
+    ASSERT(ds != nullptr);
     bool index_dropped = false;
     for (auto& column_name : column_names_) {
-        auto& column = dataset_->get_column(column_name);
+        auto& column = ds->get_column(column_name);
         auto index_holder = column.index_holder();
         if (index_holder == nullptr) {
             continue;
@@ -144,7 +146,11 @@ void index_info::drop_deeplake_indexes()
                  column_name.c_str(),
                  table_name_.c_str(),
                  index.to_string().data());
-            column.drop_index(index);
+            async::run_on_main([&column, index]() {
+                column.drop_index(index);
+            })
+                .get_future()
+                .get();
             index_dropped = true;
         }
     }
@@ -153,15 +159,18 @@ void index_info::drop_deeplake_indexes()
     }
 }
 
+const std::shared_ptr<deeplake_api::dataset>& index_info::dataset() const
+{
+    auto& deeplake_table_data = table_storage::instance().get_table_data(table_name_);
+    return deeplake_table_data.get_dataset();
+}
+
 void index_info::create()
 {
     base::log_debug(base::log_channel::index, "Create index info");
-    ASSERT(dataset_ == nullptr);
     ASSERT(!table_name_.empty());
     ASSERT(!column_names_.empty());
     ASSERT(table_storage::instance().table_exists(table_name_));
-    auto& deeplake_table_data = table_storage::instance().get_table_data(table_name_);
-    dataset_ = deeplake_table_data.get_dataset();
     create_deeplake_indexes();
 }
 
@@ -293,6 +302,22 @@ void load_index_metadata()
 
 /// @}
 
+void deeplake_xact_callback(XactEvent event, void *arg)
+{
+    switch (event) {
+    case XACT_EVENT_PRE_COMMIT:
+	case XACT_EVENT_PARALLEL_PRE_COMMIT:
+        pg::table_storage::instance().commit_all();
+        break;
+    case XACT_EVENT_ABORT:
+	case XACT_EVENT_PARALLEL_ABORT:
+        elog(ERROR, "Deeplake does not support transaction aborts");
+        break;
+    default:
+        break;
+    }
+}
+
 void init_deeplake()
 {
     static bool initialized = false;
@@ -304,6 +329,8 @@ void init_deeplake()
     deeplake_api::initialize(std::make_shared<pg::logger_adapter>(), 8 * base::system_report::cpu_cores());
 
     pg::table_storage::instance(); /// initialize table storage
+
+    RegisterXactCallback(deeplake_xact_callback, nullptr);
 }
 
 } // namespace pg
