@@ -283,6 +283,7 @@ TupleTableSlot* deeplake_executor_exec_scan(CustomScanState* node)
 // End scan - cleanup
 void deeplake_executor_end_scan(CustomScanState* node)
 {
+    pg::runtime_printer printer("EndScan DeeplakeExecutor");
     DeeplakeExecutorState* state = (DeeplakeExecutorState*)node;
     state->~DeeplakeExecutorState();
     pfree(state);

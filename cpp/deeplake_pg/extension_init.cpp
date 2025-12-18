@@ -745,6 +745,7 @@ static void process_utility(PlannedStmt* pstmt,
 
 static PlannedStmt* deeplake_planner(Query* parse, const char* query_string, int32_t cursorOptions, ParamListInfo boundParams)
 {
+    pg::runtime_printer planner_timer("Query Planning");
     pg::init_deeplake();
 
     // Transform ->> to jsonb_field_eq
@@ -754,10 +755,12 @@ static PlannedStmt* deeplake_planner(Query* parse, const char* query_string, int
 
     PlannedStmt* planned_stmt = nullptr;
     if (pg::use_deeplake_executor) {
+        pg::runtime_printer direct_exec_plan_timer("Direct Execution Plan Creation");
         planned_stmt = deeplake_create_direct_execution_plan(parse, query_string, cursorOptions, boundParams);
     }
 
     if (!planned_stmt) {
+        pg::runtime_printer standard_plan_timer("Standard Planner");
         if (prev_planner_hook) {
             planned_stmt = prev_planner_hook(parse, query_string, cursorOptions, boundParams);
         } else {
@@ -770,6 +773,7 @@ static PlannedStmt* deeplake_planner(Query* parse, const char* query_string, int
 
 static void executor_start(QueryDesc* query_desc, int32_t eflags)
 {
+    pg::runtime_printer executor_start_timer("Executor Start");
     pg::init_deeplake();
     if (prev_executor_start != nullptr) {
         prev_executor_start(query_desc, eflags);
@@ -786,6 +790,7 @@ static void executor_start(QueryDesc* query_desc, int32_t eflags)
     pg::query_info::current().set_command_type(static_cast<enum pg::command_type>(query_desc->operation));
 
     if (!pg::query_info::current().is_deeplake_table_referenced()) {
+        pg::runtime_printer analyze_plan_timer("Plan Analysis");
         pg::analyze_plan(query_desc->plannedstmt);
     }
     if (query_desc->operation == CMD_SELECT && !pg::query_info::current().is_deeplake_table_referenced()) {
@@ -879,6 +884,7 @@ static void executor_run(QueryDesc* query_desc, ScanDirection direction, uint64 
     #endif
 )
 {
+    pg::runtime_printer executor_run_timer("Executor Run");
     ReceiverState* receiver = nullptr;
     DestReceiver* orig = query_desc->dest;
 
@@ -931,6 +937,7 @@ static void executor_run(QueryDesc* query_desc, ScanDirection direction, uint64 
 
 static void executor_end(QueryDesc* query_desc)
 {
+    pg::runtime_printer executor_end_timer("Executor End");
     if (prev_executor_end != nullptr) {
         prev_executor_end(query_desc);
     } else {
@@ -940,6 +947,7 @@ static void executor_end(QueryDesc* query_desc)
     if (pg::query_info::is_in_executor_context(query_desc)) {
         if (query_desc->operation == CMD_INSERT || query_desc->operation == CMD_UPDATE ||
             query_desc->operation == CMD_DELETE) {
+            pg::runtime_printer flush_timer("Flush All Tables");
             if (!pg::table_storage::instance().flush_all()) {
                 pg::table_storage::instance().rollback_all();
                 ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Failed to flush table storage")));

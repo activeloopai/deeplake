@@ -16,7 +16,7 @@ Usage: python3 scripts/build_pg_ext.py dev --pg-versions 16                #Buil
 Usage: python3 scripts/build_pg_ext.py prod --pg-versions all              #Build for all supported PostgreSQL versions
 """
 
-def download_api_lib(api_root_dir, overwrite=True):
+def download_api_lib(api_root_dir, overwrite=False):
     """
     Download and extract the full deeplake API library including:
     - include/ headers

@@ -12,7 +12,7 @@
 
 namespace base {
 
-#if defined(AL_ASSERTIONS)
+#if defined(AL_ASSERTIONS) && !defined(AL_PG)
 
 template <typename F>
 class function_with_location;

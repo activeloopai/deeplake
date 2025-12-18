@@ -263,13 +263,16 @@ duckdb_result_holder execute_sql_query_direct(const std::string& query_string)
     holder.query_result = std::move(result);
     holder.total_rows = 0;
 
-    while (true) {
-        auto chunk = holder.query_result->Fetch();
-        if (!chunk || chunk->size() == 0) {
-            break;
+    {
+        pg::runtime_printer fetch_timer("Fetching DuckDB chunks");
+        while (true) {
+            auto chunk = holder.query_result->Fetch();
+            if (!chunk || chunk->size() == 0) {
+                break;
+            }
+            holder.total_rows += chunk->size();
+            holder.chunks.push_back(std::move(chunk));
         }
-        holder.total_rows += chunk->size();
-        holder.chunks.push_back(std::move(chunk));
     }
 
     elog(DEBUG1, "DuckDB query returned %zu rows in %zu chunks", holder.total_rows, holder.chunks.size());

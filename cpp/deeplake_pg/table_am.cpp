@@ -561,6 +561,7 @@ TableScanDesc deeplake_table_am_routine::scan_begin(Relation relation,
                                                     ParallelTableScanDesc parallel_scan,
                                                     uint32_t flags)
 {
+    pg::runtime_printer scan_begin_timer("Table Scan Begin");
     DeeplakeScanData* extended_scan = (DeeplakeScanData*)palloc0(sizeof(DeeplakeScanData));
     auto table_id = RelationGetRelid(relation);
     bool is_parallel = (pg::use_parallel_workers && parallel_scan != nullptr);
@@ -627,6 +628,7 @@ void deeplake_table_am_routine::scan_rescan(TableScanDesc scan, struct ScanKeyDa
 
 void deeplake_table_am_routine::scan_end(TableScanDesc scan)
 {
+    pg::runtime_printer scan_end_timer("Table Scan End");
     DeeplakeScanData* extended_scan = get_scan_data(scan);
     extended_scan->~DeeplakeScanData();
     pfree(extended_scan);
