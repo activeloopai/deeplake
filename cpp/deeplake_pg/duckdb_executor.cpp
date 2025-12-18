@@ -1,8 +1,8 @@
 #include <duckdb.hpp>
 
-#include "duckdb_executor.hpp"
 #include "duckdb_deeplake_convert.hpp"
 #include "duckdb_deeplake_scan.hpp"
+#include "duckdb_executor.hpp"
 #include "pg_deeplake.hpp"
 #include "reporter.hpp"
 #include "table_data.hpp"
@@ -112,11 +112,7 @@ void register_views(duckdb::Connection* con)
 
 std::unique_ptr<duckdb::QueryResult> execute_query(duckdb::Connection* con, const std::string& query)
 {
-    auto result = con->SendQuery(query);
-    if (result->HasError()) {
-        elog(ERROR, "Query failed: %s", result->GetError().c_str());
-    }
-    return result;
+    return con->SendQuery(query);
 }
 
 void explain_query(duckdb::Connection* con, const std::string& query_string)
@@ -250,12 +246,28 @@ duckdb_result_holder execute_sql_query_direct(const std::string& query_string)
         explain_query(con.get(), query_string);
     }
 
-    // Execute the query
     std::unique_ptr<duckdb::QueryResult> result;
+    std::string error_msg;
+    bool has_error = false;
+
     {
+        elog(DEBUG1, "Executing DuckDB query: %s", query_string.c_str());
         pg::runtime_printer printer("DuckDB query execution");
         result = execute_query(con.get(), query_string);
         ASSERT(result != nullptr);
+
+        // Check for errors before proceeding
+        if (result->HasError()) {
+            error_msg = result->GetError();
+            has_error = true;
+            elog(WARNING, "DuckDB query failed: %s", error_msg.c_str());
+        }
+    }
+
+    // If there was an error, report it after DuckDB cleanup is complete
+    // This prevents cascading transaction abort issues
+    if (has_error) {
+        ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Query failed: %s", error_msg.c_str())));
     }
 
     // Fetch all chunks without converting to dataset_view
