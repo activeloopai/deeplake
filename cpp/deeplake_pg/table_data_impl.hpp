@@ -403,7 +403,7 @@ inline bool table_data::flush_inserts()
 
     // Flush the insert tuples to the dataset
     try {
-        elog(WARNING, "Flushing %zu insert rows to dataset '%s'", num_inserts, table_name_.c_str());
+        elog(DEBUG1, "Flushing %zu insert rows to dataset '%s'", num_inserts, table_name_.c_str());
         const auto start = std::chrono::high_resolution_clock::now();
 
         icm::string_map<nd::array> merged;
@@ -419,7 +419,7 @@ inline bool table_data::flush_inserts()
             impl::append_rows(get_dataset(), std::move(merged));
         }
         const auto end = std::chrono::high_resolution_clock::now();
-        elog(WARNING,
+        elog(DEBUG1,
              "Flushed insert rows to dataset '%s' in %.2f seconds",
              table_name_.c_str(),
              std::chrono::duration<double>(end - start).count());
