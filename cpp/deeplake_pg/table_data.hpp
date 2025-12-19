@@ -52,10 +52,10 @@ struct table_data
 
     inline void commit(bool show_progress = false);
     inline void open_dataset(bool create = false);
-    inline void refresh() noexcept;
+    inline void refresh();
     inline const std::string& get_table_name() const noexcept;
     inline const std::shared_ptr<deeplake_api::dataset>& get_dataset() const noexcept;
-    inline const std::shared_ptr<deeplake_api::read_only_dataset>& get_read_only_dataset() const noexcept;
+    inline const std::shared_ptr<deeplake_api::dataset>& get_read_only_dataset() const noexcept;
     inline const http::uri& get_dataset_path() const noexcept;
     inline heimdall::column_view_ptr get_column_view(int32_t column_idx) const;
     inline TupleDesc get_tuple_descriptor() const noexcept;
@@ -85,7 +85,6 @@ private:
     bool flush_deletes();
     bool flush_updates();
     inline void force_refresh();
-    inline async::promise<std::shared_ptr<deeplake_api::read_only_dataset>> open_read_only() const noexcept;
 
 public:
     /// @name Streamer management
@@ -172,8 +171,8 @@ private:
     std::vector<int64_t> delete_rows_;
     std::vector<std::tuple<int64_t, std::string, nd::array>> update_rows_;
     std::shared_ptr<deeplake_api::dataset> dataset_;
-    std::shared_ptr<deeplake_api::read_only_dataset> read_only_dataset_;
-    async::promise<std::shared_ptr<deeplake_api::read_only_dataset>> refresh_promise_;
+    std::shared_ptr<deeplake_api::dataset> refreshing_dataset_;
+    async::promise<void> refresh_promise_;
     std::vector<bool> requested_columns_;
     std::vector<Oid> base_typeids_; // Cached base type OIDs for performance
     icm::string_map<> creds_;

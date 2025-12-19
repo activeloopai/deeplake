@@ -49,9 +49,7 @@ inline table_scan::table_scan(Oid table_id, bool is_parallel, bool streamer_only
             special_columns_.emplace_back(i);
         }
     }
-    has_streamer_columns_.resize(table_data_.num_columns());
     for (auto i = 0; i < table_data_.num_columns(); ++i) {
-        has_streamer_columns_[i] = table_data_.column_has_streamer(i);
     }
     if (is_parallel_ || IsParallelWorker()) {
         int32_t worker_number = ParallelWorkerNumber + 1;
@@ -65,7 +63,7 @@ inline std::pair<Datum, bool> table_scan::get_datum(int32_t column_number, int64
 {
     const auto base_typeid = table_data_.get_base_atttypid(column_number);
     const auto column_typmod = table_data_.get_atttypmod(column_number);
-    if (!has_streamer_columns_[column_number]) {
+    if (!table_data_.column_has_streamer(column_number)) {
         auto res = table_data_.get_column_value(column_number, row_number);
         if (res.is_none()) {
             return {(Datum)0, true};

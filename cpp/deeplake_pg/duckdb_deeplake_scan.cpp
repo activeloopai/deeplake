@@ -570,9 +570,15 @@ private:
                              int64_t nrows,
                              int64_t ncols)
     {
+        elog(LOG, "set_2d_array_output: row_in_batch=%zu, nrows=%ld, ncols=%ld, dtype=%d",
+             row_in_batch, nrows, ncols, static_cast<int>(sample.dtype()));
+
         // Get the child vector (type: LIST(T))
         auto& child_vec = duckdb::ListVector::GetEntry(output_vector);
         auto child_offset = duckdb::ListVector::GetListSize(output_vector);
+
+        elog(LOG, "  output_vector type=%s, child_vec type=%s, child_offset=%zu",
+             output_vector.GetType().ToString().c_str(), child_vec.GetType().ToString().c_str(), child_offset);
 
         // Reserve space in output_vector for nrows list entries
         duckdb::ListVector::Reserve(output_vector, child_offset + nrows);
@@ -581,6 +587,9 @@ private:
         // Get the grandchild vector (type: T) - the actual data vector
         auto& grandchild_vec = duckdb::ListVector::GetEntry(child_vec);
         auto grandchild_offset = duckdb::ListVector::GetListSize(child_vec);
+
+        elog(LOG, "  grandchild_vec type=%s, grandchild_offset=%zu",
+             grandchild_vec.GetType().ToString().c_str(), grandchild_offset);
 
         // Reserve space in child_vec for nrows * ncols list entries
         duckdb::ListVector::Reserve(child_vec, grandchild_offset + nrows * ncols);
@@ -594,17 +603,32 @@ private:
                 const T* array_data = reinterpret_cast<const T*>(sample.data().data());
                 std::memcpy(data_ptr + grandchild_offset, array_data, nrows * ncols * sizeof(T));
 
+                // Log first few values being written
+                elog(LOG, "  WRITE: copying %ld elements to grandchild at offset %zu",
+                     nrows * ncols, grandchild_offset);
+                for (int64_t k = 0; k < std::min(nrows * ncols, (int64_t)6); ++k) {
+                    if constexpr (std::is_integral_v<T>) {
+                        elog(LOG, "    grandchild[%zu] = %ld", grandchild_offset + k, (long)array_data[k]);
+                    } else {
+                        elog(LOG, "    grandchild[%zu] = %f", grandchild_offset + k, (double)array_data[k]);
+                    }
+                }
+
                 // Set up child_vec list entries (one per row, pointing to ranges in grandchild_vec)
                 auto* child_entries = duckdb::FlatVector::GetData<duckdb::list_entry_t>(child_vec);
                 for (int64_t i = 0; i < nrows; ++i) {
                     child_entries[child_offset + i].offset = grandchild_offset + i * ncols;
                     child_entries[child_offset + i].length = ncols;
+                    elog(LOG, "  child_entries[%zu]: offset=%zu, length=%zu",
+                         child_offset + i, child_entries[child_offset + i].offset, child_entries[child_offset + i].length);
                 }
 
                 // Set up output_vector list entry (pointing to range in child_vec)
                 auto* output_entries = duckdb::FlatVector::GetData<duckdb::list_entry_t>(output_vector);
                 output_entries[row_in_batch].offset = child_offset;
                 output_entries[row_in_batch].length = nrows;
+                elog(LOG, "  output_entries[%zu]: offset=%zu, length=%zu",
+                     row_in_batch, output_entries[row_in_batch].offset, output_entries[row_in_batch].length);
             } else {
                 // String or bytea arrays with 2D structure
                 auto* child_entries = duckdb::FlatVector::GetData<duckdb::list_entry_t>(child_vec);
@@ -837,7 +861,11 @@ private:
                     const int64_t row_idx = current_row + row_in_batch;
                     auto value = td.get_streamers().value<std::string_view>(col_idx, row_idx);
                     if (is_uuid) {
-                        auto uuid_value = duckdb::UUID::FromString(std::string(value));
+                        duckdb::hugeint_t uuid_value;
+                        if (!duckdb::UUID::FromString(std::string(value), uuid_value)) {
+                            std::string tmp(value);
+                            elog(ERROR, "Failed to parse UUID string: %s", tmp.c_str());
+                        }
                         auto* duckdb_data = duckdb::FlatVector::GetData<duckdb::hugeint_t>(output_vector);
                         duckdb_data[row_in_batch] = uuid_value;
                     } else {
@@ -907,6 +935,16 @@ private:
         return current_row;
     }
 
+    auto request_range_and_set_column_output(heimdall::column_view_ptr cv, unsigned column_id, int64_t start_row)
+    {
+        const auto end_row = start_row + output_.size();
+        return async::run_on_main([cv, start_row, end_row]() {
+            return cv->request_range(start_row, end_row, {});
+        }).then([this, column_id](nd::array&& samples) {
+            set_column_output(column_id, std::move(samples));
+        });
+    }
+
     void do_scan()
     {
         do_index_search();
@@ -931,20 +969,13 @@ private:
             auto& mask = duckdb::FlatVector::Validity(output_vector);
 
             if (has_index_search()) {
-                auto& col_view = (*global_state_.index_search_result)[col_idx];
-                column_promises.emplace_back(col_view.request_range(current_row, current_row + output_.size(), {})
-                                                 .then([this, i](nd::array&& samples) {
-                                                     set_column_output(i, std::move(samples));
-                                                 }));
+                auto cv = ((*global_state_.index_search_result)[col_idx]).shared_from_this();
+                column_promises.emplace_back(request_range_and_set_column_output(cv, i, current_row));
             } else if (bind_data_.table_data.column_has_streamer(col_idx)) {
                 set_streaming_column_output(i, current_row);
             } else {
-                column_promises.emplace_back(bind_data_.table_data.get_read_only_dataset()
-                                                 ->get_column_view(col_idx)
-                                                 .request_range(current_row, current_row + output_.size(), {})
-                                                 .then([this, i](nd::array&& samples) {
-                                                     set_column_output(i, std::move(samples));
-                                                 }));
+                auto cv = bind_data_.table_data.get_column_view(col_idx);
+                column_promises.emplace_back(request_range_and_set_column_output(cv, i, current_row));
             }
         }
         async::combine(std::move(column_promises)).get_future().get();
@@ -954,7 +985,15 @@ private:
 void deeplake_scan_function(duckdb::ClientContext& context, duckdb::TableFunctionInput& data, duckdb::DataChunk& output)
 {
     deeplake_scan_function_helper helper(context, data, output);
-    helper.scan();
+    try {
+        helper.scan();
+    } catch (const duckdb::Exception& e) {
+        elog(ERROR, "DuckDB exception during Deeplake scan: %s", e.what());
+    } catch (const std::exception& e) {
+        elog(ERROR, "STD exception during Deeplake scan: %s", e.what());
+    } catch (...) {
+        elog(ERROR, "Unknown exception during Deeplake scan");
+    }
 }
 
 // Cardinality function: Return exact row count

@@ -679,6 +679,23 @@ static void process_utility(PlannedStmt* pstmt,
         standard_ProcessUtility(pstmt, queryString, readOnlyTree, context, params, queryEnv, dest, completionTag);
     }
 
+    if (IsA(pstmt->utilityStmt, CopyStmt)) {
+        CopyStmt* copy_stmt = (CopyStmt*)pstmt->utilityStmt;
+        if (copy_stmt->relation) {
+            // Build the qualified table name
+            const char* schema = copy_stmt->relation->schemaname ? copy_stmt->relation->schemaname : "public";
+            const char* table = copy_stmt->relation->relname;
+            std::string table_name = std::string(schema) + "." + table;
+            // If this is a deeplake table, flush/commit
+            auto* td = pg::table_storage::instance().get_table_data_if_exists(table_name);
+            if (td) {
+                if (!td->flush()) {
+                    ereport(ERROR, (errmsg("Failed to flush inserts after COPY")));
+                }
+            }
+        }
+    }
+
     // Handle CREATE VIEW statement - check after view is created
     if (IsA(pstmt->utilityStmt, ViewStmt)) {
         ViewStmt* stmt = (ViewStmt*)pstmt->utilityStmt;
@@ -945,11 +962,25 @@ static void executor_end(QueryDesc* query_desc)
 
     if (pg::query_info::is_in_executor_context(query_desc)) {
         if (query_desc->operation == CMD_INSERT || query_desc->operation == CMD_UPDATE ||
-            query_desc->operation == CMD_DELETE) {
-            if (!pg::table_storage::instance().flush_all()) {
-                pg::table_storage::instance().rollback_all();
-                ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Failed to flush table storage")));
+            query_desc->operation == CMD_DELETE || query_desc->operation == CMD_UTILITY) {
+            // Use PG_TRY/CATCH to handle errors during flush without cascading aborts
+            PG_TRY();
+            {
+                if (!pg::table_storage::instance().flush_all()) {
+                    pg::table_storage::instance().rollback_all();
+                    ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Failed to flush table storage")));
+                }
             }
+            PG_CATCH();
+            {
+                // Error occurred during flush - rollback and suppress to prevent cascade
+                // This prevents "Deeplake does not support transaction aborts" cascade
+                pg::table_storage::instance().rollback_all();
+                elog(WARNING, "Failed to flush data during executor end, changes rolled back");
+                // Don't re-throw - let the transaction abort naturally
+                FlushErrorState();
+            }
+            PG_END_TRY();
         }
         pg::query_info::pop_context(query_desc);
         pg::table_storage::instance().reset_requested_columns();
