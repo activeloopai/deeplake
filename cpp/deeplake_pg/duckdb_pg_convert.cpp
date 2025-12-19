@@ -352,6 +352,103 @@ Datum duckdb_value_to_pg_datum(
             // Get element type
             auto child_type = ListType::GetChildType(duckdb_type);
 
+            // Check if this is a nested list (multi-dimensional array)
+            if (child_type.id() == LogicalTypeId::LIST) {
+                // Multi-dimensional array: need to flatten and construct proper PG array
+                // PostgreSQL multi-dimensional arrays are flat with dimension metadata,
+                // NOT arrays of arrays.
+
+                // First, determine the base element type by walking down the type hierarchy
+                LogicalType base_type = child_type;
+                while (base_type.id() == LogicalTypeId::LIST) {
+                    base_type = ListType::GetChildType(base_type);
+                }
+
+                // Determine PostgreSQL element type from the base type
+                Oid element_type;
+                switch (base_type.id()) {
+                case LogicalTypeId::SMALLINT:
+                    element_type = INT2OID;
+                    break;
+                case LogicalTypeId::INTEGER:
+                    element_type = INT4OID;
+                    break;
+                case LogicalTypeId::BIGINT:
+                    element_type = INT8OID;
+                    break;
+                case LogicalTypeId::FLOAT:
+                    element_type = FLOAT4OID;
+                    break;
+                case LogicalTypeId::DOUBLE:
+                    element_type = FLOAT8OID;
+                    break;
+                case LogicalTypeId::VARCHAR:
+                    element_type = TEXTOID;
+                    break;
+                default:
+                    elog(ERROR, "Unsupported nested LIST element type: %s", base_type.ToString().c_str());
+                    return (Datum)0;
+                }
+
+                if (list_size == 0) {
+                    ::ArrayType* pg_array = construct_empty_array(element_type);
+                    return PointerGetDatum(pg_array);
+                }
+
+                // For 2D arrays, use a simple direct approach
+                // Get dimensions by examining the structure
+                // Dim 0: list_size (number of inner lists)
+                // Dim 1: length of first inner list (assuming rectangular array)
+                auto first_inner_entry = ListVector::GetData(list_child)[list_offset];
+                int dim0 = (int)list_size;
+                int dim1 = (int)first_inner_entry.length;
+                int total_elements = dim0 * dim1;
+
+                // Allocate flat arrays for all elements
+                Datum* elem_datums = (Datum*)palloc(total_elements * sizeof(Datum));
+                bool* elem_nulls = (bool*)palloc(total_elements * sizeof(bool));
+
+                // Get the data vector (grandchild of the outer list)
+                auto& data_vec = ListVector::GetEntry(list_child);
+
+                // Flatten the 2D structure by iterating through inner lists
+                int flat_idx = 0;
+                for (int i = 0; i < dim0; i++) {
+                    auto inner_entry = ListVector::GetData(list_child)[list_offset + i];
+                    for (idx_t j = 0; j < inner_entry.length; j++) {
+                        elem_datums[flat_idx] = duckdb_value_to_pg_datum(
+                            data_vec, inner_entry.offset + j, element_type, -1, elem_nulls[flat_idx]);
+                        flat_idx++;
+                    }
+                }
+
+                // Get element type info
+                int16 elem_len;
+                bool elem_byval;
+                char elem_align;
+                get_typlenbyvalalign(element_type, &elem_len, &elem_byval, &elem_align);
+
+                // Construct 2D PostgreSQL array
+                int dims[2] = {dim0, dim1};
+                int lbs[2] = {1, 1}; // 1-indexed
+
+                ::ArrayType* pg_array = construct_md_array(elem_datums,
+                                                           elem_nulls,
+                                                           2, // ndims
+                                                           dims,
+                                                           lbs,
+                                                           element_type,
+                                                           elem_len,
+                                                           elem_byval,
+                                                           elem_align);
+
+                pfree(elem_datums);
+                pfree(elem_nulls);
+
+                return PointerGetDatum(pg_array);
+            }
+
+            // 1D array case - original logic
             // Determine PostgreSQL element type
             Oid element_type;
             if (type_is_array(target_type)) {

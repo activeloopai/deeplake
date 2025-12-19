@@ -570,9 +570,15 @@ private:
                              int64_t nrows,
                              int64_t ncols)
     {
+        elog(LOG, "set_2d_array_output: row_in_batch=%zu, nrows=%ld, ncols=%ld, dtype=%d",
+             row_in_batch, nrows, ncols, static_cast<int>(sample.dtype()));
+
         // Get the child vector (type: LIST(T))
         auto& child_vec = duckdb::ListVector::GetEntry(output_vector);
         auto child_offset = duckdb::ListVector::GetListSize(output_vector);
+
+        elog(LOG, "  output_vector type=%s, child_vec type=%s, child_offset=%zu",
+             output_vector.GetType().ToString().c_str(), child_vec.GetType().ToString().c_str(), child_offset);
 
         // Reserve space in output_vector for nrows list entries
         duckdb::ListVector::Reserve(output_vector, child_offset + nrows);
@@ -581,6 +587,9 @@ private:
         // Get the grandchild vector (type: T) - the actual data vector
         auto& grandchild_vec = duckdb::ListVector::GetEntry(child_vec);
         auto grandchild_offset = duckdb::ListVector::GetListSize(child_vec);
+
+        elog(LOG, "  grandchild_vec type=%s, grandchild_offset=%zu",
+             grandchild_vec.GetType().ToString().c_str(), grandchild_offset);
 
         // Reserve space in child_vec for nrows * ncols list entries
         duckdb::ListVector::Reserve(child_vec, grandchild_offset + nrows * ncols);
@@ -594,17 +603,32 @@ private:
                 const T* array_data = reinterpret_cast<const T*>(sample.data().data());
                 std::memcpy(data_ptr + grandchild_offset, array_data, nrows * ncols * sizeof(T));
 
+                // Log first few values being written
+                elog(LOG, "  WRITE: copying %ld elements to grandchild at offset %zu",
+                     nrows * ncols, grandchild_offset);
+                for (int64_t k = 0; k < std::min(nrows * ncols, (int64_t)6); ++k) {
+                    if constexpr (std::is_integral_v<T>) {
+                        elog(LOG, "    grandchild[%zu] = %ld", grandchild_offset + k, (long)array_data[k]);
+                    } else {
+                        elog(LOG, "    grandchild[%zu] = %f", grandchild_offset + k, (double)array_data[k]);
+                    }
+                }
+
                 // Set up child_vec list entries (one per row, pointing to ranges in grandchild_vec)
                 auto* child_entries = duckdb::FlatVector::GetData<duckdb::list_entry_t>(child_vec);
                 for (int64_t i = 0; i < nrows; ++i) {
                     child_entries[child_offset + i].offset = grandchild_offset + i * ncols;
                     child_entries[child_offset + i].length = ncols;
+                    elog(LOG, "  child_entries[%zu]: offset=%zu, length=%zu",
+                         child_offset + i, child_entries[child_offset + i].offset, child_entries[child_offset + i].length);
                 }
 
                 // Set up output_vector list entry (pointing to range in child_vec)
                 auto* output_entries = duckdb::FlatVector::GetData<duckdb::list_entry_t>(output_vector);
                 output_entries[row_in_batch].offset = child_offset;
                 output_entries[row_in_batch].length = nrows;
+                elog(LOG, "  output_entries[%zu]: offset=%zu, length=%zu",
+                     row_in_batch, output_entries[row_in_batch].offset, output_entries[row_in_batch].length);
             } else {
                 // String or bytea arrays with 2D structure
                 auto* child_entries = duckdb::FlatVector::GetData<duckdb::list_entry_t>(child_vec);

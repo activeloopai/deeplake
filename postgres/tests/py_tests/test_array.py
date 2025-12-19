@@ -77,6 +77,10 @@ async def test_array_operations(db_conn: asyncpg.Connection):
             2,
             "SELECT * FROM array_test WHERE float4_array_1d = ARRAY[10.0, 11.0, 12.0]::float4[]"
         )
+        await assertions.assert_query_row_count(
+            1,
+            "SELECT * FROM array_test WHERE float4_array_1d = ARRAY[7.0, 8.0, 9.0]::float4[]"
+        )
 
         # Test exact matches for float4 2D arrays
         await assertions.assert_query_row_count(
@@ -86,6 +90,10 @@ async def test_array_operations(db_conn: asyncpg.Connection):
         await assertions.assert_query_row_count(
             2,
             "SELECT * FROM array_test WHERE float4_array_2d = ARRAY[[13.0, 14.0], [15.0, 16.0]]::float4[][]"
+        )
+        await assertions.assert_query_row_count(
+            1,
+            "SELECT * FROM array_test WHERE float4_array_2d = ARRAY[[9.0, 10.0], [11.0, 12.0]]::float4[][]"
         )
 
         # Test exact matches for bytea 1D arrays
@@ -97,11 +105,23 @@ async def test_array_operations(db_conn: asyncpg.Connection):
             2,
             "SELECT * FROM array_test WHERE bytea_array_1d = ARRAY['\x0D'::bytea, '\x0E'::bytea, '\x0F'::bytea]"
         )
+        await assertions.assert_query_row_count(
+            1,
+            "SELECT * FROM array_test WHERE bytea_array_1d = ARRAY['\x05'::bytea, '\x06'::bytea, '\x07'::bytea]"
+        )
 
         # Test array element access for float4 1D arrays
         await assertions.assert_query_row_count(
             1,
             "SELECT * FROM array_test WHERE float4_array_1d[1] = 1.0"
+        )
+        await assertions.assert_query_row_count(
+            1,
+            "SELECT * FROM array_test WHERE float4_array_1d[2] = 5.0"
+        )
+        await assertions.assert_query_row_count(
+            1,
+            "SELECT * FROM array_test WHERE float4_array_1d[3] = 9.0"
         )
         await assertions.assert_query_row_count(
             2,
@@ -114,6 +134,10 @@ async def test_array_operations(db_conn: asyncpg.Connection):
             "SELECT * FROM array_test WHERE float4_array_2d[1][1] = 1.0"
         )
         await assertions.assert_query_row_count(
+            1,
+            "SELECT * FROM array_test WHERE float4_array_2d[2][1] = 7.0"
+        )
+        await assertions.assert_query_row_count(
             2,
             "SELECT * FROM array_test WHERE float4_array_2d[1][1] = 13.0"
         )
@@ -122,6 +146,10 @@ async def test_array_operations(db_conn: asyncpg.Connection):
         await assertions.assert_query_row_count(
             1,
             "SELECT * FROM array_test WHERE bytea_array_1d[1] = '\x01'::bytea"
+        )
+        await assertions.assert_query_row_count(
+            1,
+            "SELECT * FROM array_test WHERE bytea_array_1d[2] = '\x06'::bytea"
         )
         await assertions.assert_query_row_count(
             2,
@@ -136,6 +164,10 @@ async def test_array_operations(db_conn: asyncpg.Connection):
         await assertions.assert_query_row_count(
             2,
             "SELECT * FROM array_test WHERE float4_array_1d @> ARRAY[10.0]::float4[]"
+        )
+        await assertions.assert_query_row_count(
+            1,
+            "SELECT * FROM array_test WHERE float4_array_1d @> ARRAY[7.0, 8.0, 9.0]::float4[]"
         )
 
         # Test array overlap operator (&&) for float4 1D arrays
@@ -259,3 +291,192 @@ async def test_array_operations(db_conn: asyncpg.Connection):
         # Cleanup
         await db_conn.execute("RESET pg_deeplake.use_deeplake_executor")
         await db_conn.execute("DROP TABLE IF EXISTS array_test CASCADE")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("data_type,test_data", [
+    ("int4", [[[1, 2, 3], [4, 5, 6]], [[7, 8, 9], [10, 11, 12]], [[13, 14, 15], [16, 17, 18]]]),
+    ("float4", [[[1.1, 2.2, 3.3], [4.4, 5.5, 6.6]], [[7.7, 8.8, 9.9], [10.1, 11.1, 12.1]], [[13.1, 14.1, 15.1], [16.1, 17.1, 18.1]]]),
+])
+async def test_2d_array_single_column(db_conn: asyncpg.Connection, data_type: str, test_data: list):
+    """
+    Test 2D array operations with a single column table.
+
+    Tests:
+    - Creating table with single 2D array column
+    - Inserting 2D array data
+    - Reading back and verifying data integrity
+    - Parametrized for int4 and float4 types
+    """
+    assertions = Assertions(db_conn)
+    table_name = f"array_2d_test_{data_type}"
+
+    try:
+        # Create table with ID column and single 2D array column
+        await db_conn.execute(f"""
+            CREATE TABLE {table_name} (
+                id INT,
+                array_2d {data_type}[][]
+            ) USING deeplake
+        """)
+
+        # Insert test data with explicit IDs
+        for idx, data in enumerate(test_data):
+            await db_conn.execute(
+                f"INSERT INTO {table_name} (id, array_2d) VALUES ($1, $2::{data_type}[][])",
+                idx, data
+            )
+
+        # Verify row count
+        await assertions.assert_table_row_count(len(test_data), table_name)
+
+        # Read back and verify data, ordered by ID to match insertion order
+        rows = await db_conn.fetch(f"SELECT id, array_2d FROM {table_name} ORDER BY id")
+
+        assert len(rows) == len(test_data), f"Expected {len(test_data)} rows, got {len(rows)}"
+
+        for idx, row in enumerate(rows):
+            retrieved_data = row['array_2d']
+            expected_data = test_data[idx]
+
+            # Debug: print what we got
+            print(f"Row {idx}: type={type(retrieved_data)}, value={retrieved_data}")
+
+            # Convert to nested lists for comparison if needed
+            if retrieved_data is not None:
+                # Check if it's already a list structure
+                if isinstance(retrieved_data, list):
+                    retrieved_list = [list(inner) if hasattr(inner, '__iter__') and not isinstance(inner, str) else inner for inner in retrieved_data]
+                else:
+                    retrieved_list = retrieved_data
+
+                print(f"Row {idx}: Expected {expected_data}, got {retrieved_list}")
+                
+                # Use approximate comparison for floats (float4 has ~7 significant digits)
+                if data_type == "float4":
+                    for i, (expected_row, retrieved_row) in enumerate(zip(expected_data, retrieved_list)):
+                        for j, (expected_val, retrieved_val) in enumerate(zip(expected_row, retrieved_row)):
+                            assert abs(expected_val - retrieved_val) < 1e-4, \
+                                f"Row {idx}[{i}][{j}]: Expected {expected_val}, got {retrieved_val}"
+                else:
+                    assert retrieved_list == expected_data, \
+                        f"Row {idx}: Expected {expected_data}, got {retrieved_list}"
+
+        # Test element access
+        if data_type == "int4":
+            await assertions.assert_query_row_count(
+                1,
+                f"SELECT * FROM {table_name} WHERE array_2d[1][1] = 1"
+            )
+            await assertions.assert_query_row_count(
+                1,
+                f"SELECT * FROM {table_name} WHERE array_2d[2][3] = 6"
+            )
+        else:  # float4
+            await assertions.assert_query_row_count(
+                1,
+                f"SELECT * FROM {table_name} WHERE array_2d[1][1] = 1.1"
+            )
+            await assertions.assert_query_row_count(
+                1,
+                f"SELECT * FROM {table_name} WHERE array_2d[2][3] = 6.6"
+            )
+
+        print(f"✓ Test passed: 2D {data_type} array operations work correctly")
+
+    finally:
+        # Cleanup
+        await db_conn.execute(f"DROP TABLE IF EXISTS {table_name} CASCADE")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("data_type,test_data", [
+    ("int4", [[1, 2, 3, 4, 5], [10, 20, 30, 40, 50], [100, 200, 300, 400, 500]]),
+    ("float4", [[1.1, 2.2, 3.3, 4.4, 5.5], [10.1, 20.2, 30.3, 40.4, 50.5], [100.1, 200.2, 300.3, 400.4, 500.5]]),
+])
+async def test_1d_array_single_column(db_conn: asyncpg.Connection, data_type: str, test_data: list):
+    """
+    Test 1D array operations with a single column table.
+
+    Tests:
+    - Creating table with single 1D array column
+    - Inserting 1D array data
+    - Reading back and verifying data integrity
+    - Parametrized for int4 and float4 types
+    """
+    assertions = Assertions(db_conn)
+    table_name = f"array_1d_test_{data_type}"
+
+    try:
+        # Create table with ID column and single 1D array column
+        await db_conn.execute(f"""
+            CREATE TABLE {table_name} (
+                id INT,
+                array_1d {data_type}[]
+            ) USING deeplake
+        """)
+
+        # Insert test data with explicit IDs
+        for idx, data in enumerate(test_data):
+            await db_conn.execute(
+                f"INSERT INTO {table_name} (id, array_1d) VALUES ($1, $2::{data_type}[])",
+                idx, data
+            )
+
+        # Verify row count
+        await assertions.assert_table_row_count(len(test_data), table_name)
+
+        # Read back and verify data, ordered by ID to match insertion order
+        rows = await db_conn.fetch(f"SELECT id, array_1d FROM {table_name} ORDER BY id")
+
+        assert len(rows) == len(test_data), f"Expected {len(test_data)} rows, got {len(rows)}"
+
+        for idx, row in enumerate(rows):
+            retrieved_data = row['array_1d']
+            expected_data = test_data[idx]
+
+            # Debug: print what we got
+            print(f"Row {idx}: type={type(retrieved_data)}, value={retrieved_data}")
+
+            # Convert to list for comparison if needed
+            if retrieved_data is not None:
+                retrieved_list = list(retrieved_data) if hasattr(retrieved_data, '__iter__') else retrieved_data
+
+                print(f"Row {idx}: Expected {expected_data}, got {retrieved_list}")
+
+                # Use approximate comparison for floats (float4 has ~7 significant digits)
+                if data_type == "float4":
+                    assert len(retrieved_list) == len(expected_data), \
+                        f"Row {idx}: Length mismatch - Expected {len(expected_data)}, got {len(retrieved_list)}"
+                    for i, (expected_val, retrieved_val) in enumerate(zip(expected_data, retrieved_list)):
+                        assert abs(expected_val - retrieved_val) < 1e-4, \
+                            f"Row {idx}[{i}]: Expected {expected_val}, got {retrieved_val}"
+                else:
+                    assert retrieved_list == expected_data, \
+                        f"Row {idx}: Expected {expected_data}, got {retrieved_list}"
+
+        # Test element access
+        if data_type == "int4":
+            await assertions.assert_query_row_count(
+                1,
+                f"SELECT * FROM {table_name} WHERE array_1d[1] = 1"
+            )
+            await assertions.assert_query_row_count(
+                1,
+                f"SELECT * FROM {table_name} WHERE array_1d[3] = 300"
+            )
+        else:  # float4
+            await assertions.assert_query_row_count(
+                1,
+                f"SELECT * FROM {table_name} WHERE array_1d[1] = 1.1"
+            )
+            await assertions.assert_query_row_count(
+                1,
+                f"SELECT * FROM {table_name} WHERE array_1d[3] = 300.3"
+            )
+
+        print(f"✓ Test passed: 1D {data_type} array operations work correctly")
+
+    finally:
+        # Cleanup
+        await db_conn.execute(f"DROP TABLE IF EXISTS {table_name} CASCADE")

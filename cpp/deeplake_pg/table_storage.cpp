@@ -28,6 +28,7 @@ extern "C" {
 #include "table_storage.hpp"
 
 #include "exceptions.hpp"
+#include <storage/exceptions.hpp>
 #include "logger.hpp"
 #include "memory_tracker.hpp"
 #include "nd_utils.hpp"
@@ -637,8 +638,13 @@ void table_storage::drop_table(const std::string& table_name)
             table_data.commit(); // Ensure all changes are committed before deletion
             table_version_tracker::drop_table(table_data.get_table_oid());
             deeplake_api::delete_dataset(table_data.get_dataset_path(), std::move(creds)).get_future().get();
+        } catch (const storage::storage_key_not_found&) {
+            // Dataset does not exist, silently continue with deletion
+            elog(DEBUG1, "Dataset not found during table drop, continuing silently");
         } catch (const base::exception& e) {
-            ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Failed to delete dataset: %s", e.what())));
+            // Dataset deletion failed - log warning but continue with table cleanup
+            // This handles cases where dataset was already deleted externally
+            elog(WARNING, "Failed to delete dataset during table drop: %s", e.what());
         }
         erase_table(table_name);
     }
