@@ -837,7 +837,11 @@ private:
                     const int64_t row_idx = current_row + row_in_batch;
                     auto value = td.get_streamers().value<std::string_view>(col_idx, row_idx);
                     if (is_uuid) {
-                        auto uuid_value = duckdb::UUID::FromString(std::string(value));
+                        duckdb::hugeint_t uuid_value;
+                        if (!duckdb::UUID::FromString(std::string(value), uuid_value)) {
+                            std::string tmp(value);
+                            elog(ERROR, "Failed to parse UUID string: %s", tmp.c_str());
+                        }
                         auto* duckdb_data = duckdb::FlatVector::GetData<duckdb::hugeint_t>(output_vector);
                         duckdb_data[row_in_batch] = uuid_value;
                     } else {

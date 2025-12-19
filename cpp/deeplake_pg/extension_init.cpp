@@ -950,9 +950,15 @@ static void executor_run(QueryDesc* query_desc, ScanDirection direction, uint64 
         if (pg::query_info::current().has_deferred_fetch()) {
             query_desc->dest = orig;
         }
-        pg::table_storage::instance().rollback_all();
-        pg::query_info::cleanup();
-        pg::table_storage::instance().reset_requested_columns();
+        try {
+            pg::table_storage::instance().rollback_all();
+            pg::query_info::cleanup();
+            pg::table_storage::instance().reset_requested_columns();
+        } catch (const std::exception& e) {
+            elog(WARNING, "Error during transaction cleanup: %s", e.what());
+        } catch (...) {
+            elog(WARNING, "Unknown error during transaction cleanup");
+        }
         PG_RE_THROW();
     }
     PG_END_TRY();
@@ -973,11 +979,25 @@ static void executor_end(QueryDesc* query_desc)
     if (pg::query_info::is_in_executor_context(query_desc)) {
         if (query_desc->operation == CMD_INSERT || query_desc->operation == CMD_UPDATE ||
             query_desc->operation == CMD_DELETE || query_desc->operation == CMD_UTILITY) {
-            pg::runtime_printer flush_timer("Flush All Tables");
-            if (!pg::table_storage::instance().flush_all()) {
-                pg::table_storage::instance().rollback_all();
-                ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Failed to flush table storage")));
+            // Use PG_TRY/CATCH to handle errors during flush without cascading aborts
+            PG_TRY();
+            {
+                pg::runtime_printer flush_timer("Flush All Tables");
+                if (!pg::table_storage::instance().flush_all()) {
+                    pg::table_storage::instance().rollback_all();
+                    ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Failed to flush table storage")));
+                }
             }
+            PG_CATCH();
+            {
+                // Error occurred during flush - rollback and suppress to prevent cascade
+                // This prevents "Deeplake does not support transaction aborts" cascade
+                pg::table_storage::instance().rollback_all();
+                elog(WARNING, "Failed to flush data during executor end, changes rolled back");
+                // Don't re-throw - let the transaction abort naturally
+                FlushErrorState();
+            }
+            PG_END_TRY();
         }
         pg::query_info::pop_context(query_desc);
         pg::table_storage::instance().reset_requested_columns();
