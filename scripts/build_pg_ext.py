@@ -167,6 +167,15 @@ def run(mode: str, incremental: bool, deeplake_link_type: str = None, pg_version
         if err:
             raise Exception(f"Command `{make_cmd}` failed with exit code {err}.")
 
+        # Install the built extension to PostgreSQL directories
+        preset_name = f"deeplake-pg-{mode}-windows" if platform.system() == "Windows" else f"deeplake-pg-{mode}"
+        install_dir = f"../builds/{preset_name}"
+        install_cmd = f"cmake --install {install_dir}"
+        print(f"Installing extension to PostgreSQL directories...")
+        err = os.system(install_cmd)
+        if err:
+            raise Exception(f"Command `{install_cmd}` failed with exit code {err}.")
+
     finally:
         os.chdir("..")
         write_mode(mode)
