@@ -562,7 +562,6 @@ private:
                              int64_t nrows,
                              int64_t ncols)
     {
-        sample = nd::eval(std::move(sample));
         // Get the child vector (type: LIST(T))
         auto& child_vec = duckdb::ListVector::GetEntry(output_vector);
         auto child_offset = duckdb::ListVector::GetListSize(output_vector);
@@ -657,7 +656,6 @@ private:
                              nd::array&& sample,
                              int64_t array_len)
     {
-        sample = nd::eval(std::move(sample));
         auto& list_entry_vec = duckdb::ListVector::GetEntry(output_vector);
         auto offset = duckdb::ListVector::GetListSize(output_vector);
 
