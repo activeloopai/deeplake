@@ -663,6 +663,15 @@ inline bool check_table_exists(const std::string& table_name, const std::string&
     return SPI_execute(query.c_str(), true, 0) == SPI_OK_SELECT && SPI_processed > 0;
 }
 
+inline bool check_column_exists(const std::string& table_name, const std::string& column_name, const std::string& schema_name = "public")
+{
+    std::string query = fmt::format("SELECT 1 FROM information_schema.columns WHERE "
+                                    "table_schema = '{}' AND table_name = '{}' AND column_name = '{}'",
+                                    schema_name, table_name, column_name);
+    spi_connector connector;
+    return SPI_execute(query.c_str(), true, 0) == SPI_OK_SELECT && SPI_processed > 0;
+}
+
 } // namespace utils
 
 } // namespace pg

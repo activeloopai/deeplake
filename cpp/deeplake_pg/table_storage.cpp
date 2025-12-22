@@ -200,6 +200,39 @@ void table_storage::load_table_metadata()
         return;
     }
 
+    // Backward compatibility: Check if table_oid column exists
+    // If not, drop and recreate the table with the correct schema
+    if (!pg::utils::check_column_exists("pg_deeplake_tables", "table_oid")) {
+        base::log_warning(base::log_channel::generic,
+            "Detected old schema for pg_deeplake_tables without table_oid column. "
+            "Dropping and recreating table to match current schema.");
+
+        pg::utils::spi_connector connector;
+        const char* drop_query = "DROP TABLE IF EXISTS public.pg_deeplake_tables CASCADE";
+        if (SPI_execute(drop_query, false, 0) != SPI_OK_UTILITY) {
+            base::log_warning(base::log_channel::generic, "Failed to drop old pg_deeplake_tables table");
+        }
+
+        const char* create_query =
+            "CREATE TABLE public.pg_deeplake_tables ("
+            "    id SERIAL PRIMARY KEY,"
+            "    table_oid OID NOT NULL UNIQUE,"
+            "    table_name NAME NOT NULL UNIQUE,"
+            "    ds_path TEXT NOT NULL UNIQUE"
+            ")";
+        if (SPI_execute(create_query, false, 0) != SPI_OK_UTILITY) {
+            base::log_warning(base::log_channel::generic, "Failed to create new pg_deeplake_tables table");
+        }
+
+        const char* grant_query = "GRANT SELECT, INSERT, UPDATE, DELETE ON public.pg_deeplake_tables TO PUBLIC";
+        if (SPI_execute(grant_query, false, 0) != SPI_OK_UTILITY) {
+            base::log_warning(base::log_channel::generic, "Failed to grant permissions on pg_deeplake_tables table");
+        }
+
+        // Table is now empty, so we can return early
+        return;
+    }
+
     const char* query = "SELECT table_oid, table_name, ds_path FROM public.pg_deeplake_tables";
 
     pg::utils::spi_connector connector;
