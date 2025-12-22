@@ -54,7 +54,7 @@ int32_t max_streamable_column_width = 128;
 int32_t max_num_threads_for_global_state = 4;
 bool treat_numeric_as_double = true; // Treat numeric types as double by default
 bool print_progress_during_seq_scan = false;
-bool use_shared_mem_for_refresh = true;
+bool use_shared_mem_for_refresh = false;
 bool enable_dataset_logging = false; // Enable dataset operation logging for debugging
 
 } // pg namespace
