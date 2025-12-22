@@ -18,8 +18,6 @@
 #include <heimdall_common/filtered_dataset.hpp>
 #include <query_core/index_holder.hpp>
 
-#include <source_location>
-
 namespace {
 
 struct deeplake_scan_bind_data final : public duckdb::TableFunctionData
@@ -433,28 +431,22 @@ private:
     }
 
     static duckdb::string_t
-    add_string(duckdb::Vector& vector, const char* data, duckdb::idx_t len, const std::source_location location)
+    add_string(duckdb::Vector& vector, const char* data, duckdb::idx_t len)
     {
-        auto line_number = static_cast<int32_t>(location.line());
         try {
             return duckdb::StringVector::AddString(vector, data, len);
         } catch (const duckdb::Exception& e) {
             elog(ERROR,
-                 "DuckDB exception while adding string '%s', line %d: %s",
+                 "DuckDB exception while adding string '%s': %s",
                  std::string(std::string_view(data, len)).c_str(),
-                 line_number,
                  e.what());
         } catch (const std::exception& e) {
             elog(ERROR,
-                 "STD exception while adding string '%s', line %d: %s",
+                 "STD exception while adding string '%s': %s",
                  std::string(std::string_view(data, len)).c_str(),
-                 line_number,
                  e.what());
         } catch (...) {
-            elog(ERROR,
-                 "Unknown exception while adding string '%s', line %d",
-                 std::string(std::string_view(data, len)).c_str(),
-                 line_number);
+            elog(ERROR, "Unknown exception while adding string '%s'", std::string(std::string_view(data, len)).c_str());
         }
     }
 
@@ -472,7 +464,7 @@ private:
                 value = base::string_view_cast<const unsigned char>(samples[row_in_batch].data());
             }
             duckdb_data[row_in_batch] =
-                add_string(output_vector, value.data(), value.size(), std::source_location::current());
+                add_string(output_vector, value.data(), value.size());
         }
     }
 
@@ -519,7 +511,7 @@ private:
                         auto* duckdb_data = duckdb::FlatVector::GetData<duckdb::string_t>(output_vector);
                         auto value = *reinterpret_cast<const T*>(sample.data().data());
                         duckdb_data[row_in_batch] = add_string(
-                            output_vector, reinterpret_cast<const char*>(&value), 1, std::source_location::current());
+                            output_vector, reinterpret_cast<const char*>(&value), 1);
                         return;
                     }
                     auto* duckdb_data = duckdb::FlatVector::GetData<T>(output_vector);
@@ -542,12 +534,12 @@ private:
                         } else {
                             auto json_str = sample.dict_value(0).serialize();
                             duckdb_data[row_in_batch] = add_string(
-                                output_vector, json_str.data(), json_str.size(), std::source_location::current());
+                                output_vector, json_str.data(), json_str.size());
                         }
                     } else {
                         auto value = base::string_view_cast<const unsigned char>(sample.data());
                         duckdb_data[row_in_batch] =
-                            add_string(output_vector, value.data(), value.size(), std::source_location::current());
+                            add_string(output_vector, value.data(), value.size());
                     }
                 }
             });
@@ -566,13 +558,10 @@ private:
 
     void set_2d_array_output(duckdb::Vector& output_vector,
                              duckdb::idx_t row_in_batch,
-                             const nd::array& sample,
+                             nd::array&& sample,
                              int64_t nrows,
                              int64_t ncols)
     {
-        elog(LOG, "set_2d_array_output: row_in_batch=%zu, nrows=%ld, ncols=%ld, dtype=%d",
-             row_in_batch, nrows, ncols, static_cast<int>(sample.dtype()));
-
         // Get the child vector (type: LIST(T))
         auto& child_vec = duckdb::ListVector::GetEntry(output_vector);
         auto child_offset = duckdb::ListVector::GetListSize(output_vector);
@@ -651,7 +640,7 @@ private:
                             auto elem_view = base::string_view_cast<const unsigned char>(elem.data());
                             auto* data_ptr = duckdb::FlatVector::GetData<duckdb::string_t>(grandchild_vec);
                             data_ptr[grandchild_offset + flat_idx] = add_string(
-                                grandchild_vec, elem_view.data(), elem_view.size(), std::source_location::current());
+                                grandchild_vec, elem_view.data(), elem_view.size());
                         }
                     }
                 }
@@ -664,7 +653,7 @@ private:
 
     void set_1d_array_output(duckdb::Vector& output_vector,
                              duckdb::idx_t row_in_batch,
-                             const nd::array& sample,
+                             nd::array&& sample,
                              int64_t array_len)
     {
         auto& list_entry_vec = duckdb::ListVector::GetEntry(output_vector);
@@ -694,7 +683,7 @@ private:
                     auto elem = sample[i];
                     auto elem_view = base::string_view_cast<const unsigned char>(elem.data());
                     list_data[offset + i] =
-                        add_string(list_entry_vec, elem_view.data(), elem_view.size(), std::source_location::current());
+                        add_string(list_entry_vec, elem_view.data(), elem_view.size());
                 }
             }
         });
@@ -709,7 +698,7 @@ private:
     // Uses a simplified approach: for 3D arrays, just call set_2d_array_output for each "page"
     void set_nd_array_output(duckdb::Vector& output_vector,
                              duckdb::idx_t row_in_batch,
-                             const nd::array& sample,
+                             nd::array&& sample,
                              const icm::shape& array_shape)
     {
         auto ndim = array_shape.size();
@@ -734,13 +723,7 @@ private:
                 auto page_array = sample[page];
                 auto page_offset = duckdb::ListVector::GetListSize(child_vec);
 
-                // Use set_2d_array_output to handle each page
-                set_2d_array_output(child_vec, child_offset + page, page_array, nrows, ncols);
-
-                // The list entry for this page is already set by set_2d_array_output at index (child_offset + page)
-                // But we need to adjust it since set_2d_array_output uses row_in_batch directly
-                // Actually, set_2d_array_output sets entries[row_in_batch], which is entries[child_offset + page]
-                // So it should work correctly
+                set_2d_array_output(child_vec, child_offset + page, std::move(page_array), nrows, ncols);
             }
 
             // Set up the top-level list entry
@@ -764,7 +747,7 @@ private:
 
             for (int64_t i = 0; i < first_dim_size; ++i) {
                 auto sub_array = sample[i];
-                set_nd_array_output(child_vec, child_offset + i, sub_array, sub_shape);
+                set_nd_array_output(child_vec, child_offset + i, std::move(sub_array), sub_shape);
             }
 
             auto* output_entries = duckdb::FlatVector::GetData<duckdb::list_entry_t>(output_vector);
@@ -788,14 +771,14 @@ private:
                 set_empty_array_output(output_vector, row_in_batch);
             } else if (array_shape.size() == 1) {
                 int64_t array_len = array_shape[0];
-                set_1d_array_output(output_vector, row_in_batch, sample, array_len);
+                set_1d_array_output(output_vector, row_in_batch, std::move(sample), array_len);
             } else if (array_shape.size() == 2) {
                 int64_t nrows = array_shape[0];
                 int64_t ncols = array_shape[1];
-                set_2d_array_output(output_vector, row_in_batch, sample, nrows, ncols);
+                set_2d_array_output(output_vector, row_in_batch, std::move(sample), nrows, ncols);
             } else {
                 // 3D+ arrays: use the general N-dimensional handler
-                set_nd_array_output(output_vector, row_in_batch, sample, array_shape);
+                set_nd_array_output(output_vector, row_in_batch, std::move(sample), array_shape);
             }
         }
     }
@@ -837,7 +820,7 @@ private:
                         const int64_t row_idx = current_row + row_in_batch;
                         auto value = td.get_streamers().value<T>(col_idx, row_idx);
                         duckdb_data[row_in_batch] = add_string(
-                            output_vector, reinterpret_cast<const char*>(&value), 1, std::source_location::current());
+                            output_vector, reinterpret_cast<const char*>(&value), 1);
                     }
                     return;
                 }
@@ -853,7 +836,7 @@ private:
                     } else {
                         auto json_str = sample.dict_value(0).serialize();
                         duckdb_data[row_in_batch] = add_string(
-                            output_vector, json_str.data(), json_str.size(), std::source_location::current());
+                            output_vector, json_str.data(), json_str.size());
                     }
                 }
             } else {
@@ -871,7 +854,7 @@ private:
                     } else {
                         auto* duckdb_data = duckdb::FlatVector::GetData<duckdb::string_t>(output_vector);
                         duckdb_data[row_in_batch] =
-                            add_string(output_vector, value.data(), value.size(), std::source_location::current());
+                            add_string(output_vector, value.data(), value.size());
                     }
                 }
             }

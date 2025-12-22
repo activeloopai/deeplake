@@ -246,7 +246,7 @@ void deeplake_executor_begin_scan(CustomScanState* node, EState* estate, int32_t
         elog(DEBUG1,
              "DeepLake Executor: Query returned %zu rows with %zu columns (direct from DuckDB)",
              state->total_rows,
-             state->duckdb_result.query_result ? state->duckdb_result.query_result->ColumnCount() : 0);
+             state->duckdb_result.get_column_count());
     } catch (const std::exception& e) {
         elog(ERROR, "DeepLake Executor: Query execution failed: %s", e.what());
     }
@@ -263,7 +263,11 @@ TupleTableSlot* deeplake_executor_exec_scan(CustomScanState* node)
     if (state->current_row < state->total_rows) {
         // Get the chunk and offset for the current row
         auto [chunk_idx, row_in_chunk] = state->duckdb_result.get_chunk_and_offset(state->current_row);
-        auto& chunk = state->duckdb_result.chunks[chunk_idx];
+        void* chunk_ptr = state->duckdb_result.get_chunk_ptr(chunk_idx);
+        if (!chunk_ptr) {
+            return slot; // Invalid chunk
+        }
+        auto* chunk = static_cast<duckdb::DataChunk*>(chunk_ptr);
 
         // Convert each column value directly from DuckDB to PostgreSQL
         for (size_t col_idx = 0; col_idx < chunk->ColumnCount(); ++col_idx) {
@@ -302,7 +306,7 @@ void deeplake_executor_explain(CustomScanState* node, List* ancestors, ExplainSt
     ExplainPropertyText("DeepLake Query", state->query_string.c_str(), es);
     if (state->total_rows > 0) {
         ExplainPropertyInteger("Rows", nullptr, state->total_rows, es);
-        ExplainPropertyInteger("Chunks", nullptr, state->duckdb_result.chunks.size(), es);
+        ExplainPropertyInteger("Chunks", nullptr, state->duckdb_result.get_chunk_count(), es);
     }
 }
 
