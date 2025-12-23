@@ -68,7 +68,6 @@ struct table_data
     inline bool is_column_indexed(AttrNumber attr_num) const noexcept;
     inline int32_t num_columns() const noexcept;
     inline int64_t num_rows() const noexcept;
-    inline int64_t num_uncommitted_rows() const noexcept;
     inline int64_t num_total_rows() const noexcept;
     inline void reset_insert_rows() noexcept;
     inline void add_insert_slots(int32_t nslots, TupleTableSlot** slots);
@@ -167,7 +166,7 @@ private:
     constexpr static int64_t batch_mask_ = batch_size_ - 1;
 
     streamer_info streamers_;
-    icm::string_map<std::vector<nd::array>> insert_rows_;
+    std::deque<async::promise<void>> insert_promises_;
     std::vector<int64_t> delete_rows_;
     std::vector<std::tuple<int64_t, std::string, nd::array>> update_rows_;
     std::shared_ptr<deeplake_api::dataset> dataset_;
@@ -180,8 +179,9 @@ private:
     http::uri dataset_path_ = http::uri(std::string());
     std::string table_name_;
     Oid table_oid_ = InvalidOid;
-    bool is_star_selected_ = true;
+    int64_t num_total_rows_ = 0;
     uint64_t cached_version_ = 0; // Cached version from shared memory for detecting changes
+    bool is_star_selected_ = true;
 };
 
 } // namespace pg
