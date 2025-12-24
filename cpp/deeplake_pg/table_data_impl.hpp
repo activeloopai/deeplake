@@ -31,22 +31,17 @@ namespace pg {
 
 namespace impl {
 
-inline void append_row(std::shared_ptr<deeplake_api::dataset> dataset, icm::string_map<nd::array> row)
+inline async::promise<void>
+append_rows(std::shared_ptr<deeplake_api::dataset> dataset, icm::string_map<nd::array> rows, int32_t num_rows)
 {
-    async::run_on_main([dataset = std::move(dataset), row = std::move(row)]() mutable {
-        return dataset->append_row(std::move(row));
-    })
-        .get_future()
-        .get();
-}
+    ASSERT(num_rows > 0);
 
-inline void append_rows(std::shared_ptr<deeplake_api::dataset> dataset, icm::string_map<nd::array> rows)
-{
-    async::run_on_main([dataset = std::move(dataset), rows = std::move(rows)]() mutable {
-        return dataset->append_rows(std::move(rows));
-    })
-        .get_future()
-        .get();
+    return async::run_on_main([ds = std::move(dataset), rows = std::move(rows), num_rows]() mutable {
+        if (num_rows == 1) {
+            return ds->append_row(std::move(rows));
+        }
+        return ds->append_rows(std::move(rows));
+    });
 }
 
 inline void commit_dataset(std::shared_ptr<deeplake_api::dataset> dataset, bool show_progress)
@@ -112,6 +107,7 @@ inline void table_data::open_dataset(bool create)
             dataset_ = deeplake_api::open(dataset_path_, std::move(creds)).get_future().get();
         }
         ASSERT(dataset_ != nullptr);
+        num_total_rows_ = dataset_->num_rows();
 
         // Enable logging if GUC parameter is set
         if (pg::enable_dataset_logging && dataset_ && !dataset_->is_logging_enabled()) {
@@ -150,6 +146,7 @@ inline void table_data::refresh()
             })
                 .get_future()
                 .get();
+            num_total_rows_ = dataset_->num_rows();
         }
     } else {
         ASSERT(refreshing_dataset_ != nullptr);
@@ -163,6 +160,7 @@ inline void table_data::refresh()
                 std::swap(dataset_, refreshing_dataset_);
                 dataset_->set_indexing_mode(ds_indexing_mode);
                 refreshing_dataset_->set_indexing_mode(deeplake::indexing_mode::off);
+                num_total_rows_ = dataset_->num_rows();
             }
         }
         // trigger new refresh
@@ -264,22 +262,20 @@ inline int64_t table_data::num_rows() const noexcept
     return get_read_only_dataset()->num_rows();
 }
 
-inline int64_t table_data::num_uncommitted_rows() const noexcept
-{
-    if (insert_rows_.empty()) {
-        return 0;
-    }
-    return insert_rows_.begin()->second.size();
-}
-
 inline int64_t table_data::num_total_rows() const noexcept
 {
-    return num_rows() + num_uncommitted_rows();
+    return num_total_rows_;
 }
 
 inline void table_data::reset_insert_rows() noexcept
 {
-    insert_rows_.clear();
+    for (auto& p : insert_promises_) {
+        p.cancel();
+    }
+    insert_promises_.clear();
+    if (dataset_) {
+        num_total_rows_ = dataset_->num_rows();
+    }
 }
 
 inline void table_data::add_insert_slots(int32_t nslots, TupleTableSlot** slots)
@@ -287,17 +283,25 @@ inline void table_data::add_insert_slots(int32_t nslots, TupleTableSlot** slots)
     for (auto k = 0; k < nslots; ++k) {
         auto slot = slots[k];
         slot_getallattrs(slot);
-        for (int32_t i = 0; i < num_columns(); ++i) {
+    }
+    for (int32_t i = 0; i < num_columns(); ++i) {
+        auto& column_values = insert_rows_[get_atttypename(i)];
+        const auto dt = get_column_view(i)->dtype();
+        for (auto k = 0; k < nslots; ++k) {
+            auto slot = slots[k];
             nd::array val;
             if (slot->tts_isnull[i]) {
-                auto dt = get_column_view(i)->dtype();
                 val = (nd::dtype_is_numeric(dt) ? nd::adapt(0) : nd::none(dt, 0));
             } else {
                 val = pg::utils::datum_to_nd(slot->tts_values[i], get_base_atttypid(i), get_atttypmod(i));
             }
-            std::string column_name = get_atttypename(i);
-            insert_rows_[std::move(column_name)].push_back(std::move(val));
+            column_values.push_back(std::move(val));
         }
+    }
+    num_total_rows_ += nslots;
+    const auto num_inserts = insert_rows_.begin()->second.size();
+    if (num_inserts >= 512) {
+        flush_inserts();
     }
 }
 
@@ -391,43 +395,41 @@ inline bool table_data::can_stream_column(int32_t column_number) const noexcept
     return column_width > 0 && column_width < pg::max_streamable_column_width;
 }
 
-inline bool table_data::flush_inserts()
+inline bool table_data::flush_inserts(bool full_flush)
 {
-    const auto num_inserts = num_uncommitted_rows();
-    if (num_inserts == 0) {
-        return true;
-    }
-
-    // Flush the insert tuples to the dataset
-    try {
-        streamers_.reset();
-        elog(DEBUG1, "Flushing %zu insert rows to dataset '%s'", num_inserts, table_name_.c_str());
-        const auto start = std::chrono::high_resolution_clock::now();
-
-        icm::string_map<nd::array> merged;
+    if (!insert_rows_.empty()) {
+        icm::string_map<nd::array> deeplake_rows;
+        const auto num_inserts = insert_rows_.begin()->second.size();
         if (num_inserts == 1) {
             for (auto& [column_name, values] : insert_rows_) {
-                merged[column_name] = std::move(values.front());
+                deeplake_rows[column_name] = std::move(values.front());
             }
-            impl::append_row(get_dataset(), std::move(merged));
         } else {
             for (auto& [column_name, values] : insert_rows_) {
-                merged[column_name] = nd::dynamic(std::move(values));
+                deeplake_rows[column_name] = nd::dynamic(std::move(values));
             }
-            impl::append_rows(get_dataset(), std::move(merged));
         }
-        const auto end = std::chrono::high_resolution_clock::now();
-        elog(DEBUG1,
-             "Flushed insert rows to dataset '%s' in %.2f seconds",
-             table_name_.c_str(),
-             std::chrono::duration<double>(end - start).count());
+        insert_rows_.clear();
+        streamers_.reset();
+        insert_promises_.push_back(impl::append_rows(get_dataset(), std::move(deeplake_rows), num_inserts));
+    }
+    try {
+        constexpr size_t max_pending_insert_promises = 1024;
+        while (!insert_promises_.empty() && (full_flush || insert_promises_.size() >= max_pending_insert_promises)) {
+            auto p = std::move(insert_promises_.front());
+            insert_promises_.pop_front();
+            if (p.is_ready()) {
+                std::move(p).get();
+            } else {
+                p.get_future().get();
+            }
+        }
     } catch (const base::exception& e) {
         elog(WARNING, "Failed to flush inserts: %s", e.what());
-        insert_rows_.clear();
+        reset_insert_rows();
         return false;
     }
 
-    insert_rows_.clear();
     return true;
 }
 
@@ -524,6 +526,7 @@ inline std::pair<int64_t, int64_t> table_data::get_row_range(int32_t worker_id) 
 
 inline void table_data::create_streamer(int32_t idx, int32_t worker_id)
 {
+    return;
     if (streamers_.streamers.empty()) {
         const auto s = num_columns();
         streamers_.streamers.resize(s);
@@ -636,7 +639,7 @@ inline std::string_view table_data::streamer_info::value(int32_t column_number, 
 
 inline bool table_data::flush()
 {
-    const bool s1 = flush_inserts();
+    const bool s1 = flush_inserts(true);
     const bool s2 = flush_deletes();
     const bool s3 = flush_updates();
     return s1 && s2 && s3;
