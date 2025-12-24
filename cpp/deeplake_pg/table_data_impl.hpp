@@ -526,7 +526,6 @@ inline std::pair<int64_t, int64_t> table_data::get_row_range(int32_t worker_id) 
 
 inline void table_data::create_streamer(int32_t idx, int32_t worker_id)
 {
-    return;
     if (streamers_.streamers.empty()) {
         const auto s = num_columns();
         streamers_.streamers.resize(s);
