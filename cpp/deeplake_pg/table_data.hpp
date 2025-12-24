@@ -80,7 +80,7 @@ struct table_data
     inline bool flush();
 
 private:
-    bool flush_inserts();
+    bool flush_inserts(bool full_flush = false);
     bool flush_deletes();
     bool flush_updates();
     inline void force_refresh();
@@ -166,6 +166,7 @@ private:
     constexpr static int64_t batch_mask_ = batch_size_ - 1;
 
     streamer_info streamers_;
+    icm::string_map<std::vector<nd::array>> insert_rows_;
     std::deque<async::promise<void>> insert_promises_;
     std::vector<int64_t> delete_rows_;
     std::vector<std::tuple<int64_t, std::string, nd::array>> update_rows_;

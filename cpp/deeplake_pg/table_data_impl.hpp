@@ -280,15 +280,12 @@ inline void table_data::reset_insert_rows() noexcept
 
 inline void table_data::add_insert_slots(int32_t nslots, TupleTableSlot** slots)
 {
-    streamers_.reset();
     for (auto k = 0; k < nslots; ++k) {
         auto slot = slots[k];
         slot_getallattrs(slot);
     }
-    icm::string_map<nd::array> deeplake_rows;
     for (int32_t i = 0; i < num_columns(); ++i) {
-        std::vector<nd::array> column_values;
-        column_values.reserve(nslots);
+        auto& column_values = insert_rows_[get_atttypename(i)];
         const auto dt = get_column_view(i)->dtype();
         for (auto k = 0; k < nslots; ++k) {
             auto slot = slots[k];
@@ -300,24 +297,11 @@ inline void table_data::add_insert_slots(int32_t nslots, TupleTableSlot** slots)
             }
             column_values.push_back(std::move(val));
         }
-        std::string column_name = get_atttypename(i);
-        if (nslots == 1) {
-            deeplake_rows[std::move(column_name)] = std::move(column_values.front());
-        } else {
-            deeplake_rows[std::move(column_name)] = nd::dynamic(std::move(column_values));
-        }
     }
     num_total_rows_ += nslots;
-    insert_promises_.push_back(impl::append_rows(get_dataset(), std::move(deeplake_rows), nslots));
-    constexpr size_t max_pending_insert_promises = 1024;
-    if (insert_promises_.size() >= max_pending_insert_promises) {
-        auto p = std::move(insert_promises_.front());
-        insert_promises_.pop_front();
-        if (p.is_ready()) {
-            std::move(p).get();
-        } else {
-            p.get_future().get();
-        }
+    const auto num_inserts = insert_rows_.begin()->second.size();
+    if (num_inserts >= 512) {
+        flush_inserts();
     }
 }
 
@@ -411,22 +395,35 @@ inline bool table_data::can_stream_column(int32_t column_number) const noexcept
     return column_width > 0 && column_width < pg::max_streamable_column_width;
 }
 
-inline bool table_data::flush_inserts()
+inline bool table_data::flush_inserts(bool full_flush)
 {
-    if (insert_promises_.empty()) {
-        return true;
+    if (!insert_rows_.empty()) {
+        icm::string_map<nd::array> deeplake_rows;
+        const auto num_inserts = insert_rows_.begin()->second.size();
+        if (num_inserts == 1) {
+            for (auto& [column_name, values] : insert_rows_) {
+                deeplake_rows[column_name] = std::move(values.front());
+            }
+        } else {
+            for (auto& [column_name, values] : insert_rows_) {
+                deeplake_rows[column_name] = nd::dynamic(std::move(values));
+            }
+        }
+        insert_rows_.clear();
+        streamers_.reset();
+        insert_promises_.push_back(impl::append_rows(get_dataset(), std::move(deeplake_rows), num_inserts));
     }
-    // Flush the insert tuples to the dataset
     try {
-        for (auto& p : insert_promises_) {
+        constexpr size_t max_pending_insert_promises = 1024;
+        while (!insert_promises_.empty() && (full_flush || insert_promises_.size() >= max_pending_insert_promises)) {
+            auto p = std::move(insert_promises_.front());
+            insert_promises_.pop_front();
             if (p.is_ready()) {
                 std::move(p).get();
             } else {
                 p.get_future().get();
             }
         }
-        insert_promises_.clear();
-        num_total_rows_ = dataset_->num_rows();
     } catch (const base::exception& e) {
         elog(WARNING, "Failed to flush inserts: %s", e.what());
         reset_insert_rows();
@@ -642,7 +639,7 @@ inline std::string_view table_data::streamer_info::value(int32_t column_number, 
 
 inline bool table_data::flush()
 {
-    const bool s1 = flush_inserts();
+    const bool s1 = flush_inserts(true);
     const bool s2 = flush_deletes();
     const bool s3 = flush_updates();
     return s1 && s2 && s3;
