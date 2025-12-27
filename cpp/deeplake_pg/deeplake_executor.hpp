@@ -38,6 +38,9 @@ PGDLLEXPORT PlannedStmt* deeplake_create_direct_execution_plan(
 }
 #endif
 
+// Helper function for COUNT(*) detection
+bool is_pure_count_star_query(Query* parse);
+
 namespace pg {
 void analyze_plan(PlannedStmt* plan);
 } // namespace pg
