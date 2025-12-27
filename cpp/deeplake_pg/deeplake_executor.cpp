@@ -129,6 +129,15 @@ struct DeeplakeExecutorState
     }
 };
 
+// Simple executor state for COUNT(*) fast path
+struct CountExecutorState
+{
+    CustomScanState css;
+    int64_t count_value;
+    bool returned = false;
+};
+
+// DeepLake executor forward declarations
 Node* deeplake_executor_create_scan_state(CustomScan* cscan);
 void deeplake_executor_begin_scan(CustomScanState* node, EState* estate, int32_t eflags);
 TupleTableSlot* deeplake_executor_exec_scan(CustomScanState* node);
@@ -136,9 +145,20 @@ void deeplake_executor_end_scan(CustomScanState* node);
 void deeplake_executor_rescan(CustomScanState* node);
 void deeplake_executor_explain(CustomScanState* node, List* ancestors, ExplainState* es);
 
+// COUNT(*) executor forward declarations
+Node* count_executor_create_scan_state(CustomScan* cscan);
+void count_executor_begin_scan(CustomScanState* node, EState* estate, int32_t eflags);
+TupleTableSlot* count_executor_exec_scan(CustomScanState* node);
+void count_executor_end_scan(CustomScanState* node);
+void count_executor_rescan(CustomScanState* node);
+void count_executor_explain(CustomScanState* node, List* ancestors, ExplainState* es);
+
 // Custom scan methods
 static CustomScanMethods deeplake_executor_scan_methods;
 static CustomExecMethods deeplake_executor_exec_methods;
+
+static CustomScanMethods count_executor_scan_methods;
+static CustomExecMethods count_executor_exec_methods;
 
 static void init_executor_methods()
 {
@@ -148,12 +168,12 @@ static void init_executor_methods()
     }
     inited = true;
 
-    // Initialize scan methods
+    // Initialize deeplake executor scan methods
     memset(&deeplake_executor_scan_methods, 0, sizeof(deeplake_executor_scan_methods));
     deeplake_executor_scan_methods.CustomName = "DeeplakeExecutor";
     deeplake_executor_scan_methods.CreateCustomScanState = deeplake_executor_create_scan_state;
 
-    // Initialize exec methods
+    // Initialize deeplake executor exec methods
     memset(&deeplake_executor_exec_methods, 0, sizeof(deeplake_executor_exec_methods));
     deeplake_executor_exec_methods.CustomName = "DeeplakeExecutor";
     deeplake_executor_exec_methods.BeginCustomScan = deeplake_executor_begin_scan;
@@ -161,6 +181,20 @@ static void init_executor_methods()
     deeplake_executor_exec_methods.EndCustomScan = deeplake_executor_end_scan;
     deeplake_executor_exec_methods.ReScanCustomScan = deeplake_executor_rescan;
     deeplake_executor_exec_methods.ExplainCustomScan = deeplake_executor_explain;
+
+    // Initialize COUNT(*) executor scan methods
+    memset(&count_executor_scan_methods, 0, sizeof(count_executor_scan_methods));
+    count_executor_scan_methods.CustomName = "CountExecutor";
+    count_executor_scan_methods.CreateCustomScanState = count_executor_create_scan_state;
+
+    // Initialize COUNT(*) executor exec methods
+    memset(&count_executor_exec_methods, 0, sizeof(count_executor_exec_methods));
+    count_executor_exec_methods.CustomName = "CountExecutor";
+    count_executor_exec_methods.BeginCustomScan = count_executor_begin_scan;
+    count_executor_exec_methods.ExecCustomScan = count_executor_exec_scan;
+    count_executor_exec_methods.EndCustomScan = count_executor_end_scan;
+    count_executor_exec_methods.ReScanCustomScan = count_executor_rescan;
+    count_executor_exec_methods.ExplainCustomScan = count_executor_explain;
 }
 
 // Helper: Convert deeplake sample to PostgreSQL Datum
@@ -310,6 +344,85 @@ void deeplake_executor_explain(CustomScanState* node, List* ancestors, ExplainSt
     }
 }
 
+// ============================================================================
+// COUNT(*) Fast Path Executor Implementation
+// ============================================================================
+
+// Create scan state for COUNT(*) executor
+Node* count_executor_create_scan_state(CustomScan* cscan)
+{
+    CountExecutorState* state = (CountExecutorState*)palloc0(sizeof(CountExecutorState));
+    NodeSetTag(state, T_CustomScanState);
+    init_executor_methods();
+    state->css.methods = &count_executor_exec_methods;
+    state->css.ss.ps.type = T_CustomScanState;
+    return (Node*)state;
+}
+
+// Begin scan for COUNT(*) executor
+void count_executor_begin_scan(CustomScanState* node, EState* estate, int32_t eflags)
+{
+    CountExecutorState* state = (CountExecutorState*)node;
+    CustomScan* cscan = (CustomScan*)node->ss.ps.plan;
+
+    // Initialize scan state
+    state->css.ss.ps.state = estate;
+    ExecInitScanTupleSlot(estate, &state->css.ss, ExecTypeFromTL(cscan->scan.plan.targetlist), &TTSOpsVirtual);
+
+    // Extract count value from custom_private
+    ASSERT(list_length(cscan->custom_private) == 1);
+    Const* count_const = (Const*)linitial(cscan->custom_private);
+    ASSERT(count_const && IsA(count_const, Const) && !count_const->constisnull);
+    state->count_value = DatumGetInt64(count_const->constvalue);
+    state->returned = false;
+
+    elog(DEBUG1, "DeepLake COUNT(*) Fast Path: returning %ld", state->count_value);
+}
+
+// Execute scan for COUNT(*) executor - return single row with count
+TupleTableSlot* count_executor_exec_scan(CustomScanState* node)
+{
+    CountExecutorState* state = (CountExecutorState*)node;
+    TupleTableSlot* slot = node->ss.ss_ScanTupleSlot;
+
+    ExecClearTuple(slot);
+
+    // Return count value as single row, only once
+    if (!state->returned) {
+        slot->tts_values[0] = Int64GetDatum(state->count_value);
+        slot->tts_isnull[0] = false;
+        ExecStoreVirtualTuple(slot);
+        state->returned = true;
+        return slot;
+    }
+
+    // Already returned the count
+    return slot;
+}
+
+// End scan for COUNT(*) executor
+void count_executor_end_scan(CustomScanState* node)
+{
+    // Nothing to clean up
+}
+
+// Rescan for COUNT(*) executor
+void count_executor_rescan(CustomScanState* node)
+{
+    CountExecutorState* state = (CountExecutorState*)node;
+    state->returned = false;
+}
+
+// Explain for COUNT(*) executor
+void count_executor_explain(CustomScanState* node, List* ancestors, ExplainState* es)
+{
+    CountExecutorState* state = (CountExecutorState*)node;
+    ExplainPropertyText("DeepLake Optimization", "COUNT(*) Fast Path", es);
+    ExplainPropertyInteger("Count", nullptr, state->count_value, es);
+}
+
+// ============================================================================
+
 // Create a simple targetlist with Var nodes for the output columns
 // This converts expressions to simple column references
 List* create_simple_targetlist(List* original_targetlist)
@@ -370,6 +483,42 @@ extern "C" PlannedStmt* deeplake_create_direct_execution_plan(Query* parse,
     // <#> marker indicates usage of DeepLake scored index searches - skip direct execution
     if (!pg::query_info::current().are_all_tables_deeplake() || strstr(query_string, "<#>") != nullptr) {
         return std_plan;
+    }
+
+    // Fast path for COUNT(*) without WHERE
+    if (is_pure_count_star_query(parse)) {
+        // Extract table from rtable
+        RangeTblEntry* rte = (RangeTblEntry*)linitial(parse->rtable);
+        Oid table_id = rte->relid;
+
+        // Get row count from table_data
+        if (pg::table_storage::instance().table_exists(table_id)) {
+            auto& table_data = pg::table_storage::instance().get_table_data(table_id);
+            int64_t row_count = table_data.num_rows();
+
+            // Create a CustomScan node with COUNT(*) executor
+            CustomScan* cscan = makeNode(CustomScan);
+            cscan->scan.plan.targetlist = create_simple_targetlist(std_plan->planTree->targetlist);
+            cscan->scan.plan.qual = NIL;
+            cscan->scan.scanrelid = 0;
+            cscan->flags = 0;
+            cscan->methods = &count_executor_scan_methods;
+
+            // Cost estimates (very cheap!)
+            cscan->scan.plan.startup_cost = 0;
+            cscan->scan.plan.total_cost = 0.01;
+            cscan->scan.plan.plan_rows = 1;
+            cscan->scan.plan.plan_width = sizeof(int64_t);
+
+            // Store count value in custom_private
+            Const* count_const = makeConst(INT8OID, -1, InvalidOid, sizeof(int64_t),
+                                           Int64GetDatum(row_count), false, true);
+            cscan->custom_private = list_make1(count_const);
+
+            // Replace plan tree with COUNT(*) executor
+            std_plan->planTree = reinterpret_cast<Plan*>(cscan);
+            return std_plan;
+        }
     }
 
     // Create a CustomScan node that will execute the entire query in DeepLake
