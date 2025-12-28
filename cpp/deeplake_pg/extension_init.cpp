@@ -728,6 +728,292 @@ static void process_utility(PlannedStmt* pstmt,
         standard_ProcessUtility(pstmt, queryString, readOnlyTree, context, params, queryEnv, dest, completionTag);
     }
 
+    // Post-process ALTER TABLE ADD COLUMN to add column to deeplake dataset
+    if (IsA(pstmt->utilityStmt, AlterTableStmt)) {
+        AlterTableStmt* stmt = (AlterTableStmt*)pstmt->utilityStmt;
+        RangeVar* rel = stmt->relation;
+        const std::string schema_name = (rel->schemaname != nullptr ? rel->schemaname : "public");
+        const std::string table_name = schema_name + "." + rel->relname;
+        auto* td = pg::table_storage::instance().get_table_data_if_exists(table_name);
+
+        if (td != nullptr) {
+            ListCell* lc = nullptr;
+            foreach (lc, stmt->cmds) {
+                AlterTableCmd* cmd = (AlterTableCmd*)lfirst(lc);
+                if (cmd->subtype == AT_AddColumn && cmd->def != nullptr) {
+                    // Column has been added to PostgreSQL catalog, now add to deeplake
+                    ColumnDef* coldef = (ColumnDef*)cmd->def;
+                    const char* column_name = coldef->colname;
+
+                    // Get the relation to query the new column's type from catalog
+                    Oid rel_oid = RangeVarGetRelid(rel, NoLock, false);
+                    Relation relation = RelationIdGetRelation(rel_oid);
+                    if (RelationIsValid(relation)) {
+                        TupleDesc tupdesc = RelationGetDescr(relation);
+
+                        // Find the newly added column in the tuple descriptor
+                        for (int i = 0; i < tupdesc->natts; i++) {
+                            Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
+                            if (strcmp(NameStr(attr->attname), column_name) == 0) {
+                                // Found the new column, add it to deeplake dataset
+                                Oid base_typeid = attr->atttypid;
+
+                                // Resolve domain types to their base type
+                                HeapTuple type_tuple = SearchSysCache1(TYPEOID, ObjectIdGetDatum(base_typeid));
+                                if (HeapTupleIsValid(type_tuple)) {
+                                    Form_pg_type type_form = (Form_pg_type)GETSTRUCT(type_tuple);
+                                    if (type_form->typtype == TYPTYPE_DOMAIN) {
+                                        base_typeid = type_form->typbasetype;
+                                    }
+                                    ReleaseSysCache(type_tuple);
+                                }
+
+                                try {
+                                    auto ds = td->get_dataset();
+
+                                    // Map PostgreSQL type to DeepLake type (same logic as create_table)
+                                    switch (base_typeid) {
+                                    case BOOLOID:
+                                        ds->add_column(column_name, nd::type::scalar(nd::dtype::boolean));
+                                        break;
+                                    case INT2OID:
+                                        ds->add_column(column_name, nd::type::scalar(nd::dtype::int16));
+                                        break;
+                                    case INT4OID:
+                                    case DATEOID:
+                                        ds->add_column(column_name, nd::type::scalar(nd::dtype::int32));
+                                        break;
+                                    case TIMEOID:
+                                    case TIMESTAMPOID:
+                                    case TIMESTAMPTZOID:
+                                    case INT8OID:
+                                        ds->add_column(column_name, nd::type::scalar(nd::dtype::int64));
+                                        break;
+                                    case FLOAT4OID:
+                                        ds->add_column(column_name, nd::type::scalar(nd::dtype::float32));
+                                        break;
+                                    case NUMERICOID: {
+                                        const int32_t typmod = attr->atttypmod;
+                                        if (typmod >= 0) {
+                                            const int32_t precision = ((typmod - VARHDRSZ) >> 16) & 0xFFFF;
+                                            if (precision > 15) {
+                                                const int32_t scale = (typmod - VARHDRSZ) & 0xFFFF;
+                                                elog(WARNING,
+                                                     "Column '%s' has type NUMERIC(%d, %d), which may lose precision "
+                                                     "as it is stored as FLOAT64.",
+                                                     column_name,
+                                                     precision,
+                                                     scale);
+                                            }
+                                        }
+                                    }
+                                    case FLOAT8OID:
+                                        ds->add_column(column_name, nd::type::scalar(nd::dtype::float64));
+                                        break;
+                                    case CHAROID:
+                                    case BPCHAROID:
+                                    case VARCHAROID: {
+                                        const int32_t typmod = attr->atttypmod;
+                                        if (typmod == VARHDRSZ + 1) {
+                                            ds->add_column(column_name,
+                                                          deeplake_core::type::generic(nd::type::scalar(nd::dtype::int8)));
+                                        } else {
+                                            ds->add_column(column_name, deeplake_core::type::text(codecs::compression::null));
+                                        }
+                                        break;
+                                    }
+                                    case UUIDOID:
+                                    case TEXTOID:
+                                        ds->add_column(column_name, deeplake_core::type::text(codecs::compression::null));
+                                        break;
+                                    case JSONOID:
+                                    case JSONBOID:
+                                        ds->add_column(column_name, deeplake_core::type::dict());
+                                        break;
+                                    case BYTEAOID:
+                                        ds->add_column(column_name,
+                                                      deeplake_core::type::generic(nd::type::scalar(nd::dtype::byte)));
+                                        break;
+                                    case INT2ARRAYOID: {
+                                        int32_t ndims = (attr->attndims > 0) ? attr->attndims : 1;
+                                        if (ndims > 255) {
+                                            elog(ERROR,
+                                                 "Column '%s' has unsupported type SMALLINT[] with %d dimensions (max 255)",
+                                                 column_name,
+                                                 ndims);
+                                        }
+                                        if (ndims == 1) {
+                                            ds->add_column(column_name, deeplake_core::type::embedding(0, nd::dtype::int16));
+                                        } else {
+                                            ds->add_column(column_name,
+                                                          deeplake_core::type::generic(nd::type::array(nd::dtype::int16, ndims)));
+                                        }
+                                        break;
+                                    }
+                                    case INT4ARRAYOID: {
+                                        int32_t ndims = (attr->attndims > 0) ? attr->attndims : 1;
+                                        if (ndims > 255) {
+                                            elog(ERROR,
+                                                 "Column '%s' has unsupported type INT[] with %d dimensions (max 255)",
+                                                 column_name,
+                                                 ndims);
+                                        }
+                                        if (ndims == 1) {
+                                            ds->add_column(column_name, deeplake_core::type::embedding(0, nd::dtype::int32));
+                                        } else {
+                                            ds->add_column(column_name,
+                                                          deeplake_core::type::generic(nd::type::array(nd::dtype::int32, ndims)));
+                                        }
+                                        break;
+                                    }
+                                    case INT8ARRAYOID: {
+                                        int32_t ndims = (attr->attndims > 0) ? attr->attndims : 1;
+                                        if (ndims > 255) {
+                                            elog(ERROR,
+                                                 "Column '%s' has unsupported type BIGINT[] with %d dimensions (max 255)",
+                                                 column_name,
+                                                 ndims);
+                                        }
+                                        if (ndims == 1) {
+                                            ds->add_column(column_name, deeplake_core::type::embedding(0, nd::dtype::int64));
+                                        } else {
+                                            ds->add_column(column_name,
+                                                          deeplake_core::type::generic(nd::type::array(nd::dtype::int64, ndims)));
+                                        }
+                                        break;
+                                    }
+                                    case FLOAT4ARRAYOID: {
+                                        int32_t ndims = (attr->attndims > 0) ? attr->attndims : 1;
+                                        if (ndims > 255) {
+                                            elog(ERROR,
+                                                 "Column '%s' has unsupported type REAL[] with %d dimensions (max 255)",
+                                                 column_name,
+                                                 ndims);
+                                        }
+                                        if (ndims == 1) {
+                                            ds->add_column(column_name,
+                                                          deeplake_core::type::embedding(0, nd::dtype::float32));
+                                        } else {
+                                            ds->add_column(column_name,
+                                                          deeplake_core::type::generic(nd::type::array(nd::dtype::float32, ndims)));
+                                        }
+                                        break;
+                                    }
+                                    case FLOAT8ARRAYOID: {
+                                        int32_t ndims = (attr->attndims > 0) ? attr->attndims : 1;
+                                        if (ndims > 255) {
+                                            elog(ERROR,
+                                                 "Column '%s' has unsupported type DOUBLE PRECISION[] with %d dimensions (max 255)",
+                                                 column_name,
+                                                 ndims);
+                                        }
+                                        if (ndims == 1) {
+                                            ds->add_column(column_name,
+                                                          deeplake_core::type::embedding(0, nd::dtype::float64));
+                                        } else {
+                                            ds->add_column(column_name,
+                                                          deeplake_core::type::generic(nd::type::array(nd::dtype::float64, ndims)));
+                                        }
+                                        break;
+                                    }
+                                    case BYTEAARRAYOID: {
+                                        if (attr->attndims > 1) {
+                                            elog(ERROR,
+                                                 "Column '%s' has unsupported type BYTEA[] with %d dimensions",
+                                                 column_name,
+                                                 attr->attndims);
+                                        }
+                                        ds->add_column(column_name,
+                                                      deeplake_core::type::generic(nd::type::array(nd::dtype::byte, attr->attndims)));
+                                        break;
+                                    }
+                                    case VARCHARARRAYOID:
+                                    case TEXTARRAYOID: {
+                                        if (attr->attndims > 1) {
+                                            elog(ERROR,
+                                                 "Column '%s' has unsupported type TEXT[] with %d dimensions",
+                                                 column_name,
+                                                 attr->attndims);
+                                        }
+                                        ds->add_column(column_name,
+                                                      deeplake_core::type::generic(nd::type::array(nd::dtype::string, attr->attndims)));
+                                        break;
+                                    }
+                                    default: {
+                                        const char* tname = format_type_with_typemod(attr->atttypid, attr->atttypmod);
+                                        elog(ERROR,
+                                             "ALTER TABLE ADD COLUMN: Column '%s' has unsupported type '%s' (OID %u, base OID %u)",
+                                             column_name,
+                                             tname,
+                                             attr->atttypid,
+                                             base_typeid);
+                                    }
+                                    }
+
+                                    // Commit the change to deeplake dataset
+                                    td->commit();
+                                    elog(INFO, "Added column '%s' to deeplake dataset for table '%s'", column_name, table_name.c_str());
+
+                                    // Invalidate cached table data to force reload in current session
+                                    RelationClose(relation);
+                                    pg::table_storage::instance().erase_table(table_name);
+                                    pg::table_storage::instance().force_load_table_metadata();
+                                    return; // Exit early after erasing table
+
+                                } catch (const base::exception& e) {
+                                    RelationClose(relation);
+                                    ereport(ERROR,
+                                            (errcode(ERRCODE_INTERNAL_ERROR),
+                                             errmsg("Failed to add column '%s' to deeplake dataset: %s", column_name, e.what())));
+                                }
+                                break;
+                            }
+                        }
+                        RelationClose(relation);
+                    }
+                }
+            }
+        }
+    }
+
+    // Post-process RENAME COLUMN to rename column in deeplake dataset
+    if (IsA(pstmt->utilityStmt, RenameStmt)) {
+        RenameStmt* stmt = (RenameStmt*)pstmt->utilityStmt;
+        if (stmt->renameType == OBJECT_COLUMN && stmt->relation != nullptr) {
+            RangeVar* rel = stmt->relation;
+            const std::string schema_name = (rel->schemaname != nullptr ? rel->schemaname : "public");
+            const std::string table_name = schema_name + "." + rel->relname;
+            auto* td = pg::table_storage::instance().get_table_data_if_exists(table_name);
+
+            if (td != nullptr && stmt->subname != nullptr && stmt->newname != nullptr) {
+                const char* old_column_name = stmt->subname;
+                const char* new_column_name = stmt->newname;
+
+                try {
+                    auto ds = td->get_dataset();
+
+                    // Rename column in deeplake dataset
+                    ds->rename_column(old_column_name, new_column_name);
+
+                    // Commit the change to deeplake dataset
+                    td->commit();
+                    elog(INFO, "Renamed column '%s' to '%s' in deeplake dataset for table '%s'",
+                         old_column_name, new_column_name, table_name.c_str());
+
+                    // Invalidate cached table data to force reload in current session
+                    pg::table_storage::instance().erase_table(table_name);
+                    pg::table_storage::instance().force_load_table_metadata();
+
+                } catch (const base::exception& e) {
+                    ereport(ERROR,
+                            (errcode(ERRCODE_INTERNAL_ERROR),
+                             errmsg("Failed to rename column '%s' to '%s' in deeplake dataset: %s",
+                                    old_column_name, new_column_name, e.what())));
+                }
+            }
+        }
+    }
+
     if (IsA(pstmt->utilityStmt, CopyStmt)) {
         CopyStmt* copy_stmt = (CopyStmt*)pstmt->utilityStmt;
         if (copy_stmt->relation) {
