@@ -814,17 +814,15 @@ private:
         nd::switch_dtype(col_view->dtype(), [&]<typename T>() {
             if constexpr (std::is_arithmetic_v<T>) {
                 auto att_type = td.get_atttypid(col_idx);
+                auto* value_ptr = td.get_streamers().value_ptr<T>(col_idx, current_row);
                 if (att_type == VARCHAROID || att_type == CHAROID || att_type == BPCHAROID) {
                     auto* duckdb_data = duckdb::FlatVector::GetData<duckdb::string_t>(output_vector);
                     for (duckdb::idx_t row_in_batch = 0; row_in_batch < batch_size; ++row_in_batch) {
-                        const int64_t row_idx = current_row + row_in_batch;
-                        auto value = td.get_streamers().value<T>(col_idx, row_idx);
-                        duckdb_data[row_in_batch] = add_string(
-                            output_vector, reinterpret_cast<const char*>(&value), 1);
+                        duckdb_data[row_in_batch] =
+                            add_string(output_vector, reinterpret_cast<const char*>(value_ptr + row_in_batch), 1);
                     }
                     return;
                 }
-                auto* value_ptr = td.get_streamers().value_ptr<T>(col_idx, current_row);
                 std::memcpy(duckdb::FlatVector::GetData<T>(output_vector), value_ptr, batch_size * sizeof(T));
             } else if constexpr (std::is_same_v<T, nd::dict>) {
                 auto* duckdb_data = duckdb::FlatVector::GetData<duckdb::string_t>(output_vector);
