@@ -148,3 +148,118 @@ async def test_rename_column_in_table(db_conn: asyncpg.Connection):
             await db_conn.execute("DROP TABLE IF EXISTS test_rename CASCADE")
         except:
             pass  # Connection may be dead after crash
+
+
+@pytest.mark.asyncio
+async def test_rename_column_with_custom_schema(db_conn: asyncpg.Connection):
+    """
+    Test that ALTER TABLE RENAME COLUMN works correctly with custom schema.
+
+    Tests:
+    - Create a custom schema 'test_schema'
+    - Create table with id (INT4), name (TEXT), and email (VARCHAR) columns using deeplake
+    - Insert one row with data
+    - Verify data before renaming column
+    - Rename the 'email' column to 'email_address' via ALTER TABLE
+    - Verify the column is renamed in both PostgreSQL catalog and deeplake dataset
+    - Verify existing data is preserved and accessible via new column name
+    - Verify old column name no longer exists
+    """
+    assertions = Assertions(db_conn)
+
+    try:
+        # Create custom schema
+        await db_conn.execute("CREATE SCHEMA test_schema")
+
+        # Set search path to use the custom schema
+        await db_conn.execute("SET search_path TO 'test_schema'")
+
+        # Create table with id, name, and email columns using deeplake storage
+        await db_conn.execute("""
+            CREATE TABLE test_rename_schema (
+                id INT4,
+                name TEXT,
+                email VARCHAR(255)
+            ) USING deeplake
+        """)
+
+        # Insert one row with explicit data
+        await db_conn.execute("""
+            INSERT INTO test_rename_schema VALUES (1, 'Alice', 'alice@example.com')
+        """)
+
+        # Verify row was inserted
+        rows_before = await db_conn.fetch("SELECT * FROM test_rename_schema")
+        assert len(rows_before) == 1, f"Expected 1 row, got {len(rows_before)}"
+        assert rows_before[0]['id'] == 1, f"Expected id=1, got {rows_before[0]['id']}"
+        assert rows_before[0]['name'] == 'Alice', f"Expected 'Alice', got '{rows_before[0]['name']}'"
+        assert rows_before[0]['email'] == 'alice@example.com', \
+            f"Expected 'alice@example.com', got '{rows_before[0]['email']}'"
+
+        # Rename email column to email_address
+        await db_conn.execute("""
+            ALTER TABLE test_rename_schema RENAME COLUMN email TO email_address
+        """)
+
+        # Verify column was renamed in PostgreSQL catalog
+        column_info = await db_conn.fetch("""
+            SELECT column_name, data_type, character_maximum_length
+            FROM information_schema.columns
+            WHERE table_schema = 'test_schema' AND table_name = 'test_rename_schema'
+            ORDER BY ordinal_position
+        """)
+        column_names = [col['column_name'] for col in column_info]
+
+        # Verify new column name exists
+        assert 'email_address' in column_names, \
+            f"Column 'email_address' should exist in catalog. Found: {column_names}"
+
+        # Verify old column name does not exist
+        assert 'email' not in column_names, \
+            f"Column 'email' should not exist anymore. Found: {column_names}"
+
+        # Verify expected column order
+        assert column_names == ['id', 'name', 'email_address'], \
+            f"Expected ['id', 'name', 'email_address'], got {column_names}"
+
+        # SELECT from table after renaming column
+        rows_after = await db_conn.fetch("SELECT * FROM test_rename_schema")
+
+        # Verify existing data is preserved and accessible via new column name
+        assert len(rows_after) == 1, f"Expected 1 row, got {len(rows_after)}"
+        assert rows_after[0]['id'] == 1, f"Expected id=1, got {rows_after[0]['id']}"
+        assert rows_after[0]['name'] == 'Alice', f"Expected 'Alice', got '{rows_after[0]['name']}'"
+        assert rows_after[0]['email_address'] == 'alice@example.com', \
+            f"Expected 'alice@example.com', got '{rows_after[0]['email_address']}'"
+
+        # Verify 'email_address' column is in the result
+        assert 'email_address' in rows_after[0].keys(), "Expected 'email_address' column to exist"
+
+        # Verify old column name is not accessible (should raise error)
+        try:
+            await db_conn.fetch("SELECT email FROM test_rename_schema")
+            assert False, "Should have raised error for non-existent column 'email'"
+        except asyncpg.UndefinedColumnError:
+            pass  # Expected error
+
+        # Insert another row using the new column name
+        await db_conn.execute("""
+            INSERT INTO test_rename_schema VALUES (2, 'Bob', 'bob@example.com')
+        """)
+
+        # Verify the new row was inserted successfully
+        all_rows = await db_conn.fetch("SELECT * FROM test_rename_schema ORDER BY id")
+        assert len(all_rows) == 2, f"Expected 2 rows, got {len(all_rows)}"
+        assert all_rows[1]['id'] == 2, f"Expected id=2, got {all_rows[1]['id']}"
+        assert all_rows[1]['name'] == 'Bob', f"Expected 'Bob', got '{all_rows[1]['name']}'"
+        assert all_rows[1]['email_address'] == 'bob@example.com', \
+            f"Expected 'bob@example.com', got '{all_rows[1]['email_address']}'"
+
+        print("✓ Test passed: ALTER TABLE RENAME COLUMN works with custom schema")
+
+    finally:
+        # Cleanup
+        try:
+            await db_conn.execute("DROP SCHEMA IF EXISTS test_schema CASCADE")
+        except:
+            pass  # Connection may be dead after crash

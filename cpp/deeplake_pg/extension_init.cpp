@@ -611,8 +611,26 @@ static void process_utility(PlannedStmt* pstmt,
 
         /// Extract table name
         RangeVar* rel = stmt->relation;
-        const std::string schema_name = (rel->schemaname != nullptr ? rel->schemaname : "public");
-        const std::string table_name = schema_name + "." + rel->relname;
+
+        // Get the actual relation OID to resolve the proper schema name (handles custom schemas via search_path)
+        Oid rel_oid = RangeVarGetRelid(rel, NoLock, false);
+        Relation temp_rel = RelationIdGetRelation(rel_oid);
+        std::string table_name;
+
+        if (RelationIsValid(temp_rel)) {
+            Oid nspid = RelationGetNamespace(temp_rel);
+            char* nspname = get_namespace_name(nspid);
+            table_name = std::string(nspname ? nspname : "public") + "." + RelationGetRelationName(temp_rel);
+            if (nspname) {
+                pfree(nspname);
+            }
+            RelationClose(temp_rel);
+        } else {
+            // Fallback to RangeVar if relation is invalid (shouldn't happen)
+            const std::string schema_name = (rel->schemaname != nullptr ? rel->schemaname : "public");
+            table_name = schema_name + "." + rel->relname;
+        }
+
         auto* td = pg::table_storage::instance().get_table_data_if_exists(table_name);
         if (td != nullptr) {
             ListCell* lc = nullptr;
@@ -732,8 +750,26 @@ static void process_utility(PlannedStmt* pstmt,
     if (IsA(pstmt->utilityStmt, AlterTableStmt)) {
         AlterTableStmt* stmt = (AlterTableStmt*)pstmt->utilityStmt;
         RangeVar* rel = stmt->relation;
-        const std::string schema_name = (rel->schemaname != nullptr ? rel->schemaname : "public");
-        const std::string table_name = schema_name + "." + rel->relname;
+
+        // Get the actual relation OID to resolve the proper schema name (handles custom schemas via search_path)
+        Oid rel_oid = RangeVarGetRelid(rel, NoLock, false);
+        Relation temp_rel = RelationIdGetRelation(rel_oid);
+        std::string table_name;
+
+        if (RelationIsValid(temp_rel)) {
+            Oid nspid = RelationGetNamespace(temp_rel);
+            char* nspname = get_namespace_name(nspid);
+            table_name = std::string(nspname ? nspname : "public") + "." + RelationGetRelationName(temp_rel);
+            if (nspname) {
+                pfree(nspname);
+            }
+            RelationClose(temp_rel);
+        } else {
+            // Fallback to RangeVar if relation is invalid (shouldn't happen)
+            const std::string schema_name = (rel->schemaname != nullptr ? rel->schemaname : "public");
+            table_name = schema_name + "." + rel->relname;
+        }
+
         auto* td = pg::table_storage::instance().get_table_data_if_exists(table_name);
 
         if (td != nullptr) {
@@ -746,7 +782,6 @@ static void process_utility(PlannedStmt* pstmt,
                     const char* column_name = coldef->colname;
 
                     // Get the relation to query the new column's type from catalog
-                    Oid rel_oid = RangeVarGetRelid(rel, NoLock, false);
                     Relation relation = RelationIdGetRelation(rel_oid);
                     if (RelationIsValid(relation)) {
                         TupleDesc tupdesc = RelationGetDescr(relation);
@@ -981,8 +1016,26 @@ static void process_utility(PlannedStmt* pstmt,
         RenameStmt* stmt = (RenameStmt*)pstmt->utilityStmt;
         if (stmt->renameType == OBJECT_COLUMN && stmt->relation != nullptr) {
             RangeVar* rel = stmt->relation;
-            const std::string schema_name = (rel->schemaname != nullptr ? rel->schemaname : "public");
-            const std::string table_name = schema_name + "." + rel->relname;
+
+            // Get the actual relation OID to resolve the proper schema name (handles custom schemas via search_path)
+            Oid rel_oid = RangeVarGetRelid(rel, NoLock, false);
+            Relation temp_rel = RelationIdGetRelation(rel_oid);
+            std::string table_name;
+
+            if (RelationIsValid(temp_rel)) {
+                Oid nspid = RelationGetNamespace(temp_rel);
+                char* nspname = get_namespace_name(nspid);
+                table_name = std::string(nspname ? nspname : "public") + "." + RelationGetRelationName(temp_rel);
+                if (nspname) {
+                    pfree(nspname);
+                }
+                RelationClose(temp_rel);
+            } else {
+                // Fallback to RangeVar if relation is invalid (shouldn't happen)
+                const std::string schema_name = (rel->schemaname != nullptr ? rel->schemaname : "public");
+                table_name = schema_name + "." + rel->relname;
+            }
+
             auto* td = pg::table_storage::instance().get_table_data_if_exists(table_name);
 
             if (td != nullptr && stmt->subname != nullptr && stmt->newname != nullptr) {
@@ -1018,9 +1071,26 @@ static void process_utility(PlannedStmt* pstmt,
         CopyStmt* copy_stmt = (CopyStmt*)pstmt->utilityStmt;
         if (copy_stmt->relation) {
             // Build the qualified table name
-            const char* schema = copy_stmt->relation->schemaname ? copy_stmt->relation->schemaname : "public";
-            const char* table = copy_stmt->relation->relname;
-            std::string table_name = std::string(schema) + "." + table;
+            // Get the actual relation OID to resolve the proper schema name (handles custom schemas via search_path)
+            Oid rel_oid = RangeVarGetRelid(copy_stmt->relation, NoLock, false);
+            Relation temp_rel = RelationIdGetRelation(rel_oid);
+            std::string table_name;
+
+            if (RelationIsValid(temp_rel)) {
+                Oid nspid = RelationGetNamespace(temp_rel);
+                char* nspname = get_namespace_name(nspid);
+                table_name = std::string(nspname ? nspname : "public") + "." + RelationGetRelationName(temp_rel);
+                if (nspname) {
+                    pfree(nspname);
+                }
+                RelationClose(temp_rel);
+            } else {
+                // Fallback to RangeVar if relation is invalid (shouldn't happen)
+                const char* schema = copy_stmt->relation->schemaname ? copy_stmt->relation->schemaname : "public";
+                const char* table = copy_stmt->relation->relname;
+                table_name = std::string(schema) + "." + table;
+            }
+
             // If this is a deeplake table, flush/commit
             auto* td = pg::table_storage::instance().get_table_data_if_exists(table_name);
             if (td) {
