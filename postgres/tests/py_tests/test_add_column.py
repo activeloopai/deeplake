@@ -142,3 +142,78 @@ async def test_add_column_to_table(db_conn: asyncpg.Connection):
             await db_conn.execute("DROP TABLE IF EXISTS test_crash CASCADE")
         except:
             pass  # Connection may be dead after segfault
+
+
+@pytest.mark.asyncio
+async def test_add_column_with_custom_schema(db_conn: asyncpg.Connection):
+    """
+    Test that ALTER TABLE ADD COLUMN works correctly with custom schema.
+
+    Tests:
+    - Create a custom schema 'valod'
+    - Create table with id (INT4) and name (TEXT) columns using deeplake
+    - Insert one row with explicit id and empty string
+    - Verify data before adding column
+    - Add a new TEXT column 'surname' via ALTER TABLE
+    - Verify the column is added and existing data is preserved
+    - Verify SELECT returns correct columns after ALTER TABLE
+    """
+    assertions = Assertions(db_conn)
+
+    try:
+        # Create custom schema
+        await db_conn.execute("CREATE SCHEMA valod")
+
+        # Set search path to use the custom schema
+        await db_conn.execute("SET search_path TO 'valod'")
+
+        # Create table with id and name columns using deeplake storage
+        await db_conn.execute("""
+            CREATE TABLE a (
+                id INT4,
+                name TEXT
+            ) USING deeplake
+        """)
+
+        # Insert one row with explicit id and empty string
+        await db_conn.execute("INSERT INTO a VALUES (1, '')")
+
+        # Verify row was inserted
+        rows_before = await db_conn.fetch("SELECT * FROM a")
+        assert len(rows_before) == 1, f"Expected 1 row, got {len(rows_before)}"
+        assert rows_before[0]['id'] == 1, f"Expected id=1, got {rows_before[0]['id']}"
+        assert rows_before[0]['name'] == '', f"Expected empty string, got '{rows_before[0]['name']}'"
+
+        # Add new column 'surname' with TEXT type
+        await db_conn.execute("ALTER TABLE a ADD COLUMN surname TEXT")
+
+        # Verify column was added to PostgreSQL catalog
+        column_info = await db_conn.fetch("""
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_schema = 'valod' AND table_name = 'a'
+            ORDER BY ordinal_position
+        """)
+        column_names = [col['column_name'] for col in column_info]
+        assert column_names == ['id', 'name', 'surname'], \
+            f"Expected ['id', 'name', 'surname'], got {column_names}"
+
+        # SELECT from table after adding column
+        rows_after = await db_conn.fetch("SELECT * FROM a")
+
+        # Verify existing data is preserved and new column exists
+        assert len(rows_after) == 1, f"Expected 1 row, got {len(rows_after)}"
+        assert rows_after[0]['id'] == 1, f"Expected id=1, got {rows_after[0]['id']}"
+        assert rows_after[0]['name'] == '', f"Expected empty string, got '{rows_after[0]['name']}'"
+        assert 'surname' in rows_after[0].keys(), "Expected 'surname' column to exist"
+        assert rows_after[0]['surname'] == '', \
+            f"Expected empty string for new column, got '{rows_after[0]['surname']}'"
+
+        print("✓ Test passed: ALTER TABLE ADD COLUMN works with custom schema")
+
+    finally:
+        # Cleanup
+        try:
+            await db_conn.execute("DROP SCHEMA IF EXISTS valod CASCADE")
+        except:
+            pass  # Connection may be dead after segfault
