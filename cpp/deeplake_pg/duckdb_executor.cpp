@@ -7,6 +7,7 @@
 #include "duckdb_deeplake_scan.hpp"
 #include "duckdb_executor.hpp"
 #include "pg_deeplake.hpp"
+#include "pg_to_duckdb_translator.hpp"
 #include "reporter.hpp"
 #include "table_data.hpp"
 #include "table_storage.hpp"
@@ -382,8 +383,10 @@ duckdb_result_holder execute_sql_query_direct(const std::string& query_string)
         pg::table_storage::instance().set_up_to_date(true);
     }
 
+    std::string duckdb_query = pg_to_duckdb_translator::translate(query_string);
+
     if (pg::explain_query_before_execute) {
-        explain_query(conns.get(), query_string);
+        explain_query(conns.get(), duckdb_query);
     }
 
     // IMPORTANT LIMITATION: Table functions (deeplake_scan) require C++ API
@@ -395,13 +398,13 @@ duckdb_result_holder execute_sql_query_direct(const std::string& query_string)
     // We minimize C++ API usage to only what's required and structure code
     // to be ready for C API when table functions are supported via C API
     
-    elog(DEBUG1, "Executing DuckDB query: %s", query_string.c_str());
+    elog(DEBUG1, "Executing DuckDB query: %s", duckdb_query.c_str());
     pg::runtime_printer printer("DuckDB query execution");
 
     duckdb_result_holder holder;
 
     // Execute query via C++ API (required because queries use table functions)
-    auto result_cpp = conns->con_cpp->SendQuery(query_string);
+    auto result_cpp = conns->con_cpp->SendQuery(duckdb_query);
     if (!result_cpp) {
         ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Query execution returned null result")));
     }
