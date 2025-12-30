@@ -5,7 +5,7 @@ This test verifies that the pg_to_duckdb_translator correctly translates
 PostgreSQL query syntax to DuckDB-compatible syntax for queries targeting
 deeplake tables.
 
-Translation rules tested:
+Translation rules tested (15 test functions):
 1. JSON operators: -> and ->> to DuckDB's ->> with $.path syntax
 2. Type casts: ::TYPE to CAST(expr AS TYPE)
 3. Timestamp conversions: PostgreSQL epoch arithmetic to TO_TIMESTAMP()
@@ -13,10 +13,14 @@ Translation rules tested:
 5. Date differences: EXTRACT(EPOCH FROM ...) to date_diff()
 6. IN clauses: IN ('a', 'b') to in ['a', 'b']
 7. COUNT(*) to count()
-8. WHERE predicate wrapping: Add parentheses around each predicate
+8. WHERE predicate wrapping: Add parentheses around each predicate (with word boundaries)
 9. to_date to strptime
 10. DIV() to // operator
 11. regexp_substr to regexp_extract
+12. BETWEEN clauses: Preserve BETWEEN...AND syntax without splitting
+13. Column names with keywords: Handle column names containing 'and', 'or' as substrings
+14. Complex combined translations: Multiple rules applied together
+15. Regression tests: Position increment bug in BETWEEN handling
 """
 import pytest
 import asyncpg
@@ -559,3 +563,205 @@ async def test_date_arithmetic_with_casts(db_conn: asyncpg.Connection):
 
     finally:
         await db_conn.execute("DROP TABLE IF EXISTS string_data CASCADE")
+
+
+@pytest.mark.asyncio
+async def test_between_clause(db_conn: asyncpg.Connection):
+    """
+    Test BETWEEN clause translation.
+
+    BETWEEN uses AND as part of its syntax, not as a logical operator.
+    The translator must not split "col BETWEEN val1 AND val2" into separate predicates.
+
+    PostgreSQL: WHERE col BETWEEN 1 AND 10
+    DuckDB: WHERE (col BETWEEN 1 AND 10)  -- NOT: WHERE (col BETWEEN 1) AND (10)
+    """
+    assertions = Assertions(db_conn)
+
+    try:
+        # Create table similar to TPCH lineitem
+        await db_conn.execute("""
+            CREATE TABLE lineitem (
+                l_discount decimal,
+                l_quantity decimal,
+                l_shipdate date,
+                l_extendedprice decimal
+            ) USING deeplake
+        """)
+
+        await db_conn.execute("""
+            INSERT INTO lineitem VALUES
+                (0.05, 10, '1994-01-15', 1000.00),
+                (0.06, 20, '1994-06-15', 2000.00),
+                (0.07, 30, '1995-01-15', 3000.00),
+                (0.10, 40, '1995-06-15', 4000.00)
+        """)
+
+        # Test 1: BETWEEN with arithmetic (from TPCH Query 6)
+        # l_discount between 0.06 - 0.01 AND 0.06 + 0.01
+        # Matches rows where l_discount is between 0.05 and 0.07 inclusive
+        # Test data: 0.05✓, 0.06✓, 0.07✓, 0.10✗ → 3 rows expected
+        await assertions.assert_query_row_count(
+            3,
+            "SELECT * FROM lineitem WHERE l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01"
+        )
+
+        # Test 2: BETWEEN with dates (from TPCH Query 7, 8)
+        await assertions.assert_query_row_count(
+            2,
+            "SELECT * FROM lineitem WHERE l_shipdate BETWEEN '1994-01-01' AND '1994-12-31'"
+        )
+
+        # Test 3: Multiple BETWEEN clauses with AND (complex case)
+        await assertions.assert_query_row_count(
+            1,
+            """SELECT * FROM lineitem
+               WHERE l_discount BETWEEN 0.05 AND 0.06
+               AND l_quantity BETWEEN 15 AND 25"""
+        )
+
+        print("✓ Test passed: BETWEEN clauses translate correctly")
+
+    finally:
+        await db_conn.execute("DROP TABLE IF EXISTS lineitem CASCADE")
+
+
+@pytest.mark.asyncio
+async def test_column_names_with_keywords(db_conn: asyncpg.Connection):
+    """
+    Test column names containing SQL keywords like AND, OR.
+
+    Column names like 'p_brand', 'standard', 'portland' contain 'and' or 'or'
+    as substrings. The translator must use word boundaries to avoid splitting
+    these column names.
+
+    PostgreSQL: WHERE p_brand <> 'Brand#45'
+    DuckDB: WHERE (p_brand <> 'Brand#45')  -- NOT: WHERE (p_br) AND (<> 'Brand#45')
+    """
+    assertions = Assertions(db_conn)
+
+    try:
+        # Create table similar to TPCH part table
+        await db_conn.execute("""
+            CREATE TABLE part (
+                p_partkey int,
+                p_brand text,
+                p_type text,
+                p_size int
+            ) USING deeplake
+        """)
+
+        await db_conn.execute("""
+            INSERT INTO part VALUES
+                (1, 'Brand#12', 'STANDARD POLISHED', 10),
+                (2, 'Brand#45', 'MEDIUM POLISHED', 20),
+                (3, 'Brand#23', 'LARGE BRUSHED', 30),
+                (4, 'Brand#45', 'SMALL BURNISHED', 15)
+        """)
+
+        # Test 1: Column name with 'and' substring (from TPCH Query 16)
+        # p_brand contains 'and', must not split at "br-AND"
+        # Only Row 1 (Brand#12, size 10) matches both conditions:
+        #   - Row 1: Brand#12, size 10 → brand ≠ Brand#45 ✓, size < 25 ✓
+        #   - Row 2: Brand#45, size 20 → brand ≠ Brand#45 ✗
+        #   - Row 3: Brand#23, size 30 → brand ≠ Brand#45 ✓, size < 25 ✗
+        #   - Row 4: Brand#45, size 15 → brand ≠ Brand#45 ✗
+        await assertions.assert_query_row_count(
+            1,
+            "SELECT * FROM part WHERE p_brand <> 'Brand#45' AND p_size < 25"
+        )
+
+        # Test 2: Column name with 'and' and equals (from TPCH Query 17)
+        # p_brand = 'Brand#23'
+        await assertions.assert_query_row_count(
+            1,
+            "SELECT * FROM part WHERE p_brand = 'Brand#23' AND p_size = 30"
+        )
+
+        # Test 3: String value with 'and' in LIKE pattern
+        # STANDARD contains 'and'
+        await assertions.assert_query_row_count(
+            1,
+            "SELECT * FROM part WHERE p_type LIKE 'STANDARD%' AND p_size = 10"
+        )
+
+        # Test 4: Multiple conditions with column names containing keywords
+        await assertions.assert_query_row_count(
+            3,
+            """SELECT * FROM part
+               WHERE p_brand IN ('Brand#12', 'Brand#23', 'Brand#45')
+               AND p_type NOT LIKE 'MEDIUM%'"""
+        )
+
+        print("✓ Test passed: Column names with SQL keywords handle correctly")
+
+    finally:
+        await db_conn.execute("DROP TABLE IF EXISTS part CASCADE")
+
+
+@pytest.mark.asyncio
+async def test_between_position_increment_bug(db_conn: asyncpg.Connection):
+    """
+    Regression test for the position increment bug in BETWEEN clause handling.
+
+    The bug: When detecting AND within BETWEEN, the code was incrementing pos by 1
+    instead of 3, causing it to re-check the same position on the next iteration.
+
+    This test specifically uses a query where the bug would cause incorrect parsing.
+    Without the fix (pos += 3), the translator would incorrectly parse the BETWEEN
+    clause, potentially leading to malformed output or infinite loops.
+    """
+    assertions = Assertions(db_conn)
+
+    try:
+        # Create test table
+        await db_conn.execute("""
+            CREATE TABLE test_data (
+                id int,
+                value int,
+                category text
+            ) USING deeplake
+        """)
+
+        await db_conn.execute("""
+            INSERT INTO test_data VALUES
+                (1, 5, 'A'),
+                (2, 15, 'B'),
+                (3, 25, 'C'),
+                (4, 35, 'D')
+        """)
+
+        # Test 1: Simple BETWEEN that would trigger the bug
+        # The AND in "BETWEEN 10 AND 30" should not be treated as a logical separator
+        await assertions.assert_query_row_count(
+            2,
+            "SELECT * FROM test_data WHERE value BETWEEN 10 AND 30"
+        )
+
+        # Test 2: BETWEEN followed by a logical AND
+        # This tests that after handling BETWEEN...AND, we correctly parse the next AND
+        await assertions.assert_query_row_count(
+            1,
+            "SELECT * FROM test_data WHERE value BETWEEN 10 AND 30 AND category = 'B'"
+        )
+
+        # Test 3: Multiple consecutive BETWEENs with logical ANDs
+        # This would definitely expose the position increment bug
+        await assertions.assert_query_row_count(
+            0,
+            """SELECT * FROM test_data
+               WHERE value BETWEEN 10 AND 20
+               AND id BETWEEN 5 AND 10"""
+        )
+
+        # Test 4: BETWEEN with expressions (from TPCH Query 6 pattern)
+        # This is the actual pattern that failed in TPCH tests
+        await assertions.assert_query_row_count(
+            2,
+            "SELECT * FROM test_data WHERE value BETWEEN 5 + 5 AND 15 + 15"
+        )
+
+        print("✓ Test passed: BETWEEN position increment bug regression test")
+
+    finally:
+        await db_conn.execute("DROP TABLE IF EXISTS test_data CASCADE")
