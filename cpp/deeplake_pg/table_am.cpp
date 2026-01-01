@@ -585,7 +585,13 @@ TableScanDesc deeplake_table_am_routine::scan_begin(Relation relation,
     }
 
     auto& td = table_storage::instance().get_table_data(table_id);
-    if (!pg::query_info::current().is_count_star() && td.is_star_selected()) {
+    // For UPDATE/DELETE operations, we need all columns because PostgreSQL needs to reconstruct
+    // the entire tuple. For SELECT *, we also need all columns.
+    bool need_all_columns = (!pg::query_info::current().is_count_star() && td.is_star_selected()) ||
+                            (pg::query_info::current().command_type() == pg::command_type::CMD_UPDATE) ||
+                            (pg::query_info::current().command_type() == pg::command_type::CMD_DELETE);
+
+    if (need_all_columns) {
         for (auto i = 0; i < td.num_columns(); ++i) {
             if (!td.is_column_requested(i)) {
                 td.set_column_requested(i, true);
