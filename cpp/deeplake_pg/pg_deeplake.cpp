@@ -13,7 +13,6 @@ void index_info::create_deeplake_indexes()
 {
     auto ds = dataset();
     ASSERT(ds != nullptr);
-    ds->set_indexing_mode(deeplake::indexing_mode::always);
     bool index_created = false;
     for (auto& column_name : column_names_) {
         /// 'none' means hybrid index type
@@ -66,6 +65,10 @@ void index_info::create_deeplake_indexes()
                 elog(ERROR,
                      "Invalid index type '%s' for text column. Use 'inverted', 'bm25' or 'exact_text'",
                      deeplake_core::deeplake_index_type::to_string(index_type_).data());
+            }
+            // Set indexing mode to always for BM25 indexes only
+            if (index_type_ == deeplake_core::deeplake_index_type::type::bm25) {
+                ds->set_indexing_mode(deeplake::indexing_mode::always);
             }
             column.create_index(deeplake_core::index_type(deeplake_core::text_index_type(index_type_)));
             index_created = true;
