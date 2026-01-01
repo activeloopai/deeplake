@@ -7,6 +7,11 @@ namespace pg {
 
 namespace {
 
+// Keyword lengths for WHERE clause parsing
+constexpr size_t BETWEEN_KEYWORD_LENGTH = 7;
+constexpr size_t AND_KEYWORD_LENGTH = 3;
+constexpr size_t OR_KEYWORD_LENGTH = 2;
+
 // Helper to check if a position is within single quotes
 bool is_within_quotes(const std::string& str, size_t pos) {
     size_t quote_count = 0;
@@ -665,6 +670,9 @@ std::string pg_to_duckdb_translator::wrap_where_predicates(const std::string& qu
     paren_depth = 0;
     in_quotes = false;
 
+    // Track if we're inside a BETWEEN clause
+    bool in_between = false;
+
     // Parse the WHERE clause
     while (pos < where_clause.length()) {
         char c = where_clause[pos];
@@ -677,28 +685,59 @@ std::string pg_to_duckdb_translator::wrap_where_predicates(const std::string& qu
             } else if (c == ')') {
                 paren_depth--;
             } else if (paren_depth == 0) {
+                // Check for BETWEEN keyword to track if AND is part of BETWEEN
+                if (pos + BETWEEN_KEYWORD_LENGTH <= where_clause.length() && !in_between) {
+                    std::string next_keyword = where_clause.substr(pos, BETWEEN_KEYWORD_LENGTH);
+                    std::string next_keyword_upper = next_keyword;
+                    for (char& ch : next_keyword_upper) ch = std::toupper(ch);
+
+                    // Check if character before is a word boundary (space or start of string)
+                    bool before_is_boundary = (pos == 0 || std::isspace(where_clause[pos - 1]));
+
+                    if (next_keyword_upper == "BETWEEN" &&
+                        before_is_boundary &&
+                        (pos + BETWEEN_KEYWORD_LENGTH >= where_clause.length() ||
+                         std::isspace(where_clause[pos + BETWEEN_KEYWORD_LENGTH]))) {
+                        in_between = true;
+                    }
+                }
+
                 // Check for AND or OR at top level
-                if (pos + 3 <= where_clause.length()) {
-                    std::string next_3 = where_clause.substr(pos, 3);
-                    std::string next_3_upper = next_3;
-                    for (char& ch : next_3_upper) ch = std::toupper(ch);
+                if (pos + AND_KEYWORD_LENGTH <= where_clause.length()) {
+                    std::string next_keyword = where_clause.substr(pos, AND_KEYWORD_LENGTH);
+                    std::string next_keyword_upper = next_keyword;
+                    for (char& ch : next_keyword_upper) ch = std::toupper(ch);
 
-                    bool is_and = (next_3_upper == "AND" &&
-                                  (pos + 3 >= where_clause.length() || std::isspace(where_clause[pos + 3])));
-                    bool is_or = (pos + 2 < where_clause.length() &&
-                                 next_3_upper.substr(0, 2) == "OR" &&
-                                 (pos + 2 >= where_clause.length() || std::isspace(where_clause[pos + 2])));
+                    // Check if character before is a word boundary (space or start of string)
+                    bool before_is_boundary = (pos == 0 || std::isspace(where_clause[pos - 1]));
 
-                    if (is_and) {
+                    bool is_and = (next_keyword_upper == "AND" &&
+                                  before_is_boundary &&
+                                  (pos + AND_KEYWORD_LENGTH >= where_clause.length() ||
+                                   std::isspace(where_clause[pos + AND_KEYWORD_LENGTH])));
+                    bool is_or = (pos + OR_KEYWORD_LENGTH < where_clause.length() &&
+                                 next_keyword_upper.substr(0, OR_KEYWORD_LENGTH) == "OR" &&
+                                 before_is_boundary &&
+                                 (pos + OR_KEYWORD_LENGTH >= where_clause.length() ||
+                                  std::isspace(where_clause[pos + OR_KEYWORD_LENGTH])));
+
+                    // AND within BETWEEN is not a separator
+                    if (is_and && in_between) {
+                        in_between = false; // BETWEEN...AND completed
+                        pos += AND_KEYWORD_LENGTH; // Skip past the 'AND' keyword
+                        continue;
+                    }
+
+                    if (is_and && !in_between) {
                         predicates.push_back(where_clause.substr(start, pos - start));
                         operators.push_back("AND");
-                        pos += 3;
+                        pos += AND_KEYWORD_LENGTH;
                         start = pos;
                         continue;
                     } else if (is_or) {
                         predicates.push_back(where_clause.substr(start, pos - start));
                         operators.push_back("OR");
-                        pos += 2;
+                        pos += OR_KEYWORD_LENGTH;
                         start = pos;
                         continue;
                     }
