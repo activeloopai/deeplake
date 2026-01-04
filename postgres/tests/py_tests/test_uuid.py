@@ -79,3 +79,79 @@ async def test_uuid_type(db_conn: asyncpg.Connection):
     finally:
         # Cleanup
         await db_conn.execute("DROP TABLE IF EXISTS people CASCADE")
+
+
+@pytest.mark.asyncio
+async def test_uuid_empty_string_handling(db_conn: asyncpg.Connection):
+    """
+    Test that empty strings in UUID columns are handled correctly.
+
+    This test verifies the fix for the issue where adding a UUID column
+    to a table with existing rows would cause "Failed to parse UUID string:"
+    error when querying. Empty strings stored in deeplake are treated as NULL.
+
+    Tests the exact scenario:
+    1. Create table without UUID column
+    2. Add UUID column (existing rows get NULL/empty values)
+    3. Query table (should not crash)
+    4. Insert row with NULL UUID
+    5. Query multiple times
+    """
+    assertions = Assertions(db_conn)
+
+    try:
+        # Request 1: Create table uuid_test
+        await db_conn.execute("""
+            CREATE TABLE uuid_test (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL
+            ) USING deeplake
+        """)
+
+        # Request 5: Query on uuid_test table
+        rows = await db_conn.fetch(
+            "SELECT * FROM (SELECT * FROM uuid_test ORDER BY id) LIMIT 20 OFFSET 0"
+        )
+        assert len(rows) == 0, f"Expected 0 rows, got {len(rows)}"
+
+        # Request 6: Add UUID column to uuid_test
+        await db_conn.execute("""
+            ALTER TABLE uuid_test ADD COLUMN uu UUID
+        """)
+
+        # Request 8: Query uuid_test after schema change
+        # This would previously crash with: ERROR: Failed to parse UUID string:
+        rows = await db_conn.fetch(
+            "SELECT * FROM (SELECT * FROM uuid_test ORDER BY id) LIMIT 20 OFFSET 0"
+        )
+        assert len(rows) == 0, f"Expected 0 rows after adding UUID column, got {len(rows)}"
+
+        # Request 9: Insert row with empty name and NULL UUID
+        await db_conn.execute("""
+            INSERT INTO uuid_test (name, uu) VALUES ('', NULL)
+        """)
+
+        # Request 11: Query uuid_test after insert
+        rows = await db_conn.fetch(
+            "SELECT * FROM (SELECT * FROM uuid_test ORDER BY id) LIMIT 20 OFFSET 0"
+        )
+        assert len(rows) == 1, f"Expected 1 row after insert, got {len(rows)}"
+        assert rows[0]['uu'] is None, "UUID should be NULL"
+
+        # Request 12: Query uuid_test again
+        rows = await db_conn.fetch(
+            "SELECT * FROM (SELECT * FROM uuid_test ORDER BY id) LIMIT 20 OFFSET 0"
+        )
+        assert len(rows) == 1, f"Expected 1 row, got {len(rows)}"
+
+        # Request 13: Query uuid_test again
+        rows = await db_conn.fetch(
+            "SELECT * FROM (SELECT * FROM uuid_test ORDER BY id) LIMIT 20 OFFSET 0"
+        )
+        assert len(rows) == 1, f"Expected 1 row, got {len(rows)}"
+
+        print("✓ Test passed: UUID empty string handling works correctly")
+
+    finally:
+        # Cleanup
+        await db_conn.execute("DROP TABLE IF EXISTS uuid_test CASCADE")
