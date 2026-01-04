@@ -481,14 +481,19 @@ private:
             auto value = base::string_view_cast<const unsigned char>(sample.data());
             std::string uuid_str(reinterpret_cast<const char*>(value.data()), value.size());
 
-            // Use DuckDB's UUID::FromString to parse UUID string
-            try {
-                auto uuid_value = duckdb::UUID::FromString(uuid_str);
-                auto* duckdb_data = duckdb::FlatVector::GetData<duckdb::hugeint_t>(output_vector);
-                duckdb_data[row_in_batch] = uuid_value;
-            } catch (...) {
-                // If parsing fails, set to NULL
+            // Treat empty string as NULL for UUID columns
+            if (uuid_str.empty()) {
                 duckdb::FlatVector::SetNull(output_vector, row_in_batch, true);
+            } else {
+                // Use DuckDB's UUID::FromString to parse UUID string
+                try {
+                    auto uuid_value = duckdb::UUID::FromString(uuid_str);
+                    auto* duckdb_data = duckdb::FlatVector::GetData<duckdb::hugeint_t>(output_vector);
+                    duckdb_data[row_in_batch] = uuid_value;
+                } catch (...) {
+                    // If parsing fails, set to NULL
+                    duckdb::FlatVector::SetNull(output_vector, row_in_batch, true);
+                }
             }
         }
     }
@@ -843,12 +848,17 @@ private:
                     auto value = td.get_streamers().value<std::string_view>(col_idx, row_idx);
                     if (is_uuid) {
                         std::string str_value(value);
-                        duckdb::hugeint_t uuid_value;
-                        if (!duckdb::UUID::FromString(str_value, uuid_value)) {
-                            elog(ERROR, "Failed to parse UUID string: %s", str_value.c_str());
+                        // Treat empty string as NULL for UUID columns
+                        if (str_value.empty()) {
+                            duckdb::FlatVector::SetNull(output_vector, row_in_batch, true);
+                        } else {
+                            duckdb::hugeint_t uuid_value;
+                            if (!duckdb::UUID::FromString(str_value, uuid_value)) {
+                                elog(ERROR, "Failed to parse UUID string: %s", str_value.c_str());
+                            }
+                            auto* duckdb_data = duckdb::FlatVector::GetData<duckdb::hugeint_t>(output_vector);
+                            duckdb_data[row_in_batch] = uuid_value;
                         }
-                        auto* duckdb_data = duckdb::FlatVector::GetData<duckdb::hugeint_t>(output_vector);
-                        duckdb_data[row_in_batch] = uuid_value;
                     } else {
                         auto* duckdb_data = duckdb::FlatVector::GetData<duckdb::string_t>(output_vector);
                         duckdb_data[row_in_batch] =

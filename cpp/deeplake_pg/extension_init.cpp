@@ -1299,9 +1299,9 @@ static void executor_run(QueryDesc* query_desc, ScanDirection direction, uint64 
             pg::query_info::cleanup();
             pg::table_storage::instance().reset_requested_columns();
         } catch (const std::exception& e) {
-            elog(WARNING, "Error during transaction cleanup: %s", e.what());
+            // Silently handle cleanup errors
         } catch (...) {
-            elog(WARNING, "Unknown error during transaction cleanup");
+            // Silently handle cleanup errors
         }
         PG_RE_THROW();
     }
@@ -1332,7 +1332,6 @@ static void executor_end(QueryDesc* query_desc)
                 // Error occurred during flush - rollback and suppress to prevent cascade
                 // This prevents "Deeplake does not support transaction aborts" cascade
                 pg::table_storage::instance().rollback_all();
-                elog(WARNING, "Failed to flush data during executor end, changes rolled back");
                 // Don't re-throw - let the transaction abort naturally
                 FlushErrorState();
             }
