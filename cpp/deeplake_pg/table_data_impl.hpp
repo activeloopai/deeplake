@@ -78,6 +78,9 @@ inline table_data::table_data(
 
 inline void table_data::commit(bool show_progress)
 {
+    if (dataset_ == nullptr || !dataset_->has_uncommitted_changes()) {
+        return;
+    }
     try {
         flush();
         impl::commit_dataset(get_dataset(), show_progress);

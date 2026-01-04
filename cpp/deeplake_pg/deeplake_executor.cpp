@@ -2,6 +2,7 @@
 
 #include "duckdb_executor.hpp"
 #include "duckdb_pg_convert.hpp"
+#include "is_pure_count_star_query.hpp"
 
 #include <deeplake_api/dataset_view.hpp>
 
@@ -486,7 +487,7 @@ extern "C" PlannedStmt* deeplake_create_direct_execution_plan(Query* parse,
     }
 
     // Fast path for COUNT(*) without WHERE
-    if (is_pure_count_star_query(parse)) {
+    if (pg::is_pure_count_star_query(parse)) {
         // Extract table from rtable
         RangeTblEntry* rte = (RangeTblEntry*)linitial(parse->rtable);
         Oid table_id = rte->relid;
