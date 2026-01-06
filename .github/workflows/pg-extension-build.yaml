@@ -123,7 +123,7 @@ jobs:
         continue-on-error: true
         run: |-
           echo -e "${YELLOW}Running clang-tidy static analysis...${DEFAULT}"
-          bash scripts/run_clang_tidy.sh
+          bash scripts/run_clang_tidy.sh builds/deeplake-pg-prod
           echo -e "${GREEN}Clang-tidy analysis complete.${DEFAULT}"
 
       - name: extract version
