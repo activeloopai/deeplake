@@ -585,7 +585,7 @@ inline T table_data::streamer_info::value(int32_t column_number, int64_t row_num
         std::scoped_lock lock(column_to_batches[column_number].mutex);
         for (auto i = 0; i <= batch_index; ++i) {
             if (!batches[i].initialized_.load(std::memory_order_relaxed)) {
-                batches[i].owner_ = nd::eval(streamers[column_number]->next_batch());
+                batches[i].owner_ = utils::eval_with_nones<T>(streamers[column_number]->next_batch());
                 batches[i].data_ = batches[i].owner_.data().data();
                 batches[i].initialized_.store(true, std::memory_order_release);
             }
@@ -607,7 +607,7 @@ inline const T* table_data::streamer_info::value_ptr(int32_t column_number, int6
         std::scoped_lock lock(column_to_batches[column_number].mutex);
         for (auto i = 0; i <= batch_index; ++i) {
             if (!batches[i].initialized_.load(std::memory_order_relaxed)) {
-                batches[i].owner_ = nd::eval(streamers[column_number]->next_batch());
+                batches[i].owner_ = utils::eval_with_nones<T>(streamers[column_number]->next_batch());
                 batches[i].data_ = batches[i].owner_.data().data();
                 batches[i].initialized_.store(true, std::memory_order_release);
             }
