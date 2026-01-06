@@ -114,7 +114,7 @@ jobs:
         shell: bash
         run: |-
           echo -e "${YELLOW}Installing clang-tidy...${DEFAULT}"
-          yum install -y clang-tools-extra || apt-get update && apt-get install -y clang-tidy
+          yum install -y clang-tools-extra
           clang-tidy --version
           echo -e "${GREEN}Clang-tidy installed.${DEFAULT}"
 
