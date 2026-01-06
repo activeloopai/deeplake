@@ -875,4 +875,23 @@ inline Datum pointer_to_datum(const void* curr_val, Oid attr_typeid, int32_t att
     }
 }
 
+template <typename T>
+nd::array eval_with_nones(nd::array arr)
+{
+    try {
+        return nd::eval(arr);
+    } catch (const nd::invalid_dynamic_eval&) {
+    }
+    std::vector<nd::array> result_elements;
+    result_elements.reserve(arr.size());
+    for (auto a : arr) {
+        if (a.is_none()) {
+            result_elements.push_back(nd::adapt(T()));
+        } else {
+            result_elements.push_back(std::move(a));
+        }
+    }
+    return nd::eval(nd::dynamic(std::move(result_elements)));
+}
+
 } // namespace pg::utils

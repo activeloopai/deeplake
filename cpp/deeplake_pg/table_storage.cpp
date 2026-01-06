@@ -63,6 +63,33 @@ std::pair<std::string, std::string> split_table_name(const std::string& full_nam
     return {full_name.substr(0, dot_pos), full_name.substr(dot_pos + 1)};
 }
 
+// Helper function to get default value for NULL numeric/scalar columns
+nd::array get_default_value_for_null(Oid base_typeid)
+{
+    switch (base_typeid) {
+    case INT2OID:
+        return nd::adapt(static_cast<int16_t>(0));
+    case INT4OID:
+    case DATEOID:
+        return nd::adapt(static_cast<int32_t>(0));
+    case TIMEOID:
+    case TIMESTAMPOID:
+    case TIMESTAMPTZOID:
+    case INT8OID:
+        return nd::adapt(static_cast<int64_t>(0));
+    case FLOAT4OID:
+        return nd::adapt(static_cast<float>(0.0));
+    case NUMERICOID:
+    case FLOAT8OID:
+        return nd::adapt(static_cast<double>(0.0));
+    case BOOLOID:
+        return nd::adapt(false);
+    default:
+        // For non-numeric types, use nd::none
+        return nd::none(nd::dtype::unknown, 0);
+    }
+}
+
 void convert_pg_to_nd(const pg::table_data& table_data,
                       const std::vector<Datum>& values,
                       const std::vector<uint8_t>& nulls,
@@ -84,7 +111,8 @@ void convert_pg_to_nd(const pg::table_data& table_data,
         const auto column_name = table_data.get_atttypename(i);
         // Skip if column is not in the input tuple
         if (i >= t_len || nulls[i] == 1) {
-            row[column_name] = nd::none(nd::dtype::unknown, 0);
+            // For numeric/scalar columns with NULL value, assign default (0) value
+            row[column_name] = ::get_default_value_for_null(table_data.get_base_atttypid(i));
             continue;
         }
         row[column_name] =
