@@ -257,3 +257,22 @@ async def test_add_multiple_numeric_columns_with_null(db_conn: asyncpg.Connectio
             await db_conn.execute("DROP TABLE IF EXISTS users CASCADE")
         except:
             pass  # Connection may be dead after errors
+
+
+@pytest.mark.asyncio
+async def test_update_numeric_column_with_null(db_conn: asyncpg.Connection):
+    """Test UPDATE with NULL values on NUMERIC columns."""
+    try:
+        await db_conn.execute("""
+            CREATE TABLE test_null (id SERIAL, value NUMERIC) USING deeplake
+        """)
+
+        await db_conn.execute("INSERT INTO test_null (value) VALUES (100)")
+
+        await db_conn.execute("UPDATE test_null SET value = NULL WHERE id = 1")
+
+        row = await db_conn.fetchrow("SELECT * FROM test_null WHERE id = 1")
+        assert row['value'] == 0, f"Expected 0 after NULL update, got {row['value']}"
+
+    finally:
+        await db_conn.execute("DROP TABLE IF EXISTS test_null CASCADE")
