@@ -248,6 +248,14 @@ void load_index_metadata()
     pg::table_storage::instance().force_load_table_metadata();
     pg::utils::memory_context_switcher context_switcher;
 
+    // Column indices for pg_deeplake_metadata query result (1-based as per SPI API)
+    constexpr int COL_TABLE_NAME = 1;
+    constexpr int COL_COLUMN_NAME = 2;
+    constexpr int COL_INDEX_NAME = 3;
+    constexpr int COL_INDEX_TYPE = 4;
+    constexpr int COL_ORDER_TYPE = 5;
+    constexpr int COL_INDEX_ID = 6;
+
     const char* query = "SELECT table_name, column_name, index_name, index_type, order_type, index_id "
                         "FROM public.pg_deeplake_metadata";
 
@@ -268,29 +276,29 @@ void load_index_metadata()
             HeapTuple tuple = tuptable->vals[i];
 
             char* val = nullptr;
-            if ((val = SPI_getvalue(tuple, tupdesc, 1)) != nullptr) {
+            if ((val = SPI_getvalue(tuple, tupdesc, COL_TABLE_NAME)) != nullptr) {
                 pg::index_info::current().set_table_name(val);
                 if (!pg::table_storage::instance().table_exists(val)) {
                     elog(ERROR, "Table %s does not have DeepLake access method, can't create index.", val);
                 }
             }
-            if ((val = SPI_getvalue(tuple, tupdesc, 2)) != nullptr) {
+            if ((val = SPI_getvalue(tuple, tupdesc, COL_COLUMN_NAME)) != nullptr) {
                 pg::index_info::current().set_column_name(val);
             }
-            if ((val = SPI_getvalue(tuple, tupdesc, 3)) != nullptr) {
+            if ((val = SPI_getvalue(tuple, tupdesc, COL_INDEX_NAME)) != nullptr) {
                 pg::index_info::current().set_index_name(val);
             }
-            if ((val = SPI_getvalue(tuple, tupdesc, 4)) != nullptr) {
+            if ((val = SPI_getvalue(tuple, tupdesc, COL_INDEX_TYPE)) != nullptr) {
                 pg::index_info::current().set_index_type(val);
             }
 
             bool is_null = false;
-            Datum datum_order_type = SPI_getbinval(tuple, tupdesc, 5, &is_null);
+            Datum datum_order_type = SPI_getbinval(tuple, tupdesc, COL_ORDER_TYPE, &is_null);
             const int32_t order_type = is_null ? 0 : DatumGetInt32(datum_order_type);
             pg::index_info::current().set_order_type(static_cast<query_core::order_type>(order_type));
 
             is_null = false;
-            datum_order_type = SPI_getbinval(tuple, tupdesc, 6, &is_null);
+            datum_order_type = SPI_getbinval(tuple, tupdesc, COL_INDEX_ID, &is_null);
             const uint32_t oid = is_null ? 0 : DatumGetUInt32(datum_order_type);
 
             if (!pg::pg_index::has_index_info(oid)) {
@@ -331,7 +339,8 @@ void init_deeplake()
     }
     initialized = true;
 
-    deeplake_api::initialize(std::make_shared<pg::logger_adapter>(), 8 * base::system_report::cpu_cores());
+    constexpr int THREAD_POOL_MULTIPLIER = 8;  // Threads per CPU core for async operations
+    deeplake_api::initialize(std::make_shared<pg::logger_adapter>(), THREAD_POOL_MULTIPLIER * base::system_report::cpu_cores());
 
     pg::table_storage::instance(); /// initialize table storage
 
