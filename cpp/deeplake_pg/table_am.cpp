@@ -351,7 +351,7 @@ Size parallelscan_estimate(Relation rel)
 void parallelscan_reinitialize(Relation rel, ParallelTableScanDesc pscan)
 {
     // Reinitialize parallel scan state
-    auto custom_pscan = static_cast<DeeplakeParallelScanDesc*>(pscan);
+    auto custom_pscan = reinterpret_cast<DeeplakeParallelScanDesc*>(pscan);
     custom_pscan->reset();
 }
 
@@ -596,7 +596,7 @@ TableScanDesc deeplake_table_am_routine::scan_begin(Relation relation,
     scan_desc->rs_parallel = parallel_scan;
 
     if (parallel_scan != nullptr) {
-        DeeplakeParallelScanDesc* custom_pscan = static_cast<DeeplakeParallelScanDesc*>(parallel_scan);
+        DeeplakeParallelScanDesc* custom_pscan = reinterpret_cast<DeeplakeParallelScanDesc*>(parallel_scan);
         if (IsParallelWorker()) {
             custom_pscan->is_initialized = true;
         }
