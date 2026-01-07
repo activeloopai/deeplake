@@ -315,17 +315,23 @@ Datum duckdb_value_to_pg_datum(
             auto* data = FlatVector::GetData<hugeint_t>(vec);
             const auto& uuid_val = data[row];
 
+            // DuckDB flips the top bit of UUIDs when storing them internally
+            // to make ORDER BY consistent between UUID and VARCHAR types.
+            // We must flip it back before converting to string.
+            // See: duckdb/src/common/types/uuid.cpp:67 (FromString) and :80 (ToString)
+            uint64_t upper_flipped = static_cast<uint64_t>(uuid_val.upper) ^ (1ULL << 63);
+
             // Convert hugeint to UUID string format
             // DuckDB stores UUID as a 128-bit integer
             // Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
             char uuid_str[37]; // 36 chars + null terminator
             snprintf(uuid_str,
                      sizeof(uuid_str),
-                     "%08x-%04x-%04x-%04x-%012lx",
-                     (unsigned int)((uuid_val.upper >> 32) & 0xFFFFFFFF),
-                     (unsigned int)((uuid_val.upper >> 16) & 0xFFFF),
-                     (unsigned int)(uuid_val.upper & 0xFFFF),
-                     (unsigned int)((uuid_val.lower >> 48) & 0xFFFF),
+                     "%08lx-%04lx-%04lx-%04lx-%012lx",
+                     (unsigned long)((upper_flipped >> 32) & 0xFFFFFFFFUL),
+                     (unsigned long)((upper_flipped >> 16) & 0xFFFFUL),
+                     (unsigned long)(upper_flipped & 0xFFFFUL),
+                     (unsigned long)((uuid_val.lower >> 48) & 0xFFFFUL),
                      (unsigned long)(uuid_val.lower & 0xFFFFFFFFFFFFUL));
 
             return DirectFunctionCall1(uuid_in, CStringGetDatum(uuid_str));
