@@ -662,6 +662,11 @@ inline Datum nd_to_datum(const nd::array& curr_val, Oid attr_typeid, int32_t typ
     }
     case UUIDOID: {
         auto str = base::string_view_cast(base::span_cast<const char>(curr_val.data()));
+        // Treat empty string as NULL for UUID columns (same as duckdb_deeplake_scan.cpp)
+        if (str.empty()) {
+            // Return NULL datum - caller must set is_null flag appropriately
+            return (Datum)0;
+        }
         // CStringGetDatum expects a null-terminated string, hence copy the string
         std::string str_copy(str.data(), str.size());
         Datum uuid = DirectFunctionCall1(uuid_in, CStringGetDatum(str_copy.c_str()));

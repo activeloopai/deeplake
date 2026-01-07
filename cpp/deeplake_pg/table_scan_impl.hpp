@@ -115,6 +115,10 @@ inline std::pair<Datum, bool> table_scan::get_datum(int32_t column_number, int64
     }
     case UUIDOID: {
         auto str = table_data_.get_streamers().value<std::string_view>(column_number, row_number);
+        // Treat empty string as NULL for UUID columns (same as duckdb_deeplake_scan.cpp)
+        if (str.empty()) {
+            return {(Datum)0, true};
+        }
         std::string str_copy(str.data(), str.size());
         Datum uuid = DirectFunctionCall1(uuid_in, CStringGetDatum(str_copy.c_str()));
         return {uuid, false};
