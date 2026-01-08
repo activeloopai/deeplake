@@ -15,6 +15,8 @@ extern "C" {
 
 namespace pg {
 
+// Static pointer to shared memory lock data - must be non-const as it's initialized at runtime
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 table_ddl_lock::lock_data* table_ddl_lock::data_ = nullptr;
 
 Size table_ddl_lock::get_shmem_size()
@@ -28,11 +30,11 @@ void table_ddl_lock::initialize()
 
     LWLockAcquire(AddinShmemInitLock, LW_EXCLUSIVE);
 
-    data_ = (lock_data*)ShmemInitStruct(
+    data_ = static_cast<lock_data*>(ShmemInitStruct(
         "deeplake_table_ddl",
         get_shmem_size(),
         &found
-    );
+    ));
 
     if (!found) {
         // First time initialization - assign lock from named tranche
