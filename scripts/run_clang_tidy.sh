@@ -8,6 +8,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BUILD_DIR="${1:-${PROJECT_ROOT}/builds/deeplake-pg-dev}"
 
+# Convert BUILD_DIR to absolute path if it's relative
+if [[ "$BUILD_DIR" != /* ]]; then
+    BUILD_DIR="${PROJECT_ROOT}/${BUILD_DIR}"
+fi
+
 echo "Running clang-tidy on cpp/deeplake_pg..."
 echo "Build directory: ${BUILD_DIR}"
 
@@ -19,28 +24,58 @@ fi
 
 cd "${PROJECT_ROOT}/cpp/deeplake_pg"
 
+# Create temp directory for parallel output
+TEMP_DIR=$(mktemp -d)
+trap "rm -rf ${TEMP_DIR}" EXIT
+
+echo "Running clang-tidy in parallel..."
+
+# Run clang-tidy for each file in parallel
+for file in *.cpp; do
+    (
+        OUTPUT=$(clang-tidy --header-filter='.*deeplake_pg.*' -p "$BUILD_DIR" "$file" 2>&1 || true)
+
+        # Count warnings in this file (only in deeplake_pg directory)
+        FILE_WARNINGS=$(echo "$OUTPUT" | grep -c "deeplake_pg/.*warning:" || true)
+        # Count errors in this file
+        FILE_ERRORS=$(echo "$OUTPUT" | grep -c "deeplake_pg/.*error:" || true)
+
+        # Save results to temp file
+        echo "$file|$FILE_WARNINGS|$FILE_ERRORS" > "${TEMP_DIR}/${file}.count"
+
+        if [ "$FILE_ERRORS" -gt 0 ]; then
+            echo "$OUTPUT" | grep "deeplake_pg/.*error:" > "${TEMP_DIR}/${file}.output"
+        elif [ "$FILE_WARNINGS" -gt 0 ]; then
+            echo "$OUTPUT" | grep "deeplake_pg/.*warning:" > "${TEMP_DIR}/${file}.output"
+        fi
+    ) &
+done
+
+# Wait for all parallel jobs to complete
+wait
+
+echo ""
+echo "Processing results..."
+
 WARNINGS=0
 ERRORS=0
 
+# Process results in order
 for file in *.cpp; do
-    echo "Checking $file..."
-    OUTPUT=$(clang-tidy --header-filter='.*deeplake_pg.*' -p "$BUILD_DIR" "$file" 2>&1 || true)
+    if [ -f "${TEMP_DIR}/${file}.count" ]; then
+        IFS='|' read -r fname FILE_WARNINGS FILE_ERRORS < "${TEMP_DIR}/${file}.count"
 
-    # Count warnings in this file (only in deeplake_pg directory)
-    FILE_WARNINGS=$(echo "$OUTPUT" | grep -c "deeplake_pg/.*warning:" || true)
-    # Count errors in this file
-    FILE_ERRORS=$(echo "$OUTPUT" | grep -c "deeplake_pg/.*error:" || true)
-
-    if [ "$FILE_ERRORS" -gt 0 ]; then
-        echo "❌ $file - has $FILE_ERRORS errors"
-        echo "$OUTPUT" | grep "deeplake_pg/.*error:"
-        ERRORS=$((ERRORS + FILE_ERRORS))
-    elif [ "$FILE_WARNINGS" -gt 0 ]; then
-        echo "⚠ $file - has $FILE_WARNINGS warnings"
-        echo "$OUTPUT" | grep "deeplake_pg/.*warning:"
-        WARNINGS=$((WARNINGS + FILE_WARNINGS))
-    else
-        echo "✓ $file - no issues"
+        if [ "$FILE_ERRORS" -gt 0 ]; then
+            echo "❌ $file - has $FILE_ERRORS errors"
+            cat "${TEMP_DIR}/${file}.output"
+            ERRORS=$((ERRORS + FILE_ERRORS))
+        elif [ "$FILE_WARNINGS" -gt 0 ]; then
+            echo "⚠ $file - has $FILE_WARNINGS warnings"
+            cat "${TEMP_DIR}/${file}.output"
+            WARNINGS=$((WARNINGS + FILE_WARNINGS))
+        else
+            echo "✓ $file - no issues"
+        fi
     fi
 done
 
