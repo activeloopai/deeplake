@@ -67,12 +67,12 @@ inline table_data::table_data(
     , dataset_path_(std::move(dataset_path))
     , creds_(std::move(creds))
 {
-    requested_columns_.resize(tuple_descriptor_->natts, false);
-    base_typeids_.resize(tuple_descriptor_->natts);
+    requested_columns_.resize(static_cast<size_t>(tuple_descriptor_->natts), false);
+    base_typeids_.resize(static_cast<size_t>(tuple_descriptor_->natts));
     // Cache base type OIDs for performance (avoid repeated syscache lookups)
     for (int32_t i = 0; i < tuple_descriptor_->natts; ++i) {
         Form_pg_attribute attr = TupleDescAttr(tuple_descriptor_, i);
-        base_typeids_[i] = pg::utils::get_base_type(attr->atttypid);
+        base_typeids_[static_cast<size_t>(i)] = pg::utils::get_base_type(attr->atttypid);
     }
 }
 
@@ -283,14 +283,14 @@ inline void table_data::reset_insert_rows() noexcept
 
 inline void table_data::add_insert_slots(int32_t nslots, TupleTableSlot** slots)
 {
-    for (auto k = 0; k < nslots; ++k) {
+    for (int32_t k = 0; k < nslots; ++k) {
         auto slot = slots[k];
         slot_getallattrs(slot);
     }
     for (int32_t i = 0; i < num_columns(); ++i) {
         auto& column_values = insert_rows_[get_atttypename(i)];
         const auto dt = get_column_view(i)->dtype();
-        for (auto k = 0; k < nslots; ++k) {
+        for (int32_t k = 0; k < nslots; ++k) {
             auto slot = slots[k];
             nd::array val;
             if (slot->tts_isnull[i]) {
@@ -563,14 +563,14 @@ inline nd::array table_data::streamer_info::get_sample(int32_t column_number, in
     auto& batch = batches[batch_index];
     if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
         std::scoped_lock lock(column_to_batches[column_number].mutex);
-        for (auto i = 0; i <= batch_index; ++i) {
-            if (!batches[i].initialized_.load(std::memory_order_relaxed)) {
-                batches[i].owner_ = streamers[column_number]->next_batch();
-                batches[i].initialized_.store(true, std::memory_order_release);
+        for (int64_t i = 0; i <= batch_index; ++i) {
+            if (!batches[static_cast<size_t>(i)].initialized_.load(std::memory_order_relaxed)) {
+                batches[static_cast<size_t>(i)].owner_ = streamers[static_cast<size_t>(column_number)]->next_batch();
+                batches[static_cast<size_t>(i)].initialized_.store(true, std::memory_order_release);
             }
         }
     }
-    return batch.owner_[row_in_batch];
+    return batch.owner_[static_cast<size_t>(row_in_batch)];
 }
 
 template <typename T>
@@ -583,16 +583,16 @@ inline T table_data::streamer_info::value(int32_t column_number, int64_t row_num
     auto& batch = batches[batch_index];
     if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
         std::scoped_lock lock(column_to_batches[column_number].mutex);
-        for (auto i = 0; i <= batch_index; ++i) {
-            if (!batches[i].initialized_.load(std::memory_order_relaxed)) {
-                batches[i].owner_ = utils::eval_with_nones<T>(streamers[column_number]->next_batch());
-                batches[i].data_ = batches[i].owner_.data().data();
-                batches[i].initialized_.store(true, std::memory_order_release);
+        for (int64_t i = 0; i <= batch_index; ++i) {
+            if (!batches[static_cast<size_t>(i)].initialized_.load(std::memory_order_relaxed)) {
+                batches[static_cast<size_t>(i)].owner_ = utils::eval_with_nones<T>(streamers[static_cast<size_t>(column_number)]->next_batch());
+                batches[static_cast<size_t>(i)].data_ = batches[static_cast<size_t>(i)].owner_.data().data();
+                batches[static_cast<size_t>(i)].initialized_.store(true, std::memory_order_release);
             }
         }
     }
 
-    return reinterpret_cast<const T*>(batch.data_)[row_in_batch];
+    return reinterpret_cast<const T*>(batch.data_)[static_cast<size_t>(row_in_batch)];
 }
 
 template <typename T>
@@ -605,11 +605,11 @@ inline const T* table_data::streamer_info::value_ptr(int32_t column_number, int6
     auto& batch = batches[batch_index];
     if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
         std::scoped_lock lock(column_to_batches[column_number].mutex);
-        for (auto i = 0; i <= batch_index; ++i) {
-            if (!batches[i].initialized_.load(std::memory_order_relaxed)) {
-                batches[i].owner_ = utils::eval_with_nones<T>(streamers[column_number]->next_batch());
-                batches[i].data_ = batches[i].owner_.data().data();
-                batches[i].initialized_.store(true, std::memory_order_release);
+        for (int64_t i = 0; i <= batch_index; ++i) {
+            if (!batches[static_cast<size_t>(i)].initialized_.load(std::memory_order_relaxed)) {
+                batches[static_cast<size_t>(i)].owner_ = utils::eval_with_nones<T>(streamers[static_cast<size_t>(column_number)]->next_batch());
+                batches[static_cast<size_t>(i)].data_ = batches[static_cast<size_t>(i)].owner_.data().data();
+                batches[static_cast<size_t>(i)].initialized_.store(true, std::memory_order_release);
             }
         }
     }
@@ -627,16 +627,16 @@ inline std::string_view table_data::streamer_info::value(int32_t column_number, 
     auto& batch = batches[batch_index];
     if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
         std::scoped_lock lock(column_to_batches[column_number].mutex);
-        for (auto i = 0; i <= batch_index; ++i) {
-            if (!batches[i].initialized_.load(std::memory_order_relaxed)) {
-                batches[i].owner_ = streamers[column_number]->next_batch();
-                batches[i].holder_ = impl::string_stream_array_holder(batches[i].owner_);
-                batches[i].initialized_.store(true, std::memory_order_release);
+        for (int64_t i = 0; i <= batch_index; ++i) {
+            if (!batches[static_cast<size_t>(i)].initialized_.load(std::memory_order_relaxed)) {
+                batches[static_cast<size_t>(i)].owner_ = streamers[static_cast<size_t>(column_number)]->next_batch();
+                batches[static_cast<size_t>(i)].holder_ = impl::string_stream_array_holder(batches[static_cast<size_t>(i)].owner_);
+                batches[static_cast<size_t>(i)].initialized_.store(true, std::memory_order_release);
             }
         }
     }
 
-    return batch.holder_.data(row_in_batch);
+    return batch.holder_.data(static_cast<size_t>(row_in_batch));
 }
 
 inline bool table_data::flush()

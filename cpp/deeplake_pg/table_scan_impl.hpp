@@ -37,7 +37,7 @@ inline table_scan::table_scan(Oid table_id, bool is_parallel, bool streamer_only
     , table_id_(table_id)
     , is_parallel_(is_parallel)
 {
-    for (auto i = 0; i < table_data_.num_columns(); ++i) {
+    for (int32_t i = 0; i < table_data_.num_columns(); ++i) {
         auto process_result = impl::should_process_column(table_data_, i, streamer_only);
         if (process_result == table_scan::column_process_result::process) {
             process_columns_.emplace_back(i);
@@ -49,7 +49,7 @@ inline table_scan::table_scan(Oid table_id, bool is_parallel, bool streamer_only
             special_columns_.emplace_back(i);
         }
     }
-    for (auto i = 0; i < table_data_.num_columns(); ++i) {
+    for (int32_t i = 0; i < table_data_.num_columns(); ++i) {
     }
     if (is_parallel_ || IsParallelWorker()) {
         int32_t worker_number = ParallelWorkerNumber + 1;

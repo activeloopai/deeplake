@@ -83,7 +83,7 @@ inline Oid get_base_type(Oid typid)
     Form_pg_type typTup = (Form_pg_type) GETSTRUCT(tup);
 
     // If it's a domain, recursively get the base type
-    Oid result = 0;
+    Oid result = InvalidOid;
     if (typTup->typtype == TYPTYPE_DOMAIN) {
         result = get_base_type(typTup->typbasetype);
     } else {
@@ -231,8 +231,8 @@ static std::string get_deeplake_root_directory()
 
 inline std::pair<BlockNumber, OffsetNumber> row_number_to_tid(int64_t row_number)
 {
-    BlockNumber block_number = row_number / DEEPLAKE_TUPLES_PER_BLOCK;
-    OffsetNumber offset = (row_number % DEEPLAKE_TUPLES_PER_BLOCK) + 1;
+    BlockNumber block_number = static_cast<BlockNumber>(row_number / DEEPLAKE_TUPLES_PER_BLOCK);
+    OffsetNumber offset = static_cast<OffsetNumber>((row_number % DEEPLAKE_TUPLES_PER_BLOCK) + 1);
     return {block_number, offset};
 }
 
@@ -336,7 +336,7 @@ inline parsed_special_datum_result parse_space_separated_values(const char* data
     const char* end = data + len;
 
     // Parse magic number
-    int32_t magic;
+    int32_t magic = 0;
     auto [p1, ec1] = std::from_chars(ptr, end, magic);
     if (ec1 != std::errc{} || magic != g_not_fetched_magic) {
         return result;
@@ -347,7 +347,7 @@ inline parsed_special_datum_result parse_space_separated_values(const char* data
     ptr = p1 + 1;
 
     // Parse table_id
-    uint32_t table_id;
+    uint32_t table_id = 0;
     auto [p2, ec2] = std::from_chars(ptr, end, table_id);
     if (ec2 != std::errc{}) return result;
 
@@ -356,7 +356,7 @@ inline parsed_special_datum_result parse_space_separated_values(const char* data
     ptr = p2 + 1;
 
     // Parse row_id
-    int64_t row_id;
+    int64_t row_id = 0;
     auto [p3, ec3] = std::from_chars(ptr, end, row_id);
     if (ec3 != std::errc{}) return result;
 
@@ -365,7 +365,7 @@ inline parsed_special_datum_result parse_space_separated_values(const char* data
     ptr = p3 + 1;
 
     // Parse column_id
-    int32_t column_id;
+    int32_t column_id = 0;
     auto [p4, ec4] = std::from_chars(ptr, end, column_id);
     if (ec4 != std::errc{}) return result;
 
@@ -397,7 +397,7 @@ inline Datum make_special_datum(Oid table_id, int64_t row_id, AttrNumber column_
     }
     if (is_string_type(attr_typeid)) {
         std::string str = fmt::format("{} {} {} {}", g_not_fetched_magic, table_id, row_id, column_id);
-        return PointerGetDatum(cstring_to_text_with_len(str.data(), str.size()));
+        return PointerGetDatum(cstring_to_text_with_len(str.data(), static_cast<int>(str.size())));
     } else if (type_is_array(attr_typeid)) {
         switch (attr_typeid)
         {
@@ -416,9 +416,9 @@ inline Datum make_special_datum(Oid table_id, int64_t row_id, AttrNumber column_
         case INT4ARRAYOID: {
             Datum* elements = (Datum*)palloc(4 * sizeof(Datum));
             elements[0] = Int32GetDatum(g_not_fetched_magic);
-            elements[1] = Int32GetDatum(table_id);
+            elements[1] = Int32GetDatum(static_cast<int32_t>(table_id));
             elements[2] = Int64GetDatum(row_id);
-            elements[3] = Int32GetDatum(column_id);
+            elements[3] = Int32GetDatum(static_cast<int32_t>(column_id));
             return PointerGetDatum(construct_array(elements, 4, INT4OID, sizeof(int32_t), true, 'i'));
         }
         case INT8ARRAYOID: {
@@ -451,29 +451,29 @@ inline Datum make_special_datum(Oid table_id, int64_t row_id, AttrNumber column_
 
             // Create bytea for magic number
             std::string magic_str = std::to_string(g_not_fetched_magic);
-            bytea* magic_b = (bytea*)palloc(VARHDRSZ + magic_str.size());
-            SET_VARSIZE(magic_b, VARHDRSZ + magic_str.size());
+            bytea* magic_b = (bytea*)palloc(static_cast<size_t>(VARHDRSZ) + magic_str.size());
+            SET_VARSIZE(magic_b, static_cast<int32_t>(static_cast<size_t>(VARHDRSZ) + magic_str.size()));
             memcpy(VARDATA(magic_b), magic_str.data(), magic_str.size());
             elements[0] = PointerGetDatum(magic_b);
 
             // Create bytea for table_id
             std::string table_str = std::to_string(table_id);
-            bytea* table_b = (bytea*)palloc(VARHDRSZ + table_str.size());
-            SET_VARSIZE(table_b, VARHDRSZ + table_str.size());
+            bytea* table_b = (bytea*)palloc(static_cast<size_t>(VARHDRSZ) + table_str.size());
+            SET_VARSIZE(table_b, static_cast<int32_t>(static_cast<size_t>(VARHDRSZ) + table_str.size()));
             memcpy(VARDATA(table_b), table_str.data(), table_str.size());
             elements[1] = PointerGetDatum(table_b);
 
             // Create bytea for row_id
             std::string row_str = std::to_string(row_id);
-            bytea* row_b = (bytea*)palloc(VARHDRSZ + row_str.size());
-            SET_VARSIZE(row_b, VARHDRSZ + row_str.size());
+            bytea* row_b = (bytea*)palloc(static_cast<size_t>(VARHDRSZ) + row_str.size());
+            SET_VARSIZE(row_b, static_cast<int32_t>(static_cast<size_t>(VARHDRSZ) + row_str.size()));
             memcpy(VARDATA(row_b), row_str.data(), row_str.size());
             elements[2] = PointerGetDatum(row_b);
 
             // Create bytea for column_id
             std::string col_str = std::to_string(column_id);
-            bytea* col_b = (bytea*)palloc(VARHDRSZ + col_str.size());
-            SET_VARSIZE(col_b, VARHDRSZ + col_str.size());
+            bytea* col_b = (bytea*)palloc(static_cast<size_t>(VARHDRSZ) + col_str.size());
+            SET_VARSIZE(col_b, static_cast<int32_t>(static_cast<size_t>(VARHDRSZ) + col_str.size()));
             memcpy(VARDATA(col_b), col_str.data(), col_str.size());
             elements[3] = PointerGetDatum(col_b);
 
@@ -486,8 +486,8 @@ inline Datum make_special_datum(Oid table_id, int64_t row_id, AttrNumber column_
     } else if (attr_typeid == BYTEAOID) {
         // For BYTEA, we can use a bytea type
         std::string str = fmt::format("{} {} {} {}", g_not_fetched_magic, table_id, row_id, column_id);
-        bytea* b = (bytea*)palloc(VARHDRSZ + str.size());
-        SET_VARSIZE(b, VARHDRSZ + str.size());
+        bytea* b = (bytea*)palloc(static_cast<size_t>(VARHDRSZ) + str.size());
+        SET_VARSIZE(b, static_cast<int32_t>(static_cast<size_t>(VARHDRSZ) + str.size()));
         memcpy(VARDATA(b), str.data(), str.size());
         return PointerGetDatum(b);
     }
@@ -605,9 +605,9 @@ inline parsed_special_datum_result parse_special_datum(Datum d, Oid attr_typeid)
         }
         case BYTEAARRAYOID: {
             // For bytea arrays, parse each element as string
-            Datum* elem_datums;
-            bool* elem_nulls;
-            int elem_count;
+            Datum* elem_datums = nullptr;
+            bool* elem_nulls = nullptr;
+            int elem_count = 0;
             deconstruct_array(arr, BYTEAOID, -1, false, 'i', &elem_datums, &elem_nulls, &elem_count);
 
             if (elem_count != 4 || elem_nulls[0] || elem_nulls[1] || elem_nulls[2] || elem_nulls[3]) {
@@ -615,15 +615,15 @@ inline parsed_special_datum_result parse_special_datum(Datum d, Oid attr_typeid)
             }
 
             // Parse magic from first element
-            int32_t magic;
+            int32_t magic = 0;
             if (!parse_bytea_element(DatumGetByteaP(elem_datums[0]), magic) || magic != g_not_fetched_magic) {
                 return result;
             }
 
             // Parse table_id, row_id, column_id from remaining elements
-            uint32_t table_id;
-            int64_t row_id;
-            int32_t column_id;
+            uint32_t table_id = 0;
+            int64_t row_id = 0;
+            int32_t column_id = 0;
 
             if (!parse_bytea_element(DatumGetByteaP(elem_datums[1]), table_id) ||
                 !parse_bytea_element(DatumGetByteaP(elem_datums[2]), row_id) ||

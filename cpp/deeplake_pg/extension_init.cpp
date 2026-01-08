@@ -317,7 +317,7 @@ void transform_jsonb_arrow_quals(Node** nodeptr)
 
     if (IsA(node, BoolExpr)) {
         BoolExpr* b = (BoolExpr*)node;
-        ListCell* lc;
+        ListCell* lc = nullptr;
         foreach(lc, b->args) {
             transform_jsonb_arrow_quals((Node**)&lfirst(lc));
         }

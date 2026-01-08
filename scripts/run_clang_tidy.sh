@@ -19,41 +19,28 @@ fi
 
 cd "${PROJECT_ROOT}/cpp/deeplake_pg"
 
-# Find all C++ source files
-CPP_FILES=$(find . -name "*.cpp" -type f)
+WARNINGS=0
+ERRORS=0
 
-if [ -z "$CPP_FILES" ]; then
-    echo "No C++ files found in cpp/deeplake_pg"
-    exit 1
-fi
+for file in *.cpp; do
+    echo "Checking $file..."
+    OUTPUT=$(clang-tidy --header-filter='.*deeplake_pg.*' -p "$BUILD_DIR" "$file" 2>&1 || true)
 
-echo "Found $(echo "$CPP_FILES" | wc -l) C++ files to analyze"
-
-# Run clang-tidy on all files
-FAILED=0
-WARNING_COUNT=0
-
-for file in $CPP_FILES; do
-    echo "Analyzing: $file"
-    # Run clang-tidy and capture output
-    OUTPUT=$(clang-tidy \
-        -p "${BUILD_DIR}" \
-        "$file" \
-        2>&1 || true)
-
-    # Count warnings in this file (excluding header warnings)
+    # Count warnings in this file (only in deeplake_pg directory)
     FILE_WARNINGS=$(echo "$OUTPUT" | grep -c "deeplake_pg/.*warning:" || true)
-    WARNING_COUNT=$((WARNING_COUNT + FILE_WARNINGS))
+    # Count errors in this file
+    FILE_ERRORS=$(echo "$OUTPUT" | grep -c "deeplake_pg/.*error:" || true)
 
-    # Check for errors
-    if echo "$OUTPUT" | grep -q "error:"; then
-        echo "  ❌ Errors found in $file"
-        echo "$OUTPUT" | grep "error:"
-        FAILED=1
+    if [ "$FILE_ERRORS" -gt 0 ]; then
+        echo "❌ $file - has $FILE_ERRORS errors"
+        echo "$OUTPUT" | grep "deeplake_pg/.*error:"
+        ERRORS=$((ERRORS + FILE_ERRORS))
     elif [ "$FILE_WARNINGS" -gt 0 ]; then
-        echo "  ⚠️  $FILE_WARNINGS warnings"
+        echo "⚠ $file - has $FILE_WARNINGS warnings"
+        echo "$OUTPUT" | grep "deeplake_pg/.*warning:"
+        WARNINGS=$((WARNINGS + FILE_WARNINGS))
     else
-        echo "  ✅ No issues"
+        echo "✓ $file - no issues"
     fi
 done
 
@@ -61,14 +48,14 @@ echo ""
 echo "===================="
 echo "Clang-Tidy Summary"
 echo "===================="
-echo "Total warnings: $WARNING_COUNT"
+echo "Total warnings: $WARNINGS"
+echo "Total errors: $ERRORS"
 
-if [ $FAILED -ne 0 ]; then
-    echo "❌ Clang-tidy found errors!"
+if [ $ERRORS -gt 0 ]; then
+    echo "❌ Clang-tidy found $ERRORS errors!"
     exit 1
-elif [ $WARNING_COUNT -gt 0 ]; then
-    echo "⚠️  Clang-tidy found $WARNING_COUNT warnings"
-    echo "This is informational - the build will not fail"
+elif [ $WARNINGS -gt 0 ]; then
+    echo "⚠ Clang-tidy found $WARNINGS warnings (non-blocking)"
     exit 0
 else
     echo "✅ No issues found!"

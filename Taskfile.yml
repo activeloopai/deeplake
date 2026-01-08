@@ -1,0 +1,198 @@
+version: '3'
+
+vars:
+  BUILD_MODE: '{{.BUILD_MODE | default "dev"}}'
+  PG_VERSION: 18
+  POSTGRES_SOURCE: "cpp/.ext/postgres-REL_{{.PG_VERSION}}_0"
+  POSTGRES_INSTALL: "{{.POSTGRES_SOURCE}}/install"
+  POSTGRES_DATA: "{{.POSTGRES_SOURCE}}/data"
+  POSTGRES_LOG: "postgres/tests/taskfile_server.log"
+  BUILD_DIR: "builds/deeplake-pg-{{.BUILD_MODE}}"
+  USER:
+    sh: echo ${USER:-postgres}
+
+tasks:
+  build:
+    desc: "Build the pg_deeplake PostgreSQL extension (incremental)"
+    cmds:
+      - python3 scripts/build_pg_ext.py
+
+  "build:dev":
+    desc: "Full build in dev mode"
+    cmds:
+      - python3 scripts/build_pg_ext.py dev
+
+  "build:prod":
+    desc: "Full build in production mode"
+    cmds:
+      - python3 scripts/build_pg_ext.py prod
+
+  "build:debug":
+    desc: "Full build in debug mode"
+    cmds:
+      - python3 scripts/build_pg_ext.py debug
+
+  lint:
+    desc: "Run clang-tidy linter on cpp/deeplake_pg"
+    deps:
+      - build
+    cmds:
+      - bash scripts/run_clang_tidy.sh {{.BUILD_DIR}}
+
+  "lint:file":
+    desc: "Run clang-tidy on a specific file"
+    dir: cpp/deeplake_pg
+    cmds:
+      - |
+        if [ -z "{{.FILE}}" ]; then
+          echo "Error: Please specify FILE parameter"
+          echo "Usage: task lint:file FILE=table_am.cpp"
+          exit 1
+        fi
+        clang-tidy -p "../../{{.BUILD_DIR}}" "{{.FILE}}"
+
+  test:
+    desc: "Run PostgreSQL extension tests (Python pytest)"
+    dir: postgres/tests/py_tests
+    cmds:
+      - pytest -v {{.CLI_ARGS}}
+
+  "test:parallel":
+    desc: "Run tests in parallel using pytest-xdist"
+    dir: postgres/tests/py_tests
+    cmds:
+      - pytest -v -n auto {{.CLI_ARGS}}
+
+  "test:coverage":
+    desc: "Run tests with coverage report"
+    dir: postgres/tests/py_tests
+    cmds:
+      - pytest -v --cov=. --cov-report=html --cov-report=term {{.CLI_ARGS}}
+      - echo "Coverage report generated in postgres/tests/py_tests/htmlcov/index.html"
+
+  "test:single":
+    desc: "Run a single test file"
+    dir: postgres/tests/py_tests
+    cmds:
+      - |
+        if [ -z "{{.TEST}}" ]; then
+          echo "Error: Please specify TEST parameter"
+          echo "Usage: task test:single TEST=test_basic_ops.py"
+          exit 1
+        fi
+        pytest -v "{{.TEST}}" {{.CLI_ARGS}}
+
+  run:
+    desc: "Start PostgreSQL server with pg_deeplake extension loaded"
+    deps:
+      - build
+    cmds:
+      - |
+        echo "Starting PostgreSQL server with pg_deeplake extension..."
+
+        PG_CTL="{{.POSTGRES_INSTALL}}/bin/pg_ctl"
+        INITDB="{{.POSTGRES_INSTALL}}/bin/initdb"
+        PSQL="{{.POSTGRES_INSTALL}}/bin/psql"
+        DATA_DIR="{{.POSTGRES_DATA}}"
+        INSTALL_DIR="{{.POSTGRES_INSTALL}}"
+        LOG_FILE="{{.POSTGRES_LOG}}"
+
+        if [ -f "$DATA_DIR/postmaster.pid" ]; then
+          echo "PostgreSQL server appears to be running. Use 'task stop' to stop it first."
+          exit 1
+        fi
+
+        if [ ! -d "$DATA_DIR" ]; then
+          echo "Initializing PostgreSQL database cluster..."
+          "$INITDB" -D "$DATA_DIR" -U "{{.USER}}"
+
+          echo "shared_preload_libraries = 'pg_deeplake'" >> "$DATA_DIR/postgresql.conf"
+          echo "max_connections = 100" >> "$DATA_DIR/postgresql.conf"
+        fi
+
+        echo "Installing pg_deeplake extension files..."
+        EXT_DIR="$INSTALL_DIR/share/extension"
+        LIB_DIR="$INSTALL_DIR/lib"
+        mkdir -p "$EXT_DIR"
+
+        cp postgres/*.control "$EXT_DIR/" 2>/dev/null || true
+        cp postgres/*.sql "$EXT_DIR/" 2>/dev/null || grep -v "utils.psql" || true
+        cp postgres/pg_deeplake_{{.PG_VERSION}}.so "$LIB_DIR/pg_deeplake.so" 2>/dev/null || true
+
+        export LD_LIBRARY_PATH="$LIB_DIR:${LD_LIBRARY_PATH:-}"
+
+        echo "Starting PostgreSQL server..."
+        "$PG_CTL" -D "$DATA_DIR" -l "$LOG_FILE" start
+
+        sleep 2
+
+        echo "Creating pg_deeplake extension..."
+        "$PSQL" -U "{{.USER}}" -d postgres -c "CREATE EXTENSION IF NOT EXISTS pg_deeplake;"
+
+        echo ""
+        echo "✓ PostgreSQL server is running with pg_deeplake extension loaded"
+        echo ""
+        echo "Connection details:"
+        echo "  Host: localhost"
+        echo "  Database: postgres"
+        echo "  User: {{.USER}}"
+        echo ""
+        echo "Connect with: psql -U {{.USER}} -d postgres"
+        echo "Stop server with: task stop"
+        echo "View logs: tail -f {{.POSTGRES_LOG}}"
+
+  stop:
+    desc: "Stop the PostgreSQL server"
+    cmds:
+      - |
+        PG_CTL="{{.POSTGRES_INSTALL}}/bin/pg_ctl"
+        DATA_DIR="{{.POSTGRES_DATA}}"
+
+        if [ ! -f "$DATA_DIR/postmaster.pid" ]; then
+          echo "PostgreSQL server is not running"
+          exit 0
+        fi
+
+        echo "Stopping PostgreSQL server..."
+        "$PG_CTL" -D "$DATA_DIR" stop -m fast
+        echo "✓ PostgreSQL server stopped"
+
+  status:
+    desc: "Check PostgreSQL server status"
+    cmds:
+      - |
+        PG_CTL="{{.POSTGRES_INSTALL}}/bin/pg_ctl"
+        DATA_DIR="{{.POSTGRES_DATA}}"
+
+        "$PG_CTL" -D "$DATA_DIR" status || echo "PostgreSQL server is not running"
+
+  clean:
+    desc: "Clean build artifacts and test outputs"
+    cmds:
+      - rm -rf builds/
+      - rm -rf postgres/tests/logs/*
+      - rm -rf postgres/tests/results/*
+      - rm -rf postgres/tests/py_tests/htmlcov/
+      - rm -rf postgres/tests/py_tests/.pytest_cache/
+      - rm -rf postgres/tests/py_tests/.coverage
+      - find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+      - echo "✓ Cleaned build artifacts and test outputs"
+
+  "clean:db":
+    desc: "Clean PostgreSQL data directory"
+    cmds:
+      - task: stop
+      - rm -rf "{{.POSTGRES_DATA}}"
+      - echo "✓ PostgreSQL data directory cleaned"
+
+  dev:
+    desc: "Full development workflow (build, lint, test)"
+    cmds:
+      - task: build
+      - task: lint
+      - task: test
+
+  help:
+    desc: "Show available tasks"
+    cmds:
+      - task --list

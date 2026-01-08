@@ -411,8 +411,8 @@ Datum duckdb_value_to_pg_datum(
                 int total_elements = dim0 * dim1;
 
                 // Allocate flat arrays for all elements
-                Datum* elem_datums = (Datum*)palloc(total_elements * sizeof(Datum));
-                bool* elem_nulls = (bool*)palloc(total_elements * sizeof(bool));
+                Datum* elem_datums = (Datum*)palloc(static_cast<size_t>(total_elements) * sizeof(Datum));
+                bool* elem_nulls = (bool*)palloc(static_cast<size_t>(total_elements) * sizeof(bool));
 
                 // Get the data vector (grandchild of the outer list)
                 auto& data_vec = ListVector::GetEntry(list_child);
@@ -493,8 +493,8 @@ Datum duckdb_value_to_pg_datum(
             }
 
             // Convert each element
-            Datum* elem_datums = (Datum*)palloc(list_size * sizeof(Datum));
-            bool* elem_nulls = (bool*)palloc(list_size * sizeof(bool));
+            Datum* elem_datums = (Datum*)palloc(static_cast<size_t>(list_size) * sizeof(Datum));
+            bool* elem_nulls = (bool*)palloc(static_cast<size_t>(list_size) * sizeof(bool));
 
             for (idx_t i = 0; i < list_size; i++) {
                 elem_datums[i] = duckdb_value_to_pg_datum(list_child,

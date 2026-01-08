@@ -233,7 +233,7 @@ nd::array to_deeplake_value(std::shared_ptr<duckdb::Vector>&& vector, size_t tot
         const auto dt = nd::dtype_enum<T>::value;
         auto data_span = std::span<const uint8_t>(
             reinterpret_cast<const uint8_t*>(src_data),
-            total_rows * sizeof(T)
+            static_cast<size_t>(total_rows) * sizeof(T)
         );
         return nd::array(nd::impl::std_span_array_nd(std::move(vector), data_span,
                          icm::shape{static_cast<int64_t>(total_rows)}, dt));

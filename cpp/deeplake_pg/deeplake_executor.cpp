@@ -44,7 +44,7 @@ void analyze_plan(PlannedStmt* plan)
     if (plan->permInfos == nullptr) {
         return;
     }
-    ListCell* lc;
+    ListCell* lc = nullptr;
     bool all_tables_are_deeplake = true;
     foreach (lc, plan->permInfos) {
         RTEPermissionInfo* perminfo = (RTEPermissionInfo*)lfirst(lc);
@@ -69,7 +69,7 @@ void analyze_plan(PlannedStmt* plan)
         while ((col = bms_next_member(perminfo->selectedCols, col)) >= 0) {
             // bms_next_member returns 0-based index, but AttrNumber is 1-based
             // The bitmapset stores (attnum - FirstLowInvalidHeapAttributeNumber)
-            AttrNumber attnum = col + FirstLowInvalidHeapAttributeNumber;
+            AttrNumber attnum = static_cast<AttrNumber>(col + FirstLowInvalidHeapAttributeNumber);
             if (attnum <= 0) { // Only positive attribute numbers are real columns
                 continue;
             }
@@ -104,7 +104,8 @@ struct DeeplakeExecutorState
     size_t total_rows = 0;
 
     DeeplakeExecutorState()
-        : printer("DeeplakeExecutorState")
+        : css{}
+        , printer("DeeplakeExecutorState")
     {
     }
 
@@ -133,8 +134,8 @@ struct DeeplakeExecutorState
 // Simple executor state for COUNT(*) fast path
 struct CountExecutorState
 {
-    CustomScanState css;
-    int64_t count_value;
+    CustomScanState css{};
+    int64_t count_value = 0;
     bool returned = false;
 };
 
@@ -205,10 +206,10 @@ Datum deeplake_sample_to_datum(
     try {
         if (!type_is_array(target_type) && nd::dtype_is_numeric(samples.dtype())) {
             return nd::switch_numeric_dtype(samples.dtype(), [&]<typename T>() {
-                return pg::utils::pointer_to_datum<T>(samples.data().data(), target_type, attr_typmod, index);
+                return pg::utils::pointer_to_datum<T>(samples.data().data(), target_type, attr_typmod, static_cast<int64_t>(index));
             });
         }
-        nd::array sample = (samples.dimensions() == 0 ? samples : samples[index]);
+        nd::array sample = (samples.dimensions() == 0 ? samples : samples[static_cast<int64_t>(index)]);
         if (sample.is_none()) {
             is_null = true;
             return (Datum)0;
@@ -340,8 +341,8 @@ void deeplake_executor_explain(CustomScanState* node, List* ancestors, ExplainSt
     DeeplakeExecutorState* state = (DeeplakeExecutorState*)node;
     ExplainPropertyText("DeepLake Query", state->query_string.c_str(), es);
     if (state->total_rows > 0) {
-        ExplainPropertyInteger("Rows", nullptr, state->total_rows, es);
-        ExplainPropertyInteger("Chunks", nullptr, state->duckdb_result.get_chunk_count(), es);
+        ExplainPropertyInteger("Rows", nullptr, static_cast<int64>(state->total_rows), es);
+        ExplainPropertyInteger("Chunks", nullptr, static_cast<int64>(state->duckdb_result.get_chunk_count()), es);
     }
 }
 
@@ -429,7 +430,7 @@ void count_executor_explain(CustomScanState* node, List* ancestors, ExplainState
 List* create_simple_targetlist(List* original_targetlist)
 {
     List* new_targetlist = NIL;
-    ListCell* lc;
+    ListCell* lc = nullptr;
     AttrNumber attno = 1;
 
     foreach (lc, original_targetlist) {
