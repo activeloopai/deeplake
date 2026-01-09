@@ -121,6 +121,13 @@ jobs:
       #    clang-tidy --version
       #    echo -e "${GREEN}Clang-tidy installed.${DEFAULT}"
 
+      - name: hold
+        shell: bash
+        run: |
+          while :; do
+            sleep 5
+          done
+
       - name: clang-tidy
         shell: bash
         continue-on-error: true
