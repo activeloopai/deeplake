@@ -21,11 +21,11 @@ function run_tidy() {
 }
 
 function log() {
-  local level ts msg
+  local level ts
   level="$1"
   ts="$(date --utc -Iseconds)"
   shift
-  printf "[%s] - [%s] - \"%s\"\n" "${level^^}" "${ts}" "${msg}"
+  printf "[%s] - [%s] - \"%s\"\n" "${level^^}" "${ts}" "$*"
 }
 
 SCRIPT_DIR="$(realpath "$(dirname "${BASH_SOURCE[0]}")")"
@@ -55,7 +55,7 @@ for file in *.cpp; do
 done
 wait
 
-log "processing results..."
+log info "processing results..."
 
 WARNINGS=0
 ERRORS=0
