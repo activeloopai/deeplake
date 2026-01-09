@@ -94,7 +94,10 @@ jobs:
         shell: bash
         run: |-
           bash scripts/build_scripts/manage_cache.sh download postgres
-          git clone https://github.com/microsoft/vcpkg.git && cd vcpkg && git checkout 6f29f12e82a8293156836ad81cc9bf5af41fe836 && ./bootstrap-vcpkg.sh
+          git clone https://github.com/microsoft/vcpkg.git
+          cd vcpkg 
+          git checkout 6f29f12e82a8293156836ad81cc9bf5af41fe836
+          ./bootstrap-vcpkg.sh
 
       - name: install python dependencies
         shell: bash
@@ -110,15 +113,15 @@ jobs:
           python3 scripts/build_pg_ext.py prod --deeplake-static --pg-versions "${PG_VERSION}"
           echo -e "${GREEN}Done.${DEFAULT}"
 
-      - name: install clang-tidy
-        shell: bash
-        run: |-
-          echo -e "${YELLOW}Installing clang-tidy...${DEFAULT}"
-          yum install -y clang-tools-extra
-          clang-tidy --version
-          echo -e "${GREEN}Clang-tidy installed.${DEFAULT}"
+      #- name: install clang-tidy
+      #  shell: bash
+      #  run: |-
+      #    echo -e "${YELLOW}Installing clang-tidy...${DEFAULT}"
+      #    yum install -y clang-tools-extra
+      #    clang-tidy --version
+      #    echo -e "${GREEN}Clang-tidy installed.${DEFAULT}"
 
-      - name: run clang-tidy
+      - name: clang-tidy
         shell: bash
         continue-on-error: true
         run: |-
