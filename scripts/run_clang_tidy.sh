@@ -29,7 +29,7 @@ function log() {
 }
 
 SCRIPT_DIR="$(realpath "$(dirname "${BASH_SOURCE[0]}")")"
-PROJECT_ROOT="$(realpath ..)"
+PROJECT_ROOT="$(cd $SCRIPT_DIR && realpath ..)"
 BUILD_DIR="$(realpath "${1:-${PROJECT_ROOT}/builds/deeplake-pg-dev}")"
 
 log info "running clang-tidy on cpp/deeplake_pg..."
@@ -96,3 +96,4 @@ else
   log info "✅ No issues found!"
   exit 0
 fi
+
