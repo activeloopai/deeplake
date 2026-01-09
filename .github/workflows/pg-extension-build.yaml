@@ -113,19 +113,6 @@ jobs:
           python3 scripts/build_pg_ext.py prod --deeplake-static --pg-versions "${PG_VERSION}"
           echo -e "${GREEN}Done.${DEFAULT}"
 
-      #- name: install clang-tidy
-      #  shell: bash
-      #  run: |-
-      #    echo -e "${YELLOW}Installing clang-tidy...${DEFAULT}"
-      #    yum install -y clang-tools-extra
-      #    clang-tidy --version
-      #    echo -e "${GREEN}Clang-tidy installed.${DEFAULT}"
-
-      - name: hold
-        shell: bash
-        run: |
-          while :; do sleep 1; done
-
       - name: clang-tidy
         shell: bash
         continue-on-error: true

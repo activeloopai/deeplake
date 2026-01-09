@@ -47,8 +47,7 @@ log info "running clang-tidy in parallel..."
 
 worker_count="$(nproc)"
 for file in *.cpp; do
-  ((counter++))
-  run_tidy $file &
+  timeout -k=1m run_tidy $file &
   while [ "$(jobs | wc -l)" -ge "$worker_count" ]; do
     sleep 0.1
   done
@@ -79,12 +78,6 @@ for file in *.cpp; do
 done
 
 log info "clang-tidy summary: warnings=$WARNINGS errors=$ERRORS"
-echo ""
-echo "===================="
-echo "Clang-Tidy Summary"
-echo "===================="
-echo "Total warnings: $WARNINGS"
-echo "Total errors: $ERRORS"
 
 if [ $ERRORS -gt 0 ]; then
   log error "❌ Clang-tidy found $ERRORS errors!"
