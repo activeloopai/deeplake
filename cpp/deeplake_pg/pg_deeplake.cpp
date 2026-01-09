@@ -294,7 +294,7 @@ void load_index_metadata()
             const uint32_t oid = is_null ? 0 : DatumGetUInt32(datum_order_type);
 
             if (!pg::pg_index::has_index_info(oid)) {
-                pg::pg_index::create_index_info(oid);
+                pg::pg_index::load_index_info(oid);
             } else {
                 pg::index_info::current().reset();
             }

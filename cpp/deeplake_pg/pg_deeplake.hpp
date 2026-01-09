@@ -455,6 +455,14 @@ public:
         index_info::current().reset();
     }
 
+    static void load_index_info(Oid oid)
+    {
+        // Load index metadata into memory cache without creating DeepLake indexes
+        // (indexes already exist in the dataset, we're just restoring the in-memory state)
+        instance().indexes_.emplace(oid, index_info::current());
+        index_info::current().reset();
+    }
+
     static bool has_index_info(Oid oid)
     {
         return instance().indexes_.find(oid) != instance().indexes_.end();
