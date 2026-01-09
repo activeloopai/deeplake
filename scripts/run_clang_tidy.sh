@@ -47,7 +47,7 @@ log info "running clang-tidy in parallel..."
 
 worker_count="$(nproc)"
 for file in *.cpp; do
-  timeout -k=1m run_tidy $file &
+  run_tidy $file &
   while [ "$(jobs | wc -l)" -ge "$worker_count" ]; do
     sleep 0.1
   done
