@@ -216,10 +216,10 @@ void initialize_guc_parameters()
                              "for detecting dataset refreshes, which can improve performance but may "
                              "have implications on concurrency. "
                              "It make sense to disable this for OLTP workloads.",
-                             &pg::use_shared_mem_for_refresh,   // linked C variable
-                             false,                             // default value
-                             PGC_USERSET,                       // context (USERSET, SUSET, etc.)
-                             0,                                 // flags
+                             &pg::use_shared_mem_for_refresh, // linked C variable
+                             true,                            // default value
+                             PGC_USERSET,                     // context (USERSET, SUSET, etc.)
+                             0,                               // flags
                              nullptr,
                              nullptr,
                              nullptr // check_hook, assign_hook, show_hook
