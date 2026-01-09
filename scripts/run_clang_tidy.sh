@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -eE -o pipefail
+set -e
 
 # Script to run clang-tidy on pg_deeplake source files
 # Usage: ./scripts/run_clang_tidy.sh [build_dir]
