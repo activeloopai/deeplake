@@ -92,48 +92,29 @@ public:
     {
         struct batch_data
         {
+            std::mutex mutex_;
+            async::promise<nd::array> promise_;
             nd::array owner_;
             const uint8_t* data_ = nullptr;
-            impl::string_stream_array_holder holder_ = impl::string_stream_array_holder();
-            std::atomic<bool> initialized_{false};
+            impl::string_stream_array_holder holder_;
 
             batch_data() = default;
             batch_data(const batch_data& other) = delete;
-            batch_data(batch_data&& other) noexcept
-                : owner_(std::move(other.owner_))
-                , data_(other.data_)
-                , holder_(std::move(other.holder_))
-                , initialized_(other.initialized_.load(std::memory_order_relaxed))
-            {
-                other.data_ = nullptr;
-            }
-
+            batch_data(batch_data&& other) noexcept = delete;
             batch_data& operator=(const batch_data& other) = delete;
-            batch_data& operator=(batch_data&& other) noexcept
-            {
-                if (this != &other) {
-                    owner_ = std::move(other.owner_);
-                    data_ = other.data_;
-                    holder_ = std::move(other.holder_);
-                    initialized_.store(other.initialized_.load(std::memory_order_relaxed), std::memory_order_relaxed);
-                    other.data_ = nullptr;
-                }
-                return *this;
-            }
+            batch_data& operator=(batch_data&& other) noexcept = delete;
         };
 
-        struct column_data
-        {
-            std::vector<batch_data> batches;
-            base::spin_lock mutex;
-        };
-
-        std::vector<std::unique_ptr<bifrost::column_streamer>> streamers;
+        using column_data = std::vector<batch_data>;
         std::vector<column_data> column_to_batches;
 
         inline void reset() noexcept
         {
-            streamers.clear();
+            for (auto& batches : column_to_batches) {
+                for (auto& batch : batches) {
+                    batch.promise_.cancel();
+                }
+            }
             column_to_batches.clear();
         }
 

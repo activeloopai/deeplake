@@ -846,8 +846,10 @@ private:
                 for (duckdb::idx_t row_in_batch = 0; row_in_batch < batch_size; ++row_in_batch) {
                     const int64_t row_idx = current_row + row_in_batch;
                     auto value = td.get_streamers().value<std::string_view>(col_idx, row_idx);
+                    // workaround. value is not always remain valid. Trying to make a copy as soon as possible.
+                    // Most likely due to nd::array temporary object destruction.
+                    std::string str_value(value);
                     if (is_uuid) {
-                        std::string str_value(value);
                         // Treat empty string as NULL for UUID columns
                         if (str_value.empty()) {
                             duckdb::FlatVector::SetNull(output_vector, row_in_batch, true);
@@ -862,7 +864,7 @@ private:
                     } else {
                         auto* duckdb_data = duckdb::FlatVector::GetData<duckdb::string_t>(output_vector);
                         duckdb_data[row_in_batch] =
-                            add_string(output_vector, value.data(), value.size());
+                            add_string(output_vector, str_value.data(), str_value.size());
                     }
                 }
             }
