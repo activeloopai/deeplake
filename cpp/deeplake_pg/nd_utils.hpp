@@ -118,20 +118,21 @@ inline pg::array_type pg_to_nd_typed(ArrayType* array, bool copy_data = true)
         if (copy_data) {
             return nd::adapt(std::vector<T>(data, data + nelems));
         }
-        return pg::array_type(pointer_array(data, nelems));
+        return pg::array_type(pointer_array(data, static_cast<std::size_t>(nelems)));
     } else if (ndim == 2) {
         // 2D array - optimized path
         const auto nrows = dims[0];
         const auto ncols = dims[1];
         if (copy_data) {
             std::vector<nd::array> data_vector;
-            data_vector.reserve(nrows);
-            for (auto i = 0; i < nrows; ++i) {
-                data_vector.emplace_back(nd::adapt(std::vector<T>(data + i * ncols, data + (i + 1) * ncols)));
+            data_vector.reserve(static_cast<size_t>(nrows));
+            for (int i = 0; i < nrows; ++i) {
+                data_vector.emplace_back(nd::adapt(std::vector<T>(data + static_cast<size_t>(i) * static_cast<size_t>(ncols),
+                                                                   data + static_cast<size_t>(i + 1) * static_cast<size_t>(ncols))));
             }
             return nd::dynamic(data_vector);
         }
-        return pg::array_type(pointer_array(data, nrows, ncols));
+        return pg::array_type(pointer_array(data, static_cast<std::size_t>(nrows), static_cast<std::size_t>(ncols)));
     } else {
         // N-dimensional array (N > 2)
         // Build icm::shape directly from PostgreSQL dimensions array
@@ -185,9 +186,9 @@ inline Datum nd_to_pg_typed(const pg::array_type& arr)
     }
 
     // Get element properties based on type
-    int16_t elem_size;
-    bool elem_byval;
-    char elem_align;
+    int16_t elem_size = 0;
+    bool elem_byval = false;
+    char elem_align = 'i';
 
     if constexpr (std::is_same_v<T, int16_t>) {
         elem_size = sizeof(int16_t);
@@ -231,11 +232,11 @@ inline Datum nd_to_pg_typed(const pg::array_type& arr)
     // Calculate total number of elements
     size_t total_elements = 1;
     for (size_t i = 0; i < ndim; ++i) {
-        total_elements *= shape[i];
+        total_elements *= static_cast<size_t>(shape[i]);
     }
 
     // Allocate memory for all elements
-    Datum* elements = (Datum*)palloc(total_elements * sizeof(Datum));
+    Datum* elements = (Datum*)palloc(static_cast<size_t>(total_elements) * sizeof(Datum));
 
     // Flatten the nd::array into the elements array
     // Use recursive approach to handle arbitrary dimensions
@@ -258,7 +259,7 @@ inline Datum nd_to_pg_typed(const pg::array_type& arr)
     if (ndim == 1) {
         // Optimized path for 1D arrays
         for (size_t i = 0; i < arr.size(); ++i) {
-            elements[i] = to_datum(arr[i]);
+            elements[i] = to_datum(arr[static_cast<size_t>(i)]);
         }
     } else {
         // General path for N-D arrays
@@ -274,15 +275,15 @@ inline Datum nd_to_pg_typed(const pg::array_type& arr)
     }
 
     // Create PostgreSQL multidimensional array
-    ArrayType* pg_array = construct_md_array(elements,            // Values
-                                             nullptr,             // Nulls (no nulls)
-                                             ndim,                // Number of dimensions
-                                             dimensions.data(),   // Dimensions array
-                                             lower_bounds.data(), // Lower bounds (all 1s)
-                                             ElementOID,          // Element OID type
-                                             elem_size,           // Element width
-                                             elem_byval,          // Pass by value?
-                                             elem_align           // Element alignment
+    ArrayType* pg_array = construct_md_array(elements,                        // Values
+                                             nullptr,                         // Nulls (no nulls)
+                                             static_cast<int>(ndim),          // Number of dimensions
+                                             dimensions.data(),               // Dimensions array
+                                             lower_bounds.data(),             // Lower bounds (all 1s)
+                                             ElementOID,                      // Element OID type
+                                             elem_size,                       // Element width
+                                             elem_byval,                      // Pass by value?
+                                             elem_align                       // Element alignment
     );
 
     return PointerGetDatum(pg_array);
@@ -549,11 +550,11 @@ inline nd::array datum_to_nd(Datum value, Oid attr_typeid, int32_t typmod)
         } else {
             int nelems = ArrayGetNItems(ARR_NDIM(arr), ARR_DIMS(arr));
             std::vector<nd::array> elements;
-            elements.reserve(nelems);
+            elements.reserve(static_cast<size_t>(nelems));
 
-            Datum* datums;
-            bool* nulls;
-            int count;
+            Datum* datums = nullptr;
+            bool* nulls = nullptr;
+            int count = 0;
             deconstruct_array(arr, BYTEAOID, -1, false, 'i', &datums, &nulls, &count);
 
             for (int i = 0; i < count; ++i) {
@@ -575,9 +576,9 @@ inline nd::array datum_to_nd(Datum value, Oid attr_typeid, int32_t typmod)
         } else {
             int nelems = ArrayGetNItems(ARR_NDIM(arr), ARR_DIMS(arr));
             std::vector<nd::array> elements;
-            elements.reserve(nelems);
-            Datum* datums;
-            bool* nulls;
+            elements.reserve(static_cast<size_t>(nelems));
+            Datum* datums = nullptr;
+            bool* nulls = nullptr;
             int32_t count = 0;
             auto tid = (attr_typeid == TEXTARRAYOID) ? TEXTOID : VARCHAROID;
             deconstruct_array(arr, tid, -1, false, 'i', &datums, &nulls, &count);
@@ -677,7 +678,7 @@ inline Datum nd_to_datum(const nd::array& curr_val, Oid attr_typeid, int32_t typ
     case TEXTOID:
     case BPCHAROID: {
         auto str = base::string_view_cast(base::span_cast<const char>(curr_val.data()));
-        return PointerGetDatum(cstring_to_text_with_len(str.data(), str.size()));
+        return PointerGetDatum(cstring_to_text_with_len(str.data(), static_cast<int>(str.size())));
     }
     case JSONOID: {
         if (curr_val.is_none()) {
@@ -697,7 +698,7 @@ inline Datum nd_to_datum(const nd::array& curr_val, Oid attr_typeid, int32_t typ
             elog(WARNING, "Error dumping JSON: %s", e.what());
             return (Datum)0;
         }
-        return PointerGetDatum(cstring_to_text_with_len(json_str.data(), json_str.size()));
+        return PointerGetDatum(cstring_to_text_with_len(json_str.data(), static_cast<int>(json_str.size())));
     }
     case JSONBOID: {
         if (curr_val.is_none()) {
@@ -728,20 +729,20 @@ inline Datum nd_to_datum(const nd::array& curr_val, Oid attr_typeid, int32_t typ
         if (bytea_size == 0) {
             return (Datum)0;
         }
-        bytea* bytea_ptr = (bytea*)palloc(bytea_size + VARHDRSZ);
-        SET_VARSIZE(bytea_ptr, bytea_size + VARHDRSZ);
+        bytea* bytea_ptr = (bytea*)palloc(bytea_size + static_cast<size_t>(VARHDRSZ));
+        SET_VARSIZE(bytea_ptr, static_cast<int32_t>(bytea_size + static_cast<size_t>(VARHDRSZ)));
         memcpy(VARDATA(bytea_ptr), bytea_data.data(), bytea_size);
         return PointerGetDatum(bytea_ptr);
     }
     case BYTEAARRAYOID: {
         auto shape = curr_val.shape();
-        size_t num_elements = shape[0];
+        size_t num_elements = static_cast<size_t>(shape[0]);
         Datum* elements = (Datum*)palloc(num_elements * sizeof(Datum));
         bool* nulls = (bool*)palloc(num_elements * sizeof(bool));
         bool has_nulls = false;
 
         for (size_t i = 0; i < num_elements; ++i) {
-            auto element = curr_val[i];
+            auto element = curr_val[static_cast<size_t>(i)];
             if (element.is_none()) {
                 elements[i] = (Datum)0;
                 nulls[i] = true;
@@ -750,8 +751,8 @@ inline Datum nd_to_datum(const nd::array& curr_val, Oid attr_typeid, int32_t typ
                 // Convert each element to bytea
                 std::span<const uint8_t> bytea_data = element.data();
                 size_t bytea_size = bytea_data.size();
-                bytea* bytea_ptr = (bytea*)palloc(bytea_size + VARHDRSZ);
-                SET_VARSIZE(bytea_ptr, bytea_size + VARHDRSZ);
+                bytea* bytea_ptr = (bytea*)palloc(bytea_size + static_cast<size_t>(VARHDRSZ));
+                SET_VARSIZE(bytea_ptr, static_cast<int32_t>(bytea_size + static_cast<size_t>(VARHDRSZ)));
                 memcpy(VARDATA(bytea_ptr), bytea_data.data(), bytea_size);
                 elements[i] = PointerGetDatum(bytea_ptr);
                 nulls[i] = false;
@@ -777,13 +778,13 @@ inline Datum nd_to_datum(const nd::array& curr_val, Oid attr_typeid, int32_t typ
     case VARCHARARRAYOID:
     case TEXTARRAYOID: {
         auto shape = curr_val.shape();
-        size_t num_elements = shape[0];
+        size_t num_elements = static_cast<size_t>(shape[0]);
         Datum* elements = (Datum*)palloc(num_elements * sizeof(Datum));
         bool* nulls = (bool*)palloc(num_elements * sizeof(bool));
         bool has_nulls = false;
         Oid element_typeid = (attr_typeid == TEXTARRAYOID) ? TEXTOID : VARCHAROID;
         for (size_t i = 0; i < num_elements; ++i) {
-            auto element = curr_val[i];
+            auto element = curr_val[static_cast<size_t>(i)];
             if (element.is_none()) {
                 elements[i] = (Datum)0;
                 nulls[i] = true;
@@ -791,7 +792,7 @@ inline Datum nd_to_datum(const nd::array& curr_val, Oid attr_typeid, int32_t typ
             } else {
                 // Convert each element to text
                 auto str = base::string_view_cast(base::span_cast<const char>(element.data()));
-                elements[i] = PointerGetDatum(cstring_to_text_with_len(str.data(), str.size()));
+                elements[i] = PointerGetDatum(cstring_to_text_with_len(str.data(), static_cast<int>(str.size())));
                 nulls[i] = false;
             }
         }

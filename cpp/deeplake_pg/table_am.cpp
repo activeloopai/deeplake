@@ -86,9 +86,10 @@ struct DeeplakeScanData
     }
 
     DeeplakeScanData(pg::table_scan&& state)
-        : scan_state(std::move(state))
+        : postgres_scan{}
+        , scan_state(std::move(state))
+        , memory_context(AllocSetContextCreate(CurrentMemoryContext, "scan_context", ALLOCSET_SMALL_SIZES))
     {
-        memory_context = AllocSetContextCreate(CurrentMemoryContext, "scan_context", ALLOCSET_SMALL_SIZES);
         const auto num_rows = scan_state.get_table_data().num_rows();
         print_progress = pg::print_progress_during_seq_scan && num_rows > 100000;
         if (print_progress) {
@@ -100,6 +101,8 @@ struct DeeplakeScanData
     }
     DeeplakeScanData(const DeeplakeScanData&) = delete;
     DeeplakeScanData& operator=(const DeeplakeScanData&) = delete;
+    DeeplakeScanData(DeeplakeScanData&&) = delete;
+    DeeplakeScanData& operator=(DeeplakeScanData&&) = delete;
     ~DeeplakeScanData()
     {
         if (memory_context != nullptr) {
@@ -120,10 +123,16 @@ struct DeeplakeIndexFetchData
     MemoryContext memory_context = nullptr;
 
     DeeplakeIndexFetchData(pg::table_scan&& state)
-        : scan_state(std::move(state))
+        : base{}
+        , scan_state(std::move(state))
+        , memory_context(AllocSetContextCreate(CurrentMemoryContext, "scan_context", ALLOCSET_SMALL_SIZES))
     {
-        memory_context = AllocSetContextCreate(CurrentMemoryContext, "scan_context", ALLOCSET_SMALL_SIZES);
     }
+
+    DeeplakeIndexFetchData(const DeeplakeIndexFetchData&) = delete;
+    DeeplakeIndexFetchData& operator=(const DeeplakeIndexFetchData&) = delete;
+    DeeplakeIndexFetchData(DeeplakeIndexFetchData&&) = delete;
+    DeeplakeIndexFetchData& operator=(DeeplakeIndexFetchData&&) = delete;
 
     ~DeeplakeIndexFetchData()
     {
@@ -186,11 +195,13 @@ void deeplake_estimate_rel_size(Relation rel,
                                 double* tuples,
                                 double* allvisfrac)
 {
+    constexpr int32_t MIN_COLUMN_WIDTH = 8;  // Minimum column width in bytes
+
     auto table_id = RelationGetRelid(rel);
     if (pg::table_storage::instance().table_exists(table_id)) {
         auto& table_data = pg::table_storage::instance().get_table_data(table_id);
         if (tuples != nullptr) {
-            *tuples = table_data.num_rows();
+            *tuples = static_cast<double>(table_data.num_rows());
         }
         if (allvisfrac != nullptr) {
             *allvisfrac = 1.0; // Assume all tuples are visible
@@ -199,28 +210,31 @@ void deeplake_estimate_rel_size(Relation rel,
         if (attr_widths != nullptr) {
             for (int32_t i = 0; i < table_data.num_columns(); ++i) {
                 attr_widths[i] = pg::utils::get_column_width(table_data.get_base_atttypid(i), table_data.get_atttypmod(i));
-                attr_widths[i] = std::max(8, attr_widths[i]);
+                attr_widths[i] = std::max(MIN_COLUMN_WIDTH, attr_widths[i]);
                 avg_row_width += attr_widths[i];
             }
             avg_row_width /= table_data.num_columns();
         }
         if (pages != nullptr) {
             constexpr uint32_t min_pages = 1;
-            const uint32_t num_blocks = std::ceil(table_data.num_rows() / 65536.0);
+            const uint32_t num_blocks = static_cast<uint32_t>(std::ceil(static_cast<double>(table_data.num_rows()) / 65536.0));
             *pages = std::max(min_pages, num_blocks);
         }
 
         return;
     }
     // Conservative estimates
+    constexpr BlockNumber DEFAULT_ESTIMATED_PAGES = 10;
+    constexpr double DEFAULT_ESTIMATED_TUPLES = 1000.0;
     if (pages != nullptr) {
-        *pages = 10;
+        *pages = DEFAULT_ESTIMATED_PAGES;
     }
     if (tuples != nullptr) {
-        *tuples = 1000; // Assume small table by default
+        *tuples = DEFAULT_ESTIMATED_TUPLES; // Assume small table by default
     }
+    constexpr double DEFAULT_VISIBILITY_FRACTION = 0.9;
     if (allvisfrac != nullptr) {
-        *allvisfrac = 0.9;
+        *allvisfrac = DEFAULT_VISIBILITY_FRACTION;
     }
 }
 
@@ -337,7 +351,7 @@ Size parallelscan_estimate(Relation rel)
 void parallelscan_reinitialize(Relation rel, ParallelTableScanDesc pscan)
 {
     // Reinitialize parallel scan state
-    auto custom_pscan = (DeeplakeParallelScanDesc*)pscan;
+    auto custom_pscan = reinterpret_cast<DeeplakeParallelScanDesc*>(pscan);
     custom_pscan->reset();
 }
 
@@ -394,12 +408,15 @@ void convert_schema(TupleDesc tupdesc)
     for (auto i = 0; i < tupdesc->natts; ++i) {
         Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
         if (attr->atttypid == NUMERICOID && pg::treat_numeric_as_double) {
+            constexpr int NUMERIC_PRECISION_SHIFT = 16;  // Bit shift for precision in typmod
+            constexpr int NUMERIC_COMPONENT_MASK = 0xffff;  // Mask for precision/scale extraction
+
             auto typmod = attr->atttypmod;
             auto precision = -1;
             auto scale = -1;
             if (typmod >= VARHDRSZ) {
-                precision = ((typmod - VARHDRSZ) >> 16) & 0xffff;
-                scale = (typmod - VARHDRSZ) & 0xffff;
+                precision = ((typmod - VARHDRSZ) >> NUMERIC_PRECISION_SHIFT) & NUMERIC_COMPONENT_MASK;
+                scale = (typmod - VARHDRSZ) & NUMERIC_COMPONENT_MASK;
             }
             // Convert to FLOAT8
             attr->atttypid = FLOAT8OID;
@@ -448,14 +465,15 @@ void convert_schema(TupleDesc tupdesc)
                     if (ndims_pos != nullptr) {
                         const char* eq_pos = strchr(ndims_pos, '=');
                         if (eq_pos != nullptr) {
+                            constexpr int DECIMAL_BASE = 10;  // Base 10 for decimal number parsing
                             eq_pos++;
                             while (*eq_pos == ' ' || *eq_pos == '\t') eq_pos++;
                             // Parse the integer (atoi handles leading whitespace and stops at non-digit)
-                            char* endptr;
-                            auto ndims = strtol(eq_pos, &endptr, 10);
+                            char* endptr = nullptr;
+                            auto ndims = strtol(eq_pos, &endptr, DECIMAL_BASE);
                             // Verify we actually parsed a number and it's reasonable
                             if (endptr != eq_pos && ndims > 0 && ndims <= 2) {
-                                attr->attndims = static_cast<int32_t>(ndims);
+                                attr->attndims = static_cast<int16>(ndims);
                                 found_constraint = true;
                                 break;
                             }
@@ -561,7 +579,7 @@ TableScanDesc deeplake_table_am_routine::scan_begin(Relation relation,
                                                     ParallelTableScanDesc parallel_scan,
                                                     uint32_t flags)
 {
-    DeeplakeScanData* extended_scan = (DeeplakeScanData*)palloc0(sizeof(DeeplakeScanData));
+    DeeplakeScanData* extended_scan = static_cast<DeeplakeScanData*>(palloc0(sizeof(DeeplakeScanData)));
     auto table_id = RelationGetRelid(relation);
     bool is_parallel = (pg::use_parallel_workers && parallel_scan != nullptr);
 
@@ -578,7 +596,7 @@ TableScanDesc deeplake_table_am_routine::scan_begin(Relation relation,
     scan_desc->rs_parallel = parallel_scan;
 
     if (parallel_scan != nullptr) {
-        DeeplakeParallelScanDesc* custom_pscan = (DeeplakeParallelScanDesc*)parallel_scan;
+        DeeplakeParallelScanDesc* custom_pscan = reinterpret_cast<DeeplakeParallelScanDesc*>(parallel_scan);
         if (IsParallelWorker()) {
             custom_pscan->is_initialized = true;
         }
@@ -788,11 +806,12 @@ bool deeplake_table_am_routine::scan_sample_next_tuple(TableScanDesc scan, struc
     // Switch to the dedicated memory context for this scan
     pg::utils::memory_context_switcher context_switcher(scan_data->memory_context);
 
-    double sample_fraction = 0.1; // default fallback
+    constexpr double DEFAULT_SAMPLE_FRACTION = 0.1;  // Default sample fraction
+    double sample_fraction = DEFAULT_SAMPLE_FRACTION; // default fallback
     if (scan_data->current_sample_scanstate && scan_data->current_sample_scanstate->tsm_state) {
         // If your TAM stores the fraction in tsm_state, cast and read it here
         struct SampleState { double fraction; };
-        SampleState* sampler = (SampleState*)scan_data->current_sample_scanstate->tsm_state;
+        SampleState* sampler = static_cast<SampleState*>(scan_data->current_sample_scanstate->tsm_state);
         sample_fraction = sampler->fraction;
     }
 

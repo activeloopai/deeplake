@@ -36,7 +36,9 @@ std::string trim(const std::string& str) {
 
 // Helper to check if string starts with a prefix (case insensitive)
 bool starts_with_ci(const std::string& str, const std::string& prefix) {
-    if (str.length() < prefix.length()) return false;
+    if (str.length() < prefix.length()) {
+        return false;
+    }
     return std::equal(prefix.begin(), prefix.end(), str.begin(),
                       [](char a, char b) { return std::tolower(a) == std::tolower(b); });
 }
@@ -148,6 +150,9 @@ std::string pg_to_duckdb_translator::translate_json_operators(const std::string&
 std::string pg_to_duckdb_translator::translate_type_casts(const std::string& query) {
     std::string result = query;
 
+    // Constants
+    constexpr size_t PRECISION_KEYWORD_LENGTH = 9; // Length of "PRECISION"
+
     // Pattern: (expression)::TYPE or identifier::TYPE
     // Convert to: CAST(expression AS TYPE)
     // But skip if already inside a CAST() - to avoid double conversion
@@ -200,16 +205,15 @@ std::string pg_to_duckdb_translator::translate_type_casts(const std::string& que
             if (close_pos > start && close_pos + 2 < temp.length() && temp[close_pos + 1] == ':' && temp[close_pos + 2] == ':') {
                 // Found a cast! Extract the type
                 size_t type_start = close_pos + 3;
-                size_t type_end = type_start;
 
                 // Skip leading spaces
-                while (type_start < temp.length() && std::isspace(temp[type_start])) {
+                while (type_start < temp.length() && std::isspace(temp[type_start]) != 0) {
                     type_start++;
                 }
-                type_end = type_start;
+                size_t type_end = type_start;
 
                 // Extract first word of type
-                while (type_end < temp.length() && (std::isalnum(temp[type_end]) || temp[type_end] == '_')) {
+                while (type_end < temp.length() && (std::isalnum(temp[type_end]) != 0 || temp[type_end] == '_')) {
                     type_end++;
                 }
 
@@ -223,18 +227,18 @@ std::string pg_to_duckdb_translator::translate_type_casts(const std::string& que
                     if (type_upper == "DOUBLE") {
                         // Skip spaces
                         size_t next_word_start = type_end;
-                        while (next_word_start < temp.length() && std::isspace(temp[next_word_start])) {
+                        while (next_word_start < temp.length() && std::isspace(temp[next_word_start]) != 0) {
                             next_word_start++;
                         }
 
                         // Check if next word is PRECISION
-                        if (next_word_start + 9 <= temp.length()) {
-                            std::string next_word = temp.substr(next_word_start, 9);
+                        if (next_word_start + PRECISION_KEYWORD_LENGTH <= temp.length()) {
+                            std::string next_word = temp.substr(next_word_start, PRECISION_KEYWORD_LENGTH);
                             std::transform(next_word.begin(), next_word.end(), next_word.begin(), ::toupper);
 
                             if (next_word == "PRECISION") {
                                 type_str = "DOUBLE PRECISION";
-                                type_end = next_word_start + 9;
+                                type_end = next_word_start + PRECISION_KEYWORD_LENGTH;
                             }
                         }
                     }
@@ -245,15 +249,11 @@ std::string pg_to_duckdb_translator::translate_type_casts(const std::string& que
                 std::transform(type_upper.begin(), type_upper.end(), type_upper.begin(), ::toupper);
 
                 // Check for compound types first
-                bool is_valid_type = false;
-                if (type_upper == "DOUBLE PRECISION") {
-                    is_valid_type = true;
-                } else if (type_upper == "BIGINT" || type_upper == "INTEGER" || type_upper == "VARCHAR" ||
-                           type_upper == "TEXT" || type_upper == "DOUBLE" || type_upper == "FLOAT" ||
-                           type_upper == "TIMESTAMP" || type_upper == "DATE" || type_upper == "BOOLEAN" ||
-                           type_upper == "DECIMAL") {
-                    is_valid_type = true;
-                }
+                bool is_valid_type = (type_upper == "DOUBLE PRECISION" ||
+                                      type_upper == "BIGINT" || type_upper == "INTEGER" || type_upper == "VARCHAR" ||
+                                      type_upper == "TEXT" || type_upper == "DOUBLE" || type_upper == "FLOAT" ||
+                                      type_upper == "TIMESTAMP" || type_upper == "DATE" || type_upper == "BOOLEAN" ||
+                                      type_upper == "DECIMAL");
 
                 if (is_valid_type) {
 
@@ -362,7 +362,7 @@ std::string pg_to_duckdb_translator::translate_timestamp_functions(const std::st
 
         // Update position
         last_pos = expr_end;
-        search_start = temp.cbegin() + expr_end;
+        search_start = temp.cbegin() + static_cast<std::ptrdiff_t>(expr_end);
     }
 
     // Append remaining text
@@ -474,7 +474,7 @@ std::string pg_to_duckdb_translator::translate_date_diff(const std::string& quer
             // Not a date diff, skip
             result.append(temp.substr(last_pos, match_pos + match[0].length() - last_pos));
             last_pos = match_pos + match[0].length();
-            search_start = temp.cbegin() + last_pos;
+            search_start = temp.cbegin() + static_cast<std::ptrdiff_t>(last_pos);
             continue;
         }
 
@@ -486,7 +486,7 @@ std::string pg_to_duckdb_translator::translate_date_diff(const std::string& quer
             // Not a date diff pattern
             result.append(temp.substr(last_pos, match_pos + match[0].length() - last_pos));
             last_pos = match_pos + match[0].length();
-            search_start = temp.cbegin() + last_pos;
+            search_start = temp.cbegin() + static_cast<std::ptrdiff_t>(last_pos);
             continue;
         }
 
@@ -504,10 +504,8 @@ std::string pg_to_duckdb_translator::translate_date_diff(const std::string& quer
             unit = "milliseconds";
         } else if (multiplier == "1000000") {
             unit = "microseconds";
-        } else if (multiplier == "1") {
-            unit = "seconds";
         } else {
-            unit = "seconds"; // default
+            unit = "seconds"; // default for "1" and other cases
         }
 
         // Build date_diff call
@@ -521,7 +519,7 @@ std::string pg_to_duckdb_translator::translate_date_diff(const std::string& quer
 
         // Update position - skip past the entire EXTRACT(...)) * number
         last_pos = expr_end + mult_match[0].length();
-        search_start = temp.cbegin() + last_pos;
+        search_start = temp.cbegin() + static_cast<std::ptrdiff_t>(last_pos);
     }
 
     // Append remaining text
@@ -689,15 +687,17 @@ std::string pg_to_duckdb_translator::wrap_where_predicates(const std::string& qu
                 if (pos + BETWEEN_KEYWORD_LENGTH <= where_clause.length() && !in_between) {
                     std::string next_keyword = where_clause.substr(pos, BETWEEN_KEYWORD_LENGTH);
                     std::string next_keyword_upper = next_keyword;
-                    for (char& ch : next_keyword_upper) ch = std::toupper(ch);
+                    for (char& ch : next_keyword_upper) {
+                        ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                    }
 
                     // Check if character before is a word boundary (space or start of string)
-                    bool before_is_boundary = (pos == 0 || std::isspace(where_clause[pos - 1]));
+                    bool before_is_boundary = (pos == 0 || std::isspace(where_clause[pos - 1]) != 0);
 
                     if (next_keyword_upper == "BETWEEN" &&
                         before_is_boundary &&
                         (pos + BETWEEN_KEYWORD_LENGTH >= where_clause.length() ||
-                         std::isspace(where_clause[pos + BETWEEN_KEYWORD_LENGTH]))) {
+                         std::isspace(where_clause[pos + BETWEEN_KEYWORD_LENGTH]) != 0)) {
                         in_between = true;
                     }
                 }
@@ -706,20 +706,22 @@ std::string pg_to_duckdb_translator::wrap_where_predicates(const std::string& qu
                 if (pos + AND_KEYWORD_LENGTH <= where_clause.length()) {
                     std::string next_keyword = where_clause.substr(pos, AND_KEYWORD_LENGTH);
                     std::string next_keyword_upper = next_keyword;
-                    for (char& ch : next_keyword_upper) ch = std::toupper(ch);
+                    for (char& ch : next_keyword_upper) {
+                        ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                    }
 
                     // Check if character before is a word boundary (space or start of string)
-                    bool before_is_boundary = (pos == 0 || std::isspace(where_clause[pos - 1]));
+                    bool before_is_boundary = (pos == 0 || std::isspace(where_clause[pos - 1]) != 0);
 
                     bool is_and = (next_keyword_upper == "AND" &&
                                   before_is_boundary &&
                                   (pos + AND_KEYWORD_LENGTH >= where_clause.length() ||
-                                   std::isspace(where_clause[pos + AND_KEYWORD_LENGTH])));
+                                   std::isspace(where_clause[pos + AND_KEYWORD_LENGTH]) != 0));
                     bool is_or = (pos + OR_KEYWORD_LENGTH < where_clause.length() &&
                                  next_keyword_upper.substr(0, OR_KEYWORD_LENGTH) == "OR" &&
                                  before_is_boundary &&
                                  (pos + OR_KEYWORD_LENGTH >= where_clause.length() ||
-                                  std::isspace(where_clause[pos + OR_KEYWORD_LENGTH])));
+                                  std::isspace(where_clause[pos + OR_KEYWORD_LENGTH]) != 0));
 
                     // AND within BETWEEN is not a separator
                     if (is_and && in_between) {
@@ -729,14 +731,15 @@ std::string pg_to_duckdb_translator::wrap_where_predicates(const std::string& qu
                     }
 
                     if (is_and && !in_between) {
-                        predicates.push_back(where_clause.substr(start, pos - start));
-                        operators.push_back("AND");
+                        predicates.emplace_back(where_clause.substr(start, pos - start));
+                        operators.emplace_back("AND");
                         pos += AND_KEYWORD_LENGTH;
                         start = pos;
                         continue;
-                    } else if (is_or) {
-                        predicates.push_back(where_clause.substr(start, pos - start));
-                        operators.push_back("OR");
+                    }
+                    if (is_or) {
+                        predicates.emplace_back(where_clause.substr(start, pos - start));
+                        operators.emplace_back("OR");
                         pos += OR_KEYWORD_LENGTH;
                         start = pos;
                         continue;
@@ -769,8 +772,11 @@ std::string pg_to_duckdb_translator::wrap_where_predicates(const std::string& qu
             int depth = 0;
             bool valid = true;
             for (size_t j = 0; j < pred.length() - 1; ++j) {
-                if (pred[j] == '(') depth++;
-                else if (pred[j] == ')') depth--;
+                if (pred[j] == '(') {
+                    depth++;
+                } else if (pred[j] == ')') {
+                    depth--;
+                }
                 if (depth == 0) {
                     valid = false;
                     break;
@@ -817,7 +823,9 @@ std::string pg_to_duckdb_translator::build_json_path(const std::vector<std::stri
     std::ostringstream oss;
     oss << "$.";
     for (size_t i = 0; i < keys.size(); ++i) {
-        if (i > 0) oss << ".";
+        if (i > 0) {
+            oss << ".";
+        }
         oss << keys[i];
     }
     return oss.str();

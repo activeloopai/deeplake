@@ -29,6 +29,12 @@ struct locker
     {
         LWLockRelease(lwlock);
     }
+
+    // Delete copy and move to make RAII guard non-copyable
+    locker(const locker&) = delete;
+    locker& operator=(const locker&) = delete;
+    locker(locker&&) = delete;
+    locker& operator=(locker&&) = delete;
 };
 
 } // unnamed namespace
@@ -52,11 +58,11 @@ void table_version_tracker::initialize()
 
     locker lock(AddinShmemInitLock, LW_EXCLUSIVE);
 
-    version_data_ = (table_version_data*)ShmemInitStruct(
+    version_data_ = static_cast<table_version_data*>(ShmemInitStruct(
         "deeplake_table_versions",
         get_shmem_size(),
         &found
-    );
+    ));
 
     if (!found) {
         // First time initialization

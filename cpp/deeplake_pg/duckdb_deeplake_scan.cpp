@@ -595,7 +595,7 @@ private:
                 // Copy actual data to grandchild vector
                 auto* data_ptr = duckdb::FlatVector::GetData<T>(grandchild_vec);
                 const T* array_data = reinterpret_cast<const T*>(sample.data().data());
-                std::memcpy(data_ptr + grandchild_offset, array_data, nrows * ncols * sizeof(T));
+                std::memcpy(data_ptr + grandchild_offset, array_data, nrows * static_cast<size_t>(ncols) * sizeof(T));
 
                 // Log first few values being written
                 elog(LOG, "  WRITE: copying %ld elements to grandchild at offset %zu",
@@ -673,7 +673,7 @@ private:
             if constexpr (std::is_arithmetic_v<T>) {
                 auto* list_data = duckdb::FlatVector::GetData<T>(list_entry_vec);
                 const T* array_data = reinterpret_cast<const T*>(sample.data().data());
-                std::memcpy(list_data + offset, array_data, array_len * sizeof(T));
+                std::memcpy(list_data + offset, array_data, static_cast<size_t>(array_len) * sizeof(T));
             } else if constexpr (std::is_same_v<T, std::span<const uint8_t>>) {
                 auto* list_data = duckdb::FlatVector::GetData<duckdb::string_t>(list_entry_vec);
                 for (int64_t i = 0; i < array_len; ++i) {
@@ -828,7 +828,7 @@ private:
                     }
                     return;
                 }
-                std::memcpy(duckdb::FlatVector::GetData<T>(output_vector), value_ptr, batch_size * sizeof(T));
+                std::memcpy(duckdb::FlatVector::GetData<T>(output_vector), value_ptr, static_cast<size_t>(batch_size) * sizeof(T));
             } else if constexpr (std::is_same_v<T, nd::dict>) {
                 auto* duckdb_data = duckdb::FlatVector::GetData<duckdb::string_t>(output_vector);
                 for (duckdb::idx_t row_in_batch = 0; row_in_batch < batch_size; ++row_in_batch) {

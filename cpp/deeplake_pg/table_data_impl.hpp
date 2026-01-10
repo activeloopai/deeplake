@@ -67,12 +67,12 @@ inline table_data::table_data(
     , dataset_path_(std::move(dataset_path))
     , creds_(std::move(creds))
 {
-    requested_columns_.resize(tuple_descriptor_->natts, false);
-    base_typeids_.resize(tuple_descriptor_->natts);
+    requested_columns_.resize(static_cast<size_t>(tuple_descriptor_->natts), false);
+    base_typeids_.resize(static_cast<size_t>(tuple_descriptor_->natts));
     // Cache base type OIDs for performance (avoid repeated syscache lookups)
     for (int32_t i = 0; i < tuple_descriptor_->natts; ++i) {
         Form_pg_attribute attr = TupleDescAttr(tuple_descriptor_, i);
-        base_typeids_[i] = pg::utils::get_base_type(attr->atttypid);
+        base_typeids_[static_cast<size_t>(i)] = pg::utils::get_base_type(attr->atttypid);
     }
 }
 
@@ -283,14 +283,14 @@ inline void table_data::reset_insert_rows() noexcept
 
 inline void table_data::add_insert_slots(int32_t nslots, TupleTableSlot** slots)
 {
-    for (auto k = 0; k < nslots; ++k) {
+    for (int32_t k = 0; k < nslots; ++k) {
         auto slot = slots[k];
         slot_getallattrs(slot);
     }
     for (int32_t i = 0; i < num_columns(); ++i) {
         auto& column_values = insert_rows_[get_atttypename(i)];
         const auto dt = get_column_view(i)->dtype();
-        for (auto k = 0; k < nslots; ++k) {
+        for (int32_t k = 0; k < nslots; ++k) {
             auto slot = slots[k];
             nd::array val;
             if (slot->tts_isnull[i]) {
@@ -574,7 +574,7 @@ inline nd::array table_data::streamer_info::get_sample(int32_t column_number, in
             batch.promise_ = async::promise<nd::array>();
         }
     }
-    return batch.owner_[row_in_batch];
+    return batch.owner_[static_cast<size_t>(row_in_batch)];
 }
 
 template <typename T>
@@ -618,7 +618,7 @@ inline std::string_view table_data::streamer_info::value(int32_t column_number, 
         }
     }
 
-    return batch.holder_.data(row_in_batch);
+    return batch.holder_.data(static_cast<size_t>(row_in_batch));
 }
 
 inline bool table_data::flush()

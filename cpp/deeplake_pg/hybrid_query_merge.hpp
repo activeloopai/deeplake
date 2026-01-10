@@ -35,13 +35,13 @@ inline nd::array softmax(const query_core::query_result& result, double max_weig
         return nd::none(nd::dtype::float32, 0);
     }
 
-    const size_t num_scores = shape[0];
+    const size_t num_scores = static_cast<size_t>(shape[0]);
     std::vector<float> exp_scores;
     exp_scores.reserve(num_scores);
 
     // Compute exponentials with clamping
     for (size_t i = 0; i < num_scores; ++i) {
-        float score = result.scores[i].value<float>(0);
+        float score = result.scores[static_cast<size_t>(i)].value<float>(0);
         float clamped_score = std::min(score, static_cast<float>(max_weight));
         exp_scores.push_back(std::exp(clamped_score));
     }
@@ -86,10 +86,10 @@ inline query_core::query_result merge_query_results(
     if (!embedding_result.is_empty() && !emb_normalized.is_none()) {
         auto emb_shape = emb_normalized.shape();
         if (!emb_shape.empty()) {
-            const size_t num_emb = emb_shape[0];
+            const size_t num_emb = static_cast<size_t>(emb_shape[0]);
             for (size_t i = 0; i < num_emb; ++i) {
-                int64_t idx = embedding_result.indices[i];
-                float score = emb_normalized[i].value<float>(0) * embedding_weight;
+                int64_t idx = embedding_result.indices[static_cast<size_t>(i)];
+                float score = emb_normalized[static_cast<size_t>(i)].value<float>(0) * static_cast<float>(embedding_weight);
                 combined_scores[idx] = score;
             }
         }
@@ -99,10 +99,10 @@ inline query_core::query_result merge_query_results(
     if (!text_result.is_empty() && !text_normalized.is_none()) {
         auto text_shape = text_normalized.shape();
         if (!text_shape.empty()) {
-            const size_t num_text = text_shape[0];
+            const size_t num_text = static_cast<size_t>(text_shape[0]);
             for (size_t i = 0; i < num_text; ++i) {
-                int64_t idx = text_result.indices[i];
-                float score = text_normalized[i].value<float>(0) * text_weight;
+                int64_t idx = text_result.indices[static_cast<size_t>(i)];
+                float score = text_normalized[static_cast<size_t>(i)].value<float>(0) * static_cast<float>(text_weight);
                 combined_scores[idx] += score; // Add to existing score if index already exists
             }
         }
