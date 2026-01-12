@@ -4,9 +4,14 @@
 #include <duckdb/catalog/catalog.hpp>
 #include <duckdb/common/types/uuid.hpp>
 #include <duckdb/parser/parsed_data/create_table_function_info.hpp>
+#include <duckdb/planner/expression/bound_comparison_expression.hpp>
 #include <duckdb/planner/expression/bound_conjunction_expression.hpp>
+#include <duckdb/planner/expression/bound_constant_expression.hpp>
+#include <duckdb/planner/expression/bound_function_expression.hpp>
 #include <duckdb/planner/expression/bound_reference_expression.hpp>
+#include <duckdb/planner/filter/expression_filter.hpp>
 #include <duckdb/planner/filter/in_filter.hpp>
+#include <duckdb/planner/operator/logical_get.hpp>
 
 #include "duckdb_deeplake_convert.hpp"
 #include "pg_deeplake.hpp"
@@ -272,6 +277,29 @@ try_get_index_searcher(heimdall::column_view_ptr column_view, const duckdb::InFi
     };
 }
 
+std::string json_path_from_duck(const std::string& duckdbPath)
+{
+    // DuckDB represents JSON path as $.field1.field2
+    // Convert to DeepLake/Heimdall format: [field1][field2]
+    auto tmp = duckdbPath.substr(3); // Remove "'$."
+    // remove last "'"
+    tmp.pop_back();
+    return tmp;
+}
+
+bool get_use_deeplake_index()
+{
+    const char* env_var = std::getenv("USE_DEEPLAKE_INDEX");
+    if (env_var != nullptr) {
+        std::string value(env_var);
+        std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+        if (value == "1" || value == "true" || value == "yes") {
+            return true;
+        }
+    }
+    return false;
+}
+
 base::function<async::promise<std::vector<icm::roaring>>()>
 try_get_index_searcher(heimdall::column_view_ptr column_view, const duckdb::TableFilter& filter)
 {
@@ -280,13 +308,153 @@ try_get_index_searcher(heimdall::column_view_ptr column_view, const duckdb::Tabl
     if (column_view->index_holder() == nullptr) {
         return result;
     }
+    // read environment parameter "USE_DEEPLAKE_INDEX" and decide whether to use it
+    bool use_deeplake_index = get_use_deeplake_index();
+    if (!use_deeplake_index) {
+        return result;
+    } else {
+        elog(INFO, "USING DEEPLAKE INDEX");
+    }
     switch (filter.filter_type) {
     case duckdb::TableFilterType::CONSTANT_COMPARISON: {
         result = try_get_index_searcher(column_view, filter.Cast<const duckdb::ConstantFilter>());
         break;
     }
+    case duckdb::TableFilterType::IS_NULL: {
+        // Handle IS NULL filters if necessary
+        elog(INFO, "IS NULL filter encountered %d", (uint16_t)filter.filter_type);
+        break;
+    }
+    case duckdb::TableFilterType::IS_NOT_NULL: {
+        // Handle IS NOT NULL filters if necessary
+        elog(INFO, "IS NOT NULL filter encountered %d", (uint16_t)filter.filter_type);
+        break;
+    }
+    case duckdb::TableFilterType::CONJUNCTION_OR: {
+        // Handle conjunction filters if necessary
+        elog(INFO, "CONJUNCTION OR filter encountered %d", (uint16_t)filter.filter_type);
+        break;
+    }
+    case duckdb::TableFilterType::CONJUNCTION_AND: {
+        // Recursive AND conjunction handling
+        elog(INFO, "CONJUNCTION AND filter encountered %d", (uint16_t)filter.filter_type);
+        auto& conjunction_filter = filter.Cast<duckdb::ConjunctionAndFilter>();
+        std::vector<base::function<async::promise<std::vector<icm::roaring>>()>> child_searchers;
+        for (const auto& child : conjunction_filter.child_filters) {
+            auto child_searcher = try_get_index_searcher(column_view, *child);
+            if (!child_searcher) {
+                // If any child cannot be handled by index, abort AND pushdown
+                child_searchers.clear();
+                break;
+            }
+            child_searchers.push_back(std::move(child_searcher));
+        }
+        if (!child_searchers.empty()) {
+            // All children can be handled by index, combine with intersection
+            result = [searchers = std::move(child_searchers)]() mutable -> async::promise<std::vector<icm::roaring>> {
+                // Convert searchers into promises
+                std::vector<async::promise<std::vector<icm::roaring>>> promises;
+                promises.reserve(searchers.size());
+                for (auto& searcher : searchers) {
+                    promises.push_back(searcher());
+                }
+
+                auto start = std::chrono::high_resolution_clock::now();
+                // Combine all promises and then intersect results
+                return async::combine(std::move(promises)).then_any([start](std::vector<std::vector<icm::roaring>>&& results) {
+                    auto ready = std::chrono::high_resolution_clock::now();
+                    std::chrono::duration<double, std::milli> index_search_duration = ready - start;
+                    elog(INFO, "Deeplake index search completed in %.2f ms", index_search_duration.count());
+                    if (results.empty()) {
+                        return std::vector<icm::roaring>();
+                    }
+                    auto intersection = std::move(results[0]);
+                    for (size_t i = 1; i < results.size(); ++i) {
+                        const auto& res = results[i];
+                        for (size_t j = 0; j < intersection.size() && j < res.size(); ++j) {
+                            intersection[j] &= res[j];
+                        }
+                    }
+                    auto after_intersection = std::chrono::high_resolution_clock::now();
+                    std::chrono::duration<double, std::milli> intersection_duration = after_intersection
+                        - ready;
+                    elog(INFO, "Deeplake index intersection completed in %.2f ms", intersection_duration.count());
+                    return intersection;
+                });
+            };
+        }
+        break;
+    }
+    case duckdb::TableFilterType::STRUCT_EXTRACT: {
+        // Handle conjunction filters if necessary
+        elog(INFO, "STRUCT EXTRACT filter encountered %d", (uint16_t)filter.filter_type);
+        break;
+    }
+    case duckdb::TableFilterType::OPTIONAL_FILTER: {
+        // Handle optional filters if necessary
+        elog(INFO, "OPTIONAL FILTER filter encountered %d", (uint16_t)filter.filter_type);
+        break;
+    }
     case duckdb::TableFilterType::IN_FILTER: {
         result = try_get_index_searcher(column_view, filter.Cast<const duckdb::InFilter>());
+        break;
+    }
+    case duckdb::TableFilterType::DYNAMIC_FILTER: {
+        // Handle dynamic filters if necessary
+        elog(INFO, "DYNAMIC FILTER filter encountered %d", (uint16_t)filter.filter_type);
+        break;
+    }
+    case duckdb::TableFilterType::EXPRESSION_FILTER: {
+        elog(INFO, "EXPRESSION FILTER filter encountered %d", (uint16_t)filter.filter_type);
+        auto& expr_filter = filter.Cast<duckdb::ExpressionFilter>();
+        auto expr_type = expr_filter.expr->type;
+        auto expr_class = expr_filter.expr->expression_class;
+        if (expr_class == duckdb::ExpressionClass::BOUND_COMPARISON) {
+            auto& comparison = expr_filter.expr->Cast<duckdb::BoundComparisonExpression>();
+            auto str = comparison.ToString();
+            auto comparison_type = comparison.GetExpressionType();
+            auto left_type = comparison.left->GetExpressionType();
+            auto right_type = comparison.right->GetExpressionType();
+            if (left_type == duckdb::ExpressionType::BOUND_FUNCTION &&
+                right_type == duckdb::ExpressionType::VALUE_CONSTANT) {
+                if (comparison_type == duckdb::ExpressionType::COMPARE_EQUAL) {
+                    auto constant_value =
+                        pg::to_deeplake_value(comparison.right->Cast<duckdb::BoundConstantExpression>().value);
+                    auto& bound_function = comparison.left->Cast<duckdb::BoundFunctionExpression>();
+                    auto s = bound_function.ToString();
+                    auto& children = bound_function.children;
+                    query_core::inverted_index_search_info info;
+                    info.op = query_core::relational_operator::equals;
+                    info.search_values.push_back(nd::array(constant_value));
+                    for (const auto& child : children) {
+                        auto t = child->type;
+                        if (t == duckdb::ExpressionType::BOUND_REF) {
+                            auto& bound_ref = child->Cast<duckdb::BoundReferenceExpression>();
+                            auto s = bound_ref.ToString();
+                        } else if (t == duckdb::ExpressionType::VALUE_CONSTANT) {
+                            auto& constant = child->Cast<duckdb::BoundConstantExpression>();
+                            auto s = constant.ToString();
+                            std::string json_path = json_path_from_duck(s);
+                            info.dict_path = json_path;
+                        }
+                        auto cl = child->expression_class;
+                    }
+                    return [h = column_view->index_holder(), info = std::move(info)]() {
+                        return h->run_query(info);
+                    };
+                }
+            }
+        } else if (expr_class == duckdb::ExpressionClass::BOUND_FUNCTION) {
+            auto& bound_function = expr_filter.expr->Cast<duckdb::BoundFunctionExpression>();
+            auto s = bound_function.ToString();
+            auto& children = bound_function.children;
+            for (const auto& child : children) {
+                auto t = child->type;
+                auto cl = child->expression_class;
+                // Additional debug if needed
+            }
+        }
+
         break;
     }
     default:
@@ -452,7 +620,8 @@ private:
 
     void set_string_column_output(unsigned output_column_id, nd::array&& samples)
     {
-        ASSERT(samples.dtype() == nd::dtype::string);
+        auto dt = samples.dtype();
+        ASSERT(samples.dtype() == nd::dtype::string || samples.dtype() == nd::dtype::object);
         auto& output_vector = output_.data[output_column_id];
         pg::impl::string_stream_array_holder string_holder(samples);
         for (duckdb::idx_t row_in_batch = 0; row_in_batch < output_.size(); ++row_in_batch) {
@@ -460,11 +629,19 @@ private:
             std::string_view value;
             if (string_holder.is_valid()) {
                 value = string_holder.data(row_in_batch);
+                duckdb_data[row_in_batch] =
+                    add_string(output_vector, value.data(), value.size());
             } else {
-                value = base::string_view_cast<const unsigned char>(samples[row_in_batch].data());
+                if (samples.dtype() == nd::dtype::object) {
+                    auto json_str = samples[row_in_batch].dict_value(0).serialize();
+                    duckdb_data[row_in_batch] =
+                        add_string(output_vector, json_str.data(), json_str.size());
+                } else {
+                    value = base::string_view_cast<const unsigned char>(samples[row_in_batch].data());
+                    duckdb_data[row_in_batch] =
+                        add_string(output_vector, value.data(), value.size());
+                }
             }
-            duckdb_data[row_in_batch] =
-                add_string(output_vector, value.data(), value.size());
         }
     }
 
@@ -876,6 +1053,9 @@ private:
         if (!has_index_search()) {
             return;
         }
+        auto start = std::chrono::high_resolution_clock::now();
+        elog(INFO, "Deeplake scan: performing index search with %zu searchers",
+             global_state_.index_searchers.size());
         std::lock_guard lock(global_state_.index_search_mutex);
         if (is_index_search_done()) {
             return;
@@ -896,6 +1076,11 @@ private:
             return std::move(combined);
         });
         auto indices = combined_promise.get_future().get();
+        auto search_time = std::chrono::high_resolution_clock::now() - start;
+        elog(INFO, "Deeplake scan: index search found %zu matching rows", indices.cardinality());
+        elog(INFO,
+             "Deeplake scan: index search completed in %.2f ms",
+             std::chrono::duration<double, std::milli>(search_time).count());
         std::vector<int64_t> indices_vec;
         indices_vec.reserve(indices.cardinality());
         for (auto x : indices) {
@@ -903,6 +1088,11 @@ private:
         }
         global_state_.index_search_result = heimdall_common::create_filtered_dataset(
             bind_data_.table_data.get_read_only_dataset(), icm::index_mapping_t<int64_t>::list(std::move(indices_vec)));
+        auto end = std::chrono::high_resolution_clock::now();
+        auto total_time = end - start;
+        elog(INFO,
+             "Deeplake scan: index search result dataset created in %.2f ms",
+             std::chrono::duration<double, std::milli>(total_time).count());
     }
 
     int64_t next_chunk()
@@ -1040,6 +1230,11 @@ duckdb::unique_ptr<duckdb::BaseStatistics> deeplake_scan_column_statistics(duckd
 
 namespace pg {
 
+bool expression(duckdb::ClientContext& context, const duckdb::LogicalGet& get, duckdb::Expression& expr)
+{
+    return true;
+}
+
 // Create and register the deeplake_scan table function
 void register_deeplake_scan_function(duckdb::Connection& con)
 {
@@ -1058,6 +1253,7 @@ void register_deeplake_scan_function(duckdb::Connection& con)
         deeplake_scan.filter_pushdown = pg::is_filter_pushdown_enabled;
         deeplake_scan.cardinality = deeplake_scan_cardinality;
         deeplake_scan.statistics = deeplake_scan_column_statistics;
+        deeplake_scan.pushdown_expression = expression;
 
         // Register function in DuckDB catalog
         auto& catalog = duckdb::Catalog::GetSystemCatalog(*con.context);
