@@ -340,7 +340,7 @@ inline table_data::streamer_info& table_data::get_streamers() noexcept
 
 inline bool table_data::column_has_streamer(uint32_t idx) const noexcept
 {
-    return streamers_.streamers.size() > idx && streamers_.streamers[idx] != nullptr;
+    return streamers_.column_to_batches.size() > idx && !streamers_.column_to_batches[idx].empty();
 }
 
 inline void table_data::reset_streamers() noexcept
@@ -529,28 +529,36 @@ inline std::pair<int64_t, int64_t> table_data::get_row_range(int32_t worker_id) 
 
 inline void table_data::create_streamer(int32_t idx, int32_t worker_id)
 {
-    if (streamers_.streamers.empty()) {
-        const auto s = num_columns();
-        streamers_.streamers.resize(s);
-        std::vector<streamer_info::column_data> temp_data(s);
-        streamers_.column_to_batches.swap(temp_data);
+    const auto col_count = num_columns();
+    if (streamers_.column_to_batches.empty()) {
+        streamers_.column_to_batches.resize(col_count);
     }
-    if (!streamers_.streamers[idx]) {
-        if (pg::memory_tracker::has_memory_limit()) {
-            const auto column_size =
-                pg::utils::get_column_width(get_base_atttypid(idx), get_atttypmod(idx)) * num_rows();
-            pg::memory_tracker::ensure_memory_available(column_size);
-        }
-        if (worker_id != -1) {
-            auto [start_row, end_row] = get_row_range(worker_id);
-            auto new_column = heimdall_common::create_filtered_column(
-                *(get_column_view(idx)), icm::index_mapping_t<int64_t>::slice({start_row, end_row, 1}));
-            streamers_.streamers[idx] = std::make_unique<bifrost::column_streamer>(new_column, batch_size_);
-        } else {
-            streamers_.streamers[idx] = std::make_unique<bifrost::column_streamer>(get_column_view(idx), batch_size_);
-        }
-        const int64_t batch_index = (num_rows() - 1) / batch_size_;
-        streamers_.column_to_batches[idx].batches.resize(batch_index + 1);
+    ASSERT(idx >= 0 && idx < col_count);
+    auto& column_batches = streamers_.column_to_batches[idx];
+    if (!column_batches.empty()) {
+        return;
+    }
+    if (pg::memory_tracker::has_memory_limit()) {
+        const auto column_size = pg::utils::get_column_width(get_base_atttypid(idx), get_atttypmod(idx)) * num_rows();
+        pg::memory_tracker::ensure_memory_available(column_size);
+    }
+    heimdall::column_view_ptr cv = get_column_view(idx);
+    if (worker_id != -1) {
+        auto [start_row, end_row] = get_row_range(worker_id);
+        cv = heimdall_common::create_filtered_column(*(cv),
+                                                     icm::index_mapping_t<int64_t>::slice({start_row, end_row, 1}));
+    }
+    const int64_t row_count = num_rows();
+    const int64_t batch_count = (row_count + batch_size_ - 1) / batch_size_;
+    column_batches = std::vector<streamer_info::batch_data>(batch_count);
+    for (int64_t i = 0; i < batch_count; ++i) {
+        const auto range_start = i * batch_size_;
+        const auto range_end = std::min<int64_t>(range_start + batch_size_, row_count);
+        auto p = async::run_on_main([cv, range_start, range_end, row_count]() {
+            return cv->request_range(
+                range_start, range_end, storage::fetch_options(static_cast<int>(row_count - range_start)));
+        });
+        column_batches[i].promise_ = std::move(p);
     }
 }
 
@@ -558,16 +566,12 @@ inline nd::array table_data::streamer_info::get_sample(int32_t column_number, in
 {
     const int64_t batch_index = row_number >> batch_size_log2_;
     const int64_t row_in_batch = row_number & batch_mask_;
-
-    auto& batches = column_to_batches[column_number].batches;
-    auto& batch = batches[batch_index];
-    if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
-        std::scoped_lock lock(column_to_batches[column_number].mutex);
-        for (int64_t i = 0; i <= batch_index; ++i) {
-            if (!batches[static_cast<size_t>(i)].initialized_.load(std::memory_order_relaxed)) {
-                batches[static_cast<size_t>(i)].owner_ = streamers[static_cast<size_t>(column_number)]->next_batch();
-                batches[static_cast<size_t>(i)].initialized_.store(true, std::memory_order_release);
-            }
+    auto& batch = column_to_batches[column_number][batch_index];
+    if (static_cast<bool>(batch.promise_)) [[unlikely]] {
+        std::lock_guard lock(batch.mutex_);
+        if (static_cast<bool>(batch.promise_)) {
+            batch.owner_ = batch.promise_.get_future().get();
+            batch.promise_ = async::promise<nd::array>();
         }
     }
     return batch.owner_[static_cast<size_t>(row_in_batch)];
@@ -576,23 +580,7 @@ inline nd::array table_data::streamer_info::get_sample(int32_t column_number, in
 template <typename T>
 inline T table_data::streamer_info::value(int32_t column_number, int64_t row_number)
 {
-    const int64_t batch_index = row_number >> batch_size_log2_;
-    const int64_t row_in_batch = row_number & batch_mask_;
-
-    auto& batches = column_to_batches[column_number].batches;
-    auto& batch = batches[batch_index];
-    if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
-        std::scoped_lock lock(column_to_batches[column_number].mutex);
-        for (int64_t i = 0; i <= batch_index; ++i) {
-            if (!batches[static_cast<size_t>(i)].initialized_.load(std::memory_order_relaxed)) {
-                batches[static_cast<size_t>(i)].owner_ = utils::eval_with_nones<T>(streamers[static_cast<size_t>(column_number)]->next_batch());
-                batches[static_cast<size_t>(i)].data_ = batches[static_cast<size_t>(i)].owner_.data().data();
-                batches[static_cast<size_t>(i)].initialized_.store(true, std::memory_order_release);
-            }
-        }
-    }
-
-    return reinterpret_cast<const T*>(batch.data_)[static_cast<size_t>(row_in_batch)];
+    return *(value_ptr<T>(column_number, row_number));
 }
 
 template <typename T>
@@ -601,16 +589,13 @@ inline const T* table_data::streamer_info::value_ptr(int32_t column_number, int6
     const int64_t batch_index = row_number >> batch_size_log2_;
     const int64_t row_in_batch = row_number & batch_mask_;
 
-    auto& batches = column_to_batches[column_number].batches;
-    auto& batch = batches[batch_index];
-    if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
-        std::scoped_lock lock(column_to_batches[column_number].mutex);
-        for (int64_t i = 0; i <= batch_index; ++i) {
-            if (!batches[static_cast<size_t>(i)].initialized_.load(std::memory_order_relaxed)) {
-                batches[static_cast<size_t>(i)].owner_ = utils::eval_with_nones<T>(streamers[static_cast<size_t>(column_number)]->next_batch());
-                batches[static_cast<size_t>(i)].data_ = batches[static_cast<size_t>(i)].owner_.data().data();
-                batches[static_cast<size_t>(i)].initialized_.store(true, std::memory_order_release);
-            }
+    auto& batch = column_to_batches[column_number][batch_index];
+    if (static_cast<bool>(batch.promise_)) [[unlikely]] {
+        std::lock_guard lock(batch.mutex_);
+        if (static_cast<bool>(batch.promise_)) {
+            batch.owner_ = utils::eval_with_nones<T>(batch.promise_.get_future().get());
+            batch.data_ = batch.owner_.data().data();
+            batch.promise_ = async::promise<nd::array>();
         }
     }
 
@@ -623,16 +608,13 @@ inline std::string_view table_data::streamer_info::value(int32_t column_number, 
     const int64_t batch_index = row_number >> batch_size_log2_;
     const int64_t row_in_batch = row_number & batch_mask_;
 
-    auto& batches = column_to_batches[column_number].batches;
-    auto& batch = batches[batch_index];
-    if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
-        std::scoped_lock lock(column_to_batches[column_number].mutex);
-        for (int64_t i = 0; i <= batch_index; ++i) {
-            if (!batches[static_cast<size_t>(i)].initialized_.load(std::memory_order_relaxed)) {
-                batches[static_cast<size_t>(i)].owner_ = streamers[static_cast<size_t>(column_number)]->next_batch();
-                batches[static_cast<size_t>(i)].holder_ = impl::string_stream_array_holder(batches[static_cast<size_t>(i)].owner_);
-                batches[static_cast<size_t>(i)].initialized_.store(true, std::memory_order_release);
-            }
+    auto& batch = column_to_batches[column_number][batch_index];
+    if (static_cast<bool>(batch.promise_)) [[unlikely]] {
+        std::lock_guard lock(batch.mutex_);
+        if (static_cast<bool>(batch.promise_)) {
+            batch.owner_ = batch.promise_.get_future().get();
+            batch.holder_ = impl::string_stream_array_holder(batch.owner_);
+            batch.promise_ = async::promise<nd::array>();
         }
     }
 

@@ -51,7 +51,7 @@ bool print_runtime_stats = false;
 bool support_json_index = false;
 bool is_filter_pushdown_enabled = true;
 int32_t max_streamable_column_width = 128;
-int32_t max_num_threads_for_global_state = 4;
+int32_t max_num_threads_for_global_state = std::thread::hardware_concurrency();
 bool treat_numeric_as_double = true; // Treat numeric types as double by default
 bool print_progress_during_seq_scan = false;
 bool use_shared_mem_for_refresh = false;
@@ -199,7 +199,7 @@ void initialize_guc_parameters()
                             "Maximum number of threads for global state operations.",
                             nullptr,                                   // optional long description
                             &pg::max_num_threads_for_global_state,     // linked C variable
-                            6,                                         // default value
+                            base::system_report::cpu_cores(),          // default value
                             1,                                         // min value
                             base::system_report::cpu_cores(),          // max value
                             PGC_USERSET,                               // context (USERSET, SUSET, etc.)
@@ -216,10 +216,10 @@ void initialize_guc_parameters()
                              "for detecting dataset refreshes, which can improve performance but may "
                              "have implications on concurrency. "
                              "It make sense to disable this for OLTP workloads.",
-                             &pg::use_shared_mem_for_refresh,   // linked C variable
-                             true,                              // default value
-                             PGC_USERSET,                       // context (USERSET, SUSET, etc.)
-                             0,                                 // flags
+                             &pg::use_shared_mem_for_refresh, // linked C variable
+                             true,                            // default value
+                             PGC_USERSET,                     // context (USERSET, SUSET, etc.)
+                             0,                               // flags
                              nullptr,
                              nullptr,
                              nullptr // check_hook, assign_hook, show_hook
