@@ -114,7 +114,7 @@ jobs:
           echo -e "${GREEN}Done.${DEFAULT}"
 
       - name: clang-tidy
-        uses: activeloopai/private-github-actions/.github/actions/clang-tidy@main
+        uses: activeloopai/shared-github-actions/.github/actions/clang-tidy@main
         continue-on-error: true
         with:
           source_directory: cpp/deeplake_pg
