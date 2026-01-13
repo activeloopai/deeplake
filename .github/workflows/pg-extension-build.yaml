@@ -120,6 +120,11 @@ jobs:
           source_directory: cpp/deeplake_pg
           build_directory: builds/deeplake-pg-dev
 
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+
       - name: extract version
         id: extract-version
         shell: bash
