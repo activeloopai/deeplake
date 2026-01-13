@@ -114,12 +114,8 @@ jobs:
           echo -e "${GREEN}Done.${DEFAULT}"
 
       - name: clang-tidy
-        shell: bash
+        uses: activeloopai/private-github-actions/.github/actions/clang-tidy@main
         continue-on-error: true
-        run: |-
-          echo -e "${YELLOW}Running clang-tidy static analysis...${DEFAULT}"
-          bash scripts/run_clang_tidy.sh builds/deeplake-pg-prod
-          echo -e "${GREEN}Clang-tidy analysis complete.${DEFAULT}"
 
       - name: extract version
         id: extract-version
