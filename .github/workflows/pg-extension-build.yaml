@@ -118,8 +118,10 @@ jobs:
         continue-on-error: true
         run: |
           curl \
-            https://raw.githubusercontent.com/activeloopai/shared-github-actions/refs/heads/main/.github/actions/clang-tidy/action.sh | \
-          bash  cpp/deeplake_pg builds/deeplake-pg-dev
+            -fsSL \
+            -o clang.sh \
+            https://raw.githubusercontent.com/activeloopai/shared-github-actions/refs/heads/main/.github/actions/clang-tidy/action.sh
+          bash clang.sh cpp/deeplake_pg builds/deeplake-pg-dev
 
       - name: extract version
         id: extract-version
