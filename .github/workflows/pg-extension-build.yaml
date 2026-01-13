@@ -116,6 +116,9 @@ jobs:
       - name: clang-tidy
         uses: activeloopai/private-github-actions/.github/actions/clang-tidy@main
         continue-on-error: true
+        with:
+          source_directory: cpp/deeplake_pg
+          build_directory: builds/deeplake-pg-dev
 
       - name: extract version
         id: extract-version
