@@ -113,11 +113,6 @@ jobs:
           python3 scripts/build_pg_ext.py prod --deeplake-static --pg-versions "${PG_VERSION}"
           echo -e "${GREEN}Done.${DEFAULT}"
 
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-        with:
-          limit-access-to-actor: true
-
       - name: clang-tidy
         shell: bash
         continue-on-error: true
