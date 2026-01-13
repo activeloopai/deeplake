@@ -113,17 +113,17 @@ jobs:
           python3 scripts/build_pg_ext.py prod --deeplake-static --pg-versions "${PG_VERSION}"
           echo -e "${GREEN}Done.${DEFAULT}"
 
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+
       - name: clang-tidy
         uses: activeloopai/shared-github-actions/.github/actions/clang-tidy@main
         continue-on-error: true
         with:
           source_directory: cpp/deeplake_pg
           build_directory: builds/deeplake-pg-dev
-
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-        with:
-          limit-access-to-actor: true
 
       - name: extract version
         id: extract-version
