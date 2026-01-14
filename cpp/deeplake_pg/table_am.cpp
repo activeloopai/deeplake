@@ -6,34 +6,36 @@ extern "C" {
 #include <postgres.h>
 
 #include <access/parallel.h>
-#include <access/reloptions.h>  // For relation options
+#include <access/reloptions.h> // For relation options
 #include <access/tableam.h>
 #include <access/xact.h>
 #include <catalog/namespace.h>
 #include <catalog/storage.h>
+#include <commands/vacuum.h> // For VacuumParams and VACOPT_* flags
 #include <miscadmin.h>
 #include <nodes/bitmapset.h>  // For bitmap operations
-#include <nodes/nodes.h>     // For node types
+#include <nodes/nodes.h>      // For node types
 #include <nodes/parsenodes.h> // For parse nodes
+#include <pgstat.h>           // For statistics collector integration
 #include <storage/block.h>
 #include <storage/relfilelocator.h>
-#include <utils/builtins.h>  // For text conversion functions
+#include <utils/builtins.h> // For text conversion functions
 #include <utils/lsyscache.h>
 #include <utils/rel.h>
 #include <utils/relcache.h>
-#include <utils/varlena.h>   // For text functions
+#include <utils/varlena.h> // For text functions
 
 #ifdef __cplusplus
 }
 #endif
 
-#include "table_am.hpp"
 #include "exceptions.hpp"
 #include "logger.hpp"
 #include "memory_tracker.hpp"
 #include "pg_deeplake.hpp"
 #include "pg_version_compat.h"
 #include "progress_utils.hpp"
+#include "table_am.hpp"
 #include "table_scan.hpp"
 #include "table_storage.hpp"
 #include "table_version.hpp"
@@ -50,22 +52,25 @@ struct DeeplakeScanData
     TableScanDescData postgres_scan; // keep this first
     pg::table_scan scan_state;
     MemoryContext memory_context = nullptr;
-    
+
     // TID range scanning state
     bool tid_range_scan_active = false;
     int64_t min_tid = 0;
     int64_t max_tid = 0;
     int64_t current_tid = 0;
-    
+
     // Bitmap scanning state
     bool bitmap_scan_active = false;
     struct TBMIterateResult* current_tbmres = nullptr;
     int32_t current_offset = InvalidOffsetNumber;
     std::vector<int64_t> bitmap_row_numbers;
-    
+
     // Sample scanning state
     bool sample_scan_active = false;
     struct SampleScanState* current_sample_scanstate = nullptr;
+
+    // ANALYZE scanning state
+    bool analyze_block_returned = false;
 
     bool print_progress = false;
     pg::utils::progress_display progress_bar;
@@ -83,6 +88,7 @@ struct DeeplakeScanData
         current_offset = InvalidOffsetNumber;
         sample_scan_active = false;
         current_sample_scanstate = nullptr;
+        analyze_block_returned = false;
     }
 
     DeeplakeScanData(pg::table_scan&& state)
@@ -95,8 +101,8 @@ struct DeeplakeScanData
         if (print_progress) {
             progress_bar = pg::utils::progress_display(num_rows,
                                                        "Progress of sequential scan for table '" +
-                                                       scan_state.get_table_data().get_table_name() + "' " +
-                                                       "(" + std::to_string(num_rows) + " rows)");
+                                                           scan_state.get_table_data().get_table_name() + "' " + "(" +
+                                                           std::to_string(num_rows) + " rows)");
         }
     }
     DeeplakeScanData(const DeeplakeScanData&) = delete;
@@ -189,13 +195,26 @@ void deeplake_index_validate_scan(Relation heap_rel,
     // No-op for now, we'll need to implement proper index validation later
 }
 
-void deeplake_estimate_rel_size(Relation rel,
-                                int32_t* attr_widths,
-                                BlockNumber* pages,
-                                double* tuples,
-                                double* allvisfrac)
+void deeplake_relation_vacuum(Relation rel, struct VacuumParams* params, BufferAccessStrategy bstrategy)
 {
-    constexpr int32_t MIN_COLUMN_WIDTH = 8;  // Minimum column width in bytes
+    // Check for VACUUM FULL - not supported for deeplake tables
+    if (params != nullptr && (params->options & VACOPT_FULL)) {
+        ereport(
+            ERROR,
+            (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+             errmsg("VACUUM FULL is not supported for deeplake tables"),
+             errhint(
+                 "Deeplake uses columnar storage which is already compact. Use VACUUM or VACUUM ANALYZE instead.")));
+    }
+
+    // Regular VACUUM is a no-op for columnar storage
+    return;
+}
+
+void deeplake_estimate_rel_size(
+    Relation rel, int32_t* attr_widths, BlockNumber* pages, double* tuples, double* allvisfrac)
+{
+    constexpr int32_t MIN_COLUMN_WIDTH = 8; // Minimum column width in bytes
 
     auto table_id = RelationGetRelid(rel);
     if (pg::table_storage::instance().table_exists(table_id)) {
@@ -209,7 +228,8 @@ void deeplake_estimate_rel_size(Relation rel,
         auto avg_row_width = 0;
         if (attr_widths != nullptr) {
             for (int32_t i = 0; i < table_data.num_columns(); ++i) {
-                attr_widths[i] = pg::utils::get_column_width(table_data.get_base_atttypid(i), table_data.get_atttypmod(i));
+                attr_widths[i] =
+                    pg::utils::get_column_width(table_data.get_base_atttypid(i), table_data.get_atttypmod(i));
                 attr_widths[i] = std::max(MIN_COLUMN_WIDTH, attr_widths[i]);
                 avg_row_width += attr_widths[i];
             }
@@ -217,7 +237,8 @@ void deeplake_estimate_rel_size(Relation rel,
         }
         if (pages != nullptr) {
             constexpr uint32_t min_pages = 1;
-            const uint32_t num_blocks = static_cast<uint32_t>(std::ceil(static_cast<double>(table_data.num_rows()) / 65536.0));
+            const uint32_t num_blocks =
+                static_cast<uint32_t>(std::ceil(static_cast<double>(table_data.num_rows()) / 65536.0));
             *pages = std::max(min_pages, num_blocks);
         }
 
@@ -238,11 +259,8 @@ void deeplake_estimate_rel_size(Relation rel,
     }
 }
 
-bool deeplake_scan_analyze_next_tuple(TableScanDesc scan,
-                                      TransactionId OldestXmin,
-                                      double* liverows,
-                                      double* deadrows,
-                                      TupleTableSlot* slot)
+bool deeplake_scan_analyze_next_tuple(
+    TableScanDesc scan, TransactionId OldestXmin, double* liverows, double* deadrows, TupleTableSlot* slot)
 {
     CHECK_FOR_INTERRUPTS();
 
@@ -253,16 +271,20 @@ bool deeplake_scan_analyze_next_tuple(TableScanDesc scan,
 
     // Try to fetch next tuple from your columnar storage
     if (!scan_data->scan_state.get_next_tuple(slot)) {
-        return false;  // no more tuples
+        return false; // no more tuples
     }
 
     /*
-     * For columnar DeepLake we don’t track tuple visibility like heap.
-     * So treat everything as live.
+     * For columnar DeepLake we don't track tuple visibility like heap.
+     * All tuples are live, there are never dead tuples in columnar storage.
      */
     if (liverows) {
         *liverows += 1.0;
     }
+
+    // IMPORTANT: Always keep deadrows at 0 for columnar storage
+    // We don't have MVCC dead tuples in columnar format
+    // Don't increment deadrows even if pointer is not null
 
     return true;
 }
@@ -270,6 +292,18 @@ bool deeplake_scan_analyze_next_tuple(TableScanDesc scan,
 #if PG_VERSION_NUM >= PG_VERSION_NUM_17
 bool deeplake_scan_analyze_next_block(TableScanDesc scan, ReadStream* stream)
 {
+    DeeplakeScanData* scan_data = get_scan_data(scan);
+    if (scan_data == nullptr) {
+        return false;
+    }
+
+    // For columnar storage, treat the entire table as one logical "block"
+    // Return true on first call, false on subsequent calls
+    if (!scan_data->analyze_block_returned) {
+        scan_data->analyze_block_returned = true;
+        return true;
+    }
+
     return false;
 }
 #endif
@@ -355,17 +389,20 @@ void parallelscan_reinitialize(Relation rel, ParallelTableScanDesc pscan)
     custom_pscan->reset();
 }
 
-TM_Result tuple_lock(Relation relation, ItemPointer tid, Snapshot snapshot,
-                     TupleTableSlot* slot, CommandId cid, LockTupleMode mode,
-                     LockWaitPolicy wait_policy, uint8_t flags, TM_FailureData* tmfd)
+TM_Result tuple_lock(Relation relation,
+                     ItemPointer tid,
+                     Snapshot snapshot,
+                     TupleTableSlot* slot,
+                     CommandId cid,
+                     LockTupleMode mode,
+                     LockWaitPolicy wait_policy,
+                     uint8_t flags,
+                     TM_FailureData* tmfd)
 {
-    return TM_Ok;  // Just allow the lock for now
+    return TM_Ok; // Just allow the lock for now
 }
 
-bool tuple_fetch_row_version(Relation relation,
-                             ItemPointer tid,
-                             Snapshot snapshot,
-                             TupleTableSlot* slot)
+bool tuple_fetch_row_version(Relation relation, ItemPointer tid, Snapshot snapshot, TupleTableSlot* slot)
 {
     CHECK_FOR_INTERRUPTS();
 
@@ -387,9 +424,7 @@ bool tuple_tid_valid(TableScanDesc scan, ItemPointer tid)
     return off > 0 && off <= pg::DEEPLAKE_TUPLES_PER_BLOCK;
 }
 
-bool tuple_satisfies_snapshot(Relation relation,
-                              TupleTableSlot* slot,
-                              Snapshot snapshot)
+bool tuple_satisfies_snapshot(Relation relation, TupleTableSlot* slot, Snapshot snapshot)
 {
     // Check if tuple satisfies snapshot
     return true;
@@ -408,8 +443,8 @@ void convert_schema(TupleDesc tupdesc)
     for (auto i = 0; i < tupdesc->natts; ++i) {
         Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
         if (attr->atttypid == NUMERICOID && pg::treat_numeric_as_double) {
-            constexpr int NUMERIC_PRECISION_SHIFT = 16;  // Bit shift for precision in typmod
-            constexpr int NUMERIC_COMPONENT_MASK = 0xffff;  // Mask for precision/scale extraction
+            constexpr int NUMERIC_PRECISION_SHIFT = 16;    // Bit shift for precision in typmod
+            constexpr int NUMERIC_COMPONENT_MASK = 0xffff; // Mask for precision/scale extraction
 
             auto typmod = attr->atttypmod;
             auto precision = -1;
@@ -420,26 +455,32 @@ void convert_schema(TupleDesc tupdesc)
             }
             // Convert to FLOAT8
             attr->atttypid = FLOAT8OID;
-            attr->attlen = sizeof(float8);      // 8 bytes
-            attr->attbyval = true;              // pass by value
-            attr->attalign = TYPALIGN_DOUBLE;   // 'd' - double alignment
-            attr->atttypmod = -1;               // no type modifier for FLOAT8
-            attr->attndims = 0;                 // not an array
+            attr->attlen = sizeof(float8);    // 8 bytes
+            attr->attbyval = true;            // pass by value
+            attr->attalign = TYPALIGN_DOUBLE; // 'd' - double alignment
+            attr->atttypmod = -1;             // no type modifier for FLOAT8
+            attr->attndims = 0;               // not an array
             const char* column_name = NameStr(attr->attname);
             if (precision >= 0) {
-                elog(WARNING, "Column '%s' converted from NUMERIC(%d,%d) to FLOAT8 - precision may be lost", column_name, precision, scale);
+                elog(WARNING,
+                     "Column '%s' converted from NUMERIC(%d,%d) to FLOAT8 - precision may be lost",
+                     column_name,
+                     precision,
+                     scale);
             } else {
                 elog(WARNING, "Column '%s' converted from NUMERIC to FLOAT8 - precision may be lost", column_name);
             }
         } else if (attr->atttypid == CHAROID || attr->atttypid == BPCHAROID) {
             // Convert CHAR and BPCHAR to VARCHAR
             attr->atttypid = VARCHAROID;
-            attr->attlen = -1;                  // variable length
-            attr->attbyval = false;             // pass by reference
-            attr->attalign = TYPALIGN_INT;      // 'i' - int4 alignment
+            attr->attlen = -1;             // variable length
+            attr->attbyval = false;        // pass by reference
+            attr->attalign = TYPALIGN_INT; // 'i' - int4 alignment
             attr->attstorage = TYPSTORAGE_EXTENDED;
             const char* column_name = NameStr(attr->attname);
-            elog(WARNING, "Column '%s' converted from CHAR/BPCHAR to VARCHAR as no fixed length string is supported", column_name);
+            elog(WARNING,
+                 "Column '%s' converted from CHAR/BPCHAR to VARCHAR as no fixed length string is supported",
+                 column_name);
         }
         Oid base_typeid = pg::utils::get_base_type(attr->atttypid);
         // For domain types over arrays, adjust attndims since PostgreSQL doesn't preserve it
@@ -447,7 +488,9 @@ void convert_schema(TupleDesc tupdesc)
         if (is_domain_over_array && attr->attndims == 0) {
             // Extract dimensionality from domain's CHECK constraint
             // Query pg_constraint and use pg_get_constraintdef() to get the constraint text
-            auto query_str = fmt::format("SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE contypid = {} AND contype = 'c'", attr->atttypid);
+            auto query_str =
+                fmt::format("SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE contypid = {} AND contype = 'c'",
+                            attr->atttypid);
             pg::utils::spi_connector connector;
             bool found_constraint = false;
             if (SPI_execute(query_str.c_str(), true, 0) == SPI_OK_SELECT && SPI_processed > 0) {
@@ -465,9 +508,10 @@ void convert_schema(TupleDesc tupdesc)
                     if (ndims_pos != nullptr) {
                         const char* eq_pos = strchr(ndims_pos, '=');
                         if (eq_pos != nullptr) {
-                            constexpr int DECIMAL_BASE = 10;  // Base 10 for decimal number parsing
+                            constexpr int DECIMAL_BASE = 10; // Base 10 for decimal number parsing
                             eq_pos++;
-                            while (*eq_pos == ' ' || *eq_pos == '\t') eq_pos++;
+                            while (*eq_pos == ' ' || *eq_pos == '\t')
+                                eq_pos++;
                             // Parse the integer (atoi handles leading whitespace and stops at non-digit)
                             char* endptr = nullptr;
                             auto ndims = strtol(eq_pos, &endptr, DECIMAL_BASE);
@@ -489,7 +533,9 @@ void convert_schema(TupleDesc tupdesc)
                      "Column '%s': Domain type '%s' over array type lacks array_ndims constraint.\n"
                      "Please add a CHECK constraint, e.g.:\n"
                      "  ALTER DOMAIN %s ADD CHECK (array_ndims(VALUE) = 1);",
-                     column_name, tname, tname);
+                     column_name,
+                     tname,
+                     tname);
             }
         }
     }
@@ -514,7 +560,7 @@ void deeplake_table_am_routine::initialize()
     routine.scan_rescan = scan_rescan;
     routine.scan_end = scan_end;
     routine.scan_getnextslot = scan_getnextslot;
-    
+
     // TID range scanning callbacks
     routine.scan_set_tidrange = scan_set_tidrange;
     routine.scan_getnextslot_tidrange = scan_getnextslot_tidrange;
@@ -548,8 +594,11 @@ void deeplake_table_am_routine::initialize()
     routine.index_build_range_scan = deeplake_index_build_range_scan;
     routine.index_validate_scan = deeplake_index_validate_scan;
 
+    // VACUUM support
+    routine.relation_vacuum = deeplake_relation_vacuum;
+
     // Optional scan methods
-    ///routine.scan_bitmap_next_block = scan_bitmap_next_block;
+    /// routine.scan_bitmap_next_block = scan_bitmap_next_block;
 #if PG_VERSION_NUM >= PG_VERSION_NUM_18
     routine.scan_bitmap_next_tuple = scan_bitmap_next_tuple;
 #endif
@@ -584,7 +633,8 @@ TableScanDesc deeplake_table_am_routine::scan_begin(Relation relation,
     bool is_parallel = (pg::use_parallel_workers && parallel_scan != nullptr);
 
     // Initialize extended structure with embedded scan data
-    new (extended_scan) DeeplakeScanData(table_scan(table_id, is_parallel, query_info::current().receiver_registered()));
+    new (extended_scan)
+        DeeplakeScanData(table_scan(table_id, is_parallel, query_info::current().receiver_registered()));
     const_cast<pg::table_data&>(extended_scan->scan_state.get_table_data()).refresh();
 
     TableScanDesc scan_desc = &extended_scan->postgres_scan;
@@ -605,7 +655,9 @@ TableScanDesc deeplake_table_am_routine::scan_begin(Relation relation,
     auto& td = table_storage::instance().get_table_data(table_id);
     // For UPDATE/DELETE operations, we need all columns because PostgreSQL needs to reconstruct
     // the entire tuple. For SELECT *, we also need all columns.
-    bool need_all_columns = (!pg::query_info::current().is_count_star() && td.is_star_selected()) ||
+    // For ANALYZE, we also need all columns to sample data and calculate statistics.
+    bool need_all_columns = (flags & SO_TYPE_ANALYZE) ||
+                            (!pg::query_info::current().is_count_star() && td.is_star_selected()) ||
                             (pg::query_info::current().command_type() == pg::command_type::CMD_UPDATE) ||
                             (pg::query_info::current().command_type() == pg::command_type::CMD_DELETE);
 
@@ -623,16 +675,19 @@ TableScanDesc deeplake_table_am_routine::scan_begin(Relation relation,
     if (nkeys > 0) {
         extended_scan->scan_state.nkeys = nkeys;
         // copy ScanKeyData because Postgres only gave us a pointer
-        extended_scan->scan_state.keys = (ScanKeyData*) palloc(sizeof(ScanKeyData) * nkeys);
+        extended_scan->scan_state.keys = (ScanKeyData*)palloc(sizeof(ScanKeyData) * nkeys);
         std::memcpy(extended_scan->scan_state.keys, key, sizeof(ScanKeyData) * nkeys);
     }
 
     return scan_desc;
 }
 
-void deeplake_table_am_routine::scan_rescan(TableScanDesc scan, struct ScanKeyData* key,
-                                            bool set_params, bool allow_strat,
-                                            bool allow_sync, bool allow_pagemode)
+void deeplake_table_am_routine::scan_rescan(TableScanDesc scan,
+                                            struct ScanKeyData* key,
+                                            bool set_params,
+                                            bool allow_strat,
+                                            bool allow_sync,
+                                            bool allow_pagemode)
 {
     DeeplakeScanData* scan_data = get_scan_data(scan);
     if (scan_data) {
@@ -642,8 +697,8 @@ void deeplake_table_am_routine::scan_rescan(TableScanDesc scan, struct ScanKeyDa
         if (scan_data->print_progress) [[unlikely]] {
             ++scan_data->num_rescans;
             std::string pre_msg = "Progress of sequential scan for table '" +
-                                  scan_data->scan_state.get_table_data().get_table_name() + "'" +
-                                  " (rescan " + std::to_string(scan_data->num_rescans) + ")";
+                                  scan_data->scan_state.get_table_data().get_table_name() + "'" + " (rescan " +
+                                  std::to_string(scan_data->num_rescans) + ")";
             scan_data->progress_bar.restart(scan_data->scan_state.get_table_data().num_rows(), std::move(pre_msg));
         }
     }
@@ -680,14 +735,13 @@ bool deeplake_table_am_routine::scan_getnextslot(TableScanDesc scan, ScanDirecti
 void deeplake_table_am_routine::scan_set_tidrange(TableScanDesc scan, ItemPointer mintid, ItemPointer maxtid)
 {
     CHECK_FOR_INTERRUPTS();
-    
+
     DeeplakeScanData* scan_data = get_scan_data(scan);
     scan_data->min_tid = utils::tid_to_row_number(mintid);
     scan_data->max_tid = utils::tid_to_row_number(maxtid);
     scan_data->current_tid = utils::tid_to_row_number(mintid);
 
-    if (scan_data->min_tid > scan_data->max_tid ||
-        scan_data->current_tid > scan_data->max_tid ||
+    if (scan_data->min_tid > scan_data->max_tid || scan_data->current_tid > scan_data->max_tid ||
         scan_data->current_tid < scan_data->min_tid) {
         return;
     }
@@ -699,7 +753,9 @@ void deeplake_table_am_routine::scan_set_tidrange(TableScanDesc scan, ItemPointe
     MemoryContextReset(scan_data->memory_context);
 }
 
-bool deeplake_table_am_routine::scan_getnextslot_tidrange(TableScanDesc scan, ScanDirection direction, TupleTableSlot* slot)
+bool deeplake_table_am_routine::scan_getnextslot_tidrange(TableScanDesc scan,
+                                                          ScanDirection direction,
+                                                          TupleTableSlot* slot)
 {
     CHECK_FOR_INTERRUPTS();
 
@@ -724,7 +780,8 @@ bool deeplake_table_am_routine::scan_getnextslot_tidrange(TableScanDesc scan, Sc
 }
 
 #if PG_VERSION_NUM >= PG_VERSION_NUM_18
-bool deeplake_table_am_routine::scan_bitmap_next_tuple(TableScanDesc scan, TupleTableSlot* slot, bool* recheck, uint64* lossy_pages, uint64* exact_pages)
+bool deeplake_table_am_routine::scan_bitmap_next_tuple(
+    TableScanDesc scan, TupleTableSlot* slot, bool* recheck, uint64* lossy_pages, uint64* exact_pages)
 {
     CHECK_FOR_INTERRUPTS();
     DeeplakeScanData* scan_data = get_scan_data(scan);
@@ -765,7 +822,7 @@ bool deeplake_table_am_routine::scan_bitmap_next_tuple(TableScanDesc scan, Tuple
     }
 
     if (scan_data->current_offset >= scan_data->bitmap_row_numbers.size()) {
-        return false;  // No more tuples
+        return false; // No more tuples
     }
 
     *recheck = false;
@@ -789,7 +846,9 @@ bool deeplake_table_am_routine::scan_sample_next_block(TableScanDesc scan, struc
     return true;
 }
 
-bool deeplake_table_am_routine::scan_sample_next_tuple(TableScanDesc scan, struct SampleScanState* scanstate, TupleTableSlot* slot)
+bool deeplake_table_am_routine::scan_sample_next_tuple(TableScanDesc scan,
+                                                       struct SampleScanState* scanstate,
+                                                       TupleTableSlot* slot)
 {
     CHECK_FOR_INTERRUPTS();
 
@@ -806,11 +865,14 @@ bool deeplake_table_am_routine::scan_sample_next_tuple(TableScanDesc scan, struc
     // Switch to the dedicated memory context for this scan
     pg::utils::memory_context_switcher context_switcher(scan_data->memory_context);
 
-    constexpr double DEFAULT_SAMPLE_FRACTION = 0.1;  // Default sample fraction
+    constexpr double DEFAULT_SAMPLE_FRACTION = 0.1;   // Default sample fraction
     double sample_fraction = DEFAULT_SAMPLE_FRACTION; // default fallback
     if (scan_data->current_sample_scanstate && scan_data->current_sample_scanstate->tsm_state) {
         // If your TAM stores the fraction in tsm_state, cast and read it here
-        struct SampleState { double fraction; };
+        struct SampleState
+        {
+            double fraction;
+        };
         SampleState* sampler = static_cast<SampleState*>(scan_data->current_sample_scanstate->tsm_state);
         sample_fraction = sampler->fraction;
     }
@@ -830,7 +892,8 @@ bool deeplake_table_am_routine::scan_sample_next_tuple(TableScanDesc scan, struc
 IndexFetchTableData* deeplake_table_am_routine::begin_index_fetch(Relation rel)
 {
     DeeplakeIndexFetchData* idx_scan = (DeeplakeIndexFetchData*)palloc0(sizeof(DeeplakeIndexFetchData));
-    new (idx_scan) DeeplakeIndexFetchData(table_scan(RelationGetRelid(rel), false, query_info::current().receiver_registered()));
+    new (idx_scan)
+        DeeplakeIndexFetchData(table_scan(RelationGetRelid(rel), false, query_info::current().receiver_registered()));
     idx_scan->base.rel = rel;
     return &idx_scan->base;
 }
@@ -875,11 +938,8 @@ bool deeplake_table_am_routine::index_fetch_tuple(struct IndexFetchTableData* sc
     return true;
 }
 
-void deeplake_table_am_routine::tuple_insert(Relation rel,
-                                             TupleTableSlot* slot,
-                                             CommandId cid,
-                                             int32_t options,
-                                             struct BulkInsertStateData* bistate)
+void deeplake_table_am_routine::tuple_insert(
+    Relation rel, TupleTableSlot* slot, CommandId cid, int32_t options, struct BulkInsertStateData* bistate)
 {
     const auto table_id = RelationGetRelid(rel);
     const auto& table_data = table_storage::instance().get_table_data(table_id);
@@ -888,6 +948,9 @@ void deeplake_table_am_routine::tuple_insert(Relation rel,
     const auto [block_number, offset_number] = utils::row_number_to_tid(row_number);
     ItemPointerSet(&slot->tts_tid, block_number, offset_number);
 
+    // Report to statistics collector
+    pgstat_count_heap_insert(rel, 1);
+
     // Increment version to notify other backends
     table_version_tracker::increment_version(table_id);
 }
@@ -895,7 +958,7 @@ void deeplake_table_am_routine::tuple_insert(Relation rel,
 void deeplake_table_am_routine::multi_insert(Relation rel,
                                              TupleTableSlot** slots,
                                              int32_t nslots,
-								             CommandId cid,
+                                             CommandId cid,
                                              int32_t options,
                                              struct BulkInsertStateData* bistate)
 {
@@ -907,16 +970,21 @@ void deeplake_table_am_routine::multi_insert(Relation rel,
     try {
         table_storage::instance().insert_slots(table_id, nslots, slots);
     } catch (const std::exception& e) {
-        ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Failed to insert tuples: %s", e.what()),
-                        errdetail("Table name: %s, Dataset path: %s",
-                                  get_qualified_table_name(rel).c_str(),
-                                  pg::table_options::current().dataset_path().c_str()),
-                        errhint("Check if the dataset path is accessible and has proper permissions")));
+        ereport(ERROR,
+                (errcode(ERRCODE_INTERNAL_ERROR),
+                 errmsg("Failed to insert tuples: %s", e.what()),
+                 errdetail("Table name: %s, Dataset path: %s",
+                           get_qualified_table_name(rel).c_str(),
+                           pg::table_options::current().dataset_path().c_str()),
+                 errhint("Check if the dataset path is accessible and has proper permissions")));
     }
     for (auto i = 0; i < nslots; ++i) {
         const auto [block_number, offset_number] = utils::row_number_to_tid(row_number + i);
         ItemPointerSet(&slots[i]->tts_tid, block_number, offset_number);
     }
+
+    // Report to statistics collector
+    pgstat_count_heap_insert(rel, nslots);
 
     // Increment version to notify other backends
     table_version_tracker::increment_version(table_id);
@@ -941,6 +1009,9 @@ TM_Result deeplake_table_am_routine::tuple_delete(Relation rel,
     } catch (const std::exception& e) {
         ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Failed to delete tuple: %s", e.what())));
     }
+
+    // Report to statistics collector
+    pgstat_count_heap_delete(rel);
 
     // Increment version to notify other backends
     table_version_tracker::increment_version(table_id);
@@ -976,20 +1047,34 @@ TM_Result deeplake_table_am_routine::tuple_update(Relation rel,
         ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Failed to update tuple: %s", e.what())));
     }
 
+    // Report to statistics collector
+    // Deeplake has no HOT updates (columnar storage), so hot_update = false
+    // newpage_update also false for columnar storage simplification
+    pgstat_count_heap_update(rel, false, false);
+
     // Increment version to notify other backends
     table_version_tracker::increment_version(table_id);
 
     return TM_Ok;
 }
 
-void deeplake_table_am_routine::relation_set_new_node(Relation rel,
-                                                      const RelFileLocator* newrnode,
-                                                      char persistence,
-                                                      TransactionId* freezeXid,
-                                                      MultiXactId* minmulti)
+void deeplake_table_am_routine::relation_set_new_node(
+    Relation rel, const RelFileLocator* newrnode, char persistence, TransactionId* freezeXid, MultiXactId* minmulti)
 {
     // Get the schema-qualified table name
     const std::string table_name = get_qualified_table_name(rel);
+
+    // Block temp table creation from VACUUM FULL
+    // VACUUM FULL tries to create a temp table (pg_temp_*) to rebuild the original table
+    // This is not supported for columnar storage
+    if (table_name.find("pg_temp_") != std::string::npos) {
+        ereport(
+            ERROR,
+            (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+             errmsg("VACUUM FULL is not supported for deeplake tables"),
+             errhint(
+                 "Deeplake uses columnar storage which is already compact. Use VACUUM or VACUUM ANALYZE instead.")));
+    }
 
     // Get the tuple descriptor
     TupleDesc tupdesc = RelationGetDescr(rel);
