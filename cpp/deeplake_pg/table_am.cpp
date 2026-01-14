@@ -29,13 +29,13 @@ extern "C" {
 }
 #endif
 
+#include "table_am.hpp"
 #include "exceptions.hpp"
 #include "logger.hpp"
 #include "memory_tracker.hpp"
 #include "pg_deeplake.hpp"
 #include "pg_version_compat.h"
 #include "progress_utils.hpp"
-#include "table_am.hpp"
 #include "table_scan.hpp"
 #include "table_storage.hpp"
 #include "table_version.hpp"
