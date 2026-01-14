@@ -30,6 +30,7 @@ extern "C" {
 #endif
 
 #include "table_am.hpp"
+
 #include "exceptions.hpp"
 #include "logger.hpp"
 #include "memory_tracker.hpp"

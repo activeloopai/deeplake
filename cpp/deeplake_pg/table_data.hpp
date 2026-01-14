@@ -64,6 +64,7 @@ struct table_data
     inline Oid get_base_atttypid(AttrNumber attr_num) const noexcept;
     inline int32_t get_attndims(AttrNumber attr_num) const noexcept;
     inline std::string get_atttypename(AttrNumber attr_num) const noexcept;
+    inline bool is_column_dropped(AttrNumber attr_num) const noexcept;
     inline bool is_column_nullable(AttrNumber attr_num) const noexcept;
     inline bool is_column_indexed(AttrNumber attr_num) const noexcept;
     inline int32_t num_columns() const noexcept;
@@ -155,7 +156,8 @@ private:
     std::shared_ptr<deeplake_api::dataset> refreshing_dataset_;
     async::promise<void> refresh_promise_;
     std::vector<bool> requested_columns_;
-    std::vector<Oid> base_typeids_; // Cached base type OIDs for performance
+    std::vector<Oid> base_typeids_;              // Cached base type OIDs for performance
+    std::vector<int32_t> active_column_indices_; // Maps logical index to TupleDesc index (excludes dropped)
     icm::string_map<> creds_;
     TupleDesc tuple_descriptor_;
     http::uri dataset_path_ = http::uri(std::string());
