@@ -47,8 +47,11 @@ append_rows(std::shared_ptr<deeplake_api::dataset> dataset, icm::string_map<nd::
 inline void commit_dataset(std::shared_ptr<deeplake_api::dataset> dataset, bool show_progress)
 {
     constexpr auto high_num_rows = 50000;
-    const bool print_progress = (show_progress && dataset->num_rows() > high_num_rows && dataset->has_uncommitted_changes());
-    auto promise = async::run_on_main([ds = std::move(dataset)](){ return ds->commit(); });
+    const bool print_progress =
+        (show_progress && dataset->num_rows() > high_num_rows && dataset->has_uncommitted_changes());
+    auto promise = async::run_on_main([ds = std::move(dataset)]() {
+        return ds->commit();
+    });
     if (print_progress) {
         const std::string message = fmt::format("Committing dataset (samples: {})", dataset->num_rows());
         pg::utils::print_progress_and_wait(std::move(promise), message);
@@ -67,12 +70,24 @@ inline table_data::table_data(
     , dataset_path_(std::move(dataset_path))
     , creds_(std::move(creds))
 {
-    requested_columns_.resize(static_cast<size_t>(tuple_descriptor_->natts), false);
-    base_typeids_.resize(static_cast<size_t>(tuple_descriptor_->natts));
-    // Cache base type OIDs for performance (avoid repeated syscache lookups)
+    // Build list of active (non-dropped) column indices
+    // This maps logical index (0, 1, 2, ...) to TupleDesc index
     for (int32_t i = 0; i < tuple_descriptor_->natts; ++i) {
         Form_pg_attribute attr = TupleDescAttr(tuple_descriptor_, i);
-        base_typeids_[static_cast<size_t>(i)] = pg::utils::get_base_type(attr->atttypid);
+        if (!attr->attisdropped) {
+            active_column_indices_.push_back(i);
+        }
+    }
+
+    const auto num_active = active_column_indices_.size();
+    requested_columns_.resize(num_active, false);
+    base_typeids_.resize(num_active);
+
+    // Cache base type OIDs for active columns only
+    for (size_t i = 0; i < num_active; ++i) {
+        const auto tupdesc_idx = active_column_indices_[i];
+        Form_pg_attribute attr = TupleDescAttr(tuple_descriptor_, tupdesc_idx);
+        base_typeids_[i] = pg::utils::get_base_type(attr->atttypid);
     }
 }
 
@@ -227,7 +242,8 @@ inline Oid table_data::get_atttypid(AttrNumber attr_num) const noexcept
 
 inline int32_t table_data::get_atttypmod(AttrNumber attr_num) const noexcept
 {
-    return TupleDescAttr(tuple_descriptor_, attr_num)->atttypmod;
+    const auto tupdesc_idx = active_column_indices_[attr_num];
+    return TupleDescAttr(tuple_descriptor_, tupdesc_idx)->atttypmod;
 }
 
 inline Oid table_data::get_base_atttypid(AttrNumber attr_num) const noexcept
@@ -237,17 +253,27 @@ inline Oid table_data::get_base_atttypid(AttrNumber attr_num) const noexcept
 
 inline int32_t table_data::get_attndims(AttrNumber attr_num) const noexcept
 {
-    return TupleDescAttr(tuple_descriptor_, attr_num)->attndims;
+    const auto tupdesc_idx = active_column_indices_[attr_num];
+    return TupleDescAttr(tuple_descriptor_, tupdesc_idx)->attndims;
 }
 
 inline std::string table_data::get_atttypename(AttrNumber attr_num) const noexcept
 {
-    return NameStr(TupleDescAttr(tuple_descriptor_, attr_num)->attname);
+    const auto tupdesc_idx = active_column_indices_[attr_num];
+    return NameStr(TupleDescAttr(tuple_descriptor_, tupdesc_idx)->attname);
+}
+
+inline bool table_data::is_column_dropped(AttrNumber attr_num) const noexcept
+{
+    // Active columns are never dropped (dropped columns are filtered out)
+    (void)attr_num;
+    return false;
 }
 
 inline bool table_data::is_column_nullable(AttrNumber attr_num) const noexcept
 {
-    return TupleDescAttr(tuple_descriptor_, attr_num)->attnotnull ? false : true;
+    const auto tupdesc_idx = active_column_indices_[attr_num];
+    return TupleDescAttr(tuple_descriptor_, tupdesc_idx)->attnotnull ? false : true;
 }
 
 inline bool table_data::is_column_indexed(AttrNumber attr_num) const noexcept
@@ -257,7 +283,7 @@ inline bool table_data::is_column_indexed(AttrNumber attr_num) const noexcept
 
 inline int32_t table_data::num_columns() const noexcept
 {
-    return tuple_descriptor_->natts;
+    return static_cast<int32_t>(active_column_indices_.size());
 }
 
 inline int64_t table_data::num_rows() const noexcept
@@ -379,7 +405,7 @@ inline void table_data::set_column_requested(int32_t column_number, bool request
 inline void table_data::reset_requested_columns() noexcept
 {
     is_star_selected_ = true;
-    requested_columns_.assign(tuple_descriptor_->natts, false);
+    requested_columns_.assign(num_columns(), false);
 }
 
 inline bool table_data::is_star_selected() const noexcept
@@ -389,7 +415,7 @@ inline bool table_data::is_star_selected() const noexcept
 
 inline bool table_data::can_stream_column(int32_t column_number) const noexcept
 {
-    if (column_number < 0 || column_number >= tuple_descriptor_->natts || num_rows() == 0 ||
+    if (column_number < 0 || column_number >= num_columns() || num_rows() == 0 ||
         type_is_array(get_atttypid(column_number))) {
         return false;
     }

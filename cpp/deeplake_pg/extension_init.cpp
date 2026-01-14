@@ -57,7 +57,7 @@ bool print_progress_during_seq_scan = false;
 bool use_shared_mem_for_refresh = false;
 bool enable_dataset_logging = false; // Enable dataset operation logging for debugging
 
-} // pg namespace
+} // namespace pg
 
 namespace {
 
@@ -75,11 +75,11 @@ void initialize_guc_parameters()
 {
     DefineCustomBoolVariable("pg_deeplake.treat_numeric_as_double",
                              "If set to true, numeric values will be treated as double precision.",
-                             nullptr,                                                 // optional long description
-                             &pg::treat_numeric_as_double,                            // linked C variable
-                             true,                                                    // default value
-                             PGC_USERSET, // context (USERSET, SUSET, etc.)
-                             0,           // flags
+                             nullptr,                      // optional long description
+                             &pg::treat_numeric_as_double, // linked C variable
+                             true,                         // default value
+                             PGC_USERSET,                  // context (USERSET, SUSET, etc.)
+                             0,                            // flags
                              nullptr,
                              nullptr,
                              nullptr // check_hook, assign_hook, show_hook
@@ -87,11 +87,11 @@ void initialize_guc_parameters()
 
     DefineCustomBoolVariable("pg_deeplake.print_progress_during_seq_scan",
                              "Print progress during sequential scan.",
-                             nullptr,                                                 // optional long description
-                             &pg::print_progress_during_seq_scan,                     // linked C variable
-                             false,                                                   // default value
-                             PGC_USERSET,                                             // context (USERSET, SUSET, etc.)
-                             0,                                                       // flags
+                             nullptr,                             // optional long description
+                             &pg::print_progress_during_seq_scan, // linked C variable
+                             false,                               // default value
+                             PGC_USERSET,                         // context (USERSET, SUSET, etc.)
+                             0,                                   // flags
                              nullptr,
                              nullptr,
                              nullptr // check_hook, assign_hook, show_hook
@@ -130,7 +130,7 @@ void initialize_guc_parameters()
                              0,                                 // flags
                              nullptr,
                              nullptr,
-                             nullptr                            // check_hook, assign_hook, show_hook
+                             nullptr // check_hook, assign_hook, show_hook
     );
 
     DefineCustomBoolVariable("pg_deeplake.ignore_primary_keys",
@@ -147,11 +147,11 @@ void initialize_guc_parameters()
 
     DefineCustomBoolVariable("pg_deeplake.print_runtime_stats",
                              "Enable runtime statistics printing for pg_deeplake operations.",
-                             nullptr,                         // optional long description
-                             &pg::print_runtime_stats,        // linked C variable
-                             false,                           // default value
-                             PGC_USERSET,                     // context (USERSET, SUSET, etc.)
-                             0,                               // flags
+                             nullptr,                  // optional long description
+                             &pg::print_runtime_stats, // linked C variable
+                             false,                    // default value
+                             PGC_USERSET,              // context (USERSET, SUSET, etc.)
+                             0,                        // flags
                              nullptr,
                              nullptr,
                              nullptr // check_hook, assign_hook, show_hook
@@ -159,11 +159,11 @@ void initialize_guc_parameters()
 
     DefineCustomBoolVariable("pg_deeplake.support_json_index",
                              "Enable support for JSONB index optimizations.",
-                             nullptr,                         // optional long description
-                             &pg::support_json_index,         // linked C variable
-                             false,                           // default value
-                             PGC_USERSET,                     // context (USERSET, SUSET, etc.)
-                             0,                               // flags
+                             nullptr,                 // optional long description
+                             &pg::support_json_index, // linked C variable
+                             false,                   // default value
+                             PGC_USERSET,             // context (USERSET, SUSET, etc.)
+                             0,                       // flags
                              nullptr,
                              nullptr,
                              nullptr // check_hook, assign_hook, show_hook
@@ -171,11 +171,11 @@ void initialize_guc_parameters()
 
     DefineCustomBoolVariable("pg_deeplake.is_filter_pushdown_enabled",
                              "Enable filter pushdown optimizations for pg_deeplake tables.",
-                             nullptr,                              // optional long description
-                             &pg::is_filter_pushdown_enabled,      // linked C variable
-                             true,                                 // default value
-                             PGC_USERSET,                          // context (USERSET, SUSET, etc.)
-                             0,                                    // flags
+                             nullptr,                         // optional long description
+                             &pg::is_filter_pushdown_enabled, // linked C variable
+                             true,                            // default value
+                             PGC_USERSET,                     // context (USERSET, SUSET, etc.)
+                             0,                               // flags
                              nullptr,
                              nullptr,
                              nullptr // check_hook, assign_hook, show_hook
@@ -183,13 +183,13 @@ void initialize_guc_parameters()
 
     DefineCustomIntVariable("pg_deeplake.max_streamable_column_width",
                             "Maximum width (in bytes) for columns to be considered streamable.",
-                            nullptr,                                   // optional long description
-                            &pg::max_streamable_column_width,          // linked C variable
-                            128,                                       // default value (128 bytes)
-                            1,                                         // min value
-                            1024,                                      // max value (1 KB)
-                            PGC_USERSET,                               // context (USERSET, SUSET, etc.)
-                            0,                                         // flags
+                            nullptr,                          // optional long description
+                            &pg::max_streamable_column_width, // linked C variable
+                            128,                              // default value (128 bytes)
+                            1,                                // min value
+                            1024,                             // max value (1 KB)
+                            PGC_USERSET,                      // context (USERSET, SUSET, etc.)
+                            0,                                // flags
                             nullptr,
                             nullptr,
                             nullptr // check_hook, assign_hook, show_hook
@@ -197,13 +197,13 @@ void initialize_guc_parameters()
 
     DefineCustomIntVariable("pg_deeplake.max_num_threads_for_global_state",
                             "Maximum number of threads for global state operations.",
-                            nullptr,                                   // optional long description
-                            &pg::max_num_threads_for_global_state,     // linked C variable
-                            base::system_report::cpu_cores(),          // default value
-                            1,                                         // min value
-                            base::system_report::cpu_cores(),          // max value
-                            PGC_USERSET,                               // context (USERSET, SUSET, etc.)
-                            0,                                         // flags
+                            nullptr,                               // optional long description
+                            &pg::max_num_threads_for_global_state, // linked C variable
+                            base::system_report::cpu_cores(),      // default value
+                            1,                                     // min value
+                            base::system_report::cpu_cores(),      // max value
+                            PGC_USERSET,                           // context (USERSET, SUSET, etc.)
+                            0,                                     // flags
                             nullptr,
                             nullptr,
                             nullptr // check_hook, assign_hook, show_hook
@@ -231,10 +231,10 @@ void initialize_guc_parameters()
                              "are logged to debug_logs/{session_id}/{timestamp}.json files in the dataset storage. "
                              "This can be useful for debugging and auditing purposes. "
                              "Note: This may have a performance impact as each operation is logged asynchronously.",
-                             &pg::enable_dataset_logging,       // linked C variable
-                             false,                             // default value
-                             PGC_USERSET,                       // context (USERSET, SUSET, etc.)
-                             0,                                 // flags
+                             &pg::enable_dataset_logging, // linked C variable
+                             false,                       // default value
+                             PGC_USERSET,                 // context (USERSET, SUSET, etc.)
+                             0,                           // flags
                              nullptr,
                              nullptr,
                              nullptr // check_hook, assign_hook, show_hook
@@ -277,7 +277,8 @@ void extract_jsonb_path(Node* expr, std::vector<std::string>& path, Node** base_
             *base_col = expr;
         }
 
-        if (opname) pfree(opname);
+        if (opname)
+            pfree(opname);
     } else {
         *base_col = expr;
     }
@@ -286,7 +287,8 @@ void extract_jsonb_path(Node* expr, std::vector<std::string>& path, Node** base_
 // Build nested JSON from path: ["a", "b", "c"] with value "v" -> {"a": {"b": {"c": "v"}}}
 std::string build_nested_json(const std::vector<std::string>& path, const std::string& value)
 {
-    if (path.empty()) return "";
+    if (path.empty())
+        return "";
 
     StringInfoData json;
     initStringInfo(&json);
@@ -312,13 +314,14 @@ std::string build_nested_json(const std::vector<std::string>& path, const std::s
 // Transform ->> expressions into @> containment for JSONB index usage
 void transform_jsonb_arrow_quals(Node** nodeptr)
 {
-    if (!nodeptr || !*nodeptr) return;
+    if (!nodeptr || !*nodeptr)
+        return;
     Node* node = *nodeptr;
 
     if (IsA(node, BoolExpr)) {
         BoolExpr* b = (BoolExpr*)node;
         ListCell* lc = nullptr;
-        foreach(lc, b->args) {
+        foreach (lc, b->args) {
             transform_jsonb_arrow_quals((Node**)&lfirst(lc));
         }
     } else if (IsA(node, OpExpr)) {
@@ -349,7 +352,8 @@ void transform_jsonb_arrow_quals(Node** nodeptr)
 
                         if (!json_str.empty()) {
                             // Convert to JSONB
-                            Jsonb* jb = DatumGetJsonbP(DirectFunctionCall1(jsonb_in, CStringGetDatum(json_str.c_str())));
+                            Jsonb* jb =
+                                DatumGetJsonbP(DirectFunctionCall1(jsonb_in, CStringGetDatum(json_str.c_str())));
 
                             // Create JSONB constant
                             Const* jc = makeNode(Const);
@@ -378,7 +382,8 @@ void transform_jsonb_arrow_quals(Node** nodeptr)
                                 *nodeptr = (Node*)newop;
 
                                 base::log_debug(base::log_channel::index,
-                                    "Transformed JSONB path (depth {}) to @> containment", path.size());
+                                                "Transformed JSONB path (depth {}) to @> containment",
+                                                path.size());
                             }
                         }
                         pfree(vs);
@@ -386,7 +391,8 @@ void transform_jsonb_arrow_quals(Node** nodeptr)
                 }
             }
         }
-        if (opname) pfree(opname);
+        if (opname)
+            pfree(opname);
     }
 }
 
@@ -595,8 +601,8 @@ static void process_utility(PlannedStmt* pstmt,
                 }
             }
             td->commit();
-            pg::table_storage::instance().erase_table(table_name);
-            pg::table_storage::instance().force_load_table_metadata();
+            // Note: We don't reload table_data here because the TupleDesc hasn't been updated yet.
+            // The reload will happen in the POST-AlterTable section below after standard_ProcessUtility.
         }
     }
 
@@ -605,8 +611,7 @@ static void process_utility(PlannedStmt* pstmt,
         elog(DEBUG1, "CreateStmt: %s", stmt->relation->relname);
         elog(DEBUG1, "stmt->options: %p", stmt->options);
         elog(DEBUG1, "stmt->accessMethod: %s", stmt->accessMethod);
-        const bool deeplake_table = (stmt->accessMethod != nullptr &&
-                                     std::strcmp(stmt->accessMethod, "deeplake") == 0);
+        const bool deeplake_table = (stmt->accessMethod != nullptr && std::strcmp(stmt->accessMethod, "deeplake") == 0);
         if (deeplake_table && stmt->options != nullptr) {
             ListCell* lc = nullptr;
             foreach (lc, stmt->options) {
@@ -640,8 +645,10 @@ static void process_utility(PlannedStmt* pstmt,
                             ListCell* key_lc = nullptr;
                             foreach (key_lc, constraint->keys) {
                                 std::string col_name = strVal(lfirst(key_lc));
-                                elog(DEBUG1, "Removing table-level PRIMARY KEY constraint on table '%s' for column: %s",
-                                     table_name.c_str(), col_name.c_str());
+                                elog(DEBUG1,
+                                     "Removing table-level PRIMARY KEY constraint on table '%s' for column: %s",
+                                     table_name.c_str(),
+                                     col_name.c_str());
                                 primary_keys[table_name].insert(col_name);
                             }
                         }
@@ -660,8 +667,10 @@ static void process_utility(PlannedStmt* pstmt,
                             Constraint* constraint = (Constraint*)lfirst(const_lc);
                             if (constraint->contype == CONSTR_PRIMARY) {
                                 has_primary_key = true;
-                                elog(DEBUG1, "Removing column-level PRIMARY KEY constraint on table '%s' for column: %s",
-                                     table_name.c_str(), coldef->colname);
+                                elog(DEBUG1,
+                                     "Removing column-level PRIMARY KEY constraint on table '%s' for column: %s",
+                                     table_name.c_str(),
+                                     coldef->colname);
                                 primary_keys[table_name].insert(coldef->colname);
                                 continue;
                             }
@@ -801,16 +810,19 @@ static void process_utility(PlannedStmt* pstmt,
                                     case VARCHAROID: {
                                         const int32_t typmod = attr->atttypmod;
                                         if (typmod == VARHDRSZ + 1) {
-                                            ds->add_column(column_name,
-                                                          deeplake_core::type::generic(nd::type::scalar(nd::dtype::int8)));
+                                            ds->add_column(
+                                                column_name,
+                                                deeplake_core::type::generic(nd::type::scalar(nd::dtype::int8)));
                                         } else {
-                                            ds->add_column(column_name, deeplake_core::type::text(codecs::compression::null));
+                                            ds->add_column(column_name,
+                                                           deeplake_core::type::text(codecs::compression::null));
                                         }
                                         break;
                                     }
                                     case UUIDOID:
                                     case TEXTOID:
-                                        ds->add_column(column_name, deeplake_core::type::text(codecs::compression::null));
+                                        ds->add_column(column_name,
+                                                       deeplake_core::type::text(codecs::compression::null));
                                         break;
                                     case JSONOID:
                                     case JSONBOID:
@@ -818,21 +830,24 @@ static void process_utility(PlannedStmt* pstmt,
                                         break;
                                     case BYTEAOID:
                                         ds->add_column(column_name,
-                                                      deeplake_core::type::generic(nd::type::scalar(nd::dtype::byte)));
+                                                       deeplake_core::type::generic(nd::type::scalar(nd::dtype::byte)));
                                         break;
                                     case INT2ARRAYOID: {
                                         int32_t ndims = (attr->attndims > 0) ? attr->attndims : 1;
                                         if (ndims > 255) {
                                             elog(ERROR,
-                                                 "Column '%s' has unsupported type SMALLINT[] with %d dimensions (max 255)",
+                                                 "Column '%s' has unsupported type SMALLINT[] with %d dimensions (max "
+                                                 "255)",
                                                  column_name,
                                                  ndims);
                                         }
                                         if (ndims == 1) {
-                                            ds->add_column(column_name, deeplake_core::type::embedding(0, nd::dtype::int16));
-                                        } else {
                                             ds->add_column(column_name,
-                                                          deeplake_core::type::generic(nd::type::array(nd::dtype::int16, ndims)));
+                                                           deeplake_core::type::embedding(0, nd::dtype::int16));
+                                        } else {
+                                            ds->add_column(
+                                                column_name,
+                                                deeplake_core::type::generic(nd::type::array(nd::dtype::int16, ndims)));
                                         }
                                         break;
                                     }
@@ -845,10 +860,12 @@ static void process_utility(PlannedStmt* pstmt,
                                                  ndims);
                                         }
                                         if (ndims == 1) {
-                                            ds->add_column(column_name, deeplake_core::type::embedding(0, nd::dtype::int32));
-                                        } else {
                                             ds->add_column(column_name,
-                                                          deeplake_core::type::generic(nd::type::array(nd::dtype::int32, ndims)));
+                                                           deeplake_core::type::embedding(0, nd::dtype::int32));
+                                        } else {
+                                            ds->add_column(
+                                                column_name,
+                                                deeplake_core::type::generic(nd::type::array(nd::dtype::int32, ndims)));
                                         }
                                         break;
                                     }
@@ -856,15 +873,18 @@ static void process_utility(PlannedStmt* pstmt,
                                         int32_t ndims = (attr->attndims > 0) ? attr->attndims : 1;
                                         if (ndims > 255) {
                                             elog(ERROR,
-                                                 "Column '%s' has unsupported type BIGINT[] with %d dimensions (max 255)",
+                                                 "Column '%s' has unsupported type BIGINT[] with %d dimensions (max "
+                                                 "255)",
                                                  column_name,
                                                  ndims);
                                         }
                                         if (ndims == 1) {
-                                            ds->add_column(column_name, deeplake_core::type::embedding(0, nd::dtype::int64));
-                                        } else {
                                             ds->add_column(column_name,
-                                                          deeplake_core::type::generic(nd::type::array(nd::dtype::int64, ndims)));
+                                                           deeplake_core::type::embedding(0, nd::dtype::int64));
+                                        } else {
+                                            ds->add_column(
+                                                column_name,
+                                                deeplake_core::type::generic(nd::type::array(nd::dtype::int64, ndims)));
                                         }
                                         break;
                                     }
@@ -878,10 +898,11 @@ static void process_utility(PlannedStmt* pstmt,
                                         }
                                         if (ndims == 1) {
                                             ds->add_column(column_name,
-                                                          deeplake_core::type::embedding(0, nd::dtype::float32));
+                                                           deeplake_core::type::embedding(0, nd::dtype::float32));
                                         } else {
                                             ds->add_column(column_name,
-                                                          deeplake_core::type::generic(nd::type::array(nd::dtype::float32, ndims)));
+                                                           deeplake_core::type::generic(
+                                                               nd::type::array(nd::dtype::float32, ndims)));
                                         }
                                         break;
                                     }
@@ -889,16 +910,18 @@ static void process_utility(PlannedStmt* pstmt,
                                         int32_t ndims = (attr->attndims > 0) ? attr->attndims : 1;
                                         if (ndims > 255) {
                                             elog(ERROR,
-                                                 "Column '%s' has unsupported type DOUBLE PRECISION[] with %d dimensions (max 255)",
+                                                 "Column '%s' has unsupported type DOUBLE PRECISION[] with %d "
+                                                 "dimensions (max 255)",
                                                  column_name,
                                                  ndims);
                                         }
                                         if (ndims == 1) {
                                             ds->add_column(column_name,
-                                                          deeplake_core::type::embedding(0, nd::dtype::float64));
+                                                           deeplake_core::type::embedding(0, nd::dtype::float64));
                                         } else {
                                             ds->add_column(column_name,
-                                                          deeplake_core::type::generic(nd::type::array(nd::dtype::float64, ndims)));
+                                                           deeplake_core::type::generic(
+                                                               nd::type::array(nd::dtype::float64, ndims)));
                                         }
                                         break;
                                     }
@@ -910,7 +933,8 @@ static void process_utility(PlannedStmt* pstmt,
                                                  attr->attndims);
                                         }
                                         ds->add_column(column_name,
-                                                      deeplake_core::type::generic(nd::type::array(nd::dtype::byte, attr->attndims)));
+                                                       deeplake_core::type::generic(
+                                                           nd::type::array(nd::dtype::byte, attr->attndims)));
                                         break;
                                     }
                                     case VARCHARARRAYOID:
@@ -922,13 +946,15 @@ static void process_utility(PlannedStmt* pstmt,
                                                  attr->attndims);
                                         }
                                         ds->add_column(column_name,
-                                                      deeplake_core::type::generic(nd::type::array(nd::dtype::string, attr->attndims)));
+                                                       deeplake_core::type::generic(
+                                                           nd::type::array(nd::dtype::string, attr->attndims)));
                                         break;
                                     }
                                     default: {
                                         const char* tname = format_type_with_typemod(attr->atttypid, attr->atttypmod);
                                         elog(ERROR,
-                                             "ALTER TABLE ADD COLUMN: Column '%s' has unsupported type '%s' (OID %u, base OID %u)",
+                                             "ALTER TABLE ADD COLUMN: Column '%s' has unsupported type '%s' (OID %u, "
+                                             "base OID %u)",
                                              column_name,
                                              tname,
                                              attr->atttypid,
@@ -938,7 +964,10 @@ static void process_utility(PlannedStmt* pstmt,
 
                                     // Commit the change to deeplake dataset
                                     td->commit();
-                                    elog(INFO, "Added column '%s' to deeplake dataset for table '%s'", column_name, table_name.c_str());
+                                    elog(INFO,
+                                         "Added column '%s' to deeplake dataset for table '%s'",
+                                         column_name,
+                                         table_name.c_str());
 
                                     // Invalidate cached table data to force reload in current session
                                     RelationClose(relation);
@@ -950,13 +979,22 @@ static void process_utility(PlannedStmt* pstmt,
                                     RelationClose(relation);
                                     ereport(ERROR,
                                             (errcode(ERRCODE_INTERNAL_ERROR),
-                                             errmsg("Failed to add column '%s' to deeplake dataset: %s", column_name, e.what())));
+                                             errmsg("Failed to add column '%s' to deeplake dataset: %s",
+                                                    column_name,
+                                                    e.what())));
                                 }
                                 break;
                             }
                         }
                         RelationClose(relation);
                     }
+                } else if (cmd->subtype == AT_DropColumn) {
+                    // Column has been dropped from PostgreSQL catalog, now reload table_data
+                    // to pick up the updated TupleDesc (with the column marked as dropped)
+                    pg::table_storage::instance().erase_table(table_name);
+                    pg::table_storage::instance().force_load_table_metadata();
+                    elog(INFO, "Reloaded table_data after DROP COLUMN for table '%s'", table_name.c_str());
+                    return; // Exit early after reloading table
                 }
             }
         }
@@ -1001,8 +1039,11 @@ static void process_utility(PlannedStmt* pstmt,
 
                     // Commit the change to deeplake dataset
                     td->commit();
-                    elog(INFO, "Renamed column '%s' to '%s' in deeplake dataset for table '%s'",
-                         old_column_name, new_column_name, table_name.c_str());
+                    elog(INFO,
+                         "Renamed column '%s' to '%s' in deeplake dataset for table '%s'",
+                         old_column_name,
+                         new_column_name,
+                         table_name.c_str());
 
                     // Invalidate cached table data to force reload in current session
                     pg::table_storage::instance().erase_table(table_name);
@@ -1012,7 +1053,9 @@ static void process_utility(PlannedStmt* pstmt,
                     ereport(ERROR,
                             (errcode(ERRCODE_INTERNAL_ERROR),
                              errmsg("Failed to rename column '%s' to '%s' in deeplake dataset: %s",
-                                    old_column_name, new_column_name, e.what())));
+                                    old_column_name,
+                                    new_column_name,
+                                    e.what())));
                 }
             }
         }
@@ -1116,7 +1159,8 @@ static void process_utility(PlannedStmt* pstmt,
     }
 }
 
-static PlannedStmt* deeplake_planner(Query* parse, const char* query_string, int32_t cursorOptions, ParamListInfo boundParams)
+static PlannedStmt*
+deeplake_planner(Query* parse, const char* query_string, int32_t cursorOptions, ParamListInfo boundParams)
 {
     pg::init_deeplake();
 
@@ -1150,8 +1194,7 @@ static void executor_start(QueryDesc* query_desc, int32_t eflags)
         standard_ExecutorStart(query_desc, eflags);
     }
 
-    if (!pg::query_info::is_in_top_context() ||
-        pg::utils::spi_connector::is_execution_in_progress()) {
+    if (!pg::query_info::is_in_top_context() || pg::utils::spi_connector::is_execution_in_progress()) {
         return;
     }
 
@@ -1246,10 +1289,13 @@ static void receive_destroy(DestReceiver* self)
     // Don't free here - we'll handle it in executor_run
 }
 
-static void executor_run(QueryDesc* query_desc, ScanDirection direction, uint64 count
-    #if PG_VERSION_NUM < PG_VERSION_NUM_18
-    , bool execute_once
-    #endif
+static void executor_run(QueryDesc* query_desc,
+                         ScanDirection direction,
+                         uint64 count
+#if PG_VERSION_NUM < PG_VERSION_NUM_18
+                         ,
+                         bool execute_once
+#endif
 )
 {
     ReceiverState* receiver = nullptr;
@@ -1273,16 +1319,22 @@ static void executor_run(QueryDesc* query_desc, ScanDirection direction, uint64 
     PG_TRY();
     {
         if (prev_executor_run != nullptr) {
-            prev_executor_run(query_desc, direction, count
-                #if PG_VERSION_NUM < PG_VERSION_NUM_18
-                , execute_once
-                #endif
+            prev_executor_run(query_desc,
+                              direction,
+                              count
+#if PG_VERSION_NUM < PG_VERSION_NUM_18
+                              ,
+                              execute_once
+#endif
             );
         } else {
-            standard_ExecutorRun(query_desc, direction, count
-                #if PG_VERSION_NUM < PG_VERSION_NUM_18
-                , execute_once
-                #endif
+            standard_ExecutorRun(query_desc,
+                                 direction,
+                                 count
+#if PG_VERSION_NUM < PG_VERSION_NUM_18
+                                 ,
+                                 execute_once
+#endif
             );
         }
         if (pg::query_info::current().has_deferred_fetch()) {
@@ -1420,8 +1472,9 @@ PGDLLEXPORT Datum deeplake_tableam_handler(PG_FUNCTION_ARGS)
 PGDLLEXPORT void _PG_init()
 {
     if (!process_shared_preload_libraries_in_progress) {
-        ereport(ERROR, (errmsg("pg_deeplake should be loaded with shared_preload_libraries"),
-                        errhint("Add pg_deeplake to shared_preload_libraries.")));
+        ereport(ERROR,
+                (errmsg("pg_deeplake should be loaded with shared_preload_libraries"),
+                 errhint("Add pg_deeplake to shared_preload_libraries.")));
     }
 
     // Set up shared memory request hook (must be first)
