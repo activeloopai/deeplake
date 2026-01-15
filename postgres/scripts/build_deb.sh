@@ -131,7 +131,7 @@ if_failed "Error building the packages."
 echo -e "${YELLOW}Generating and gzipping the Packages file...${DEFAULT}"
 mkdir -p "${REPOSITORY}/deb/pg-deeplake/dists/stable/main/binary-${ARCH}"
 pushd "${REPOSITORY}/deb/pg-deeplake/" > /dev/null &&
-dpkg-scanpackages --arch "${ARCH}" pool/ > dists/stable/main/binary-"${ARCH}"/Packages && popd > /dev/null || exit 1
+dpkg-scanpackages --arch "${ARCH}" --multiversion pool/ > dists/stable/main/binary-"${ARCH}"/Packages && popd > /dev/null || exit 1
 gzip -fk9 "${REPOSITORY}/deb/pg-deeplake/dists/stable/main/binary-${ARCH}/Packages"
 if_failed "Error while generating the Packages file."
 echo -e "${GREEN}Done.${DEFAULT}\n"
