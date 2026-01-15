@@ -443,6 +443,10 @@ void convert_schema(TupleDesc tupdesc)
 {
     for (auto i = 0; i < tupdesc->natts; ++i) {
         Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
+        // Skip dropped columns
+        if (attr->attisdropped) {
+            continue;
+        }
         if (attr->atttypid == NUMERICOID && pg::treat_numeric_as_double) {
             constexpr int NUMERIC_PRECISION_SHIFT = 16;    // Bit shift for precision in typmod
             constexpr int NUMERIC_COMPONENT_MASK = 0xffff; // Mask for precision/scale extraction
