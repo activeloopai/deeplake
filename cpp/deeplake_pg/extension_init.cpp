@@ -1242,8 +1242,12 @@ static bool receive_slot(TupleTableSlot* slot, DestReceiver* self)
 {
     slot_getallattrs(slot);
     for (auto i = 0; i < slot->tts_nvalid; ++i) {
+        FormData_pg_attribute* attr = TupleDescAttr(slot->tts_tupleDescriptor, i);
+        // Skip dropped columns
+        if (attr->attisdropped) {
+            continue;
+        }
         if (!slot->tts_isnull[i]) {
-            FormData_pg_attribute* attr = TupleDescAttr(slot->tts_tupleDescriptor, i);
             auto res = pg::utils::parse_special_datum(slot->tts_values[i], pg::utils::get_base_type(attr->atttypid));
             if (!res.is_valid) {
                 continue;

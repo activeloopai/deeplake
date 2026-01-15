@@ -98,25 +98,27 @@ void convert_pg_to_nd(const pg::table_data& table_data,
 {
     TupleDesc tupdesc = table_data.get_tuple_descriptor();
     for (auto i = 0; i < table_data.num_columns(); ++i) {
-        Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
+        // Get the actual TupleDesc index for this logical column (handles dropped columns)
+        const auto tupdesc_idx = table_data.get_tupdesc_index(i);
+        Form_pg_attribute attr = TupleDescAttr(tupdesc, tupdesc_idx);
         if (attr == nullptr) {
             ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Invalid attribute at position %d", i)));
         }
 
         // Skip SERIAL columns as they are auto-generated
-        if (attr->attidentity == 'a' || attr->attisdropped || attr->attgenerated == ATTRIBUTE_GENERATED_STORED) {
+        if (attr->attidentity == 'a' || attr->attgenerated == ATTRIBUTE_GENERATED_STORED) {
             continue;
         }
 
         const auto column_name = table_data.get_atttypename(i);
-        // Skip if column is not in the input tuple
-        if (i >= t_len || nulls[i] == 1) {
+        // Skip if column is not in the input tuple (use tupdesc_idx for values/nulls arrays)
+        if (tupdesc_idx >= t_len || nulls[tupdesc_idx] == 1) {
             // For numeric/scalar columns with NULL value, assign default (0) value
             row[column_name] = ::get_default_value_for_null(table_data.get_base_atttypid(i));
             continue;
         }
         row[column_name] =
-            pg::utils::datum_to_nd(values[i], table_data.get_base_atttypid(i), table_data.get_atttypmod(i));
+            pg::utils::datum_to_nd(values[tupdesc_idx], table_data.get_base_atttypid(i), table_data.get_atttypmod(i));
     }
 }
 
@@ -476,7 +478,8 @@ void table_storage::create_table(const std::string& table_name, Oid table_id, Tu
 
             // Create columns based on TupleDesc
             for (auto i = 0; i < td.num_columns(); ++i) {
-                Form_pg_attribute attr = TupleDescAttr(td.get_tuple_descriptor(), i);
+                const auto tupdesc_idx = td.get_tupdesc_index(i);
+                Form_pg_attribute attr = TupleDescAttr(td.get_tuple_descriptor(), tupdesc_idx);
                 const char* column_name = NameStr(attr->attname);
                 // Resolve domain types to their base type
                 Oid base_typeid = td.get_base_atttypid(i);

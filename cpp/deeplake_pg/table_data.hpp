@@ -65,6 +65,7 @@ struct table_data
     inline int32_t get_attndims(AttrNumber attr_num) const noexcept;
     inline std::string get_atttypename(AttrNumber attr_num) const noexcept;
     inline bool is_column_dropped(AttrNumber attr_num) const noexcept;
+    inline int32_t get_tupdesc_index(AttrNumber attr_num) const noexcept;
     inline bool is_column_nullable(AttrNumber attr_num) const noexcept;
     inline bool is_column_indexed(AttrNumber attr_num) const noexcept;
     inline int32_t num_columns() const noexcept;

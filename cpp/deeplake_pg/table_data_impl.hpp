@@ -276,6 +276,11 @@ inline bool table_data::is_column_nullable(AttrNumber attr_num) const noexcept
     return TupleDescAttr(tuple_descriptor_, tupdesc_idx)->attnotnull ? false : true;
 }
 
+inline int32_t table_data::get_tupdesc_index(AttrNumber attr_num) const noexcept
+{
+    return active_column_indices_[attr_num];
+}
+
 inline bool table_data::is_column_indexed(AttrNumber attr_num) const noexcept
 {
     return pg::pg_index::get_oid(table_name_, get_atttypename(attr_num)) != InvalidOid;
