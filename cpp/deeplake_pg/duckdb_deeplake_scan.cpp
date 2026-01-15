@@ -187,6 +187,7 @@ duckdb::unique_ptr<duckdb::FunctionData> deeplake_scan_bind(duckdb::ClientContex
     auto& td = pg::table_storage::instance().get_table_data(table_id);
 
     // Build schema from table_data's tuple descriptor
+    // Note: table_data.num_columns() returns only active (non-dropped) columns
     for (int32_t i = 0; i < td.num_columns(); ++i) {
         names.emplace_back(td.get_atttypename(i));
         int32_t ndims = td.get_attndims(i);
@@ -430,8 +431,7 @@ private:
         }
     }
 
-    static duckdb::string_t
-    add_string(duckdb::Vector& vector, const char* data, duckdb::idx_t len)
+    static duckdb::string_t add_string(duckdb::Vector& vector, const char* data, duckdb::idx_t len)
     {
         try {
             return duckdb::StringVector::AddString(vector, data, len);
@@ -463,8 +463,7 @@ private:
             } else {
                 value = base::string_view_cast<const unsigned char>(samples[row_in_batch].data());
             }
-            duckdb_data[row_in_batch] =
-                add_string(output_vector, value.data(), value.size());
+            duckdb_data[row_in_batch] = add_string(output_vector, value.data(), value.size());
         }
     }
 
@@ -515,8 +514,7 @@ private:
                     if (att_type == VARCHAROID || att_type == CHAROID || att_type == BPCHAROID) {
                         auto* duckdb_data = duckdb::FlatVector::GetData<duckdb::string_t>(output_vector);
                         auto value = *reinterpret_cast<const T*>(sample.data().data());
-                        duckdb_data[row_in_batch] = add_string(
-                            output_vector, reinterpret_cast<const char*>(&value), 1);
+                        duckdb_data[row_in_batch] = add_string(output_vector, reinterpret_cast<const char*>(&value), 1);
                         return;
                     }
                     auto* duckdb_data = duckdb::FlatVector::GetData<T>(output_vector);
@@ -538,13 +536,11 @@ private:
                             duckdb::FlatVector::SetNull(output_vector, row_in_batch, true);
                         } else {
                             auto json_str = sample.dict_value(0).serialize();
-                            duckdb_data[row_in_batch] = add_string(
-                                output_vector, json_str.data(), json_str.size());
+                            duckdb_data[row_in_batch] = add_string(output_vector, json_str.data(), json_str.size());
                         }
                     } else {
                         auto value = base::string_view_cast<const unsigned char>(sample.data());
-                        duckdb_data[row_in_batch] =
-                            add_string(output_vector, value.data(), value.size());
+                        duckdb_data[row_in_batch] = add_string(output_vector, value.data(), value.size());
                     }
                 }
             });
@@ -561,18 +557,18 @@ private:
         list_data.length = 0;
     }
 
-    void set_2d_array_output(duckdb::Vector& output_vector,
-                             duckdb::idx_t row_in_batch,
-                             nd::array&& sample,
-                             int64_t nrows,
-                             int64_t ncols)
+    void set_2d_array_output(
+        duckdb::Vector& output_vector, duckdb::idx_t row_in_batch, nd::array&& sample, int64_t nrows, int64_t ncols)
     {
         // Get the child vector (type: LIST(T))
         auto& child_vec = duckdb::ListVector::GetEntry(output_vector);
         auto child_offset = duckdb::ListVector::GetListSize(output_vector);
 
-        elog(LOG, "  output_vector type=%s, child_vec type=%s, child_offset=%zu",
-             output_vector.GetType().ToString().c_str(), child_vec.GetType().ToString().c_str(), child_offset);
+        elog(LOG,
+             "  output_vector type=%s, child_vec type=%s, child_offset=%zu",
+             output_vector.GetType().ToString().c_str(),
+             child_vec.GetType().ToString().c_str(),
+             child_offset);
 
         // Reserve space in output_vector for nrows list entries
         duckdb::ListVector::Reserve(output_vector, child_offset + nrows);
@@ -582,8 +578,10 @@ private:
         auto& grandchild_vec = duckdb::ListVector::GetEntry(child_vec);
         auto grandchild_offset = duckdb::ListVector::GetListSize(child_vec);
 
-        elog(LOG, "  grandchild_vec type=%s, grandchild_offset=%zu",
-             grandchild_vec.GetType().ToString().c_str(), grandchild_offset);
+        elog(LOG,
+             "  grandchild_vec type=%s, grandchild_offset=%zu",
+             grandchild_vec.GetType().ToString().c_str(),
+             grandchild_offset);
 
         // Reserve space in child_vec for nrows * ncols list entries
         duckdb::ListVector::Reserve(child_vec, grandchild_offset + nrows * ncols);
@@ -598,8 +596,8 @@ private:
                 std::memcpy(data_ptr + grandchild_offset, array_data, nrows * static_cast<size_t>(ncols) * sizeof(T));
 
                 // Log first few values being written
-                elog(LOG, "  WRITE: copying %ld elements to grandchild at offset %zu",
-                     nrows * ncols, grandchild_offset);
+                elog(
+                    LOG, "  WRITE: copying %ld elements to grandchild at offset %zu", nrows * ncols, grandchild_offset);
                 for (int64_t k = 0; k < std::min(nrows * ncols, (int64_t)6); ++k) {
                     if constexpr (std::is_integral_v<T>) {
                         elog(LOG, "    grandchild[%zu] = %ld", grandchild_offset + k, (long)array_data[k]);
@@ -613,16 +611,22 @@ private:
                 for (int64_t i = 0; i < nrows; ++i) {
                     child_entries[child_offset + i].offset = grandchild_offset + i * ncols;
                     child_entries[child_offset + i].length = ncols;
-                    elog(LOG, "  child_entries[%zu]: offset=%zu, length=%zu",
-                         child_offset + i, child_entries[child_offset + i].offset, child_entries[child_offset + i].length);
+                    elog(LOG,
+                         "  child_entries[%zu]: offset=%zu, length=%zu",
+                         child_offset + i,
+                         child_entries[child_offset + i].offset,
+                         child_entries[child_offset + i].length);
                 }
 
                 // Set up output_vector list entry (pointing to range in child_vec)
                 auto* output_entries = duckdb::FlatVector::GetData<duckdb::list_entry_t>(output_vector);
                 output_entries[row_in_batch].offset = child_offset;
                 output_entries[row_in_batch].length = nrows;
-                elog(LOG, "  output_entries[%zu]: offset=%zu, length=%zu",
-                     row_in_batch, output_entries[row_in_batch].offset, output_entries[row_in_batch].length);
+                elog(LOG,
+                     "  output_entries[%zu]: offset=%zu, length=%zu",
+                     row_in_batch,
+                     output_entries[row_in_batch].offset,
+                     output_entries[row_in_batch].length);
             } else {
                 // String or bytea arrays with 2D structure
                 auto* child_entries = duckdb::FlatVector::GetData<duckdb::list_entry_t>(child_vec);
@@ -644,8 +648,8 @@ private:
                         } else {
                             auto elem_view = base::string_view_cast<const unsigned char>(elem.data());
                             auto* data_ptr = duckdb::FlatVector::GetData<duckdb::string_t>(grandchild_vec);
-                            data_ptr[grandchild_offset + flat_idx] = add_string(
-                                grandchild_vec, elem_view.data(), elem_view.size());
+                            data_ptr[grandchild_offset + flat_idx] =
+                                add_string(grandchild_vec, elem_view.data(), elem_view.size());
                         }
                     }
                 }
@@ -687,8 +691,7 @@ private:
                 for (int64_t i = 0; i < array_len; ++i) {
                     auto elem = sample[i];
                     auto elem_view = base::string_view_cast<const unsigned char>(elem.data());
-                    list_data[offset + i] =
-                        add_string(list_entry_vec, elem_view.data(), elem_view.size());
+                    list_data[offset + i] = add_string(list_entry_vec, elem_view.data(), elem_view.size());
                 }
             }
         });
@@ -828,7 +831,9 @@ private:
                     }
                     return;
                 }
-                std::memcpy(duckdb::FlatVector::GetData<T>(output_vector), value_ptr, static_cast<size_t>(batch_size) * sizeof(T));
+                std::memcpy(duckdb::FlatVector::GetData<T>(output_vector),
+                            value_ptr,
+                            static_cast<size_t>(batch_size) * sizeof(T));
             } else if constexpr (std::is_same_v<T, nd::dict>) {
                 auto* duckdb_data = duckdb::FlatVector::GetData<duckdb::string_t>(output_vector);
                 for (duckdb::idx_t row_in_batch = 0; row_in_batch < batch_size; ++row_in_batch) {
@@ -838,8 +843,7 @@ private:
                         duckdb::FlatVector::SetNull(output_vector, row_in_batch, true);
                     } else {
                         auto json_str = sample.dict_value(0).serialize();
-                        duckdb_data[row_in_batch] = add_string(
-                            output_vector, json_str.data(), json_str.size());
+                        duckdb_data[row_in_batch] = add_string(output_vector, json_str.data(), json_str.size());
                     }
                 }
             } else {
@@ -863,8 +867,7 @@ private:
                         }
                     } else {
                         auto* duckdb_data = duckdb::FlatVector::GetData<duckdb::string_t>(output_vector);
-                        duckdb_data[row_in_batch] =
-                            add_string(output_vector, str_value.data(), str_value.size());
+                        duckdb_data[row_in_batch] = add_string(output_vector, str_value.data(), str_value.size());
                     }
                 }
             }
@@ -932,10 +935,11 @@ private:
     {
         const auto end_row = start_row + output_.size();
         return async::run_on_main([cv, start_row, end_row]() {
-            return cv->request_range(start_row, end_row, {});
-        }).then([this, column_id](nd::array&& samples) {
-            set_column_output(column_id, std::move(samples));
-        });
+                   return cv->request_range(start_row, end_row, {});
+               })
+            .then([this, column_id](nd::array&& samples) {
+                set_column_output(column_id, std::move(samples));
+            });
     }
 
     void do_scan()
