@@ -27,9 +27,5 @@ RUN apt-get update && \
 COPY ./debs/ /tmp/debs/
 COPY --chmod=444 ./LICENSE /LICENSE
 COPY ./postgres/docker-entrypoint.d/ /docker-entrypoint-initdb.d/
-RUN apt-get install --no-install-recommends -y /tmp/debs/pg-deeplake-${VERSION}_${TARGETARCH}.deb && rm -rf /tmp/debs/ \
-  su postgres -c "psql --username postgres <<'EOF' \
-  \\c template1; \
-  CREATE EXTENSION IF NOT EXISTS pg_deeplake; \
-  EOF";
+RUN apt-get install --no-install-recommends -y /tmp/debs/pg-deeplake-${VERSION}_${TARGETARCH}.deb && rm -rf /tmp/debs/
 USER 999
