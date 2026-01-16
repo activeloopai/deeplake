@@ -22,6 +22,7 @@ CREATE TABLE public.pg_deeplake_tables (
 );
 COMMENT ON TABLE public.pg_deeplake_tables IS 'Stores table metadata for DeepLake tables';
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.pg_deeplake_tables TO PUBLIC;
+GRANT USAGE, SELECT, UPDATE ON SEQUENCE public.pg_deeplake_tables_id_seq TO PUBLIC;
 
 DROP TABLE IF EXISTS public.pg_deeplake_views CASCADE;
 CREATE TABLE public.pg_deeplake_views (
@@ -44,6 +45,7 @@ CREATE TABLE public.pg_deeplake_metadata (
 );
 COMMENT ON TABLE public.pg_deeplake_metadata IS 'Stores index metadata for DeepLake indexes';
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.pg_deeplake_metadata TO PUBLIC;
+GRANT USAGE, SELECT, UPDATE ON SEQUENCE public.pg_deeplake_metadata_id_seq TO PUBLIC;
 
 CREATE FUNCTION create_deeplake_table(tablename TEXT, path TEXT)
 RETURNS void
