@@ -164,6 +164,9 @@ inline void table_data::refresh()
             })
                 .get_future()
                 .get();
+            // After refresh from version change (another backend committed),
+            // use the dataset's actual row count. This correctly handles both
+            // inserts and deletes from other backends.
             num_total_rows_ = dataset_->num_rows();
         }
     } else {
@@ -178,6 +181,9 @@ inline void table_data::refresh()
                 std::swap(dataset_, refreshing_dataset_);
                 dataset_->set_indexing_mode(ds_indexing_mode);
                 refreshing_dataset_->set_indexing_mode(deeplake::indexing_mode::off);
+                // After refresh from version change (another backend committed),
+                // use the dataset's actual row count. This correctly handles both
+                // inserts and deletes from other backends.
                 num_total_rows_ = dataset_->num_rows();
             }
         }
@@ -298,6 +304,12 @@ inline int64_t table_data::num_rows() const noexcept
 
 inline int64_t table_data::num_total_rows() const noexcept
 {
+    // If num_total_rows_ is 0, the dataset may not have been opened yet
+    // (e.g., when table_data was loaded from metadata after RENAME COLUMN).
+    // In this case, open the dataset to get the correct row count.
+    if (num_total_rows_ == 0 && dataset_ == nullptr) {
+        const_cast<table_data*>(this)->open_dataset();
+    }
     return num_total_rows_;
 }
 
@@ -473,6 +485,8 @@ inline bool table_data::flush_deletes()
         return true;
     }
 
+    const auto num_deletes = static_cast<int64_t>(delete_rows_.size());
+
     // Flush the delete rows to the dataset
     try {
         streamers_.reset();
@@ -484,6 +498,10 @@ inline bool table_data::flush_deletes()
     }
 
     delete_rows_.clear();
+
+    // Update the total row count to reflect deleted rows
+    num_total_rows_ -= num_deletes;
+
     return true;
 }
 
@@ -546,7 +564,7 @@ inline Oid table_data::get_table_oid() const noexcept
 inline std::pair<int64_t, int64_t> table_data::get_row_range(int32_t worker_id) const
 {
     ASSERT(worker_id >= 0 && worker_id < max_parallel_workers);
-    const auto total_rows = num_rows();
+    const auto total_rows = num_total_rows();
     const auto total_workers = max_parallel_workers;
     int64_t rows_per_worker = total_rows / total_workers;
     int64_t remaining_rows = total_rows % total_workers;
@@ -570,7 +588,7 @@ inline void table_data::create_streamer(int32_t idx, int32_t worker_id)
         return;
     }
     if (pg::memory_tracker::has_memory_limit()) {
-        const auto column_size = pg::utils::get_column_width(get_base_atttypid(idx), get_atttypmod(idx)) * num_rows();
+        const auto column_size = pg::utils::get_column_width(get_base_atttypid(idx), get_atttypmod(idx)) * num_total_rows();
         pg::memory_tracker::ensure_memory_available(column_size);
     }
     heimdall::column_view_ptr cv = get_column_view(idx);
@@ -579,7 +597,7 @@ inline void table_data::create_streamer(int32_t idx, int32_t worker_id)
         cv = heimdall_common::create_filtered_column(*(cv),
                                                      icm::index_mapping_t<int64_t>::slice({start_row, end_row, 1}));
     }
-    const int64_t row_count = num_rows();
+    const int64_t row_count = num_total_rows();
     const int64_t batch_count = (row_count + batch_size_ - 1) / batch_size_;
     column_batches = std::vector<streamer_info::batch_data>(batch_count);
     for (int64_t i = 0; i < batch_count; ++i) {

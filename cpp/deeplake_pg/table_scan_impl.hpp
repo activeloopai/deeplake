@@ -33,7 +33,7 @@ namespace pg {
 inline table_scan::table_scan(Oid table_id, bool is_parallel, bool streamer_only)
     : table_data_(table_storage::instance().get_table_data(table_id))
     , current_position_(0)
-    , num_rows_(table_data_.num_rows())
+    , num_rows_(table_data_.num_total_rows())
     , table_id_(table_id)
     , is_parallel_(is_parallel)
 {
@@ -48,8 +48,6 @@ inline table_scan::table_scan(Oid table_id, bool is_parallel, bool streamer_only
         } else if (process_result == table_scan::column_process_result::skip_as_special) {
             special_columns_.emplace_back(i);
         }
-    }
-    for (int32_t i = 0; i < table_data_.num_columns(); ++i) {
     }
     if (is_parallel_ || IsParallelWorker()) {
         int32_t worker_number = ParallelWorkerNumber + 1;
