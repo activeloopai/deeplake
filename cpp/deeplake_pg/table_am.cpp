@@ -5,12 +5,16 @@ extern "C" {
 // Must be first to avoid macro conflicts
 #include <postgres.h>
 
+#include <access/multixact.h>
 #include <access/parallel.h>
 #include <access/reloptions.h> // For relation options
 #include <access/tableam.h>
 #include <access/xact.h>
 #include <catalog/namespace.h>
 #include <catalog/storage.h>
+#include <catalog/storage_xlog.h>
+#include <storage/smgr.h>
+#include <storage/bufmgr.h>
 #include <commands/vacuum.h> // For VacuumParams and VACOPT_* flags
 #include <miscadmin.h>
 #include <nodes/bitmapset.h>  // For bitmap operations
@@ -18,6 +22,7 @@ extern "C" {
 #include <nodes/parsenodes.h> // For parse nodes
 #include <pgstat.h>           // For statistics collector integration
 #include <storage/block.h>
+#include <storage/read_stream.h>
 #include <storage/relfilelocator.h>
 #include <utils/builtins.h> // For text conversion functions
 #include <utils/lsyscache.h>
@@ -97,7 +102,7 @@ struct DeeplakeScanData
         , scan_state(std::move(state))
         , memory_context(AllocSetContextCreate(CurrentMemoryContext, "scan_context", ALLOCSET_SMALL_SIZES))
     {
-        const auto num_rows = scan_state.get_table_data().num_rows();
+        const auto num_rows = scan_state.get_table_data().num_total_rows();
         print_progress = pg::print_progress_during_seq_scan && num_rows > 100000;
         if (print_progress) {
             progress_bar = pg::utils::progress_display(num_rows,
@@ -176,15 +181,17 @@ bool deeplake_relation_needs_toast_table(Relation)
     return false;
 }
 
-uint64_t deeplake_relation_size(Relation rel, ForkNumber)
+uint64_t deeplake_relation_size(Relation rel, ForkNumber fork)
 {
-    auto table_id = RelationGetRelid(rel);
-    if (pg::table_storage::instance().table_exists(table_id)) {
-        auto& table_data = pg::table_storage::instance().get_table_data(table_id);
-        auto total_bytes = heimdall::dataset_total_bytes(*table_data.get_read_only_dataset());
-        return total_bytes / BLCKSZ;
-    }
-    return BLCKSZ; // Default block size in bytes
+    // For ANALYZE to work correctly with PostgreSQL's block-based sampling,
+    // we must return a size that matches the actual physical storage file.
+    // PostgreSQL's BlockSampler uses this to decide which blocks to sample,
+    // and read_stream_next_buffer will fail if we report more blocks than exist.
+    //
+    // We always return exactly BLCKSZ (1 block) because that's what we create
+    // in relation_set_new_node. The planner uses relation_estimate_size for
+    // accurate row estimates, which is set correctly via deeplake_estimate_rel_size.
+    return BLCKSZ;
 }
 
 void deeplake_index_validate_scan(Relation heap_rel,
@@ -220,8 +227,12 @@ void deeplake_estimate_rel_size(
     auto table_id = RelationGetRelid(rel);
     if (pg::table_storage::instance().table_exists(table_id)) {
         auto& table_data = pg::table_storage::instance().get_table_data(table_id);
+        // Refresh to ensure we see the latest data (including recently inserted rows)
+        const_cast<pg::table_data&>(table_data).refresh();
+        // Use num_total_rows() which includes uncommitted/staged data
+        auto total_rows = table_data.num_total_rows();
         if (tuples != nullptr) {
-            *tuples = static_cast<double>(table_data.num_rows());
+            *tuples = static_cast<double>(total_rows);
         }
         if (allvisfrac != nullptr) {
             *allvisfrac = 1.0; // Assume all tuples are visible
@@ -239,7 +250,7 @@ void deeplake_estimate_rel_size(
         if (pages != nullptr) {
             constexpr uint32_t min_pages = 1;
             const uint32_t num_blocks =
-                static_cast<uint32_t>(std::ceil(static_cast<double>(table_data.num_rows()) / 65536.0));
+                static_cast<uint32_t>(std::ceil(static_cast<double>(total_rows) / 65536.0));
             *pages = std::max(min_pages, num_blocks);
         }
 
@@ -270,7 +281,6 @@ bool deeplake_scan_analyze_next_tuple(
         return false;
     }
 
-    // Try to fetch next tuple from your columnar storage
     if (!scan_data->scan_state.get_next_tuple(slot)) {
         return false; // no more tuples
     }
@@ -298,14 +308,33 @@ bool deeplake_scan_analyze_next_block(TableScanDesc scan, ReadStream* stream)
         return false;
     }
 
-    // For columnar storage, treat the entire table as one logical "block"
-    // Return true on first call, false on subsequent calls
-    if (!scan_data->analyze_block_returned) {
-        scan_data->analyze_block_returned = true;
-        return true;
+    // PostgreSQL's ANALYZE formula requires:
+    //   totalrows = (liverows / bs.m) * totalblocks
+    //
+    // Where bs.m is tracked by the BlockSampler. To properly set bs.m,
+    // we must consume blocks from the stream via read_stream_next_buffer.
+    // Each call to read_stream_next_buffer triggers the stream's callback
+    // (block_sampling_read_stream_next) which calls BlockSampler_Next,
+    // incrementing bs.m.
+    //
+    // For columnar storage, we have a minimal physical storage file
+    // (created in relation_set_new_node) that allows the stream to work.
+    // We consume ONE block per call to this function, and return true
+    // to indicate there's data to process. scan_analyze_next_tuple will
+    // then return all rows from our columnar storage.
+
+    Buffer buf = read_stream_next_buffer(stream, NULL);
+
+    if (!BufferIsValid(buf)) {
+        return false;  // No more blocks to sample
     }
 
-    return false;
+    // Release the buffer immediately - we don't actually need the physical data
+    // because our columnar storage provides the data via scan_analyze_next_tuple.
+    // But we needed to consume the stream to increment bs.m.
+    ReleaseBuffer(buf);
+
+    return true;  // Indicate we have data to process
 }
 #endif
 
@@ -334,7 +363,7 @@ double deeplake_index_build_range_scan(Relation heap_rel,
     std::vector<Datum> values(nkeys, 0);
     std::vector<uint8_t> nulls(nkeys, 0);
     pg::table_scan tscan(table_id, false, false);
-    const auto num_rows = td.num_rows();
+    const auto num_rows = td.num_total_rows();
     ItemPointerData tid;
     for (auto row = 0; row < num_rows; ++row) {
         auto [block_number, offset_number] = pg::utils::row_number_to_tid(row);
@@ -637,10 +666,14 @@ TableScanDesc deeplake_table_am_routine::scan_begin(Relation relation,
     auto table_id = RelationGetRelid(relation);
     bool is_parallel = (pg::use_parallel_workers && parallel_scan != nullptr);
 
+    // Refresh table data BEFORE creating the scan to ensure num_rows is up to date
+    // (table_scan constructor caches num_rows at construction time)
+    auto& td_for_refresh = pg::table_storage::instance().get_table_data(table_id);
+    const_cast<pg::table_data&>(td_for_refresh).refresh();
+
     // Initialize extended structure with embedded scan data
     new (extended_scan)
         DeeplakeScanData(table_scan(table_id, is_parallel, query_info::current().receiver_registered()));
-    const_cast<pg::table_data&>(extended_scan->scan_state.get_table_data()).refresh();
 
     TableScanDesc scan_desc = &extended_scan->postgres_scan;
     scan_desc->rs_rd = relation;
@@ -704,7 +737,7 @@ void deeplake_table_am_routine::scan_rescan(TableScanDesc scan,
             std::string pre_msg = "Progress of sequential scan for table '" +
                                   scan_data->scan_state.get_table_data().get_table_name() + "'" + " (rescan " +
                                   std::to_string(scan_data->num_rescans) + ")";
-            scan_data->progress_bar.restart(scan_data->scan_state.get_table_data().num_rows(), std::move(pre_msg));
+            scan_data->progress_bar.restart(scan_data->scan_state.get_table_data().num_total_rows(), std::move(pre_msg));
         }
     }
 }
@@ -1080,6 +1113,31 @@ void deeplake_table_am_routine::relation_set_new_node(
              errhint(
                  "Deeplake uses columnar storage which is already compact. Use VACUUM or VACUUM ANALYZE instead.")));
     }
+
+    *freezeXid = RecentXmin;
+    *minmulti = GetOldestMultiXactId();
+
+    // Create physical storage for the relation.
+    // Even though DeepLake uses columnar storage (S3/cloud), PostgreSQL's ANALYZE
+    // requires a physical storage file for block sampling. The read_stream API
+    // expects to read physical blocks from the relation's storage file.
+    // Without this, ANALYZE fails with "could not open file" errors.
+    SMgrRelation srel = RelationCreateStorage(*newrnode, persistence, true);
+
+    // Extend the storage to have at least one block.
+    // This is needed because ANALYZE's BlockSampler will try to read blocks,
+    // and if the file is empty, read_stream_next_buffer will fail.
+    // We create a minimal block so that ANALYZE can proceed.
+    // The actual data comes from our columnar storage via scan_analyze_next_tuple.
+    smgrzeroextend(srel, MAIN_FORKNUM, 0, 1, true);
+
+    if (persistence == RELPERSISTENCE_UNLOGGED) {
+        smgrcreate(srel, INIT_FORKNUM, false);
+        log_smgrcreate(&srel->smgr_rlocator.locator, INIT_FORKNUM);
+        smgrimmedsync(srel, INIT_FORKNUM);
+    }
+
+    smgrclose(srel);
 
     // Get the tuple descriptor
     TupleDesc tupdesc = RelationGetDescr(rel);
