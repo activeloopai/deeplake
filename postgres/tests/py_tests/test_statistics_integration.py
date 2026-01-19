@@ -494,6 +494,8 @@ async def test_dead_tuples_always_zero(db_conn: asyncpg.Connection):
     assertions = Assertions(db_conn)
 
     try:
+        await db_conn.execute("DROP TABLE IF EXISTS test_stats_dead")
+
         # Create and populate test table
         await db_conn.execute("""
             CREATE TABLE test_stats_dead (
@@ -515,6 +517,10 @@ async def test_dead_tuples_always_zero(db_conn: asyncpg.Connection):
         await db_conn.execute("""
             DELETE FROM test_stats_dead WHERE id > 75
         """)
+
+        # Force stats flush before ANALYZE to ensure pending stats are applied
+        # This prevents timing issues where delta stats accumulate incorrectly
+        await db_conn.execute("SELECT pg_stat_force_next_flush()")
 
         # Run ANALYZE to update statistics
         await db_conn.execute("ANALYZE test_stats_dead")
@@ -730,6 +736,148 @@ async def test_autovacuum_integration(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_autovacuum")
+        except:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_pg_class_reltuples_after_analyze(db_conn: asyncpg.Connection):
+    """
+    Test that pg_class.reltuples is correctly updated after ANALYZE.
+
+    This is a critical test for customer tooling that relies on pg_class
+    statistics rather than pg_stat_user_tables.
+
+    Issue: pg_class.reltuples returns 0 for DeepLake tables even after ANALYZE.
+    Root cause: deeplake_relation_size was returning blocks instead of bytes,
+    causing PostgreSQL to calculate 0 total blocks for small tables.
+    """
+    try:
+        # Create a test table
+        await db_conn.execute("""
+            CREATE TABLE test_reltuples (
+                id SERIAL PRIMARY KEY,
+                data TEXT
+            ) USING deeplake
+        """)
+
+        # Check initial state (before any inserts)
+        result_before = await db_conn.fetchrow("""
+            SELECT reltuples, relpages
+            FROM pg_class
+            WHERE relname = 'test_reltuples'
+        """)
+        print(f"Before inserts: reltuples={result_before['reltuples']}, relpages={result_before['relpages']}")
+
+        # Insert some rows
+        await db_conn.execute("""
+            INSERT INTO test_reltuples (data)
+            SELECT 'data_' || i FROM generate_series(1, 100) i
+        """)
+
+        # Check state after insert but before ANALYZE
+        result_after_insert = await db_conn.fetchrow("""
+            SELECT reltuples, relpages
+            FROM pg_class
+            WHERE relname = 'test_reltuples'
+        """)
+        print(f"After insert, before ANALYZE: reltuples={result_after_insert['reltuples']}, relpages={result_after_insert['relpages']}")
+
+        # Run ANALYZE
+        await db_conn.execute("ANALYZE test_reltuples")
+
+        # Check state after ANALYZE
+        result_after_analyze = await db_conn.fetchrow("""
+            SELECT reltuples, relpages
+            FROM pg_class
+            WHERE relname = 'test_reltuples'
+        """)
+        print(f"After ANALYZE: reltuples={result_after_analyze['reltuples']}, relpages={result_after_analyze['relpages']}")
+
+        # Verify actual row count
+        actual_count = await db_conn.fetchval("SELECT COUNT(*) FROM test_reltuples")
+        print(f"Actual row count: {actual_count}")
+
+        # Also check pg_relation_size - should be non-zero for non-empty tables
+        relation_size = await db_conn.fetchval("SELECT pg_relation_size('test_reltuples')")
+        print(f"pg_relation_size: {relation_size}")
+
+        # The key assertion: reltuples should reflect actual row count after ANALYZE
+        # Allow for some statistical variance
+        assert result_after_analyze['reltuples'] >= actual_count * 0.9, \
+            f"Expected reltuples >= {actual_count * 0.9}, got {result_after_analyze['reltuples']}"
+
+        # pg_relation_size should be non-zero for tables with data
+        assert relation_size > 0, \
+            f"Expected pg_relation_size > 0, got {relation_size}"
+
+    finally:
+        try:
+            await db_conn.execute("DROP TABLE IF EXISTS test_reltuples")
+        except:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_pg_class_reltuples_small_table(db_conn: asyncpg.Connection):
+    """
+    Test that pg_class.reltuples works correctly for very small tables.
+
+    This specifically tests the customer-reported issue where a table with
+    only 2 rows showed reltuples=0 after ANALYZE.
+    """
+    try:
+        # Create a test table matching customer's use case
+        await db_conn.execute("""
+            CREATE TABLE test_reltuples_small (
+                id SERIAL PRIMARY KEY,
+                data TEXT
+            ) USING deeplake
+        """)
+
+        # Insert just 2 rows (matching customer's scenario)
+        await db_conn.execute("""
+            INSERT INTO test_reltuples_small (data) VALUES ('row1'), ('row2')
+        """)
+
+        # Run ANALYZE
+        await db_conn.execute("ANALYZE test_reltuples_small")
+
+        # Check pg_class statistics
+        result = await db_conn.fetchrow("""
+            SELECT
+                reltuples,
+                relpages,
+                pg_relation_size('test_reltuples_small') as size_bytes
+            FROM pg_class
+            WHERE relname = 'test_reltuples_small'
+        """)
+
+        # Verify actual row count
+        actual_count = await db_conn.fetchval("SELECT COUNT(*) FROM test_reltuples_small")
+
+        print(f"Small table test:")
+        print(f"  actual_count: {actual_count}")
+        print(f"  reltuples: {result['reltuples']}")
+        print(f"  relpages: {result['relpages']}")
+        print(f"  size_bytes: {result['size_bytes']}")
+
+        # Critical assertions for the customer's issue:
+        # 1. reltuples should NOT be 0 for a table with data
+        assert result['reltuples'] > 0, \
+            f"reltuples should be > 0, got {result['reltuples']}"
+
+        # 2. reltuples should reasonably reflect the actual count
+        assert result['reltuples'] >= actual_count * 0.5, \
+            f"reltuples ({result['reltuples']}) should be at least 50% of actual count ({actual_count})"
+
+        # 3. pg_relation_size should be non-zero
+        assert result['size_bytes'] > 0, \
+            f"pg_relation_size should be > 0, got {result['size_bytes']}"
+
+    finally:
+        try:
+            await db_conn.execute("DROP TABLE IF EXISTS test_reltuples_small")
         except:
             pass
 

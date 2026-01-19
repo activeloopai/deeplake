@@ -49,6 +49,11 @@ public:
         current_position_ = position;
     }
 
+    inline int64_t get_num_rows() const noexcept
+    {
+        return num_rows_;
+    }
+
     inline const auto& get_table_data() const noexcept
     {
         return table_data_;
