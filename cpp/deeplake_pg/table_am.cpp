@@ -28,6 +28,7 @@ extern "C" {
 #include <utils/lsyscache.h>
 #include <utils/rel.h>
 #include <utils/relcache.h>
+#include <utils/snapshot.h> // For SNAPSHOT_DIRTY and snapshot types
 #include <utils/varlena.h> // For text functions
 
 #ifdef __cplusplus
@@ -966,13 +967,27 @@ bool deeplake_table_am_routine::index_fetch_tuple(struct IndexFetchTableData* sc
 
     pg::utils::memory_context_switcher context_switcher(idx_scan->memory_context);
     idx_scan->scan_state.set_current_position(utils::tid_to_row_number(tid));
+
     if (!idx_scan->scan_state.get_next_tuple(slot)) {
-        *all_dead = true;
+        if (all_dead != nullptr) {
+            *all_dead = true;
+        }
         return false;
     }
 
+    // For SNAPSHOT_DIRTY (used by btree unique checking),
+    // we need to indicate that no in-progress transaction is affecting this tuple.
+    // This prevents PostgreSQL from trying to look up transaction status in pg_subtrans.
+    // Deeplake tuples are always immediately visible (no MVCC).
+    if (snapshot != nullptr && snapshot->snapshot_type == SNAPSHOT_DIRTY) {
+        snapshot->xmin = InvalidTransactionId;
+        snapshot->xmax = InvalidTransactionId;
+    }
+
     *call_again = false;
-    *all_dead = false;
+    if (all_dead != nullptr) {
+        *all_dead = false;
+    }
     return true;
 }
 

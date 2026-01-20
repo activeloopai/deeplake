@@ -784,7 +784,10 @@ bool table_storage::fetch_tuple(Oid table_id, ItemPointer tid, TupleTableSlot* s
         ExecClearTuple(slot);
 
         const auto row_number = utils::tid_to_row_number(tid);
-        if (row_number >= table_data.num_rows()) {
+        // Use num_total_rows() to include uncommitted rows in the current transaction.
+        // This is necessary for AFTER triggers (like FK checks) that need to see
+        // rows inserted earlier in the same transaction.
+        if (row_number >= table_data.num_total_rows()) {
             return false;
         }
         Datum* values = slot->tts_values;

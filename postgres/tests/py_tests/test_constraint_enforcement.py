@@ -1,20 +1,14 @@
 """
-Tests for constraint enforcement issues in pg_deeplake.
+Tests for constraint enforcement in pg_deeplake.
 
-These tests cover the remaining bugs after the constraint registration fix:
-1. Uniqueness enforcement causes transaction corruption
-2. FK trigger execution fails during INSERT
+These tests verify that PRIMARY KEY, UNIQUE, and FOREIGN KEY constraints
+work correctly with deeplake tables.
 """
 import pytest
 import asyncpg
 
 
-BUG_UNIQUE_ENFORCEMENT = "BUG: Uniqueness check causes transaction corruption (pg_subtrans error)"
-BUG_FK_TRIGGER = "BUG: FK trigger execution fails with 'failed to fetch tuple for AFTER trigger'"
-
-
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason=BUG_UNIQUE_ENFORCEMENT, strict=True)
 async def test_primary_key_rejects_duplicates(db_conn: asyncpg.Connection):
     """PRIMARY KEY should reject duplicate values."""
     try:
@@ -33,7 +27,6 @@ async def test_primary_key_rejects_duplicates(db_conn: asyncpg.Connection):
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason=BUG_UNIQUE_ENFORCEMENT, strict=True)
 async def test_unique_constraint_rejects_duplicates(db_conn: asyncpg.Connection):
     """UNIQUE constraint should reject duplicate values."""
     try:
@@ -52,7 +45,6 @@ async def test_unique_constraint_rejects_duplicates(db_conn: asyncpg.Connection)
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason=BUG_FK_TRIGGER, strict=True)
 async def test_foreign_key_insert(db_conn: asyncpg.Connection):
     """INSERT into child table with FK should trigger parent lookup."""
     try:
