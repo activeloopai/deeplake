@@ -583,17 +583,394 @@ metadata = ds["column_name"].metadata
 source = metadata["source"]
 ```
 
-## Utility Functions
+## Client Operations
 
-### Dataset Utilities
+### Client Class
+
+Create and manage Deep Lake client for operations:
+
+```python
+from deeplake import Client
+
+# Create client with authentication
+client = Client(token="your_token")
+
+# Or use default (reads from ACTIVELOOP_TOKEN env var)
+client = Client()
+```
+
+### Utility Functions
+
+#### Dataset Utilities
 
 ```python
 # Check if dataset exists
 exists = deeplake.exists("path/to/dataset")
+exists_async = deeplake.exists_async("path/to/dataset")  # Async
 
 # Delete dataset
 deeplake.delete("path/to/dataset")
 deeplake.delete_async("path/to/dataset")  # Async
+
+# Copy dataset
+deeplake.copy("source/path", "dest/path")
+```
+
+#### Data Import Functions
+
+```python
+# Import from COCO format
+ds = deeplake.from_coco(
+    annotation_file="annotations.json",
+    image_dir="images/",
+    dataset_path="output/path"
+)
+
+# Import from Parquet
+ds = deeplake.from_parquet("data.parquet", "output/path")
+
+# Import from CSV
+ds = deeplake.from_csv("data.csv", "output/path")
+
+# Create dataset like another
+source_ds = deeplake.open("source/path")
+ds = deeplake.like(source_ds, "new/path")  # Copies schema only
+```
+
+## Version Control Operations
+
+### Version Class
+
+Access and manage dataset versions:
+
+```python
+# Get current version
+current_version = ds.version
+version_id = ds.version.id
+
+# Access version history
+for version in ds.history:
+    print(f"Version {version.id}: {version.message}")
+    print(f"Timestamp: {version.timestamp}")
+
+# Get specific version
+version = ds.history[version_id]
+
+# Open dataset at specific version
+old_ds = version.open()
+
+# Open dataset at specific version asynchronously
+future = version.open_async()
+old_ds = future.result()
+
+# Access version properties
+print(f"ID: {version.id}")
+print(f"Message: {version.message}")
+print(f"Timestamp: {version.timestamp}")
+print(f"Client Timestamp: {version.client_timestamp}")
+```
+
+### Branch Operations
+
+Create and manage branches:
+
+```python
+# Create branch
+ds.branch("experimental")
+
+# Access branches
+branches = ds.branches
+
+# List branch names
+branch_names = list(branches.names())
+
+# Access specific branch
+branch = branches["experimental"]
+
+# Open branch dataset
+branch_ds = branch.open()
+
+# Open branch dataset asynchronously
+future = branch.open_async()
+branch_ds = future.result()
+
+# Branch properties
+print(f"Name: {branch.name}")
+print(f"ID: {branch.id}")
+print(f"Base: {branch.base}")
+print(f"Timestamp: {branch.timestamp}")
+
+# Rename branch
+branch.rename("new_branch_name")
+
+# Delete branch
+branch.delete()
+
+# Check current branch
+current = ds.current_branch
+print(f"Current branch: {current}")
+
+# Merge branches
+ds.merge("experimental")  # Merge experimental into current
+```
+
+### Tag Operations
+
+Create and manage tags:
+
+```python
+# Create tag
+ds.tag("v1.0")
+ds.tag("production", version=specific_version)  # Tag specific version
+
+# Access tags
+tags = ds.tags
+
+# List tag names
+tag_names = list(tags.names())
+
+# Access specific tag
+tag = tags["v1.0"]
+
+# Open dataset at tag
+tagged_ds = tag.open()
+
+# Open dataset at tag asynchronously
+future = tag.open_async()
+tagged_ds = future.result()
+
+# Tag properties
+print(f"Name: {tag.name}")
+print(f"ID: {tag.id}")
+print(f"Version: {tag.version}")
+print(f"Message: {tag.message}")
+print(f"Timestamp: {tag.timestamp}")
+
+# Rename tag
+tag.rename("v1.0.0")
+
+# Delete tag
+tag.delete()
+```
+
+### History Operations
+
+Access dataset history:
+
+```python
+# Get history object
+history = ds.history
+
+# Iterate through versions
+for version in history:
+    print(f"Version {version.id}: {version.message}")
+
+# Access by index
+first_version = history[0]
+latest_version = history[-1]
+
+# Access by version ID
+version = history[version_id]
+
+# Get length
+num_versions = len(history)
+```
+
+## Async Operations
+
+### Future Operations
+
+Work with async operations using Future:
+
+```python
+# Async dataset operations
+future = deeplake.open_async("path/to/dataset")
+ds = future.result()  # Block until ready
+
+# Check completion status
+if future.is_completed():
+    ds = future.result()
+else:
+    print("Still loading...")
+
+# Use with async/await
+async def load_dataset():
+    ds = await deeplake.open_async("path/to/dataset")
+    return ds
+
+# Async commit
+future = ds.commit_async("message")
+future.wait()  # Block until commit completes
+
+# Async query
+future = ds.query_async("SELECT * WHERE condition")
+results = future.result()
+
+# Async pull/push
+future = ds.pull_async()
+future.wait()
+
+future = ds.push_async()
+future.wait()
+
+# Async delete
+future = deeplake.delete_async("path/to/dataset")
+future.wait()
+```
+
+### FutureVoid Operations
+
+Work with void async operations:
+
+```python
+# Async commit returns FutureVoid
+future = ds.commit_async("message")
+
+# Wait for completion
+future.wait()
+
+# Check completion
+if future.is_completed():
+    print("Commit finished")
+
+# Use with async/await
+async def save_changes():
+    await ds.commit_async("message")
+```
+
+## Row and Row Range Operations
+
+### Row Class
+
+Access individual rows:
+
+```python
+# Get row
+row = ds[0]
+
+# Access row data
+image = row["images"]
+label = row["labels"]
+embedding = row["embeddings"]
+
+# Iterate row fields
+for key, value in row.items():
+    print(f"{key}: {value}")
+```
+
+### RowRange and RowRangeView
+
+Work with row ranges:
+
+```python
+# Get row range
+row_range = ds[0:100]
+
+# Access row range view
+row_range_view = view[0:50]
+
+# Iterate row range
+for row in row_range:
+    process_row(row)
+
+# Access by index in range
+first_row = row_range[0]
+```
+
+## Advanced Features
+
+### Auto-Commit
+
+Enable automatic commits:
+
+```python
+# Enable auto-commit
+ds.auto_commit_enabled = True
+
+# Now changes are committed automatically
+ds.append(data)  # Auto-committed
+
+# Disable auto-commit
+ds.auto_commit_enabled = False
+
+# Manual commits required
+ds.append(data)
+ds.commit("Manual commit")
+```
+
+### Indexing Mode
+
+Control indexing behavior:
+
+```python
+# Set indexing mode
+ds.indexing_mode = deeplake.IndexingMode.MANUAL  # Manual indexing
+ds.indexing_mode = deeplake.IndexingMode.AUTOMATIC  # Automatic indexing
+
+# Get current mode
+mode = ds.indexing_mode
+```
+
+### Credentials Management
+
+Manage cloud credentials:
+
+```python
+# Set credentials key
+ds.set_creds_key("aws_key", creds={
+    "aws_access_key_id": "key",
+    "aws_secret_access_key": "secret"
+})
+
+# Get credentials key
+creds_key = ds.creds_key
+
+# Use credentials in operations
+ds = deeplake.open(
+    "s3://bucket/dataset",
+    creds={
+        "aws_access_key_id": "key",
+        "aws_secret_access_key": "secret",
+        "aws_region": "us-east-1"
+    }
+)
+```
+
+### Dataset Properties
+
+Access dataset properties:
+
+```python
+# Basic properties
+dataset_id = ds.id
+dataset_name = ds.name
+description = ds.description
+created_time = ds.created_time
+current_branch = ds.current_branch
+current_version = ds.version
+
+# Set description
+ds.description = "My dataset description"
+
+# Get dataset length
+num_samples = len(ds)
+
+# Get dataset summary
+summary = ds.summary()
+print(summary)
+```
+
+### Link Operations
+
+Link datasets:
+
+```python
+# Link dataset
+deeplake.link("source/path", "link/path")
+
+# Link dataset asynchronously
+future = deeplake.link_async("source/path", "link/path")
+future.wait()
 ```
 
 ## Best Practices

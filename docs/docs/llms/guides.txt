@@ -724,6 +724,317 @@ results = ds.query("""
 """)
 ```
 
+#### Video + Audio Search
+
+```python
+# Create multi-modal video dataset
+ds = deeplake.create("s3://bucket/video_dataset")
+ds.add_column("videos", types.Video())
+ds.add_column("audio", types.Audio())
+ds.add_column("video_embeddings", types.Embedding(512))
+ds.add_column("audio_embeddings", types.Embedding(512))
+ds.add_column("transcript", types.Text(index_type=types.BM25))
+
+# Multi-modal search with text
+results = ds.query("""
+    SELECT *,
+        COSINE_SIMILARITY(video_embeddings, ARRAY[...]) * 0.4 +
+        COSINE_SIMILARITY(audio_embeddings, ARRAY[...]) * 0.3 +
+        BM25_SIMILARITY(transcript, 'search term') * 0.3 AS score
+    ORDER BY score DESC
+    LIMIT 10
+""")
+```
+
+## Advanced Use Cases
+
+### Image Classification Pipeline
+
+```python
+import deeplake
+from deeplake import types
+import numpy as np
+
+# Create dataset for image classification
+ds = deeplake.create("s3://bucket/image_classification")
+ds.add_column("images", types.Image())
+ds.add_column("labels", types.ClassLabel(names=["cat", "dog", "bird", "car", "truck"]))
+ds.add_column("confidence", "float32")
+ds.add_column("bbox", types.BoundingBox())
+
+# Add data
+ds.append({
+    "images": image_arrays,
+    "labels": label_names,
+    "confidence": confidence_scores,
+    "bbox": bounding_boxes
+})
+
+# Commit initial data
+ds.commit("Initial image classification data")
+
+# Query for high-confidence predictions
+high_confidence = ds.query("""
+    SELECT * 
+    WHERE confidence > 0.95
+    ORDER BY confidence DESC
+""")
+
+# Query for specific class
+cats = ds.query("""
+    SELECT * 
+    WHERE labels = 'cat'
+""")
+```
+
+### Object Detection Dataset
+
+```python
+# Create object detection dataset
+ds = deeplake.create("s3://bucket/object_detection")
+ds.add_column("images", types.Image())
+ds.add_column("bboxes", types.BoundingBox())
+ds.add_column("labels", types.ClassLabel("int32"))
+ds.add_column("masks", types.BinaryMask())
+
+# Add detection data
+ds.append({
+    "images": images,
+    "bboxes": bounding_boxes,  # List of bboxes per image
+    "labels": class_ids,       # List of labels per image
+    "masks": binary_masks      # List of masks per image
+})
+
+# Query by object class
+people = ds.query("""
+    SELECT * 
+    WHERE CONTAINS(labels, 0)  -- Assuming 0 is person class
+""")
+```
+
+### Medical Imaging Workflow
+
+```python
+# Create medical imaging dataset
+ds = deeplake.create("s3://bucket/medical_images")
+ds.add_column("dicom_images", types.Medical(compression="dcm"))
+ds.add_column("patient_id", "text")
+ds.add_column("study_date", "text")
+ds.add_column("diagnosis", types.ClassLabel(names=["normal", "abnormal"]))
+ds.add_column("annotations", types.Dict())
+
+# Add medical data
+ds.append({
+    "dicom_images": dicom_files,
+    "patient_id": patient_ids,
+    "study_date": dates,
+    "diagnosis": diagnoses,
+    "annotations": annotation_dicts
+})
+
+# Query by diagnosis
+abnormal_cases = ds.query("""
+    SELECT * 
+    WHERE diagnosis = 'abnormal'
+    ORDER BY study_date DESC
+""")
+```
+
+### Time Series Analysis
+
+```python
+# Create time series dataset
+ds = deeplake.create("s3://bucket/timeseries")
+ds.add_column("timestamp", "int64")
+ds.add_column("values", types.Array("float32", (10,)))  # 10 features per time step
+ds.add_column("label", "text")
+
+# Add time series data
+ds.append({
+    "timestamp": timestamps,
+    "values": time_series_arrays,
+    "label": event_labels
+})
+
+# Query by time range
+recent_data = ds.query("""
+    SELECT * 
+    WHERE timestamp > 1640995200  -- Unix timestamp
+    ORDER BY timestamp ASC
+""")
+```
+
+### Collaborative Filtering Dataset
+
+```python
+# Create recommendation dataset
+ds = deeplake.create("s3://bucket/recommendations")
+ds.add_column("user_id", "int32")
+ds.add_column("item_id", "int32")
+ds.add_column("rating", "float32")
+ds.add_column("user_embedding", types.Embedding(128))
+ds.add_column("item_embedding", types.Embedding(128))
+
+# Add interaction data
+ds.append({
+    "user_id": user_ids,
+    "item_id": item_ids,
+    "rating": ratings,
+    "user_embedding": user_embeddings,
+    "item_embedding": item_embeddings
+})
+
+# Find similar items for a user
+user_vector = user_embeddings[0]
+similar_items = ds.query(f"""
+    SELECT item_id, rating,
+        COSINE_SIMILARITY(item_embedding, ARRAY[{','.join(map(str, user_vector))}]) AS similarity
+    WHERE user_id = 0
+    ORDER BY similarity DESC
+    LIMIT 10
+""")
+```
+
+### Document Search System
+
+```python
+# Create document search dataset
+ds = deeplake.create("s3://bucket/documents")
+ds.add_column("document_id", "text")
+ds.add_column("content", types.Text(index_type=types.BM25))
+ds.add_column("embedding", types.Embedding(768))
+ds.add_column("metadata", types.Dict())
+ds.add_column("file_path", types.Link(types.Text()))
+
+# Add documents
+ds.append({
+    "document_id": doc_ids,
+    "content": document_texts,
+    "embedding": document_embeddings,
+    "metadata": metadata_dicts,
+    "file_path": file_urls
+})
+
+# Hybrid search: BM25 + vector similarity
+query_text = "machine learning"
+query_embedding = get_embedding(query_text)
+
+results = ds.query(f"""
+    SELECT document_id, content, metadata,
+        BM25_SIMILARITY(content, '{query_text}') * 0.5 +
+        COSINE_SIMILARITY(embedding, ARRAY[{','.join(map(str, query_embedding))}]) * 0.5 AS score
+    ORDER BY score DESC
+    LIMIT 20
+""")
+```
+
+## Production Patterns
+
+### Incremental Data Ingestion
+
+```python
+# Incremental data ingestion pattern
+ds = deeplake.open("s3://bucket/production_dataset")
+
+# Check last processed timestamp
+last_timestamp = ds.metadata.get("last_processed_timestamp", 0)
+
+# Fetch new data since last timestamp
+new_data = fetch_data_since(last_timestamp)
+
+if new_data:
+    # Append new data
+    ds.append(new_data)
+    
+    # Update metadata
+    current_timestamp = time.time()
+    ds.metadata["last_processed_timestamp"] = current_timestamp
+    ds.metadata["last_update"] = datetime.now().isoformat()
+    
+    # Commit changes
+    ds.commit(f"Incremental update: {len(new_data)} new samples")
+    
+    # Refresh indexes if needed
+    if len(ds) % 10000 == 0:  # Re-index every 10k samples
+        ds["embedding"].create_index("embedding")
+```
+
+### Batch Processing Pipeline
+
+```python
+# Batch processing with Deep Lake
+ds = deeplake.open_read_only("s3://bucket/source_dataset")
+
+# Process in batches for memory efficiency
+batch_size = 1000
+for batch in ds.batches(batch_size=batch_size):
+    # Process batch
+    processed_batch = process_batch(batch)
+    
+    # Store results
+    output_ds.append(processed_batch)
+
+# Commit all changes at once
+output_ds.commit("Batch processed dataset")
+```
+
+### Dataset Versioning Strategy
+
+```python
+# Versioning strategy for ML datasets
+ds = deeplake.open("s3://bucket/ml_dataset")
+
+# Work on a feature branch
+ds.branch("feature/new_model_v2")
+
+# Make changes
+ds.append(new_training_data)
+ds.commit("Add new training data")
+
+# Tag stable version
+ds.tag("v2.0.0")
+
+# Merge back to main
+main_ds = ds.branches["main"].open()
+main_ds.merge("feature/new_model_v2")
+
+# Tag production version
+main_ds.tag("production")
+```
+
+### Monitoring and Validation
+
+```python
+# Dataset monitoring and validation
+ds = deeplake.open_read_only("s3://bucket/monitored_dataset")
+
+# Check dataset health
+def validate_dataset(ds):
+    checks = {
+        "total_samples": len(ds),
+        "columns": list(ds.schema.keys()),
+        "has_embeddings": "embeddings" in ds.schema,
+        "has_indexes": len(ds["embeddings"].indexes) > 0 if "embeddings" in ds.schema else False
+    }
+    
+    # Sample data quality check
+    sample = ds[0:100]
+    checks["sample_quality"] = validate_sample_quality(sample)
+    
+    return checks
+
+# Run validation
+health_check = validate_dataset(ds)
+print(f"Dataset Health: {health_check}")
+
+# Query performance check
+import time
+start = time.time()
+results = ds.query("SELECT * LIMIT 100")
+query_time = time.time() - start
+print(f"Query Performance: {query_time:.3f}s for 100 samples")
+```
+
 ## Documentation
 
 For more information, see:
