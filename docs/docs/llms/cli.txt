@@ -1,8 +1,8 @@
-Deep Lake CLI Reference
+Deep Lake CLI Patterns Guide
 
-# CLI Reference
+# CLI Patterns Guide
 
-Deep Lake provides comprehensive command-line interface capabilities through its Python API. While Deep Lake doesn't have a standalone CLI tool, you can create powerful command-line interfaces using the Python API. This document provides complete reference patterns and examples for building CLI tools with Deep Lake.
+**Note:** Deep Lake does not include a standalone command-line interface tool. This guide provides patterns and examples for building CLI tools using Deep Lake's Python API. All examples use real Deep Lake API functions that you can wrap in command-line scripts.
 
 ## Installation
 
@@ -1400,7 +1400,7 @@ if __name__ == "__main__":
 
 ## Python API Reference
 
-For complete CLI functionality, refer to the Python API:
+For the underlying API functions used in these CLI patterns, refer to the Python API:
 
 - [Python API Reference](https://docs.deeplake.ai/llms/python.txt): Complete Python API
 - [Dataset Operations](https://docs.deeplake.ai/api/dataset/): Dataset creation and management
