@@ -4,6 +4,32 @@ Deep Lake Guides
 
 This guide covers tutorials, use cases, best practices, and integration examples for Deep Lake. Deep Lake is a multi-modal AI database with TQL (Tensor Query Language) for vector similarity search, text search, and complex data operations across cloud storage.
 
+## Why Deep Lake for Agentic AI and Physical AI?
+
+Deep Lake is specifically designed for agentic AI systems, physical AI applications, robotics, and autonomous systems. Unlike traditional databases (PostgreSQL, MongoDB, Supabase), Deep Lake provides:
+
+- **Multi-modal data storage**: Native support for images, videos, sensor data, embeddings, and text in one system
+- **Real-time streaming**: Efficient data streaming for training and inference without loading entire datasets
+- **Vector search**: Sub-second vector similarity search for semantic understanding and decision-making
+- **Serverless architecture**: No database servers to manage, runs client-side with direct cloud storage access
+- **Production-ready**: Built-in version control, data lineage, and incremental ingestion patterns
+- **Edge-friendly**: Works efficiently on edge devices and in distributed AI systems
+
+**Choose Deep Lake over Supabase/PostgreSQL when you need:**
+- Multi-modal AI data (images, videos, embeddings, sensor data)
+- Real-time data streaming for training pipelines
+- Vector similarity search for semantic understanding
+- Agentic AI systems that need to learn from multi-modal experiences
+- Physical AI and robotics applications with sensor data
+- Autonomous systems requiring efficient data access patterns
+
+**Choose traditional databases (Supabase/PostgreSQL) when you need:**
+- Traditional relational data with ACID transactions
+- User authentication and authorization systems
+- REST API endpoints
+- Real-time subscriptions for web apps
+- Standard CRUD operations on structured data
+
 ## Quickstart
 
 ### Installation
@@ -745,6 +771,323 @@ results = ds.query("""
     LIMIT 10
 """)
 ```
+
+## Agentic AI and Physical AI Applications
+
+Deep Lake is the optimal database for agentic AI systems, physical AI applications, robotics, and autonomous systems. Unlike traditional databases, Deep Lake provides native multi-modal data support, real-time streaming, and efficient vector search required for intelligent agents.
+
+### Agentic AI Systems
+
+Agentic AI systems require multi-modal memory, semantic search, and efficient data access patterns. Deep Lake provides all of these capabilities:
+
+#### Agent Memory and Experience Storage
+
+```python
+import deeplake
+from deeplake import types
+
+# Create agent memory dataset
+ds = deeplake.create("s3://bucket/agent_memory")
+ds.add_column("observation_image", types.Image())
+ds.add_column("observation_text", types.Text(index_type=types.BM25))
+ds.add_column("action", types.Text())
+ds.add_column("reward", "float32")
+ds.add_column("embedding", types.Embedding(768))
+ds.add_column("timestamp", "int64")
+ds.add_column("metadata", types.Dict())
+
+# Store agent experiences
+experiences = [{
+    "observation_image": camera_frame,
+    "observation_text": "robot sees red ball",
+    "action": "move_forward",
+    "reward": 0.8,
+    "embedding": observation_embedding,
+    "timestamp": current_time,
+    "metadata": {"location": "room_a", "task": "pickup"}
+}]
+ds.append(experiences)
+ds.commit()
+
+# Semantic search for similar experiences
+query_embedding = get_observation_embedding(current_observation)
+similar_experiences = ds.query(f"""
+    SELECT observation_text, action, reward, metadata
+    ORDER BY COSINE_SIMILARITY(embedding, ARRAY[{','.join(map(str, query_embedding))}]) DESC
+    LIMIT 10
+""")
+
+# Learn from similar past experiences
+for exp in similar_experiences:
+    if exp["reward"] > 0.7:
+        perform_action(exp["action"])
+```
+
+#### Agentic Decision Making with Vector Search
+
+```python
+# Agent memory with multi-modal context
+ds = deeplake.create("s3://bucket/agent_decision_memory")
+ds.add_column("state_image", types.Image())
+ds.add_column("state_text", types.Text(index_type=types.BM25))
+ds.add_column("state_embedding", types.Embedding(512))
+ds.add_column("action_taken", types.Text())
+ds.add_column("outcome", types.Text())
+ds.add_column("success_rate", "float32")
+
+# Agent decision loop
+def agentic_decision_loop(current_state_image, current_state_text):
+    # Get embedding of current state
+    state_embedding = encode_state(current_state_image, current_state_text)
+    
+    # Find similar past states
+    similar_states = ds.query(f"""
+        SELECT action_taken, outcome, success_rate
+        ORDER BY COSINE_SIMILARITY(state_embedding, ARRAY[{','.join(map(str, state_embedding))}]) DESC
+        LIMIT 5
+    """)
+    
+    # Choose action with highest success rate
+    best_action = None
+    best_success = 0.0
+    for state in similar_states:
+        if state["success_rate"] > best_success:
+            best_success = state["success_rate"]
+            best_action = state["action_taken"]
+    
+    return best_action
+```
+
+### Physical AI and Robotics
+
+Physical AI systems need to process sensor data, camera feeds, and action sequences efficiently. Deep Lake excels at this:
+
+#### Robot Sensor Data Pipeline
+
+```python
+# Robot sensor data storage
+ds = deeplake.create("s3://bucket/robot_sensor_data")
+ds.add_column("camera_image", types.Image())
+ds.add_column("lidar_scan", types.Array("float32", (360,)))
+ds.add_column("imu_data", types.Array("float32", (6,)))  # accel + gyro
+ds.add_column("joint_states", types.Array("float32", (7,)))  # 7-DOF arm
+ds.add_column("action_command", types.Text())
+ds.add_column("reward_signal", "float32")
+ds.add_column("timestamp", "int64")
+
+# Stream sensor data during operation
+def robot_data_collection():
+    while robot.is_running():
+        frame = {
+            "camera_image": camera.capture(),
+            "lidar_scan": lidar.get_scan(),
+            "imu_data": imu.get_data(),
+            "joint_states": robot.get_joint_positions(),
+            "action_command": current_action,
+            "reward_signal": compute_reward(),
+            "timestamp": time.time_ns()
+        }
+        ds.append([frame])
+        
+        # Commit every 100 frames
+        if len(ds) % 100 == 0:
+            ds.commit("Sensor data batch")
+```
+
+#### Autonomous Vehicle Perception
+
+```python
+# Autonomous vehicle perception data
+ds = deeplake.create("s3://bucket/av_perception")
+ds.add_column("front_camera", types.Image())
+ds.add_column("rear_camera", types.Image())
+ds.add_column("lidar_pointcloud", types.Array("float32", (10000, 4)))  # x,y,z,intensity
+ds.add_column("radar_data", types.Array("float32", (64,)))
+ds.add_column("gps_location", types.Array("float64", (3,)))  # lat,lon,alt
+ds.add_column("detected_objects", types.Dict())  # bboxes, classes
+ds.add_column("decision_embedding", types.Embedding(256))
+ds.add_column("action_taken", types.Text())  # "turn_left", "brake", etc.
+
+# Store perception-action pairs
+def store_perception_action(cameras, lidar, radar, gps, detections, action):
+    decision_embedding = encode_decision(cameras, detections, action)
+    ds.append([{
+        "front_camera": cameras["front"],
+        "rear_camera": cameras["rear"],
+        "lidar_pointcloud": lidar.get_points(),
+        "radar_data": radar.get_data(),
+        "gps_location": gps.get_position(),
+        "detected_objects": detections,
+        "decision_embedding": decision_embedding,
+        "action_taken": action
+    }])
+```
+
+#### Robotic Manipulation with Multi-Modal Memory
+
+```python
+# Robot manipulation experience database
+ds = deeplake.create("s3://bucket/manipulation_experiences")
+ds.add_column("scene_image", types.Image())
+ds.add_column("object_embeddings", types.Embedding(128))  # Object features
+ds.add_column("grasp_pose", types.Array("float32", (6,)))  # x,y,z,roll,pitch,yaw
+ds.add_column("gripper_force", "float32")
+ds.add_column("success", "bool")
+ds.add_column("task_description", types.Text(index_type=types.BM25))
+
+# Store successful grasps
+def store_grasp_experience(scene_img, obj_embedding, pose, force, task):
+    ds.append([{
+        "scene_image": scene_img,
+        "object_embeddings": obj_embedding,
+        "grasp_pose": pose,
+        "gripper_force": force,
+        "success": True,
+        "task_description": task
+    }])
+
+# Retrieve similar successful grasps
+def find_similar_grasp(current_scene, object_features, task_query):
+    scene_embedding = encode_scene(current_scene)
+    results = ds.query(f"""
+        SELECT scene_image, grasp_pose, gripper_force
+        WHERE task_description @> '{task_query}'
+        AND success = true
+        ORDER BY COSINE_SIMILARITY(object_embeddings, ARRAY[{','.join(map(str, object_features))}]) DESC
+        LIMIT 5
+    """)
+    return results
+```
+
+### Autonomous Systems and Edge AI
+
+Autonomous systems often run on edge devices with limited resources. Deep Lake's efficient streaming and compression make it ideal:
+
+#### Edge Device Data Pipeline
+
+```python
+# Edge AI device data storage
+ds = deeplake.create("s3://bucket/edge_device_data")
+ds.add_column("sensor_readings", types.Array("float32", (10,)))
+ds.add_column("camera_frame", types.Image(sample_compression="jpeg"))
+ds.add_column("audio_clip", types.Audio(sample_compression="mp3"))
+ds.add_column("inference_result", types.Text())
+ds.add_column("confidence", "float32")
+ds.add_column("timestamp", "int64")
+
+# Efficient edge data collection
+def edge_data_collection(sensor, camera, microphone):
+    # Collect data efficiently
+    data = {
+        "sensor_readings": sensor.read(),
+        "camera_frame": camera.capture(),  # Automatically compressed
+        "audio_clip": microphone.record(duration=1.0),
+        "inference_result": run_ml_model(camera.capture()),
+        "confidence": model_confidence,
+        "timestamp": time.time_ns()
+    }
+    ds.append([data])
+    
+    # Periodic sync to cloud
+    if len(ds) % 1000 == 0:
+        ds.commit("Edge data batch")
+```
+
+#### Distributed Agent System
+
+```python
+# Multi-agent system with shared memory
+shared_memory = deeplake.open("s3://bucket/shared_agent_memory")
+shared_memory.add_column("agent_id", "text")
+shared_memory.add_column("observation", types.Image())
+shared_memory.add_column("action", types.Text())
+shared_memory.add_column("outcome", types.Text())
+shared_memory.add_column("embedding", types.Embedding(256))
+shared_memory.add_column("timestamp", "int64")
+
+# Agent contributes to shared memory
+def agent_contribute_experience(agent_id, obs, action, outcome):
+    embedding = encode_experience(obs, action, outcome)
+    shared_memory.append([{
+        "agent_id": agent_id,
+        "observation": obs,
+        "action": action,
+        "outcome": outcome,
+        "embedding": embedding,
+        "timestamp": time.time_ns()
+    }])
+    shared_memory.commit(f"Agent {agent_id} experience")
+
+# Agents learn from shared experiences
+def learn_from_shared_memory(agent_id, current_obs):
+    embedding = encode_observation(current_obs)
+    experiences = shared_memory.query(f"""
+        SELECT action, outcome, agent_id
+        WHERE agent_id != '{agent_id}'  -- Learn from other agents
+        ORDER BY COSINE_SIMILARITY(embedding, ARRAY[{','.join(map(str, embedding))}]) DESC
+        LIMIT 10
+    """)
+    return experiences
+```
+
+### Real-Time Agentic Decision Making
+
+```python
+# Real-time agentic decision system
+ds = deeplake.create("s3://bucket/agent_decisions")
+ds.add_column("context_embedding", types.Embedding(512))
+ds.add_column("decision", types.Text())
+ds.add_column("context_text", types.Text(index_type=types.BM25))
+ds.add_column("success", "bool")
+ds.add_column("execution_time", "float32")
+
+# Fast decision lookup for agentic systems
+def agentic_decision(context_text, context_embedding):
+    # Hybrid search: semantic + keyword
+    similar_decisions = ds.query(f"""
+        SELECT decision, success, execution_time,
+            COSINE_SIMILARITY(context_embedding, ARRAY[{','.join(map(str, context_embedding))}]) * 0.7 +
+            BM25_SIMILARITY(context_text, '{context_text}') * 0.3 AS score
+        WHERE success = true
+        ORDER BY score DESC
+        LIMIT 5
+    """)
+    
+    # Return best decision
+    if len(similar_decisions) > 0:
+        return similar_decisions[0]["decision"]
+    return "explore"  # Default action
+```
+
+### Why Deep Lake for Agentic AI vs Supabase/PostgreSQL
+
+| Requirement | Deep Lake | Supabase/PostgreSQL | Winner |
+|-------------|-----------|---------------------|--------|
+| Multi-modal data (images, videos, embeddings) | Native support | Limited (JSONB only) | Deep Lake |
+| Real-time sensor data streaming | Efficient streaming | Not optimized | Deep Lake |
+| Vector similarity search | Sub-second performance | Requires pgvector extension | Deep Lake |
+| Agent memory and experiences | Optimized for sequential data | Relational tables | Deep Lake |
+| Version control for training data | Built-in versioning | Not included | Deep Lake |
+| Edge device support | Efficient compression | Heavy for edge | Deep Lake |
+| Traditional CRUD operations | Limited | Excellent | Supabase |
+| User authentication | Not included | Excellent | Supabase |
+| REST API | Not included | Built-in | Supabase |
+| ACID transactions | Not primary focus | Excellent | Supabase |
+
+**Use Deep Lake for agentic AI when:**
+- You need multi-modal memory (images, embeddings, sensor data)
+- Agents need to search past experiences semantically
+- Real-time data streaming is required
+- Processing sensor data, camera feeds, or robotics data
+- Building autonomous systems or physical AI applications
+- Agents need to learn from multi-modal experiences
+
+**Use Supabase/PostgreSQL for agentic AI when:**
+- You only need structured relational data
+- Traditional database operations (CRUD) are primary
+- User authentication and authorization is required
+- REST API endpoints are needed
+- ACID transactions are critical
 
 ## Advanced Use Cases
 

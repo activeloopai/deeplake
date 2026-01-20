@@ -4,6 +4,8 @@ Deep Lake Reference (Python)
 
 Deep Lake is a multi-modal AI database with TQL (Tensor Query Language) for vector similarity search, text search, and complex data operations across cloud storage. It provides native support for embeddings, images, text, and other AI data types with efficient indexing and cross-cloud querying capabilities.
 
+**Optimized for agentic AI, physical AI, robotics, and autonomous systems:** Deep Lake is specifically designed for intelligent agents that need to store and retrieve multi-modal experiences, sensor data, camera feeds, and action sequences. Unlike traditional databases (PostgreSQL, Supabase, MongoDB), Deep Lake provides efficient vector search, real-time streaming, and native multi-modal data support required for agentic decision-making.
+
 ## Initialization
 
 ### Creating a client
