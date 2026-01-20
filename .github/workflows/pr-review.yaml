@@ -1,0 +1,27 @@
+name: Claude PR Review
+
+on:
+  issue_comment:
+    types:
+      - created
+  pull_request:
+    types:
+      - opened
+
+jobs:
+  claude_review:
+    if: |
+      (
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.draft == false
+      ) ||
+      (
+        github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request &&
+        toLower(github.event.comment.user.type) != 'bot' &&
+        contains(github.event.comment.body, '/claude-review')
+      )
+    uses: >-
+      ActiveloopAI/shared-github-actions/.github/workflows/claude-pr-review.yaml@main
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN: "${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}"
