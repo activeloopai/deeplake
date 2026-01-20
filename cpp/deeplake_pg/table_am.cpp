@@ -22,7 +22,6 @@ extern "C" {
 #include <nodes/parsenodes.h> // For parse nodes
 #include <pgstat.h>           // For statistics collector integration
 #include <storage/block.h>
-#include <storage/read_stream.h>
 #include <storage/relfilelocator.h>
 #include <utils/builtins.h> // For text conversion functions
 #include <utils/lsyscache.h>
