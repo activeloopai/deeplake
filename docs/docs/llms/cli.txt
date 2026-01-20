@@ -1,0 +1,407 @@
+Deep Lake CLI Reference
+
+# CLI Reference
+
+Deep Lake can be used primarily through the Python API. While Deep Lake doesn't have a standalone CLI tool, you can create command-line interfaces using the Python API. This document provides patterns and examples for building CLI tools with Deep Lake.
+
+## Python API as CLI Interface
+
+### Basic Dataset Operations
+
+Create command-line scripts using Deep Lake's Python API:
+
+```python
+#!/usr/bin/env python3
+import argparse
+import deeplake
+
+def create_dataset(args):
+    """Create a new Deep Lake dataset"""
+    ds = deeplake.create(args.path)
+    print(f"Created dataset at {args.path}")
+    return ds
+
+def open_dataset(args):
+    """Open an existing Deep Lake dataset"""
+    ds = deeplake.open(args.path)
+    print(f"Opened dataset at {args.path}")
+    print(ds.summary())
+    return ds
+
+def main():
+    parser = argparse.ArgumentParser(description="Deep Lake CLI")
+    subparsers = parser.add_subparsers(dest="command", help="Commands")
+    
+    # Create command
+    create_parser = subparsers.add_parser("create", help="Create a dataset")
+    create_parser.add_argument("path", help="Dataset path")
+    create_parser.set_defaults(func=create_dataset)
+    
+    # Open command
+    open_parser = subparsers.add_parser("open", help="Open a dataset")
+    open_parser.add_argument("path", help="Dataset path")
+    open_parser.set_defaults(func=open_dataset)
+    
+    args = parser.parse_args()
+    if args.command:
+        args.func(args)
+    else:
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()
+```
+
+## Common Workflows
+
+### Dataset Creation Workflow
+
+```python
+#!/usr/bin/env python3
+import argparse
+import deeplake
+from deeplake import types
+
+def create_with_schema(args):
+    """Create dataset with schema"""
+    ds = deeplake.create(args.path)
+    
+    # Add columns
+    if args.add_images:
+        ds.add_column("images", types.Image())
+    if args.add_text:
+        ds.add_column("text", types.Text())
+    if args.add_embeddings:
+        ds.add_column("embeddings", types.Embedding(args.embedding_dim))
+    
+    ds.commit("Initial schema")
+    print(f"Created dataset with schema at {args.path}")
+    print(ds.summary())
+
+def main():
+    parser = argparse.ArgumentParser(description="Create Deep Lake dataset")
+    parser.add_argument("path", help="Dataset path")
+    parser.add_argument("--add-images", action="store_true", help="Add images column")
+    parser.add_argument("--add-text", action="store_true", help="Add text column")
+    parser.add_argument("--add-embeddings", action="store_true", help="Add embeddings column")
+    parser.add_argument("--embedding-dim", type=int, default=768, help="Embedding dimension")
+    
+    args = parser.parse_args()
+    create_with_schema(args)
+
+if __name__ == "__main__":
+    main()
+```
+
+### Data Import Workflow
+
+```python
+#!/usr/bin/env python3
+import argparse
+import deeplake
+import json
+
+def import_from_parquet(args):
+    """Import data from Parquet"""
+    ds = deeplake.from_parquet(args.input, args.output)
+    print(f"Imported {args.input} to {args.output}")
+    print(ds.summary())
+
+def import_from_csv(args):
+    """Import data from CSV"""
+    ds = deeplake.from_csv(args.input, args.output)
+    print(f"Imported {args.input} to {args.output}")
+    print(ds.summary())
+
+def main():
+    parser = argparse.ArgumentParser(description="Import data to Deep Lake")
+    subparsers = parser.add_subparsers(dest="format", help="Input format")
+    
+    # Parquet import
+    parquet_parser = subparsers.add_parser("parquet", help="Import from Parquet")
+    parquet_parser.add_argument("input", help="Input Parquet file")
+    parquet_parser.add_argument("output", help="Output dataset path")
+    parquet_parser.set_defaults(func=import_from_parquet)
+    
+    # CSV import
+    csv_parser = subparsers.add_parser("csv", help="Import from CSV")
+    csv_parser.add_argument("input", help="Input CSV file")
+    csv_parser.add_argument("output", help="Output dataset path")
+    csv_parser.set_defaults(func=import_from_csv)
+    
+    args = parser.parse_args()
+    if args.format:
+        args.func(args)
+    else:
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()
+```
+
+### Query Execution Workflow
+
+```python
+#!/usr/bin/env python3
+import argparse
+import deeplake
+import json
+
+def query_dataset(args):
+    """Execute TQL query on dataset"""
+    ds = deeplake.open(args.path)
+    
+    # Read query from file or use provided query
+    if args.query_file:
+        with open(args.query_file, 'r') as f:
+            query = f.read()
+    else:
+        query = args.query
+    
+    # Execute query
+    results = ds.query(query)
+    
+    # Output results
+    if args.output:
+        results.to_csv(args.output)
+        print(f"Results saved to {args.output}")
+    else:
+        # Print summary
+        print(f"Query returned {len(results)} results")
+        if args.limit:
+            for i, item in enumerate(results):
+                if i >= args.limit:
+                    break
+                print(json.dumps(dict(item), default=str)))
+
+def main():
+    parser = argparse.ArgumentParser(description="Query Deep Lake dataset")
+    parser.add_argument("path", help="Dataset path")
+    parser.add_argument("--query", help="TQL query string")
+    parser.add_argument("--query-file", help="File containing TQL query")
+    parser.add_argument("--output", help="Output CSV file")
+    parser.add_argument("--limit", type=int, help="Limit output rows")
+    
+    args = parser.parse_args()
+    query_dataset(args)
+
+if __name__ == "__main__":
+    main()
+```
+
+### Index Creation Workflow
+
+```python
+#!/usr/bin/env python3
+import argparse
+import deeplake
+from deeplake import types
+
+def create_index(args):
+    """Create index on dataset column"""
+    ds = deeplake.open(args.path)
+    
+    # Create appropriate index type
+    if args.index_type == "embedding":
+        ds[args.column].create_index("embedding")
+    elif args.index_type == "inverted":
+        ds[args.column].create_index("inverted")
+    elif args.index_type == "btree":
+        ds[args.column].create_index("btree")
+    elif args.index_type == "bm25":
+        # BM25 index is set at column creation, not after
+        print("BM25 index must be set when creating the column")
+        return
+    
+    ds.commit(f"Created {args.index_type} index on {args.column}")
+    print(f"Created {args.index_type} index on column '{args.column}'")
+
+def main():
+    parser = argparse.ArgumentParser(description="Create index on Deep Lake column")
+    parser.add_argument("path", help="Dataset path")
+    parser.add_argument("column", help="Column name")
+    parser.add_argument("index_type", choices=["embedding", "inverted", "btree"],
+                       help="Index type")
+    
+    args = parser.parse_args()
+    create_index(args)
+
+if __name__ == "__main__":
+    main()
+```
+
+### Version Control Workflow
+
+```python
+#!/usr/bin/env python3
+import argparse
+import deeplake
+
+def commit_changes(args):
+    """Commit changes to dataset"""
+    ds = deeplake.open(args.path)
+    ds.commit(args.message)
+    print(f"Committed changes: {args.message}")
+
+def create_tag(args):
+    """Create tag for dataset version"""
+    ds = deeplake.open(args.path)
+    ds.tag(args.tag_name)
+    print(f"Created tag: {args.tag_name}")
+
+def create_branch(args):
+    """Create branch from dataset"""
+    ds = deeplake.open(args.path)
+    ds.branch(args.branch_name)
+    print(f"Created branch: {args.branch_name}")
+
+def view_history(args):
+    """View dataset version history"""
+    ds = deeplake.open(args.path)
+    print("Version History:")
+    for version in ds.history:
+        print(f"  Version {version.id}: {version.message}")
+        print(f"    Timestamp: {version.timestamp}")
+
+def main():
+    parser = argparse.ArgumentParser(description="Version control for Deep Lake")
+    subparsers = parser.add_subparsers(dest="command", help="Commands")
+    
+    # Commit
+    commit_parser = subparsers.add_parser("commit", help="Commit changes")
+    commit_parser.add_argument("path", help="Dataset path")
+    commit_parser.add_argument("message", help="Commit message")
+    commit_parser.set_defaults(func=commit_changes)
+    
+    # Tag
+    tag_parser = subparsers.add_parser("tag", help="Create tag")
+    tag_parser.add_argument("path", help="Dataset path")
+    tag_parser.add_argument("tag_name", help="Tag name")
+    tag_parser.set_defaults(func=create_tag)
+    
+    # Branch
+    branch_parser = subparsers.add_parser("branch", help="Create branch")
+    branch_parser.add_argument("path", help="Dataset path")
+    branch_parser.add_argument("branch_name", help="Branch name")
+    branch_parser.set_defaults(func=create_branch)
+    
+    # History
+    history_parser = subparsers.add_parser("history", help="View history")
+    history_parser.add_argument("path", help="Dataset path")
+    history_parser.set_defaults(func=view_history)
+    
+    args = parser.parse_args()
+    if args.command:
+        args.func(args)
+    else:
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()
+```
+
+### Data Export Workflow
+
+```python
+#!/usr/bin/env python3
+import argparse
+import deeplake
+
+def export_to_csv(args):
+    """Export dataset to CSV"""
+    ds = deeplake.open(args.path)
+    
+    if args.query:
+        # Export query results
+        results = ds.query(args.query)
+        results.to_csv(args.output)
+    else:
+        # Export entire dataset
+        ds.to_csv(args.output)
+    
+    print(f"Exported to {args.output}")
+
+def main():
+    parser = argparse.ArgumentParser(description="Export Deep Lake dataset")
+    parser.add_argument("path", help="Dataset path")
+    parser.add_argument("output", help="Output CSV file")
+    parser.add_argument("--query", help="TQL query to filter data")
+    
+    args = parser.parse_args()
+    export_to_csv(args)
+
+if __name__ == "__main__":
+    main()
+```
+
+## Integration Patterns
+
+### Using Python Scripts as CLI
+
+Make Python scripts executable and use them as CLI tools:
+
+```bash
+# Make script executable
+chmod +x deeplake_cli.py
+
+# Use as CLI
+./deeplake_cli.py create s3://bucket/dataset
+./deeplake_cli.py query s3://bucket/dataset --query "SELECT * LIMIT 10"
+```
+
+### Environment Variables
+
+Set environment variables for authentication:
+
+```bash
+# Set credentials
+export ACTIVELOOP_TOKEN="your_token"
+export AWS_ACCESS_KEY_ID="your_key"
+export AWS_SECRET_ACCESS_KEY="your_secret"
+
+# Use in scripts
+python deeplake_cli.py create s3://bucket/dataset
+```
+
+### Batch Operations
+
+Create scripts for batch operations:
+
+```python
+#!/usr/bin/env python3
+import deeplake
+import sys
+
+def batch_create_datasets(paths):
+    """Create multiple datasets"""
+    for path in paths:
+        try:
+            ds = deeplake.create(path)
+            print(f"Created: {path}")
+        except Exception as e:
+            print(f"Error creating {path}: {e}")
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: batch_create.py <path1> <path2> ...")
+        sys.exit(1)
+    
+    batch_create_datasets(sys.argv[1:])
+```
+
+## Python API Reference
+
+For complete CLI functionality, refer to the Python API:
+
+- [Python API Reference](https://docs.deeplake.ai/llms/python.txt): Complete Python API
+- [Dataset Operations](https://docs.deeplake.ai/api/dataset/): Dataset creation and management
+- [Query API](https://docs.deeplake.ai/api/query/): TQL query execution
+- [Version Control](https://docs.deeplake.ai/api/version_control/): Branches, tags, and versions
+
+## Documentation
+
+For more information, see:
+
+- [Python API](https://docs.deeplake.ai/llms/python.txt): Complete Python API reference
+- [TQL Reference](https://docs.deeplake.ai/llms/tql.txt): Tensor Query Language syntax
+- [Guides](https://docs.deeplake.ai/llms/guides.txt): Tutorials and use cases

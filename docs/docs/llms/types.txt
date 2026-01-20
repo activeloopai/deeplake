@@ -1,0 +1,523 @@
+Deep Lake Types Reference
+
+# Data Types Reference
+
+Deep Lake provides a comprehensive type system designed for efficient data storage and retrieval. The type system includes basic numeric types as well as specialized types optimized for AI and ML workloads.
+
+## Type Usage
+
+Types can be specified using either type classes or string shorthands:
+
+```python
+import deeplake
+from deeplake import types
+
+# Using type class
+ds.add_column("col1", deeplake.types.Float32())
+
+# Using string shorthand
+ds.add_column("col2", "float32")
+```
+
+**Types determine:**
+- How data is stored and compressed
+- What operations are available
+- How the data can be queried and indexed
+- Integration with external libraries and frameworks
+
+## Basic Numeric Types
+
+### Integers
+
+```python
+# Signed integers
+ds.add_column("int8", deeplake.types.Int8())      # -128 to 127
+ds.add_column("int16", deeplake.types.Int16())    # -32,768 to 32,767
+ds.add_column("int32", deeplake.types.Int32())    # -2^31 to 2^31-1
+ds.add_column("int64", deeplake.types.Int64())    # -2^63 to 2^63-1
+
+# Unsigned integers
+ds.add_column("uint8", deeplake.types.UInt8())    # 0 to 255
+ds.add_column("uint16", deeplake.types.UInt16())  # 0 to 65,535
+ds.add_column("uint32", deeplake.types.UInt32())  # 0 to 2^32-1
+ds.add_column("uint64", deeplake.types.UInt64())  # 0 to 2^64-1
+
+# String shorthands
+ds.add_column("id", "int32")
+ds.add_column("count", "uint64")
+```
+
+### Floating Point
+
+```python
+# Floating point types
+ds.add_column("float16", deeplake.types.Float16())  # Half precision (16-bit)
+ds.add_column("float32", deeplake.types.Float32())  # Single precision (32-bit)
+ds.add_column("float64", deeplake.types.Float64())  # Double precision (64-bit)
+
+# String shorthands
+ds.add_column("score", "float32")
+ds.add_column("probability", "float64")
+```
+
+### Boolean
+
+```python
+# Boolean type
+ds.add_column("is_valid", deeplake.types.Bool())
+
+# String shorthand
+ds.add_column("active", "bool")
+```
+
+### ClassLabel
+
+For classification labels with named categories:
+
+```python
+# ClassLabel with named categories
+ds.add_column("labels", deeplake.types.ClassLabel(names=["cat", "dog", "bird"]))
+
+# ClassLabel with numeric encoding
+ds.add_column("labels", deeplake.types.ClassLabel("int32"))
+
+# Access class names from metadata
+ds["labels"].metadata["class_names"] = ["cat", "dog", "bird"]
+```
+
+## AI-Optimized Types
+
+### Image
+
+Store images with automatic compression:
+
+```python
+# Basic image storage
+ds.add_column("images", deeplake.types.Image())
+
+# JPEG compression
+ds.add_column("images", deeplake.types.Image(sample_compression="jpeg"))
+
+# PNG compression
+ds.add_column("images", deeplake.types.Image(sample_compression="png"))
+
+# With specific dtype
+ds.add_column("images", deeplake.types.Image(dtype="uint8"))  # 8-bit RGB
+
+# TIFF format
+ds.add_column("images", deeplake.types.Image(sample_compression="tiff"))
+```
+
+### Video
+
+Store video files with compression:
+
+```python
+# Basic video storage
+ds.add_column("videos", deeplake.types.Video())
+
+# MP4 compression
+ds.add_column("videos", deeplake.types.Video(sample_compression="mp4"))
+
+# With specific format
+ds.add_column("videos", deeplake.types.Video(sample_compression="h264"))
+```
+
+### Audio
+
+Store audio files with compression:
+
+```python
+# Basic audio storage
+ds.add_column("audio", deeplake.types.Audio())
+
+# WAV format
+ds.add_column("audio", deeplake.types.Audio(sample_compression="wav"))
+
+# MP3 compression (default)
+ds.add_column("audio", deeplake.types.Audio(sample_compression="mp3"))
+
+# With specific dtype
+ds.add_column("audio", deeplake.types.Audio(dtype="uint8", sample_compression="wav"))
+```
+
+### Embedding
+
+Vector embeddings for similarity search:
+
+```python
+# Basic embeddings
+ds.add_column("embeddings", deeplake.types.Embedding(768))
+
+# With clustering index
+ds.add_column("embeddings", deeplake.types.Embedding(
+    768,
+    index_type=deeplake.types.EmbeddingIndex(deeplake.types.Clustered)
+))
+
+# With quantized index for memory efficiency
+ds.add_column("embeddings", deeplake.types.Embedding(
+    768,
+    index_type=deeplake.types.EmbeddingIndex(deeplake.types.ClusteredQuantized)
+))
+
+# Custom dtype
+ds.add_column("embeddings", deeplake.types.Embedding(
+    size=768,
+    dtype="float32"
+))
+
+# Different embedding sizes
+ds.add_column("small_emb", deeplake.types.Embedding(128))
+ds.add_column("medium_emb", deeplake.types.Embedding(512))
+ds.add_column("large_emb", deeplake.types.Embedding(3072))
+```
+
+### Text
+
+Text data with optional search indexes:
+
+```python
+# Basic text
+ds.add_column("text", deeplake.types.Text())
+
+# Text with BM25 index for semantic search
+ds.add_column("text", deeplake.types.Text(index_type=deeplake.types.BM25))
+
+# Text with inverted index for keyword search
+ds.add_column("keywords", deeplake.types.Text(index_type=deeplake.types.Inverted))
+
+# Text with exact index for whole text matching
+ds.add_column("exact_match", deeplake.types.Text(index_type=deeplake.types.Exact))
+
+# String shorthand
+ds.add_column("description", "text")
+```
+
+## Computer Vision Types
+
+### BoundingBox
+
+Object detection bounding boxes:
+
+```python
+# Basic bounding boxes
+ds.add_column("boxes", deeplake.types.BoundingBox())
+
+# With specific format
+ds.add_column("boxes", deeplake.types.BoundingBox(format="ltwh"))  # left, top, width, height
+ds.add_column("boxes", deeplake.types.BoundingBox(format="xyxy"))  # x1, y1, x2, y2
+```
+
+### BinaryMask
+
+Binary segmentation masks:
+
+```python
+# Basic binary mask
+ds.add_column("masks", deeplake.types.BinaryMask())
+
+# With compression
+ds.add_column("masks", deeplake.types.BinaryMask(sample_compression="lz4"))
+```
+
+### SegmentMask
+
+Multi-class segmentation masks:
+
+```python
+# Basic segmentation mask
+ds.add_column("segmentation", deeplake.types.SegmentMask())
+
+# With compression
+ds.add_column("segmentation", deeplake.types.SegmentMask(
+    dtype="uint8",
+    sample_compression="lz4"
+))
+```
+
+### Point
+
+Point annotations:
+
+```python
+# Points for keypoint detection
+ds.add_column("keypoints", deeplake.types.Point())
+```
+
+### Polygon
+
+Polygon annotations:
+
+```python
+# Polygon annotations
+ds.add_column("polygons", deeplake.types.Polygon())
+```
+
+## Complex Types
+
+### Array
+
+Fixed or variable-size arrays:
+
+```python
+# Fixed-size array
+ds.add_column("features", deeplake.types.Array(
+    "float32",
+    shape=[512]  # Enforces size
+))
+
+# Variable-size array
+ds.add_column("sequences", deeplake.types.Array(
+    "int32",
+    dimensions=1  # Allows any size
+))
+
+# Multi-dimensional array
+ds.add_column("matrix", deeplake.types.Array(
+    "float32",
+    shape=[10, 10]  # Fixed 10x10 matrix
+))
+```
+
+### Sequence
+
+Sequences of items:
+
+```python
+# Sequence of images (e.g., video frames)
+ds.add_column("frames", deeplake.types.Sequence(
+    deeplake.types.Image(sample_compression="jpeg")
+))
+
+# Sequence of embeddings
+ds.add_column("token_embeddings", deeplake.types.Sequence(
+    deeplake.types.Embedding(768)
+))
+
+# Sequence of text
+ds.add_column("sentences", deeplake.types.Sequence(
+    deeplake.types.Text()
+))
+```
+
+### Dict
+
+Arbitrary key-value pairs:
+
+```python
+# Store arbitrary metadata
+ds.add_column("metadata", deeplake.types.Dict())
+
+# Add data
+ds.append([{
+    "metadata": {
+        "timestamp": "2024-01-01",
+        "source": "camera_1",
+        "settings": {"exposure": 1.5, "iso": 100}
+    }
+}])
+```
+
+### Struct
+
+Fixed structure with specific types:
+
+```python
+# Define fixed structure
+ds.add_column("info", deeplake.types.Struct({
+    "id": deeplake.types.Int64(),
+    "name": "text",
+    "score": deeplake.types.Float32(),
+    "timestamp": deeplake.types.UInt64()
+}))
+
+# Add data
+ds.append([{
+    "info": {
+        "id": 1,
+        "name": "sample",
+        "score": 0.95,
+        "timestamp": 1609459200
+    }
+}])
+```
+
+### Link
+
+Reference external data without duplication:
+
+```python
+# Link to images in cloud storage
+ds.add_column("image_links", deeplake.types.Link(
+    deeplake.types.Image()
+))
+
+# Link to audio files
+ds.add_column("audio_links", deeplake.types.Link(
+    deeplake.types.Audio(sample_compression="mp3")
+))
+
+# Add URLs
+ds.append({
+    "image_links": ["s3://bucket/image1.jpg", "s3://bucket/image2.jpg"]
+})
+```
+
+## Specialized Types
+
+### Medical
+
+Medical imaging formats (DICOM, NIfTI):
+
+```python
+# DICOM format
+ds.add_column("medical", deeplake.types.Medical(compression="dcm"))
+
+# NIfTI format
+ds.add_column("medical", deeplake.types.Medical(compression="nii"))
+```
+
+### Mesh
+
+3D mesh formats (STL, PLY):
+
+```python
+# 3D mesh storage
+ds.add_column("meshes", deeplake.types.Mesh())
+```
+
+### Bytes
+
+Raw binary data:
+
+```python
+# Raw bytes storage
+ds.add_column("raw_data", deeplake.types.Bytes())
+```
+
+## Index Types
+
+### Text Indexes
+
+```python
+# BM25 - Full-text search with BM25 similarity scoring
+ds.add_column("text", deeplake.types.Text(index_type=deeplake.types.BM25))
+
+# Inverted - Keyword-based text search
+ds.add_column("keywords", deeplake.types.Text(index_type=deeplake.types.Inverted))
+
+# Exact - Exact text matching
+ds.add_column("exact", deeplake.types.Text(index_type=deeplake.types.Exact))
+```
+
+### Embedding Indexes
+
+```python
+# Clustered - Default clustering-based embedding search
+ds.add_column("embeddings", deeplake.types.Embedding(
+    768,
+    index_type=deeplake.types.EmbeddingIndex(deeplake.types.Clustered)
+))
+
+# ClusteredQuantized - Memory-efficient quantized embedding search
+ds.add_column("embeddings", deeplake.types.Embedding(
+    768,
+    index_type=deeplake.types.EmbeddingIndex(deeplake.types.ClusteredQuantized)
+))
+```
+
+### Numeric Indexes
+
+```python
+# BTree - Numeric range queries
+ds.add_column("scores", "float32")
+ds["scores"].create_index("btree")
+
+# Inverted - Numeric value lookup
+ds["scores"].create_index(
+    deeplake.types.NumericIndex(deeplake.types.Inverted)
+)
+
+# Hash - Exact value lookups
+ds["id"].create_index("hash")
+```
+
+## Type Selection Guide
+
+### For Images
+- Use `Image()` with compression (jpeg, png) for best storage efficiency
+- Avoid using `Array()` for images (no compression support)
+
+### For Text
+- Use `Text()` with `BM25` index for semantic search
+- Use `Text()` with `Inverted` index for keyword search
+- Use `Text()` without index if search is not needed
+
+### For Vector Search
+- Use `Embedding(size)` with clustering index for similarity search
+- Use `ClusteredQuantized` for memory-constrained environments
+
+### For Computer Vision
+- Use `Image()` for images
+- Use `BoundingBox()` for object detection
+- Use `SegmentMask()` for segmentation
+- Use `BinaryMask()` for binary masks
+
+### For Audio/Video
+- Use `Audio()` with compression (mp3, wav)
+- Use `Video()` with compression (mp4, h264)
+
+### For Metadata
+- Use `Dict()` for flexible key-value pairs
+- Use `Struct()` for fixed structure with typed fields
+
+## Best Practices
+
+### Choose Specific Types
+
+Prefer specific types over generic arrays:
+
+```python
+# Good: Use Image type
+ds.add_column("images", deeplake.types.Image())  # Supports compression
+
+# Avoid: Use Array for images
+ds.add_column("images", deeplake.types.Array(dimensions=3))  # No compression
+```
+
+### Add Indexes for Search
+
+Add appropriate indexes for searchable columns:
+
+```python
+# Good: Text with BM25 for semantic search
+ds.add_column("text", deeplake.types.Text(index_type=deeplake.types.BM25))
+
+# Good: Embedding with index for vector search
+ds.add_column("embeddings", deeplake.types.Embedding(
+    768,
+    index_type=deeplake.types.EmbeddingIndex(deeplake.types.Clustered)
+))
+```
+
+### Use Compression
+
+Enable compression for large data types:
+
+```python
+# Good: Images with compression
+ds.add_column("images", deeplake.types.Image(sample_compression="jpeg"))
+
+# Good: Masks with compression
+ds.add_column("masks", deeplake.types.SegmentMask(sample_compression="lz4"))
+```
+
+## Documentation
+
+For more information, see:
+
+- [Types API](https://docs.deeplake.ai/api/types/): Complete types documentation
+- [Schema Templates](https://docs.deeplake.ai/llms/schemas.txt): Pre-built schema templates
+- [Python API](https://docs.deeplake.ai/llms/python.txt): Dataset operations
+- [TQL Reference](https://docs.deeplake.ai/llms/tql.txt): Query language for indexed types

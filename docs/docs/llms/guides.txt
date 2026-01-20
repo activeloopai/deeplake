@@ -1,0 +1,736 @@
+Deep Lake Guides
+
+# Deep Lake Guides
+
+This guide covers tutorials, use cases, best practices, and integration examples for Deep Lake. Deep Lake is a multi-modal AI database with TQL (Tensor Query Language) for vector similarity search, text search, and complex data operations across cloud storage.
+
+## Quickstart
+
+### Installation
+
+```bash
+pip install deeplake
+```
+
+### Basic Usage
+
+```python
+import deeplake
+from deeplake import types
+
+# Create a dataset
+ds = deeplake.create("s3://bucket/dataset")  # Cloud storage
+ds = deeplake.create("path/to/dataset")      # Local path
+
+# Add columns
+ds.add_column("images", types.Image())
+ds.add_column("embeddings", types.Embedding(768))
+ds.add_column("labels", types.Text())
+
+# Add data
+ds.append([{
+    "images": image_array,
+    "embeddings": embedding_vector,
+    "labels": "cat"
+}])
+
+# Vector search
+results = ds.query("""
+    SELECT * 
+    ORDER BY COSINE_SIMILARITY(embeddings, ARRAY[0.1, 0.2, ...]) DESC 
+    LIMIT 100
+""")
+```
+
+## RAG Applications
+
+### Building RAG Applications with Deep Lake
+
+Deep Lake provides efficient vector search capabilities for building Retrieval-Augmented Generation (RAG) applications.
+
+#### Stage 1: Lexical Search with Inverted Index
+
+Start with keyword-based search for fast exact matching:
+
+```python
+import deeplake
+from deeplake import types
+
+# Create dataset with inverted index
+ds = deeplake.create("file://local_dataset")
+
+# Add columns with inverted index for keyword search
+ds.add_column("restaurant_name", types.Text(index_type=types.Inverted))
+ds.add_column("restaurant_review", types.Text(index_type=types.Inverted))
+
+# Add data
+restaurant_names = ["Restaurant A", "Restaurant B"]
+restaurant_reviews = ["Great food and service", "Amazing burritos"]
+ds.append({
+    "restaurant_name": restaurant_names,
+    "restaurant_review": restaurant_reviews
+})
+ds.commit()
+
+# Keyword search
+word = "burritos"
+view = ds.query(f"""
+    SELECT * 
+    WHERE CONTAINS(restaurant_review, '{word}')
+    LIMIT 10
+""")
+
+for row in view:
+    print(f"Restaurant: {row['restaurant_name']}")
+    print(f"Review: {row['restaurant_review']}")
+```
+
+#### Stage 2: Semantic Search with BM25
+
+Use BM25 for relevance-based text search:
+
+```python
+# Create dataset with BM25 index
+ds_bm25 = deeplake.create("al://org_id/bm25_dataset")
+
+# Add columns with BM25 index
+ds_bm25.add_column("restaurant_name", types.Text(index_type=types.BM25))
+ds_bm25.add_column("restaurant_review", types.Text(index_type=types.BM25))
+
+# Add data
+ds_bm25.append({
+    "restaurant_name": restaurant_names,
+    "restaurant_review": restaurant_reviews
+})
+ds_bm25.commit()
+
+# BM25 semantic search
+query = "I want burritos"
+view_bm25 = ds_bm25.query(f"""
+    SELECT *, BM25_SIMILARITY(restaurant_review, '{query}') AS score
+    ORDER BY BM25_SIMILARITY(restaurant_review, '{query}') DESC 
+    LIMIT 10
+""")
+```
+
+#### Stage 3: Vector Similarity Search
+
+Implement vector-based semantic search for meaning-based retrieval:
+
+```python
+import openai
+
+# Create embedding function
+def embedding_function(texts, model="text-embedding-3-large"):
+    if isinstance(texts, str):
+        texts = [texts]
+    texts = [t.replace("\n", " ") for t in texts]
+    return [data.embedding for data in openai.embeddings.create(input=texts, model=model).data]
+
+# Create dataset with embeddings
+vector_search = deeplake.create("al://org_id/vector_dataset")
+vector_search.add_column("embedding", types.Embedding(3072))
+vector_search.add_column("restaurant_name", types.Text(index_type=types.BM25))
+vector_search.add_column("restaurant_review", types.Text(index_type=types.BM25))
+
+# Generate embeddings
+embeddings = embedding_function(restaurant_reviews)
+
+# Add data
+vector_search.append({
+    "restaurant_name": restaurant_names,
+    "restaurant_review": restaurant_reviews,
+    "embedding": embeddings
+})
+vector_search.commit()
+
+# Vector similarity search
+query = "A restaurant that serves good burritos"
+query_embedding = embedding_function(query)[0]
+embedding_string = ",".join(str(c) for c in query_embedding)
+
+results = vector_search.query(f"""
+    SELECT *, COSINE_SIMILARITY(embedding, ARRAY[{embedding_string}]) AS score
+    ORDER BY COSINE_SIMILARITY(embedding, ARRAY[{embedding_string}]) DESC 
+    LIMIT 10
+""")
+```
+
+#### Stage 4: Hybrid Search
+
+Combine BM25 and vector search for improved relevance:
+
+```python
+# Hybrid search combining BM25 and vector similarity
+query = "I feel like a drink"
+query_embedding = embedding_function(query)[0]
+embedding_string = ",".join(str(c) for c in query_embedding)
+
+# Combined query
+results = vector_search.query(f"""
+    SELECT *,
+        (BM25_SIMILARITY(restaurant_review, '{query}') * 0.5 +
+         COSINE_SIMILARITY(embedding, ARRAY[{embedding_string}]) * 0.5) AS combined_score
+    ORDER BY combined_score DESC
+    LIMIT 10
+""")
+```
+
+### Using Deep Lake with LangChain
+
+Deep Lake integrates seamlessly with LangChain for RAG applications:
+
+```python
+from langchain_openai import OpenAIEmbeddings
+from langchain_deeplake.vectorstores import DeeplakeVectorStore
+from langchain.chains import RetrievalQA
+from langchain_openai import ChatOpenAI
+
+# Create Deep Lake Vector Store
+embeddings = OpenAIEmbeddings()
+db = DeeplakeVectorStore.from_documents(
+    dataset_path="al://org_id/langchain_dataset",
+    embedding=embeddings,
+    documents=texts,
+    overwrite=True
+)
+
+# Create retriever
+retriever = db.as_retriever()
+retriever.search_kwargs['distance_metric'] = 'cos'
+retriever.search_kwargs['k'] = 20
+
+# Create Q&A chain
+model = ChatOpenAI(model='gpt-3.5-turbo')
+qa = RetrievalQA.from_llm(model, retriever=retriever)
+
+# Query
+answer = qa.run('What is the main topic?')
+```
+
+## Deep Learning Integration
+
+### PyTorch Integration
+
+Deep Lake provides native PyTorch DataLoader integration:
+
+```python
+from torch.utils.data import DataLoader
+import deeplake
+
+# Create or open dataset
+ds = deeplake.create("s3://bucket/dataset")
+ds.add_column("images", deeplake.types.Image())
+ds.add_column("labels", deeplake.types.ClassLabel(names=["cat", "dog", "bird"]))
+
+# Add training data
+ds.append({
+    "images": image_batch,
+    "labels": label_batch
+})
+
+# Create PyTorch DataLoader
+loader = DataLoader(
+    ds.pytorch(),
+    batch_size=32,
+    shuffle=True,
+    num_workers=4
+)
+
+# Train model
+for epoch in range(num_epochs):
+    for batch in loader:
+        images = batch["images"]
+        labels = batch["labels"]
+        # Training code...
+```
+
+### TensorFlow Integration
+
+Deep Lake also supports TensorFlow:
+
+```python
+import deeplake
+
+# Create dataset
+ds = deeplake.create("s3://bucket/dataset")
+ds.add_column("images", deeplake.types.Image())
+ds.add_column("labels", deeplake.types.ClassLabel(names=["cat", "dog"]))
+
+# Convert to TensorFlow dataset
+tf_dataset = ds.tensorflow()
+
+# Train model
+model.fit(tf_dataset, epochs=10)
+```
+
+### Async Data Loader
+
+For improved performance, use asynchronous data loading:
+
+```python
+import torch
+import asyncio
+from threading import Thread
+from multiprocessing import Queue
+
+class AsyncImageDataset(torch.utils.data.IterableDataset):
+    def __init__(self, deeplake_ds, transform=None, max_queue_size=1024):
+        self.ds = deeplake_ds
+        self.transform = transform
+        self.q = Queue(maxsize=max_queue_size)
+        self.worker_started = False
+    
+    async def run_async(self):
+        for i in range(len(self.ds)):
+            item = self.ds[i]
+            data = await asyncio.gather(
+                item.get_async("images"),
+                item.get_async("labels")
+            )
+            self.q.put(data)
+    
+    def start_worker(self):
+        loop = asyncio.new_event_loop()
+        loop.create_task(self.run_async())
+        
+        def loop_in_thread(loop):
+            asyncio.set_event_loop(loop)
+            loop.run_forever()
+        
+        thread = Thread(target=loop_in_thread, args=(loop,), daemon=True)
+        thread.start()
+        self.worker_started = True
+    
+    def __iter__(self):
+        if not self.worker_started:
+            self.start_worker()
+        
+        while True:
+            while self.q.empty():
+                pass
+            image, label = self.q.get()
+            if self.transform:
+                image, label = self.transform((image, label))
+            yield image, label
+
+# Use async dataset
+async_ds = AsyncImageDataset(ds)
+loader = DataLoader(async_ds, batch_size=32)
+```
+
+### MMDetection Integration
+
+Train object detection models with MMDetection:
+
+```python
+import deeplake
+
+# Create dataset with bounding boxes
+ds = deeplake.create("s3://bucket/detection_dataset")
+ds.add_column("images", deeplake.types.Image())
+ds.add_column("boxes", deeplake.types.BoundingBox())
+
+# Add data with annotations
+ds.append({
+    "images": images,
+    "boxes": bounding_boxes
+})
+
+# Convert to MMDetection format
+mmdet_dataset = ds.mmdet()
+```
+
+### MMSegmentation Integration
+
+Train segmentation models with MMSegmentation:
+
+```python
+import deeplake
+
+# Create dataset with masks
+ds = deeplake.create("s3://bucket/segmentation_dataset")
+ds.add_column("images", deeplake.types.Image())
+ds.add_column("masks", deeplake.types.SegmentMask())
+
+# Add data
+ds.append({
+    "images": images,
+    "masks": segmentation_masks
+})
+
+# Convert to MMSegmentation format
+mmseg_dataset = ds.mmseg()
+```
+
+## Best Practices
+
+### Data Ingestion
+
+#### Commit for Version Control Only
+
+Data is automatically flushed to storage. Only commit when creating a new version:
+
+```python
+# Add data
+ds.append(data)  # Automatically flushed, no commit needed
+
+# Create version checkpoint
+ds.commit("Added training data")  # Commit only for versioning
+```
+
+#### Prefer Schema Before Data
+
+Create schema before ingestion for better performance:
+
+```python
+# Good: Define schema first
+ds = deeplake.create("s3://bucket/dataset")
+ds.add_column("images", types.Image())
+ds.add_column("labels", types.Text())
+ds.append(data)
+
+# Avoid: Adding columns after data (schema evolution)
+ds.append(data)  # Data first
+ds.add_column("new_column", types.Text())  # Schema after - slower
+```
+
+#### Use Appropriate Data Types
+
+Select the right type for your data:
+
+```python
+# Images: Use Image type, not Array
+ds.add_column("images", types.Image())  # Good - supports compression
+# ds.add_column("images", types.Array(dimensions=3))  # Avoid - no compression
+
+# Text: Use Text type for searchable text
+ds.add_column("text", types.Text(index_type=types.BM25))  # Good - searchable
+# ds.add_column("text", "text")  # Avoid - no search index
+
+# Embeddings: Use Embedding type for vector search
+ds.add_column("embeddings", types.Embedding(768))  # Good - optimized for search
+```
+
+#### Batch Appends
+
+Use batch appends for better performance:
+
+```python
+# Good: Batch append (more efficient)
+ds.append({
+    "images": [img1, img2, img3],
+    "labels": ["cat", "dog", "bird"]
+})
+
+# Avoid: Row-by-row (slower)
+ds.append([{"images": img1, "labels": "cat"}])
+ds.append([{"images": img2, "labels": "dog"}])
+ds.append([{"images": img3, "labels": "bird"}])
+```
+
+#### Avoid Decompressing Images
+
+Pass raw bytes for images:
+
+```python
+# Good: Pass raw bytes
+ds.add_column("images", types.Image(sample_compression="jpeg"))
+with open("image.jpg", "rb") as f:
+    ds.append({"images": f.read()})
+
+# Avoid: Decompressing first (slower, more memory)
+from PIL import Image
+img = Image.open("image.jpg")
+img_array = np.array(img)
+ds.append({"images": img_array})
+```
+
+### Data Access
+
+#### Use Read-Only Mode
+
+Open datasets in read-only mode when not modifying:
+
+```python
+# Good: Read-only mode (faster, safer)
+ds = deeplake.open_read_only("s3://bucket/dataset")
+
+# Avoid: Read-write when only reading (slower)
+ds = deeplake.open("s3://bucket/dataset")
+```
+
+#### Batch Access
+
+Use batch access instead of row-by-row:
+
+```python
+# Good: Batch access (fast)
+for batch in ds.batches(batch_size=1000):
+    process_batch(batch)
+
+# Good: Column slicing (fast)
+images = ds["images"][0:1000]
+
+# Avoid: Row-by-row (slow)
+for i in range(len(ds)):
+    item = ds[i]  # Slower
+```
+
+#### Use Queries for Filtering
+
+Use TQL queries for complex filtering:
+
+```python
+# Good: Use query for filtering
+results = ds.query("SELECT * WHERE label = 'cat' AND confidence > 0.9")
+
+# Avoid: Manual filtering (slow)
+filtered = [item for item in ds if item["label"] == "cat" and item["confidence"] > 0.9]
+```
+
+#### Avoid Loading Entire Columns
+
+For large datasets, avoid loading entire columns:
+
+```python
+# Good: Process in batches
+for i in range(0, len(ds), 1000):
+    batch = ds["images"][i:i+1000]
+    process_batch(batch)
+
+# Avoid: Loading entire column (memory issues)
+all_images = ds["images"][:]  # Can cause memory issues for large datasets
+```
+
+### Storage Management
+
+#### Choose Appropriate Storage
+
+Select storage based on dataset size:
+
+```python
+# Small datasets / Testing: Local storage
+ds = deeplake.create("path/to/dataset")  # Good for < 10GB
+
+# Large datasets: Cloud storage
+ds = deeplake.create("s3://bucket/dataset")  # Good for > 10GB
+
+# Temporary data: Memory
+ds = deeplake.create("tmp://dataset")  # Good for testing
+```
+
+#### Use Same Region
+
+Access cloud storage from the same region:
+
+```python
+# Good: Same region (lower latency)
+# Access S3 bucket from EC2 instance in same region
+
+# Avoid: Cross-region access (higher latency)
+# Access S3 bucket from different region
+```
+
+### Indexing Strategy
+
+#### Create Indexes After Data
+
+Build indexes after adding data:
+
+```python
+# Good: Add data first, then index
+ds.append(data)
+ds.commit()
+
+# Create indexes
+ds["text"].create_index("inverted")  # Text search
+ds["embeddings"].create_index("embedding")  # Vector search
+
+# Avoid: Creating indexes before data (unnecessary overhead)
+ds["text"].create_index("inverted")
+ds.append(data)  # Index rebuilds as data is added
+```
+
+#### Use Appropriate Index Types
+
+Select the right index for your use case:
+
+```python
+# Text search: BM25 for semantic, Inverted for keywords
+ds.add_column("text", types.Text(index_type=types.BM25))  # Semantic search
+ds.add_column("keywords", types.Text(index_type=types.Inverted))  # Keyword search
+
+# Vector search: Embedding index
+ds.add_column("embeddings", types.Embedding(768, index_type=types.EmbeddingIndex(types.Clustered)))
+
+# Numeric queries: BTree or Inverted
+ds["scores"].create_index("btree")  # Range queries
+```
+
+### Performance Optimization
+
+#### Use Async Operations
+
+Use async operations for I/O-bound tasks:
+
+```python
+# Good: Async commit
+future = ds.commit_async("Message")
+# Do other work
+future.result()  # Get result when needed
+
+# Good: Async queries
+future = ds.query_async("SELECT * WHERE condition")
+results = future.result()
+```
+
+#### Optimize Batch Sizes
+
+Choose appropriate batch sizes:
+
+```python
+# DataLoader: Adjust based on GPU memory
+loader = DataLoader(ds.pytorch(), batch_size=32)  # Start with 32
+
+# Batch processing: Balance memory and speed
+for batch in ds.batches(batch_size=1000):  # 1000 samples per batch
+    process_batch(batch)
+```
+
+## Use Cases
+
+### Computer Vision
+
+#### Image Classification
+
+```python
+import deeplake
+from deeplake import types
+
+# Create dataset
+ds = deeplake.create("s3://bucket/classification_dataset")
+ds.add_column("images", types.Image(sample_compression="jpeg"))
+ds.add_column("labels", types.ClassLabel(names=["cat", "dog", "bird"]))
+
+# Add data
+ds.append({
+    "images": image_batch,
+    "labels": label_batch
+})
+
+# Train with PyTorch
+from torch.utils.data import DataLoader
+loader = DataLoader(ds.pytorch(), batch_size=32, shuffle=True)
+```
+
+#### Object Detection
+
+```python
+# Create dataset with bounding boxes
+ds = deeplake.create("s3://bucket/detection_dataset")
+ds.add_column("images", types.Image())
+ds.add_column("boxes", types.BoundingBox())
+ds.add_column("labels", types.ClassLabel(names=["person", "car", "bike"]))
+
+# Add annotations
+ds.append({
+    "images": images,
+    "boxes": bounding_boxes,
+    "labels": class_labels
+})
+```
+
+#### Semantic Segmentation
+
+```python
+# Create dataset with masks
+ds = deeplake.create("s3://bucket/segmentation_dataset")
+ds.add_column("images", types.Image())
+ds.add_column("masks", types.SegmentMask(sample_compression="lz4"))
+
+# Add data
+ds.append({
+    "images": images,
+    "masks": segmentation_masks
+})
+```
+
+### Natural Language Processing
+
+#### Text Search
+
+```python
+# Create dataset with text search
+ds = deeplake.create("s3://bucket/text_dataset")
+ds.add_column("text", types.Text(index_type=types.BM25))
+ds.add_column("metadata", types.Dict())
+
+# Add documents
+ds.append({
+    "text": documents,
+    "metadata": metadata_list
+})
+
+# Search
+results = ds.query("""
+    SELECT * 
+    ORDER BY BM25_SIMILARITY(text, 'search query') DESC 
+    LIMIT 10
+""")
+```
+
+#### Embedding Storage
+
+```python
+# Create dataset for embeddings
+ds = deeplake.create("s3://bucket/embeddings_dataset")
+ds.add_column("text", types.Text())
+ds.add_column("embeddings", types.Embedding(768))
+
+# Add text and embeddings
+ds.append({
+    "text": texts,
+    "embeddings": embedding_vectors
+})
+
+# Vector search
+results = ds.query("""
+    SELECT * 
+    ORDER BY COSINE_SIMILARITY(embeddings, ARRAY[0.1, 0.2, ...]) DESC 
+    LIMIT 100
+""")
+```
+
+### Multi-Modal Applications
+
+#### Image + Text Search
+
+```python
+# Create multi-modal dataset
+ds = deeplake.create("s3://bucket/multimodal_dataset")
+ds.add_column("images", types.Image())
+ds.add_column("text", types.Text(index_type=types.BM25))
+ds.add_column("image_embeddings", types.Embedding(768))
+ds.add_column("text_embeddings", types.Embedding(768))
+
+# Hybrid search across modalities
+results = ds.query("""
+    SELECT *,
+        (COSINE_SIMILARITY(image_embeddings, ARRAY[...]) * 0.5 +
+         COSINE_SIMILARITY(text_embeddings, ARRAY[...]) * 0.5) AS score
+    ORDER BY score DESC
+    LIMIT 20
+""")
+```
+
+## Documentation
+
+For more information, see:
+
+- [Quickstart Guide](https://docs.deeplake.ai/getting-started/quickstart/): Getting started with Deep Lake
+- [Python API Reference](https://docs.deeplake.ai/api/): Complete Python API documentation
+- [TQL Reference](https://docs.deeplake.ai/advanced/tql/): Tensor Query Language syntax
+- [RAG Guide](https://docs.deeplake.ai/guide/rag/): Building RAG applications
+- [Deep Learning Guide](https://docs.deeplake.ai/guide/deep-learning/deep-learning/): Training models with Deep Lake
+- [Best Practices](https://docs.deeplake.ai/advanced/best-practices/): Optimization tips and best practices

@@ -1,0 +1,339 @@
+Deep Lake Schemas Reference
+
+# Schema Templates Reference
+
+Deep Lake provides pre-built schema templates for common data structures to quickly create datasets with standard schemas.
+
+## Schema Classes
+
+### Schema
+
+Mutable schema definition for datasets. Allows adding, removing, and modifying columns.
+
+```python
+# Access mutable schema
+ds = deeplake.open("s3://bucket/dataset")
+schema = ds.schema
+
+# Modify schema
+schema["new_column"] = deeplake.types.Text()
+schema.pop("old_column")
+schema["renamed"] = schema.pop("old_name")
+```
+
+### SchemaView
+
+Read-only schema definition for datasets. Provides access to column definitions without modification.
+
+```python
+# Access read-only schema
+ds = deeplake.open_read_only("s3://bucket/dataset")
+schema = ds.schema  # Returns SchemaView
+
+# Read-only access
+column_def = schema["column_name"]
+dtype = column_def.dtype
+name = column_def.name
+```
+
+## Pre-built Schema Templates
+
+### Text Embeddings Schema
+
+Template for text embeddings datasets with text and embedding columns:
+
+```python
+import deeplake
+
+# Basic text embeddings schema
+ds = deeplake.create("s3://bucket/dataset",
+    schema=deeplake.schemas.TextEmbeddings(768))
+
+# Customize column names
+schema = deeplake.schemas.TextEmbeddings(768)
+schema["text_embedding"] = schema.pop("embedding")  # Rename embedding column
+schema["source"] = deeplake.types.Text()  # Add source column
+ds = deeplake.create("s3://bucket/dataset", schema=schema)
+
+# Add additional fields
+schema = deeplake.schemas.TextEmbeddings(768)
+schema["language"] = deeplake.types.Text()  # Add language column
+schema["metadata"] = deeplake.types.Dict()  # Add metadata
+ds = deeplake.create("s3://bucket/dataset", schema=schema)
+```
+
+**Schema Structure:**
+- `text`: Text data (deeplake.types.Text)
+- `embedding`: Vector embeddings (deeplake.types.Embedding with specified size)
+
+**Use Cases:**
+- RAG applications
+- Semantic search systems
+- Document similarity search
+- Question-answering systems
+
+### COCO Images Schema
+
+Template for COCO format datasets with images, annotations, and optional embeddings:
+
+```python
+import deeplake
+
+# Basic COCO dataset
+ds = deeplake.create("s3://bucket/dataset",
+    schema=deeplake.schemas.COCOImages(768))
+
+# With keypoints and object detection
+ds = deeplake.create("s3://bucket/dataset",
+    schema=deeplake.schemas.COCOImages(
+        embedding_size=768,
+        keypoints=True,    # Enable keypoints annotations
+        objects=True       # Enable object detection annotations
+    ))
+
+# Customize schema
+schema = deeplake.schemas.COCOImages(768)
+schema["raw_image"] = schema.pop("image")  # Rename image column
+schema["camera_id"] = deeplake.types.Text()  # Add camera ID
+ds = deeplake.create("s3://bucket/dataset", schema=schema)
+```
+
+**Schema Structure:**
+- `image`: Image data (deeplake.types.Image)
+- `embedding`: Optional vector embeddings (deeplake.types.Embedding)
+- `keypoints`: Optional keypoints annotations (deeplake.types.Text)
+- `objects`: Optional object detection annotations (deeplake.types.Text)
+
+**Use Cases:**
+- Computer vision datasets
+- Object detection training
+- Keypoint detection
+- Image similarity search
+
+## Creating Custom Schemas
+
+### Define Custom Schema
+
+Create your own schema templates:
+
+```python
+import deeplake
+from deeplake import types
+
+# Define custom schema
+schema = {
+    "id": types.UInt64(),
+    "image": types.Image(sample_compression="jpeg"),
+    "embedding": types.Embedding(512),
+    "label": types.ClassLabel(names=["cat", "dog", "bird"]),
+    "metadata": types.Dict()
+}
+
+# Create dataset with custom schema
+ds = deeplake.create("s3://bucket/dataset", schema=schema)
+
+# Modify schema before creation
+schema["timestamp"] = types.UInt64()
+schema.pop("metadata")
+schema["image_embedding"] = schema.pop("embedding")  # Rename
+```
+
+### Schema for RAG Applications
+
+```python
+# RAG schema with multiple search capabilities
+schema = {
+    "text": types.Text(index_type=types.BM25),  # BM25 for semantic search
+    "embedding": types.Embedding(1536),         # Vector embeddings
+    "source": types.Text(),                     # Document source
+    "metadata": types.Dict()                    # Additional metadata
+}
+
+ds = deeplake.create("s3://bucket/rag_dataset", schema=schema)
+```
+
+### Schema for Computer Vision
+
+```python
+# Computer vision schema
+schema = {
+    "images": types.Image(sample_compression="jpeg"),
+    "masks": types.SegmentMask(sample_compression="lz4"),
+    "boxes": types.BoundingBox(),
+    "labels": types.ClassLabel(names=["person", "car", "bike"]),
+    "embeddings": types.Embedding(768)
+}
+
+ds = deeplake.create("s3://bucket/cv_dataset", schema=schema)
+```
+
+### Schema for Multi-modal Search
+
+```python
+# Multi-modal search schema
+schema = {
+    "images": types.Image(),
+    "text": types.Text(index_type=types.BM25),
+    "image_embeddings": types.Embedding(768),
+    "text_embeddings": types.Embedding(768),
+    "metadata": types.Dict()
+}
+
+ds = deeplake.create("s3://bucket/multimodal_dataset", schema=schema)
+```
+
+## Working with Schema Objects
+
+### Access Schema
+
+```python
+# Get dataset schema
+ds = deeplake.open("s3://bucket/dataset")
+schema = ds.schema
+
+# Access column definition
+image_col = schema["images"]
+print(f"Image column type: {image_col.dtype}")
+
+# Get number of columns
+num_columns = len(schema)
+print(f"Dataset has {num_columns} columns")
+
+# Iterate columns
+for col_name in schema:
+    col_def = schema[col_name]
+    print(f"{col_name}: {col_def.dtype}")
+
+# Check if column exists
+if "images" in schema:
+    print("Images column exists")
+```
+
+### Read-only Schema Access
+
+```python
+# Read-only schema
+ro_ds = deeplake.open_read_only("s3://bucket/dataset")
+ro_schema = ro_ds.schema  # Returns SchemaView
+
+# Access column definition (read-only)
+label_col = ro_schema["labels"]
+print(f"Label column type: {label_col.dtype}")
+
+# Iterate columns (read-only)
+for col_name in ro_schema:
+    col_def = ro_schema[col_name]
+    print(f"{col_name}: {col_def.dtype}")
+```
+
+## Importing from Standard Formats
+
+### from_coco
+
+Convert COCO format datasets to Deep Lake format:
+
+```python
+import deeplake
+
+# Basic COCO import
+ds = deeplake.from_coco(
+    images_directory="path/to/images",
+    annotation_files={
+        "instances": "instances.json",
+        "keypoints": "keypoints.json",
+        "stuff": "stuff.json"
+    },
+    dest="al://org_id/dataset_name"
+)
+
+# Advanced configuration
+ds = deeplake.from_coco(
+    images_directory="path/to/images",
+    annotation_files={
+        "instances": "instances.json",
+        "keypoints": "keypoints.json"
+    },
+    dest="al://org_id/dataset_name",
+    file_to_group_mapping={
+        "instances": "custom_instances",
+        "keypoints": "custom_keypoints"
+    }
+)
+```
+
+**Features:**
+- Converts segmentation polygons and RLEs to binary masks
+- Preserves category hierarchies
+- Maintains COCO metadata
+- Supports multiple annotation types
+- Progress tracking during import
+
+**Supported Storage:**
+- Deep Lake cloud storage (`al://`)
+- AWS S3 (`s3://`)
+- Azure Blob Storage (`az://`)
+- Google Cloud Storage (`gs://`)
+- Local file system
+
+## Best Practices
+
+### Schema Before Data
+
+Define schema before adding data for better performance:
+
+```python
+# Good: Define schema first
+schema = {
+    "images": types.Image(),
+    "labels": types.Text()
+}
+ds = deeplake.create("s3://bucket/dataset", schema=schema)
+ds.append(data)
+
+# Avoid: Add columns after data (schema evolution)
+ds = deeplake.create("s3://bucket/dataset")
+ds.append(data)
+ds.add_column("new_column", types.Text())  # Slower
+```
+
+### Use Appropriate Types
+
+Choose the right type for each column:
+
+```python
+# Good: Use Image type for images
+schema = {"images": types.Image()}  # Supports compression
+
+# Avoid: Use Array for images
+schema = {"images": types.Array(dimensions=3)}  # No compression
+
+# Good: Use Text with index for searchable text
+schema = {"text": types.Text(index_type=types.BM25)}
+
+# Good: Use Embedding for vector search
+schema = {"embeddings": types.Embedding(768)}
+```
+
+### Customize Pre-built Schemas
+
+Modify pre-built schemas to fit your needs:
+
+```python
+# Start with pre-built schema
+schema = deeplake.schemas.TextEmbeddings(768)
+
+# Customize as needed
+schema["text_embedding"] = schema.pop("embedding")  # Rename
+schema["source"] = types.Text()  # Add fields
+schema["timestamp"] = types.UInt64()
+
+ds = deeplake.create("s3://bucket/dataset", schema=schema)
+```
+
+## Documentation
+
+For more information, see:
+
+- [Schema API](https://docs.deeplake.ai/api/schemas/): Complete schema documentation
+- [Types Reference](https://docs.deeplake.ai/llms/types.txt): Available data types
+- [Python API](https://docs.deeplake.ai/llms/python.txt): Dataset creation and management

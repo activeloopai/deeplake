@@ -1,4 +1,8 @@
 # Deep Lake Docs
 
-- [Deep Lake Python Reference](https://docs.deeplake.ai/llms/python.txt)
-- [Deep Lake TQL Reference](https://docs.deeplake.ai/llms/tql.txt)
+- [Deep Lake Python Reference](https://docs.deeplake.ai/llms/python.txt) (646 lines, 16KB) - Complete Python API reference with examples for datasets, columns, queries, and ML integrations
+- [Deep Lake TQL Reference](https://docs.deeplake.ai/llms/tql.txt) (593 lines, 12KB) - Complete Tensor Query Language syntax and examples for vector search, text search, and complex queries
+- [Deep Lake Guides](https://docs.deeplake.ai/llms/guides.txt) (736 lines, 20KB) - Tutorials, use cases, best practices, RAG applications, and deep learning integration examples
+- [Deep Lake CLI Reference](https://docs.deeplake.ai/llms/cli.txt) (407 lines, 11KB) - Command-line interface patterns and workflows using the Python API
+- [Deep Lake Schemas Reference](https://docs.deeplake.ai/llms/schemas.txt) (339 lines, 8.5KB) - Pre-built schema templates (TextEmbeddings, COCOImages) and custom schema creation
+- [Deep Lake Types Reference](https://docs.deeplake.ai/llms/types.txt) (523 lines, 12KB) - Complete data types reference including numeric, AI-optimized, and specialized types
