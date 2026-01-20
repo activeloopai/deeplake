@@ -1,0 +1,1603 @@
+Supabase Reference (C#)
+
+# C# Reference
+
+Initializing
+
+Initializing a new client is pretty straightforward. Find your project url and public key from the
+admin panel and pass it into your client initialization function.
+
+`Supabase` is heavily dependent on Models deriving from `BaseModel`. To interact with the API, one must have the associated model (see example) specified.
+
+Leverage `Table`, `PrimaryKey`, and `Column` attributes to specify names of classes/properties that are different from their C# Versions.
+
+
+## Examples
+
+### Standard
+
+```c#
+var url = Environment.GetEnvironmentVariable("SUPABASE_URL");
+var key = Environment.GetEnvironmentVariable("SUPABASE_KEY");
+
+var options = new Supabase.SupabaseOptions
+{
+    AutoConnectRealtime = true
+};
+
+var supabase = new Supabase.Client(url, key, options);
+await supabase.InitializeAsync();
+```
+
+
+### Dependency Injection (Maui-like)
+
+```c#
+public static MauiApp CreateMauiApp()
+{
+      // ...
+      var builder = MauiApp.CreateBuilder();
+
+      var url = Environment.GetEnvironmentVariable("SUPABASE_URL");
+      var key = Environment.GetEnvironmentVariable("SUPABASE_KEY");
+      var options = new SupabaseOptions
+      {
+        AutoRefreshToken = true,
+        AutoConnectRealtime = true,
+        // SessionHandler = new SupabaseSessionHandler() <-- This must be implemented by the developer
+      };
+
+      // Note the creation as a singleton.
+      builder.Services.AddSingleton(provider => new Supabase.Client(url, key, options));
+}
+```
+
+
+### With Models Example
+
+```c#
+// Given the following Model representing the Supabase Database (Message.cs)
+[Table("messages")]
+public class Message : BaseModel
+{
+    [PrimaryKey("id")]
+    public int Id { get; set; }
+
+    [Column("username")]
+    public string UserName { get; set; }
+
+    [Column("channel_id")]
+    public int ChannelId { get; set; }
+
+    public override bool Equals(object obj)
+    {
+        return obj is Message message &&
+                Id == message.Id;
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Id);
+    }
+}
+
+void Initialize()
+{
+    // Get All Messages
+    var response = await client.Table<Message>().Get();
+    List<Message> models = response.Models;
+
+    // Insert
+    var newMessage = new Message { UserName = "acupofjose", ChannelId = 1 };
+    await client.Table<Message>().Insert();
+
+    // Update
+    var model = response.Models.First();
+    model.UserName = "elrhomariyounes";
+    await model.Update();
+
+    // Delete
+    await response.Models.Last().Delete();
+
+    // etc.
+}
+```
+
+
+# C# Reference
+
+Fetch data: Select()
+
+Performs vertical filtering with SELECT.
+
+
+## Examples
+
+### Getting your data
+
+```c#
+// Given the following Model (City.cs)
+[Table("cities")]
+class City : BaseModel
+{
+    [PrimaryKey("id")]
+    public int Id { get; set; }
+
+    [Column("name")]
+    public string Name { get; set; }
+
+    [Column("country_id")]
+    public int CountryId { get; set; }
+
+    //... etc.
+}
+
+// A result can be fetched like so.
+var result = await supabase.From<City>().Get();
+var cities = result.Models
+```
+
+
+### Selecting specific columns
+
+```c#
+// Given the following Model (Movie.cs)
+[Table("movies")]
+class Movie : BaseModel
+{
+    [PrimaryKey("id")]
+    public int Id { get; set; }
+
+    [Column("name")]
+    public string Name { get; set; }
+
+    [Column("created_at")]
+    public DateTime CreatedAt { get; set; }
+
+    //... etc.
+}
+
+// A result can be fetched like so.
+var result = await supabase
+  .From<Movie>()
+  .Select(x => new object[] {x.Name, x.CreatedAt})
+  .Get();
+```
+
+
+### Query foreign tables
+
+```c#
+var data = await supabase
+  .From<Transactions>()
+  .Select("id, supplier:supplier_id(name), purchaser:purchaser_id(name)")
+  .Get();
+```
+
+
+### Filtering with inner joins
+
+```c#
+var result = await supabase
+  .From<Movie>()
+  .Select("*, users!inner(*)")
+  .Filter("user.username", Operator.Equals, "Jane")
+  .Get();
+```
+
+
+### Querying with count option
+
+```c#
+var count = await supabase
+  .From<Movie>()
+  .Select(x => new object[] { x.Name })
+  .Count(CountType.Exact);
+```
+
+
+### Querying JSON data
+
+```c#
+ var result = await supabase
+  .From<Users>()
+  .Select("id, name, address->street")
+  .Filter("address->postcode", Operator.Equals, 90210)
+  .Get();
+```
+
+
+# C# Reference
+
+Create data: Insert()
+
+Performs an INSERT into the table.
+
+
+## Examples
+
+### Create a record
+
+```c#
+[Table("cities")]
+class City : BaseModel
+{
+    [PrimaryKey("id", false)]
+    public int Id { get; set; }
+
+    [Column("name")]
+    public string Name { get; set; }
+
+    [Column("country_id")]
+    public int CountryId { get; set; }
+}
+
+var model = new City
+{
+  Name = "The Shire",
+  CountryId = 554
+};
+
+await supabase.From<City>().Insert(model);
+```
+
+
+### Bulk create
+
+```c#
+[Table("cities")]
+class City : BaseModel
+{
+    [PrimaryKey("id", false)]
+    public int Id { get; set; }
+
+    [Column("name")]
+    public string Name { get; set; }
+
+    [Column("country_id")]
+    public int CountryId { get; set; }
+}
+
+var models = new List<City>
+{
+  new City { Name = "The Shire", CountryId = 554 },
+  new City { Name = "Rohan", CountryId = 553 },
+};
+
+await supabase.From<City>().Insert(models);
+```
+
+
+### Fetch inserted record
+
+```c#
+var result = await supabase
+  .From<City>()
+  .Insert(models, new QueryOptions { Returning = ReturnType.Representation });
+```
+
+
+# C# Reference
+
+Modify data: Update()
+
+Performs an UPDATE on the table.
+
+
+## Examples
+
+### Update your data using Filter
+
+```c#
+var update = await supabase
+  .From<City>()
+  .Where(x => x.Name == "Auckland")
+  .Set(x => x.Name, "Middle Earth")
+  .Update();
+```
+
+
+### Update your data
+
+```c#
+var model = await supabase
+  .From<City>()
+  .Where(x => x.Name == "Auckland")
+  .Single();
+
+model.Name = "Middle Earth";
+
+await model.Update<City>();
+```
+
+
+# C# Reference
+
+Upsert data: Upsert()
+
+Performs an UPSERT into the table.
+
+
+## Examples
+
+### Upsert your data
+
+```c#
+var model = new City
+{
+  Id = 554,
+  Name = "Middle Earth"
+};
+
+await supabase.From<City>().Upsert(model);
+```
+
+
+### Upserting into tables with constraints
+
+```c#
+var model = new City
+{
+  Id = 554,
+  Name = "Middle Earth"
+};
+
+await supabase
+  .From<City>()
+  .OnConflict(x => x.Name)
+  .Upsert(model);
+```
+
+
+### Return the exact number of rows
+
+```c#
+var model = new City
+{
+  Id = 554,
+  Name = "Middle Earth"
+};
+
+await supabase
+  .From<City>()
+  .Upsert(model, new QueryOptions { Count = QueryOptions.CountType.Exact });
+```
+
+
+# C# Reference
+
+Delete data: Delete()
+
+Performs a DELETE on the table.
+
+
+## Examples
+
+### Delete records
+
+```c#
+await supabase
+  .From<City>()
+  .Where(x => x.Id == 342)
+  .Delete();
+```
+
+
+# C# Reference
+
+Stored Procedures: Rpc()
+
+You can call stored procedures as a "Remote Procedure Call".
+
+That's a fancy way of saying that you can put some logic into your database then call it from anywhere.
+It's especially useful when the logic rarely changes - like password resets and updates.
+
+
+## Examples
+
+### Call a stored procedure
+
+```c#
+await supabase.Rpc("hello_world", null);
+```
+
+
+### With Parameters
+
+```c#
+await supabase.Rpc("hello_world", new Dictionary<string, object> { { "foo", "bar"} });
+```
+
+
+# C# Reference
+
+Using Filters
+
+Filters allow you to only return rows that match certain conditions.
+
+Filters can be used on `Select()`, `Update()`, and `Delete()` queries.
+
+**Note: LINQ expressions do not currently support parsing embedded resource columns. For these cases, `string` will need to be used.**
+
+
+## Examples
+
+### Applying Filters
+
+```c#
+var result = await supabase.From<City>()
+      .Select(x => new object[] { x.Name, x.CountryId })
+      .Where(x => x.Name == "The Shire")
+      .Single();
+```
+
+
+### Filter by values within a JSON column
+
+```c#
+var result = await supabase.From<City>()
+  .Filter("address->postcode", Operator.Equals, 90210)
+  .Get();
+```
+
+
+### Filter Foreign Tables
+
+```c#
+var results = await supabase.From<Country>()
+  .Select("name, cities!inner(name)")
+  .Filter("cities.name", Operator.Equals, "Bali")
+  .Get();
+```
+
+
+# C# Reference
+
+Operator.Equals
+
+Finds all rows whose value on the stated `column` exactly matches the specified `value`.
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+var result = await supabase.From<City>()
+  .Where(x => x.Name == "Bali")
+  .Get();
+```
+
+
+# C# Reference
+
+Operator.NotEqual
+
+Finds all rows whose value on the stated `column` doesn't match the specified `value`.
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+var result = await supabase.From<City>()
+  .Select(x => new object[] { x.Name, x.CountryId })
+  .Where(x => x.Name != "Bali")
+  .Get();
+```
+
+
+# C# Reference
+
+Operator.GreaterThan
+
+Finds all rows whose value on the stated `column` is greater than the specified `value`.
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+var result = await supabase.From<City>()
+  .Select(x => new object[] { x.Name, x.CountryId })
+  .Where(x => x.CountryId > 250)
+  .Get();
+```
+
+
+# C# Reference
+
+Operator.GreaterThanOrEqual
+
+Finds all rows whose value on the stated `column` is greater than or equal to the specified `value`.
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+var result = await supabase.From<City>()
+  .Select(x => new object[] { x.Name, x.CountryId })
+  .Where(x => x.CountryId >= 250)
+  .Get();
+```
+
+
+# C# Reference
+
+Operator.LessThan
+
+Finds all rows whose value on the stated `column` is less than the specified `value`.
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+var result = await supabase.From<City>()
+  .Select("name, country_id")
+  .Where(x => x.CountryId < 250)
+  .Get();
+```
+
+
+# C# Reference
+
+Operator.LessThanOrEqual
+
+Finds all rows whose value on the stated `column` is less than or equal to the specified `value`.
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+var result = await supabase.From<City>()
+  .Where(x => x.CountryId <= 250)
+  .Get();
+```
+
+
+# C# Reference
+
+Operator.Like
+
+Finds all rows whose value in the stated `column` matches the supplied `pattern` (case sensitive).
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+var result = await supabase.From<City>()
+  .Filter(x => x.Name, Operator.Like, "%la%")
+  .Get();
+```
+
+
+# C# Reference
+
+Operator.ILike
+
+Finds all rows whose value in the stated `column` matches the supplied `pattern` (case insensitive).
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+await supabase.From<City>()
+  .Filter(x => x.Name, Operator.ILike, "%la%")
+  .Get();
+```
+
+
+# C# Reference
+
+Operator.Is
+
+A check for exact equality (null, true, false), finds all rows whose value on the stated `column` exactly match the specified `value`.
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+var result = await supabase.From<City>()
+  .Where(x => x.Name == null
+  .Get();
+```
+
+
+# C# Reference
+
+Operator.In
+
+Finds all rows whose value on the stated `column` is found on the specified `values`.
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+var result = await supabase.From<City>()
+  .Filter(x => x.Name, Operator.In, new List<object> { "Rio de Janiero", "San Francisco" })
+  .Get();
+```
+
+
+# C# Reference
+
+Operator.Contains
+
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+var result = await supabase.From<City>()
+  .Filter(x => x.MainExports, Operator.Contains, new List<object> { "oil", "fish" })
+  .Get();
+```
+
+
+# C# Reference
+
+Operator.ContainedIn
+
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+var result = await supabase.From<City>()
+  .Filter(x => x.MainExports, Operator.ContainedIn, new List<object> { "oil", "fish" })
+  .Get();
+```
+
+
+# C# Reference
+
+Operator.[FTS,PLFTS,PHFTS,WFTS] (Full Text Search)
+
+Finds all rows whose tsvector value on the stated `column` matches to_tsquery(query).
+
+
+## Examples
+
+### Text search
+
+```c#
+var result = await supabase.From<Quote>()
+  .Select(x => x.Catchphrase)
+  .Filter(x => x.Catchphrase, Operator.FTS, new FullTextSearchConfig("'fat' & 'cat", "english"))
+  .Get();
+```
+
+
+### Basic normalization
+
+```c#
+var result = await supabase.From<Quote>()
+  .Select(x => x.Catchphrase)
+  .Filter(x => x.Catchphrase, Operator.PLFTS, new FullTextSearchConfig("'fat' & 'cat", "english"))
+  .Get();
+```
+
+
+### Full normalization
+
+```c#
+var result = await supabase.From<Quote>()
+  .Select(x => x.Catchphrase)
+  .Filter(x => x.Catchphrase, Operator.PHFTS, new FullTextSearchConfig("'fat' & 'cat", "english"))
+  .Get();
+```
+
+
+### Websearch
+
+```c#
+var result = await supabase.From<Quote>()
+  .Select(x => x.Catchphrase)
+  .Filter(x => x.Catchphrase, Operator.WFTS, new FullTextSearchConfig("'fat' & 'cat", "english"))
+  .Get();
+```
+
+
+# C# Reference
+
+Match()
+
+- Finds a model given a class (useful when hydrating models and correlating with database)
+- Finds all rows whose columns match the specified `Dictionary<string, string>` object.
+
+
+## Examples
+
+### With Model
+
+```c#
+var city = new City
+{
+    Id = 224,
+    Name = "Atlanta"
+};
+
+var model = supabase.From<City>().Match(city).Single();
+```
+
+
+### With Dictionary
+
+```c#
+var opts = new Dictionary<string, string>
+{
+    {"name","Beijing"},
+    {"country_id", "156"}
+};
+
+var model = supabase.From<City>().Match(opts).Single();
+```
+
+
+# C# Reference
+
+Not()
+
+Finds all rows which doesn't satisfy the filter.
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+var result = await supabase.From<Country>()
+  .Select(x => new object[] { x.Name, x.CountryId })
+  .Where(x => x.Name != "Paris")
+  .Get();
+```
+
+
+# C# Reference
+
+Or()
+
+Finds all rows satisfying at least one of the filters.
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+var result = await supabase.From<Country>()
+  .Where(x => x.Id == 20 || x.Id == 30)
+  .Get();
+```
+
+
+### Use `or` with `and`
+
+```c#
+var result = await supabase.From<Country>()
+  .Where(x => x.Population > 300000 || x.BirthRate < 0.6)
+  .Where(x => x.Name != "Mordor")
+  .Get();
+```
+
+
+# C# Reference
+
+Using Modifiers
+
+Filters work on the row level—they allow you to return rows that
+only match certain conditions without changing the shape of the rows.
+Modifiers are everything that don't fit that definition—allowing you to
+change the format of the response (e.g., setting a limit or offset).
+
+
+## Examples
+
+
+
+# C# Reference
+
+Order()
+
+Orders the result with the specified column.
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+var result = await supabase.From<City>()
+  .Select(x => new object[] { x.Name, x.CountryId })
+  .Order(x => x.Id, Ordering.Descending)
+  .Get();
+```
+
+
+### With embedded resources
+
+```c#
+ var result = await supabase.From<Country>()
+  .Select("name, cities(name)")
+  .Filter(x => x.Name == "United States")
+  .Order("cities", "name", Ordering.Descending)
+  .Get();
+```
+
+
+# C# Reference
+
+Limit()
+
+Limits the result with the specified count.
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+var result = await supabase.From<City>()
+  .Select(x => new object[] { x.Name, x.CountryId })
+  .Limit(10)
+  .Get();
+```
+
+
+### With embedded resources
+
+```c#
+var result = await supabase.From<Country>()
+  .Select("name, cities(name)")
+  .Filter("name", Operator.Equals, "United States")
+  .Limit(10, "cities")
+  .Get();
+```
+
+
+# C# Reference
+
+Range()
+
+Limits the result to rows within the specified range, inclusive.
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+var result = await supabase.From<City>()
+  .Select("name, country_id")
+  .Range(0, 3)
+  .Get();
+```
+
+
+# C# Reference
+
+Single()
+
+Retrieves only one row from the result. Result must be one row (e.g. using limit), otherwise this will result in an error.
+
+
+## Examples
+
+### With `Select()`
+
+```c#
+var result = await supabase.From<City>()
+  .Select(x => new object[] { x.Name, x.CountryId })
+  .Single();
+```
+
+
+# C# Reference
+
+SignUp()
+
+Creates a new user.
+
+
+## Examples
+
+### Sign up.
+
+```c#
+var session = await supabase.Auth.SignUp(email, password);
+```
+
+
+# C# Reference
+
+StateChanged
+
+Receive a notification every time an auth event happens.
+
+
+## Examples
+
+### Listen to auth changes
+
+```c#
+supabase.Auth.AddStateChangedListener((sender, changed) =>
+{
+    switch (changed)
+    {
+        case AuthState.SignedIn:
+            break;
+        case AuthState.SignedOut:
+            break;
+        case AuthState.UserUpdated:
+            break;
+        case AuthState.PasswordRecovery:
+            break;
+        case AuthState.TokenRefreshed:
+            break;
+    }
+});
+```
+
+
+# C# Reference
+
+SignIn(email, password)
+
+Log in an existing user using email or phone number with password.
+
+
+## Examples
+
+### Sign in with email and password
+
+```c#
+var session = await supabase.Auth.SignIn(email, password);
+```
+
+
+### Sign in with phone and password
+
+```c#
+var session = await supabase.Auth.SignIn(SignInType.Phone, phoneNumber, password);
+```
+
+
+# C# Reference
+
+SendMagicLink() and SignIn(SignInType, Phone)
+
+
+
+## Examples
+
+### Send Magic Link.
+
+```c#
+var options = new SignInOptions { RedirectTo = "http://myredirect.example" };
+var didSendMagicLink = await supabase.Auth.SendMagicLink("joseph@supabase.io", options);
+```
+
+
+### Sign in with SMS OTP.
+
+```c#
+await supabase.Auth.SignIn(SignInType.Phone, "+13334445555");
+
+// Paired with `VerifyOTP` to get a session
+var session = await supabase.Auth.VerifyOTP("+13334445555", TOKEN, MobileOtpType.SMS);
+```
+
+
+# C# Reference
+
+SignIn(Provider)
+
+Signs the user in using third party OAuth providers.
+
+
+## Examples
+
+### Sign in using a third-party provider
+
+```c#
+var signInUrl = supabase.Auth.SignIn(Provider.Github);
+```
+
+
+### With scopes
+
+```c#
+var signInUrl = supabase.Auth.SignIn(Provider.Github, 'repo gist notifications');
+
+// after user comes back from signin flow
+var session = supabase.Auth.GetSessionFromUrl(REDIRECTED_URI);
+```
+
+
+# C# Reference
+
+SignOut()
+
+Signs out the current user, if there is a logged in user.
+
+
+## Examples
+
+### Sign out
+
+```c#
+await supabase.Auth.SignOut();
+```
+
+
+# C# Reference
+
+VerifyOtp()
+
+
+
+## Examples
+
+### Verify Sms One-Time Password (OTP)
+
+```c#
+var session = await supabase.Auth.VerifyOTP("+13334445555", TOKEN, MobileOtpType.SMS);
+```
+
+
+# C# Reference
+
+CurrentSession
+
+Returns the session data, if there is an active session.
+
+
+## Examples
+
+### Get the session data
+
+```c#
+var session = supabase.Auth.CurrentSession;
+```
+
+
+# C# Reference
+
+CurrentUser
+
+Returns the user data, if there is a logged in user.
+
+
+## Examples
+
+### Get the logged in user
+
+```c#
+var user = supabase.Auth.CurrentUser;
+```
+
+
+# C# Reference
+
+UpdateUser()
+
+Updates user data, if there is a logged in user.
+
+
+## Examples
+
+### Update the email for an authenticated user
+
+```c#
+var attrs = new UserAttributes { Email = "new-email@example.com" };
+var response = await supabase.Auth.Update(attrs);
+```
+
+
+### Update the password for an authenticated user
+
+```c#
+var attrs = new UserAttributes { Password = "***********" };
+var response = await supabase.Auth.Update(attrs);
+```
+
+
+### Update the user's metadata
+
+```c#
+var attrs = new UserAttributes
+{
+  Data = new Dictionary<string, string> { {"example", "data" } }
+};
+var response = await supabase.Auth.Update(attrs);
+```
+
+
+# C# Reference
+
+invoke()
+
+Invokes a Supabase Function. See the [guide](/docs/guides/functions) for details on writing Functions.
+
+
+## Examples
+
+### Basic invocation.
+
+```c#
+var options = new InvokeFunctionOptions
+{
+    Headers = new Dictionary<string, string> {{ "Authorization", "Bearer 1234" }},
+    Body = new Dictionary<string, object> { { "foo", "bar" } }
+};
+
+await supabase.Functions.Invoke("hello", options: options);
+```
+
+
+### Modeled invocation
+
+``` c#
+class HelloResponse
+{
+    [JsonProperty("name")]
+    public string Name { get; set; }
+}
+
+await supabase.Functions.Invoke<HelloResponse>("hello");
+```
+
+
+# C# Reference
+
+Realtime.Channel
+
+Subscribe to realtime changes in your database.
+
+
+## Examples
+
+### Listen to broadcast messages
+
+```c#
+class CursorBroadcast : BaseBroadcast
+{
+    [JsonProperty("cursorX")]
+    public int CursorX {get; set;}
+
+    [JsonProperty("cursorY")]
+    public int CursorY {get; set;}
+}
+
+var channel = supabase.Realtime.Channel("any");
+var broadcast = channel.Register<CursorBroadcast>();
+broadcast.AddBroadcastEventHandler((sender, baseBroadcast) =>
+{
+    var response = broadcast.Current();
+});
+
+await channel.Subscribe();
+
+// Send a broadcast
+await broadcast.Send("cursor", new CursorBroadcast { CursorX = 123, CursorY = 456 });
+```
+
+
+### Listen to presence sync
+
+```c#
+  class UserPresence : BasePresence
+  {
+      [JsonProperty("cursorX")]
+      public bool IsTyping {get; set;}
+
+      [JsonProperty("onlineAt")]
+      public DateTime OnlineAt {get; set;}
+  }
+
+  var channel = supabase.Realtime.Channel("any");
+  var presenceKey = Guid.NewGuid().ToString();
+  var presence = channel.Register<UserPresence>(presenceKey);
+  presence.AddPresenceEventHandler(EventType.Sync, (sender, type) =>
+  {
+      Debug.WriteLine($"The Event Type: {type}");
+      var state = presence.CurrentState;
+  });
+
+  await channel.Subscribe();
+
+  // Send a presence update
+  await presence.Track(new UserPresence { IsTyping = false, OnlineAt = DateTime.Now });
+```
+
+
+### Listening to a specific table
+
+```c#
+await supabase.From<City>().On(ListenType.All, (sender, change) =>
+{
+    Debug.WriteLine(change.Payload.Data);
+});
+```
+
+
+### Listen to all database changes
+
+```c#
+var channel = supabase.Realtime.Channel("realtime", "public", "*");
+
+channel.AddPostgresChangeHandler(ListenType.All, (sender, change) =>
+{
+    // The event type
+    Debug.WriteLine(change.Event);
+    // The changed record
+    Debug.WriteLine(change.Payload);
+});
+
+await channel.Subscribe();
+```
+
+
+### Listening to inserts
+
+```c#
+await supabase.From<City>().On(ListenType.Inserts, (sender, change) =>
+{
+    Debug.WriteLine(change.Payload.Data);
+});
+```
+
+
+### Listening to updates
+
+```c#
+await supabase.From<City>().On(ListenType.Updates, (sender, change) =>
+{
+    Debug.WriteLine(change.Payload.Data);
+});
+```
+
+
+### Listening to deletes
+
+```c#
+await supabase.From<City>().On(ListenType.Deletes, (sender, change) =>
+{
+    Debug.WriteLine(change.Payload.Data);
+});
+```
+
+
+### Listening to row level changes
+
+```c#
+var channel = supabase.Realtime.Channel("realtime", "public", "countries", "id", "id=eq.200");
+
+channel.AddPostgresChangeHandler(ListenType.All, (sender, change) =>
+{
+    // The event type
+    Debug.WriteLine(change.Event);
+    // The changed record
+    Debug.WriteLine(change.Payload);
+});
+
+await channel.Subscribe();
+```
+
+
+# C# Reference
+
+Unsubscribe()
+
+Unsubscribes and removes Realtime channel from Realtime client.
+
+
+## Examples
+
+### Remove a channel
+
+```c#
+var channel = await supabase.From<City>().On(ChannelEventType.All, (sender, change) => { });
+channel.Unsubscribe();
+
+// OR
+
+var channel = supabase.Realtime.Channel("realtime", "public", "*");
+channel.Unsubscribe()
+```
+
+
+# C# Reference
+
+Subscriptions
+
+Returns all Realtime channels.
+
+
+## Examples
+
+### Get all channels
+
+```c#
+var channels = supabase.Realtime.Subscriptions;
+```
+
+
+# C# Reference
+
+Overview
+
+
+
+## Examples
+
+
+
+# C# Reference
+
+ListBuckets()
+
+Retrieves the details of all Storage buckets within an existing product.
+
+
+## Examples
+
+### List buckets
+
+```c#
+var buckets = await supabase.Storage.ListBuckets();
+```
+
+
+# C# Reference
+
+GetBucket()
+
+Retrieves the details of an existing Storage bucket.
+
+
+## Examples
+
+### Get bucket
+
+```c#
+var bucket = await supabase.Storage.GetBucket("avatars");
+```
+
+
+# C# Reference
+
+CreateBucket()
+
+Creates a new Storage bucket
+
+
+## Examples
+
+### Create bucket
+
+```c#
+var bucket = await supabase.Storage.CreateBucket("avatars");
+```
+
+
+# C# Reference
+
+EmptyBucket()
+
+Removes all objects inside a single bucket.
+
+
+## Examples
+
+### Empty bucket
+
+```c#
+var bucket = await supabase.Storage.EmptyBucket("avatars");
+```
+
+
+# C# Reference
+
+UpdateBucket()
+
+Updates a new Storage bucket
+
+
+## Examples
+
+### Update bucket
+
+```c#
+var bucket = await supabase.Storage.UpdateBucket("avatars", new BucketUpsertOptions { Public = false });
+```
+
+
+# C# Reference
+
+DeleteBucket()
+
+Deletes an existing bucket. A bucket can't be deleted with existing objects inside it. You must first `empty()` the bucket.
+
+
+## Examples
+
+### Delete bucket
+
+```dart
+var result = await supabase.Storage.DeleteBucket("avatars");
+```
+
+
+# C# Reference
+
+From().Upload()
+
+Uploads a file to an existing bucket.
+
+
+## Examples
+
+### Upload file
+
+```c#
+var imagePath = Path.Combine("Assets", "fancy-avatar.png");
+
+await supabase.Storage
+  .From("avatars")
+  .Upload(imagePath, "fancy-avatar.png", new FileOptions { CacheControl = "3600", Upsert = false });
+```
+
+
+### Upload file with Progress
+
+```c#
+var imagePath = Path.Combine("Assets", "fancy-avatar.png");
+
+await supabase.Storage
+  .From("avatars")
+  .Upload(imagePath, "fancy-avatar.png", onProgress: (sender, progress) => Debug.WriteLine($"{progress}%"));
+```
+
+
+# C# Reference
+
+From().update()
+
+Replaces an existing file at the specified path with a new one.
+
+
+## Examples
+
+### Update file
+
+```c#
+var imagePath = Path.Combine("Assets", "fancy-avatar.png");
+await supabase.Storage.From("avatars").Update(imagePath, "fancy-avatar.png");
+```
+
+
+# C# Reference
+
+From().Move()
+
+Moves an existing file, optionally renaming it at the same time.
+
+
+## Examples
+
+### Move file
+
+```c#
+await supabase.Storage.From("avatars")
+  .Move("public/fancy-avatar.png", "private/fancy-avatar.png");
+```
+
+
+# C# Reference
+
+From().CreateSignedUrl()
+
+Create signed url to download file without requiring permissions. This URL can be valid for a set number of seconds.
+
+
+## Examples
+
+### Create Signed URL
+
+```c#
+var url = await supabase.Storage.From("avatars").CreateSignedUrl("public/fancy-avatar.png", 60);
+```
+
+
+# C# Reference
+
+from.getPublicUrl()
+
+Retrieve URLs for assets in public buckets
+
+
+## Examples
+
+### Returns the URL for an asset in a public bucket
+
+```c#
+var publicUrl = supabase.Storage.From("avatars").GetPublicUrl("public/fancy-avatar.png");
+```
+
+
+# C# Reference
+
+From().Download()
+
+Downloads a file.
+
+
+## Examples
+
+### Download file
+
+```c#
+var bytes = await supabase.Storage.From("avatars").Download("public/fancy-avatar.png");
+```
+
+
+### Download file with Progress
+
+```c#
+var bytes = await supabase.Storage
+  .From("avatars")
+  .Download("public/fancy-avatar.png", (sender, progress) => Debug.WriteLine($"{progress}%"));
+```
+
+
+# C# Reference
+
+From().Remove()
+
+Deletes files within the same bucket
+
+
+## Examples
+
+### Delete file
+
+```c#
+await supabase.Storage.From("avatars").Remove(new List<string> { "public/fancy-avatar.png" });
+```
+
+
+# C# Reference
+
+From().list()
+
+Lists all the files within a bucket.
+
+
+## Examples
+
+### List files in a bucket
+
+```c#
+var objects = await supabase.Storage.From("avatars").List();
+```

@@ -1,0 +1,593 @@
+Deep Lake TQL Reference
+
+# TQL (Tensor Query Language) Reference
+
+TQL is Deep Lake's query language for efficient multi-modal data retrieval, vector similarity search, text search, and complex operations across cloud storage. It supports queries across multiple datasets and cloud providers.
+
+## Basic Syntax
+
+### Single Dataset Queries
+
+For queries on a single dataset, the FROM clause is optional:
+
+```sql
+-- Query without FROM (uses current dataset)
+SELECT * WHERE id > 10
+
+-- Explicit FROM clause
+SELECT * FROM dataset WHERE id > 10
+```
+
+### Cross-Dataset Queries
+
+When querying multiple datasets or remote datasets, FROM is required:
+
+```sql
+-- Query remote dataset
+SELECT * FROM "s3://bucket/dataset" WHERE condition
+
+-- Multiple dataset query
+SELECT i.image, e.embedding
+FROM "s3://bucket/images" AS i
+JOIN "gcs://bucket/embeddings" AS e ON i.id = e.image_id
+```
+
+## Vector Similarity Search
+
+### Cosine Similarity
+
+Returns similarity scores between -1 and 1, where 1 is most similar:
+
+```sql
+-- Higher scores = more similar (DESC)
+SELECT * 
+ORDER BY COSINE_SIMILARITY(embeddings, ARRAY[0.1, 0.2, 0.3, ...]) DESC 
+LIMIT 100
+
+-- With filtering
+SELECT * 
+WHERE category = 'animals'
+ORDER BY COSINE_SIMILARITY(embeddings, ARRAY[0.1, 0.2, 0.3, ...]) DESC 
+LIMIT 100
+```
+
+### L2 Norm (Euclidean Distance)
+
+Returns distance, where lower values = more similar (use ASC):
+
+```sql
+-- Lower distances = more similar (ASC)
+SELECT * 
+ORDER BY L2_NORM(embeddings - ARRAY[0.1, 0.2, 0.3, ...]) ASC 
+LIMIT 100
+
+-- Vector subtraction syntax
+SELECT * 
+ORDER BY L2_NORM(embeddings, ARRAY[0.1, 0.2, 0.3, ...]) ASC 
+LIMIT 100
+```
+
+### L1 Norm (Manhattan Distance)
+
+Returns Manhattan distance:
+
+```sql
+-- Lower distances = more similar (ASC)
+SELECT * 
+ORDER BY L1_NORM(embeddings - ARRAY[0.1, 0.2, 0.3, ...]) ASC 
+LIMIT 100
+```
+
+### Inner Product
+
+Returns dot product, where higher values = more similar:
+
+```sql
+-- Higher products = more similar (DESC)
+SELECT * 
+ORDER BY INNER_PRODUCT(embeddings, ARRAY[0.1, 0.2, 0.3, ...]) DESC 
+LIMIT 100
+```
+
+### Vector Comparison Examples
+
+```sql
+-- Compare against query embedding
+SELECT image, label,
+       COSINE_SIMILARITY(embeddings, query_embedding) as similarity
+FROM dataset
+WHERE similarity > 0.8
+ORDER BY similarity DESC
+LIMIT 50
+
+-- Multi-vector similarity (average)
+SELECT * 
+ORDER BY (
+    COSINE_SIMILARITY(embeddings, ARRAY[0.1, 0.2, ...]) +
+    COSINE_SIMILARITY(features, ARRAY[0.3, 0.4, ...])
+) / 2 DESC
+LIMIT 100
+```
+
+## Text Search
+
+### BM25 Semantic Search
+
+Full-text search with BM25 similarity scoring (requires BM25 index):
+
+```sql
+-- BM25 similarity (higher = more relevant)
+SELECT * 
+ORDER BY BM25_SIMILARITY(text, 'search query') DESC 
+LIMIT 10
+
+-- Multiple search terms
+SELECT * 
+ORDER BY BM25_SIMILARITY(text, 'machine learning neural networks') DESC 
+LIMIT 20
+
+-- With filtering
+SELECT title, content
+WHERE category = 'tutorial'
+ORDER BY BM25_SIMILARITY(content, 'deep learning') DESC
+LIMIT 10
+```
+
+### Keyword Search (CONTAINS)
+
+Requires inverted index for efficient keyword search:
+
+```sql
+-- Simple keyword search
+SELECT * WHERE CONTAINS(text, 'keyword')
+
+-- Multiple keywords (AND)
+SELECT * 
+WHERE CONTAINS(text, 'machine') AND CONTAINS(text, 'learning')
+
+-- Multiple keywords (OR)
+SELECT * 
+WHERE CONTAINS(text, 'python') OR CONTAINS(text, 'javascript')
+
+-- Case-insensitive search
+SELECT * WHERE CONTAINS(LOWER(text), 'keyword')
+```
+
+### Pattern Matching (LIKE)
+
+Full text pattern matching:
+
+```sql
+-- Pattern matching
+SELECT * WHERE text LIKE '%pattern%'
+
+-- Starts with
+SELECT * WHERE text LIKE 'prefix%'
+
+-- Ends with
+SELECT * WHERE text LIKE '%suffix'
+
+-- Multiple patterns
+SELECT * 
+WHERE text LIKE '%pattern1%' OR text LIKE '%pattern2%'
+```
+
+### Text Search Examples
+
+```sql
+-- Combine BM25 and keyword search
+SELECT title, content,
+       BM25_SIMILARITY(content, 'query') as relevance
+FROM dataset
+WHERE CONTAINS(content, 'important_term')
+ORDER BY relevance DESC
+LIMIT 20
+
+-- Phrase search with BM25
+SELECT * 
+WHERE CONTAINS(text, 'machine learning')
+ORDER BY BM25_SIMILARITY(text, 'deep neural networks') DESC
+LIMIT 10
+```
+
+## Array Operations
+
+### Array Slicing
+
+Extract portions of arrays:
+
+```sql
+-- Slice first 10 elements
+SELECT features[:, 0:10] FROM dataset
+
+-- Slice middle elements
+SELECT features[:, 10:20] FROM dataset
+
+-- Slice last elements
+SELECT features[:, -10:] FROM dataset
+
+-- 2D array slicing
+SELECT matrix[:, 0:5, 0:5] FROM dataset
+```
+
+### Array Indexing
+
+Access specific array elements:
+
+```sql
+-- Get first element
+SELECT * WHERE features[0] > 0.5
+
+-- Get element at index
+SELECT features[10] FROM dataset
+
+-- Multi-dimensional indexing
+SELECT * WHERE matrix[0, 0] > 100
+```
+
+### Array Aggregation
+
+Perform operations on arrays:
+
+```sql
+-- Average across axis
+SELECT AVG(features, axis=0) FROM dataset
+
+-- Sum across axis
+SELECT SUM(features, axis=1) FROM dataset
+
+-- Maximum value
+SELECT MAX(features, axis=0) FROM dataset
+
+-- Minimum value
+SELECT MIN(features, axis=0) FROM dataset
+
+-- Standard deviation
+SELECT STD(features, axis=0) FROM dataset
+```
+
+### Array Filtering Examples
+
+```sql
+-- Filter by array element
+SELECT * 
+WHERE features[0] > 0.9 AND features[1] < 0.1
+
+-- Array range check
+SELECT * 
+WHERE features[0] BETWEEN 0.5 AND 1.0
+
+-- Multiple array conditions
+SELECT * 
+WHERE features[0] > 0.8 OR embeddings[100] > 0.7
+```
+
+## Filtering and Conditions
+
+### Comparison Operators
+
+```sql
+-- Equality
+SELECT * WHERE id = 123
+SELECT * WHERE label = 'cat'
+
+-- Inequality
+SELECT * WHERE id != 123
+SELECT * WHERE label <> 'dog'
+
+-- Greater than / less than
+SELECT * WHERE score > 0.9
+SELECT * WHERE score >= 0.8
+SELECT * WHERE age < 30
+SELECT * WHERE age <= 25
+
+-- Between
+SELECT * WHERE score BETWEEN 0.7 AND 0.9
+SELECT * WHERE age BETWEEN 18 AND 65
+```
+
+### Logical Operators
+
+```sql
+-- AND
+SELECT * WHERE label = 'cat' AND confidence > 0.9
+
+-- OR
+SELECT * WHERE label = 'cat' OR label = 'dog'
+
+-- NOT
+SELECT * WHERE NOT label = 'bird'
+SELECT * WHERE label != 'bird'
+
+-- Complex conditions
+SELECT * 
+WHERE (label = 'cat' OR label = 'dog') 
+  AND confidence > 0.8 
+  AND score BETWEEN 0.5 AND 1.0
+```
+
+### IN and NOT IN
+
+```sql
+-- IN clause
+SELECT * WHERE label IN ('cat', 'dog', 'bird')
+SELECT * WHERE id IN (1, 2, 3, 4, 5)
+
+-- NOT IN
+SELECT * WHERE label NOT IN ('cat', 'dog')
+SELECT * WHERE id NOT IN (10, 20, 30)
+```
+
+### NULL Handling
+
+```sql
+-- IS NULL
+SELECT * WHERE description IS NULL
+
+-- IS NOT NULL
+SELECT * WHERE description IS NOT NULL
+
+-- NULL in conditions
+SELECT * WHERE COALESCE(score, 0) > 0.5
+```
+
+## Aggregations
+
+### Basic Aggregations
+
+```sql
+-- Count
+SELECT COUNT(*) FROM dataset
+SELECT COUNT(DISTINCT label) FROM dataset
+
+-- Sum
+SELECT SUM(score) FROM dataset
+
+-- Average
+SELECT AVG(score) FROM dataset
+
+-- Maximum
+SELECT MAX(score) FROM dataset
+SELECT MAX(timestamp) FROM dataset
+
+-- Minimum
+SELECT MIN(score) FROM dataset
+SELECT MIN(created_at) FROM dataset
+```
+
+### GROUP BY
+
+```sql
+-- Group by single column
+SELECT label, COUNT(*) as count
+FROM dataset
+GROUP BY label
+
+-- Group by multiple columns
+SELECT category, label, COUNT(*) as count, AVG(score) as avg_score
+FROM dataset
+GROUP BY category, label
+
+-- With filtering
+SELECT label, COUNT(*) as count
+FROM dataset
+WHERE confidence > 0.8
+GROUP BY label
+HAVING COUNT(*) > 10
+```
+
+### Array Statistics
+
+```sql
+-- Array aggregation with axis
+SELECT AVG(embeddings, axis=0) FROM dataset
+SELECT STD(features, axis=1) FROM dataset
+
+-- Aggregate multiple arrays
+SELECT 
+    AVG(embeddings, axis=0) as avg_embedding,
+    MAX(features, axis=0) as max_features,
+    MIN(scores, axis=0) as min_scores
+FROM dataset
+```
+
+## Joins
+
+### Cross-Cloud Joins
+
+Join datasets across different cloud providers:
+
+```sql
+-- Simple join
+SELECT i.image, e.embedding
+FROM "s3://bucket/images" AS i
+JOIN "gcs://bucket/embeddings" AS e 
+  ON i.id = e.image_id
+
+-- Multiple joins
+SELECT i.image, e.embedding, m.metadata
+FROM "s3://bucket/images" AS i
+JOIN "gcs://bucket/embeddings" AS e ON i.id = e.image_id
+JOIN "azure://container/meta" AS m ON i.id = m.image_id
+WHERE m.verified = true
+
+-- Join with filtering
+SELECT i.image, e.embedding
+FROM "s3://bucket/images" AS i
+JOIN "gcs://bucket/embeddings" AS e ON i.id = e.image_id
+WHERE i.category = 'animals' AND e.confidence > 0.9
+```
+
+### Inner Join
+
+```sql
+-- Explicit inner join
+SELECT i.image, e.embedding
+FROM "s3://bucket/images" AS i
+INNER JOIN "gcs://bucket/embeddings" AS e 
+  ON i.id = e.image_id
+```
+
+### Join with Vector Search
+
+```sql
+-- Join with vector similarity ordering
+SELECT i.image, e.embedding, m.description
+FROM "s3://bucket/images" AS i
+JOIN "gcs://bucket/embeddings" AS e ON i.id = e.image_id
+JOIN "azure://container/meta" AS m ON i.id = m.image_id
+WHERE m.verified = true
+ORDER BY COSINE_SIMILARITY(e.embedding, ARRAY[0.1, 0.2, ...]) DESC
+LIMIT 100
+```
+
+## Complex Queries
+
+### Combining Vector Search with Filters
+
+```sql
+-- Vector search with multiple filters
+SELECT * FROM dataset 
+WHERE label IN ('cat', 'dog') 
+  AND confidence > 0.9
+  AND score BETWEEN 0.7 AND 1.0
+ORDER BY COSINE_SIMILARITY(embeddings, ARRAY[0.1, 0.2, ...]) DESC
+LIMIT 100
+
+-- Text and vector search combined
+SELECT title, content, embeddings
+FROM dataset
+WHERE CONTAINS(content, 'machine learning')
+  AND category = 'tutorial'
+ORDER BY 
+  BM25_SIMILARITY(content, 'deep learning') * 0.6 +
+  COSINE_SIMILARITY(embeddings, query_embedding) * 0.4 DESC
+LIMIT 20
+```
+
+### Hybrid Search (Text + Vector)
+
+```sql
+-- Combine BM25 and vector similarity
+SELECT *, 
+  (BM25_SIMILARITY(text, 'query') * 0.5 +
+   COSINE_SIMILARITY(embeddings, query_vector) * 0.5) as combined_score
+FROM dataset
+ORDER BY combined_score DESC
+LIMIT 50
+
+-- Weighted hybrid search
+SELECT *,
+  BM25_SIMILARITY(text, 'search terms') * 0.7 +
+  COSINE_SIMILARITY(embeddings, vector) * 0.3 as relevance
+FROM dataset
+WHERE BM25_SIMILARITY(text, 'search terms') > 0.1
+ORDER BY relevance DESC
+LIMIT 30
+```
+
+### Subqueries and CTEs
+
+```sql
+-- Filtered subquery with vector search
+SELECT * FROM (
+  SELECT * FROM dataset
+  WHERE category = 'animals'
+  LIMIT 1000
+) AS filtered
+ORDER BY COSINE_SIMILARITY(embeddings, ARRAY[0.1, 0.2, ...]) DESC
+LIMIT 10
+```
+
+## Advanced Features
+
+### Prepared Queries with Parameters
+
+```sql
+-- Use parameters in queries ($1, $2, etc.)
+SELECT * WHERE id = $1 AND label = $2
+
+-- With vector parameters
+SELECT * 
+ORDER BY COSINE_SIMILARITY(embeddings, $1) DESC 
+LIMIT $2
+```
+
+### Query Explaination
+
+```sql
+-- Explain query execution plan
+EXPLAIN SELECT * 
+WHERE label = 'cat' 
+ORDER BY COSINE_SIMILARITY(embeddings, ARRAY[0.1, 0.2, ...]) DESC
+```
+
+### Limit and Offset
+
+```sql
+-- Limit results
+SELECT * LIMIT 100
+
+-- Offset for pagination
+SELECT * LIMIT 50 OFFSET 100
+
+-- Get top N results
+SELECT * 
+ORDER BY score DESC 
+LIMIT 10
+```
+
+## Best Practices
+
+### Efficient Vector Search
+
+```sql
+-- Always use LIMIT with vector search
+SELECT * 
+ORDER BY COSINE_SIMILARITY(embeddings, query_vector) DESC 
+LIMIT 100  -- Important: limit results
+
+-- Filter before vector search when possible
+SELECT * 
+WHERE category = 'animals'  -- Filter first
+ORDER BY COSINE_SIMILARITY(embeddings, query_vector) DESC 
+LIMIT 100
+```
+
+### Index Usage
+
+```sql
+-- Text search requires appropriate index
+SELECT * 
+WHERE CONTAINS(text, 'keyword')  -- Requires inverted index
+
+-- BM25 requires BM25 index
+SELECT * 
+ORDER BY BM25_SIMILARITY(text, 'query') DESC  -- Requires BM25 index
+
+-- Vector search requires embedding index
+SELECT * 
+ORDER BY COSINE_SIMILARITY(embeddings, vector) DESC  -- Requires embedding index
+```
+
+### Performance Tips
+
+```sql
+-- Use specific column selection instead of *
+SELECT id, label, embeddings  -- Instead of SELECT *
+
+-- Combine filters to reduce search space
+SELECT * 
+WHERE category = 'animals' 
+  AND date > '2024-01-01'  -- Multiple filters reduce dataset size
+ORDER BY COSINE_SIMILARITY(embeddings, vector) DESC
+LIMIT 50
+```
+
+## Documentation
+
+For more information, see:
+
+- [Query API](https://docs.deeplake.ai/api/query/): Python query execution API
+- [TQL Guide](https://docs.deeplake.ai/advanced/tql/): Complete TQL syntax guide
+- [Vector Search Guide](https://docs.deeplake.ai/guide/vectorstore/): Vector search examples

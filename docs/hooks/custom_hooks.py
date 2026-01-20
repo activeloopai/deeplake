@@ -56,7 +56,8 @@ def on_page_markdown(markdown, page, config, files):
     return markdown
 
 def on_post_build(config):
-    """Copy llms.txt to the root of the site after build"""
+    """Copy llms.txt and llms directory to the site after build"""
+    # Copy main llms.txt to root
     src_path = os.path.join(config['docs_dir'], 'llms.txt')
     dest_path = os.path.join(config['site_dir'], 'llms.txt')
     
@@ -65,3 +66,15 @@ def on_post_build(config):
         shutil.copy2(src_path, dest_path)
     else:
         log.warning(f"llms.txt not found at {src_path}")
+    
+    # Copy llms directory to site
+    src_llms_dir = os.path.join(config['docs_dir'], 'llms')
+    dest_llms_dir = os.path.join(config['site_dir'], 'llms')
+    
+    if os.path.exists(src_llms_dir):
+        if os.path.exists(dest_llms_dir):
+            shutil.rmtree(dest_llms_dir)
+        shutil.copytree(src_llms_dir, dest_llms_dir)
+        log.info(f"Copied llms directory from {src_llms_dir} to {dest_llms_dir}")
+    else:
+        log.warning(f"llms directory not found at {src_llms_dir}")

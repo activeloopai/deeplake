@@ -1,0 +1,646 @@
+Deep Lake Reference (Python)
+
+# Python Reference
+
+Deep Lake is a multi-modal AI database with TQL (Tensor Query Language) for vector similarity search, text search, and complex data operations across cloud storage. It provides native support for embeddings, images, text, and other AI data types with efficient indexing and cross-cloud querying capabilities.
+
+## Initialization
+
+### Creating a client
+
+```python
+import deeplake
+
+# Create a new dataset
+ds = deeplake.create("s3://bucket/path")  # Cloud storage
+ds = deeplake.create("path/to/dataset")   # Local path
+ds = deeplake.create("tmp://dataset")     # Temporary dataset
+```
+
+### Opening datasets
+
+```python
+# Read-write access
+ds = deeplake.open("s3://bucket/path")
+
+# Read-only access
+ds = deeplake.open_read_only("s3://bucket/path")
+
+# Copy schema from existing dataset
+ds = deeplake.like(source_ds, "new/path")
+```
+
+### Importing data
+
+```python
+# Import from Parquet
+ds = deeplake.from_parquet("file.parquet", "output/path")
+
+# Import from CSV
+ds = deeplake.from_csv("file.csv", "output/path")
+```
+
+## Dataset Operations
+
+### Dataset Class
+
+The main class providing full read-write access.
+
+#### Column Management
+
+```python
+# Add new column
+ds.add_column("column_name", "float32")
+ds.add_column("images", deeplake.types.Image())
+ds.add_column("embeddings", deeplake.types.Embedding(768))
+
+# Remove column
+ds.remove_column("column_name")
+
+# Rename column
+ds.rename_column("old_name", "new_name")
+```
+
+#### Data Operations
+
+```python
+# Append single sample
+ds.append([{
+    "images": image_array,
+    "labels": "cat",
+    "embeddings": embedding_vector
+}])
+
+# Append multiple samples (batch)
+ds.append({
+    "images": [img1, img2, img3],
+    "labels": ["cat", "dog", "bird"],
+    "embeddings": [emb1, emb2, emb3]
+})
+
+# Extend from another dataset
+ds.extend(other_dataset)
+
+# Summary information
+ds.summary()
+```
+
+#### Version Control
+
+```python
+# Commit changes
+ds.commit("Commit message")
+ds.commit_async("Commit message")  # Asynchronous
+
+# Create branch
+ds.branch("branch_name")
+
+# Create tag
+ds.tag("tag_name")
+
+# Access branches
+branch = ds.branches["branch_name"]
+branch_ds = branch.open()
+
+# Access tags
+tag = ds.tags["tag_name"]
+tag_ds = tag.open()
+
+# View history
+for version in ds.history:
+    print(f"Version {version.id}: {version.message}")
+
+# Get specific version
+version = ds.history[version_id]
+old_ds = version.open()
+```
+
+#### Remote Operations
+
+```python
+# Pull changes from remote
+ds.pull()
+ds.pull_async()  # Asynchronous
+
+# Push changes to remote
+ds.push()
+ds.push_async()  # Asynchronous
+
+# Refresh dataset
+ds.refresh()
+ds.refresh_async()  # Asynchronous
+
+# Merge branches
+ds.merge("source_branch")
+```
+
+#### Dataset Properties
+
+```python
+# Metadata
+ds.metadata["key"] = "value"
+metadata = ds.metadata
+
+# Schema
+schema = ds.schema
+
+# Version info
+current_version = ds.version
+created_time = ds.created_time
+current_branch = ds.current_branch
+
+# Description
+ds.description = "Dataset description"
+description = ds.description
+
+# ID and name
+dataset_id = ds.id
+dataset_name = ds.name
+```
+
+#### ML Framework Integration
+
+```python
+# PyTorch DataLoader
+from torch.utils.data import DataLoader
+loader = DataLoader(ds.pytorch(), batch_size=32, shuffle=True)
+
+# TensorFlow dataset
+tf_dataset = ds.tensorflow()
+```
+
+#### Export
+
+```python
+# Export to CSV
+ds.to_csv("output.csv")
+
+# Batches iterator
+for batch in ds.batches(batch_size=100):
+    # Process batch
+    pass
+```
+
+### ReadOnlyDataset Class
+
+Read-only version of Dataset. Cannot modify data but provides access to all data and metadata.
+
+```python
+ds = deeplake.open_read_only("path/to/dataset")
+
+# All read operations available
+data = ds["column_name"][0:100]
+schema = ds.schema
+summary = ds.summary()
+
+# ML integrations available
+loader = DataLoader(ds.pytorch(), batch_size=32)
+tf_dataset = ds.tensorflow()
+```
+
+### DatasetView Class
+
+Read-only view of query results.
+
+```python
+# Create view from query
+view = ds.query("SELECT * WHERE label = 'cat'")
+
+# All read operations available
+data = view["column_name"][0:100]
+schema = view.schema
+
+# Chain queries
+filtered_view = view.query("SELECT * WHERE confidence > 0.9")
+
+# ML integrations available
+loader = DataLoader(view.pytorch(), batch_size=32)
+tf_dataset = view.tensorflow()
+
+# Export
+view.to_csv("filtered_results.csv")
+```
+
+## Column Operations
+
+### Column Class
+
+Full read-write access to column data.
+
+```python
+# Get column
+column = ds["column_name"]
+
+# Access data
+data = column[0]           # Single sample
+data = column[0:100]       # Slice
+data = column[:]           # All data
+
+# Set data
+column[0] = new_value
+column[0:10] = new_values
+
+# Column properties
+column_name = column.name
+column_dtype = column.dtype
+column_metadata = column.metadata
+
+# Indexing
+column.create_index("embedding")     # Vector index
+column.create_index("inverted")      # Text search index
+column.create_index("btree")         # Numeric index
+
+# Drop index
+column.drop_index("embedding")
+
+# Check indexes
+indexes = column.indexes
+
+# Async operations
+future = column.get_async(0)
+data = future.result()
+
+future = column.set_async(0, value)
+future.result()
+
+# Get raw bytes
+bytes_data = column.get_bytes(0)
+future = column.get_bytes_async(0)
+bytes_data = future.result()
+```
+
+### ColumnView Class
+
+Read-only access to column data.
+
+```python
+column = view["column_name"]
+
+# Read operations only
+data = column[0]
+data = column[0:100]
+column_name = column.name
+column_dtype = column.dtype
+column_metadata = column.metadata
+indexes = column.indexes
+
+# Async read operations
+future = column.get_async(0)
+data = future.result()
+
+future = column.get_bytes_async(0)
+bytes_data = future.result()
+```
+
+## Data Types
+
+### Basic Types
+
+```python
+# Numeric types
+"int8", "int16", "int32", "int64"
+"uint8", "uint16", "uint32", "uint64"
+"float16", "float32", "float64"
+"bool"
+
+# Text
+"text"
+
+# Usage
+ds.add_column("age", "int32")
+ds.add_column("score", "float32")
+ds.add_column("name", "text")
+ds.add_column("is_valid", "bool")
+```
+
+### AI-Optimized Types
+
+```python
+from deeplake import types
+
+# Image type
+ds.add_column("images", types.Image())
+ds.add_column("images", types.Image(sample_compression="jpeg"))
+ds.add_column("images", types.Image(dtype="uint8"))
+
+# Embedding type (for vector search)
+ds.add_column("embeddings", types.Embedding(768))
+ds.add_column("embeddings", types.Embedding(
+    size=768,
+    dtype="float32",
+    index_type=types.EmbeddingIndex(types.Clustered)
+))
+
+# Text type (with search index)
+ds.add_column("text", types.Text())
+ds.add_column("text", types.Text(index_type=types.BM25))
+ds.add_column("text", types.Text(index_type=types.Inverted))
+ds.add_column("text", types.Text(index_type=types.Exact))
+
+# Audio type
+ds.add_column("audio", types.Audio())
+ds.add_column("audio", types.Audio(sample_compression="mp3"))
+ds.add_column("audio", types.Audio(sample_compression="wav"))
+
+# Video type
+ds.add_column("videos", types.Video())
+ds.add_column("videos", types.Video(sample_compression="mp4"))
+
+# Medical imaging
+ds.add_column("medical", types.Medical(compression="dcm"))  # DICOM
+ds.add_column("medical", types.Medical(compression="nii"))  # NIfTI
+
+# 3D Mesh
+ds.add_column("meshes", types.Mesh())
+
+# Computer Vision
+ds.add_column("boxes", types.BoundingBox())
+ds.add_column("masks", types.SegmentMask(sample_compression="lz4"))
+
+# Classification
+ds.add_column("labels", types.ClassLabel(names=["cat", "dog", "bird"]))
+ds.add_column("labels", types.ClassLabel("int32"))  # Numeric labels
+
+# Custom arrays
+ds.add_column("features", types.Array("float32", (128,)))
+ds.add_column("matrix", types.Array("int32", (10, 10)))
+
+# Dict type (for nested structures)
+ds.add_column("metadata", types.Dict({
+    "timestamp": "int64",
+    "location": {
+        "lat": "float32",
+        "lon": "float32"
+    }
+}))
+
+# Sequence type
+ds.add_column("sequences", types.Sequence("float32"))
+```
+
+## Index Types
+
+### Text Indexes
+
+```python
+from deeplake import types
+
+# BM25 - Full-text search with BM25 similarity scoring
+ds.add_column("text", types.Text(index_type=types.BM25))
+
+# Inverted - Keyword-based text search
+ds.add_column("text", types.Text(index_type=types.Inverted))
+
+# Exact - Exact text matching
+ds.add_column("text", types.Text(index_type=types.Exact))
+```
+
+### Embedding Indexes
+
+```python
+from deeplake import types
+
+# Clustered - Default clustering-based embedding search
+ds.add_column("embeddings", types.Embedding(
+    768,
+    index_type=types.EmbeddingIndex(types.Clustered)
+))
+
+# ClusteredQuantized - Memory-efficient quantized embedding search
+ds.add_column("embeddings", types.Embedding(
+    768,
+    index_type=types.EmbeddingIndex(types.ClusteredQuantized)
+))
+```
+
+### Numeric Indexes
+
+```python
+# BTree - Numeric range queries
+column.create_index("btree")
+
+# Hash - Exact value lookups
+column.create_index("hash")
+```
+
+## Query Execution
+
+### Synchronous Queries
+
+```python
+# Query using module function
+results = deeplake.query("SELECT * FROM dataset WHERE condition")
+
+# Query using dataset instance (no FROM needed)
+results = ds.query("SELECT * WHERE label = 'cat'")
+
+# Query on view
+results = view.query("SELECT * WHERE confidence > 0.9")
+```
+
+### Asynchronous Queries
+
+```python
+# Async query using module function
+future = deeplake.query_async("SELECT * FROM dataset WHERE condition")
+results = future.result()
+is_done = future.is_completed()
+
+# Async query using dataset instance
+future = ds.query_async("SELECT * WHERE label = 'cat'")
+results = future.result()
+```
+
+### Prepared Queries
+
+```python
+# Prepare query for reuse
+executor = deeplake.prepare_query("SELECT * FROM dataset WHERE id = $1")
+# Or with dataset
+executor = ds.prepare_query("SELECT * WHERE id = $1")
+
+# Get query string
+query_string = executor.get_query_string()
+
+# Run with parameters
+results = executor.run_single({"id": 123})
+
+# Run batch
+results = executor.run_batch([{"id": 1}, {"id": 2}, {"id": 3}])
+
+# Async operations
+future = executor.run_single_async({"id": 123})
+results = future.result()
+
+future = executor.run_batch_async([{"id": 1}, {"id": 2}])
+results = future.result()
+```
+
+### Query Explanation
+
+```python
+# Explain query execution
+explanation = deeplake.explain_query("SELECT * FROM dataset WHERE condition")
+# Or with dataset
+explanation = ds.explain_query("SELECT * WHERE condition")
+
+# Get explanation as dictionary
+plan = explanation.to_dict()
+
+# String representation
+print(explanation)
+```
+
+### Working with Query Results
+
+```python
+# Iterate through results
+for item in results:
+    image = item["images"]
+    label = item["labels"]
+    embedding = item["embeddings"]
+
+# Direct column access (faster)
+images = results["images"][0:100]
+labels = results["labels"][:]
+embeddings = results["embeddings"][:]
+
+# Get length
+num_results = len(results)
+
+# Convert to PyTorch/TensorFlow
+loader = DataLoader(results.pytorch(), batch_size=32)
+tf_dataset = results.tensorflow()
+
+# Export results
+results.to_csv("query_results.csv")
+```
+
+## Schema Management
+
+### Schema Operations
+
+```python
+# Get schema
+schema = ds.schema
+
+# Access column definitions
+column_def = schema["column_name"]
+column_dtype = column_def.dtype
+column_name = column_def.name
+
+# Iterate columns
+for col_name in schema:
+    col_def = schema[col_name]
+    print(f"{col_name}: {col_def.dtype}")
+
+# Check if column exists
+if "column_name" in schema:
+    print("Column exists")
+
+# Get number of columns
+num_columns = len(schema)
+```
+
+### SchemaView (Read-only)
+
+```python
+schema = view.schema  # Read-only schema
+
+# All read operations available
+column_def = schema["column_name"]
+for col_name in schema:
+    pass
+```
+
+## Metadata Management
+
+### Dataset Metadata
+
+```python
+# Set metadata
+ds.metadata["author"] = "John Doe"
+ds.metadata["version"] = "1.0.0"
+ds.metadata["description"] = "My dataset"
+
+# Get metadata
+author = ds.metadata["author"]
+all_metadata = ds.metadata
+
+# Update metadata
+ds.metadata.update({"updated": True})
+```
+
+### Column Metadata
+
+```python
+# Set column metadata
+ds["column_name"].metadata["source"] = "external"
+ds["column_name"].metadata["format"] = "RGB"
+
+# Get column metadata
+metadata = ds["column_name"].metadata
+source = metadata["source"]
+```
+
+## Utility Functions
+
+### Dataset Utilities
+
+```python
+# Check if dataset exists
+exists = deeplake.exists("path/to/dataset")
+
+# Delete dataset
+deeplake.delete("path/to/dataset")
+deeplake.delete_async("path/to/dataset")  # Async
+```
+
+## Best Practices
+
+### Efficient Data Loading
+
+```python
+# Use batches for large datasets
+for batch in ds.batches(batch_size=1000):
+    process_batch(batch)
+
+# Use async operations for I/O-bound tasks
+future = ds.commit_async("message")
+# Do other work
+future.result()  # Get result when needed
+```
+
+### Memory Management
+
+```python
+# Use read-only mode when only reading
+ds = deeplake.open_read_only("path")
+
+# Use views to filter data before loading
+view = ds.query("SELECT * WHERE date > '2024-01-01'")
+data = view["images"][:]  # Only loads filtered data
+```
+
+### Indexing Strategy
+
+```python
+# Create indexes after adding data
+ds.append(data)
+ds.commit()
+
+# Create indexes for searchable columns
+ds["text"].create_index("inverted")  # For text search
+ds["embeddings"].create_index("embedding")  # For vector search
+```
+
+## Documentation
+
+For more information, see:
+
+- [Dataset API](https://docs.deeplake.ai/api/dataset/): Complete dataset operations
+- [Column API](https://docs.deeplake.ai/api/column/): Column management and indexing
+- [Data Types](https://docs.deeplake.ai/api/types/): All supported data types
+- [Query API](https://docs.deeplake.ai/api/query/): Query execution and prepared queries
+- [Version Control](https://docs.deeplake.ai/api/version_control/): Branches, tags, and versioning
+- [Schemas](https://docs.deeplake.ai/api/schemas/): Pre-built schema templates

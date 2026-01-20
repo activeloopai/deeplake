@@ -1,0 +1,2907 @@
+Supabase Reference (Dart)
+
+# Dart Reference
+
+Initializing
+
+You can initialize Supabase with the static `initialize()` method of the `Supabase` class.
+
+The Supabase client is your entrypoint to the rest of the Supabase functionality
+and is the easiest way to interact with everything we offer within the Supabase ecosystem.
+
+
+## Examples
+
+### For Flutter
+
+```dart
+Future<void> main() async {
+  await Supabase.initialize(
+    url: 'https://xyzcompany.supabase.co',
+    anonKey: 'publishable-or-anon-key',
+  );
+
+  runApp(MyApp());
+}
+
+// Get a reference your Supabase client
+final supabase = Supabase.instance.client;
+```
+
+
+### For other Dart projects
+
+```dart
+final supabase = SupabaseClient(
+  'https://xyzcompany.supabase.co',
+  'publishable-or-anon-key',
+);
+```
+
+
+# Dart Reference
+
+Fetch data: select()
+
+Perform a SELECT query on the table or view.
+
+
+## Examples
+
+### Getting your data
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .select();
+```
+
+
+### Selecting specific columns
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .select('''
+    name
+  ''');
+```
+
+
+### Query referenced tables
+
+```dart
+final data = await supabase
+  .from('orchestral_sections')
+  .select('''
+    name,
+    instruments ( name )
+  ''');
+```
+
+
+### Query referenced tables through a join table
+
+```dart
+final data = await supabase
+  .from('users')
+  .select('''
+    name,
+    teams (
+      name
+    )
+  ''');
+  ```
+
+
+### Query the same referenced table multiple times
+
+```dart
+final data = await supabase
+  .from('messages')
+  .select('''
+    content,
+    from:sender_id(name),
+    to:receiver_id(name)
+  ''');
+```
+
+
+### Filtering through referenced tables
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .select('name, orchestral_sections(*)')
+  .eq('orchestral_sections.name', 'percussion');
+```
+
+
+### Querying with count option
+
+```dart
+final res = await supabase
+    .from('instruments')
+    .select('name')
+    .count(CountOption.exact);
+
+final data = res.data;
+final count = res.count;
+```
+
+
+### Querying JSON data
+
+```dart
+final data = await supabase
+  .from('users')
+  .select('''
+    id, name,
+    address->city
+  ''');
+```
+
+
+### Querying referenced table with inner join
+
+```dart
+final data = await supabase
+  .from('orchestral_sections')
+  .select('name, instruments!inner(name)')
+  .eq('orchestral_sections.name', 'strings')
+  .limit(1);
+```
+
+
+### Switching schemas per query
+
+```dart
+final data = await supabase
+  .schema('myschema')
+  .from('mytable')
+  .select();
+```
+
+
+# Dart Reference
+
+Create data: insert()
+
+Perform an INSERT into the table or view.
+
+
+## Examples
+
+### Create a record
+
+```dart
+await supabase
+    .from('cities')
+    .insert({'name': 'The Shire', 'country_id': 554});
+```
+
+
+### Fetch inserted record
+
+```dart
+final List<Map<String, dynamic>> data =
+        await supabase.from('cities').insert([
+      {'name': 'The Shire', 'country_id': 554},
+      {'name': 'Rohan', 'country_id': 555},
+    ]).select();
+```
+
+
+### Bulk create
+
+```dart
+await supabase.from('cities').insert([
+  {'name': 'The Shire', 'country_id': 554},
+  {'name': 'Rohan', 'country_id': 555},
+]);
+```
+
+
+# Dart Reference
+
+Modify data: update()
+
+Perform an UPDATE on the table or view.
+
+
+## Examples
+
+### Update your data
+
+```dart
+await supabase
+  .from('instruments')
+  .update({ 'name': 'piano' })
+  .eq('id', 1);
+```
+
+
+### Update a record and return it
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .update({ 'name': 'piano' })
+  .eq('id', 1)
+  .select();
+```
+
+
+### Update JSON data
+
+```dart
+await supabase
+  .from('users')
+  .update({
+    'address': {
+      'street': 'Melrose Place',
+      'postcode': 90210
+    }
+  })
+  .eq('address->postcode', 90210);
+```
+
+
+# Dart Reference
+
+Upsert data: upsert()
+
+Perform an UPSERT on the table or view. Depending on the column(s) passed to `onConflict`, `.upsert()` allows you to perform the equivalent of `.insert()` if a row with the corresponding `onConflict` columns doesn't exist, or if it does exist, perform an alternative action depending on `ignoreDuplicates`.
+
+
+## Examples
+
+### Upsert your data
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .upsert({ 'id': 1, 'name': 'piano' })
+  .select();
+```
+
+
+### Bulk Upsert your data
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .upsert([
+    { 'id': 1, 'name': 'piano' },
+    { 'id': 2, 'name': 'harp' },
+  ])
+  .select();
+```
+
+
+### Upserting into tables with constraints
+
+```dart
+final data = await supabase
+  .from('users')
+  .upsert({ 'id': 42, 'handle': 'saoirse', 'display_name': 'Saoirse' }, { onConflict: 'handle' })
+  .select();
+```
+
+
+# Dart Reference
+
+Delete data: delete()
+
+Perform a DELETE on the table or view.
+
+
+## Examples
+
+### Delete records
+
+```dart
+await supabase
+  .from('countries')
+  .delete()
+  .eq('id', 1);
+```
+
+
+### Delete multiple records
+
+```dart
+await supabase
+  .from('countries')
+  .delete()
+  .inFilter('id', [1, 2, 3])
+```
+
+
+### Fetch deleted records
+
+```dart
+final List<Map<String,dynamic>> data = await supabase
+  .from('cities')
+  .delete()
+  .match({ 'id': 666 })
+  .select();
+```
+
+
+# Dart Reference
+
+Stored Procedures: rpc()
+
+Perform a function call.
+
+You can call Postgres functions as Remote Procedure Calls, logic in your database that you can execute from anywhere.
+Functions are useful when the logic rarely changes—like for password resets and updates.
+
+
+## Examples
+
+### Call a Postgres function without arguments
+
+```dart
+final data = await supabase
+  .rpc('hello_world');
+```
+
+
+### Call a Postgres function with arguments
+
+```dart
+final data = await supabase
+  .rpc('echo_city', params: { 'say': '👋' });
+```
+
+
+### Bulk processing
+
+```dart
+final data = await supabase
+  .rpc('add_one_each', params: { arr: [1, 2, 3] });
+```
+
+
+### Call a Postgres function with filters
+
+```dart
+final data = await supabase
+  .rpc('list_stored_countries')
+  .eq('id', 1)
+  .single();
+```
+
+
+# Dart Reference
+
+Using Filters
+
+Filters allow you to only return rows that match certain conditions.
+
+Filters can be used on `select()`, `update()`, `upsert()`, and `delete()` queries.
+
+If a Database function returns a table response, you can also apply filters.
+
+
+## Examples
+
+### Applying Filters
+
+```dart
+final data = await supabase
+  .from('cities')
+  .select('name, country_id')
+  .eq('name', 'The Shire');  // Correct
+
+final data = await supabase
+  .from('cities')
+  .eq('name', 'The Shire')  // Incorrect
+  .select('name, country_id');
+```
+
+
+### Chaining Filters
+
+```dart
+final data = await supabase
+  .from('cities')
+  .select('name, country_id')
+  .gte('population', 1000)
+  .lt('population', 10000)
+```
+
+
+### Conditional Chaining
+
+```dart
+final filterByName = null;
+final filterPopLow = 1000;
+final filterPopHigh = 10000;
+
+var query = supabase
+  .from('cities')
+  .select('name, country_id');
+
+if (filterByName != null) query = query.eq('name', filterByName);
+if (filterPopLow != null) query = query.gte('population', filterPopLow);
+if (filterPopHigh != null) query = query.lt('population', filterPopHigh);
+
+final data = await query;
+```
+
+
+### Filter by values within a JSON column
+
+```dart
+final data = await supabase
+  .from('users')
+  .select()
+  .eq('address->postcode', 90210);
+```
+
+
+### Filter Referenced Tables
+
+```dart
+final data = await supabase
+  .from('orchestral_sections')
+  .select('''
+    name,
+    instruments!inner (
+      name
+    )
+  ''')
+  .eq('instruments.name', 'flute');
+```
+
+
+# Dart Reference
+
+eq()
+
+Match only rows where `column` is equal to `value`.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .select()
+  .eq('name', 'viola');
+```
+
+
+# Dart Reference
+
+neq()
+
+Finds all rows whose value on the stated `column` doesn't match the specified `value`.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .select('id, name')
+  .neq('name', 'viola');
+```
+
+
+# Dart Reference
+
+gt()
+
+Finds all rows whose value on the stated `column` is greater than the specified `value`.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('countries')
+  .select()
+  .gt('id', 2);
+```
+
+
+# Dart Reference
+
+gte()
+
+Finds all rows whose value on the stated `column` is greater than or equal to the specified `value`.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('countries')
+  .select()
+  .gte('id', 2);
+```
+
+
+# Dart Reference
+
+lt()
+
+Finds all rows whose value on the stated `column` is less than the specified `value`.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('countries')
+  .select()
+  .lt('id', 2);
+```
+
+
+# Dart Reference
+
+lte()
+
+Finds all rows whose value on the stated `column` is less than or equal to the specified `value`.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('countries')
+  .select()
+  .lte('id', 2);
+```
+
+
+# Dart Reference
+
+like()
+
+Finds all rows whose value in the stated `column` matches the supplied `pattern` (case sensitive).
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('planets')
+  .select()
+  .like('name', '%Ea%');
+```
+
+
+# Dart Reference
+
+ilike()
+
+Finds all rows whose value in the stated `column` matches the supplied `pattern` (case insensitive).
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('planets')
+  .select()
+  .ilike('name', '%ea%');
+```
+
+
+# Dart Reference
+
+isFilter()
+
+A check for exact equality (null, true, false), finds all rows whose value on the stated `column` exactly match the specified `value`.
+
+
+## Examples
+
+### Checking for nullness, true or false
+
+```dart
+final data = await supabase
+  .from('countries')
+  .select()
+  .isFilter('name', null);
+```
+
+
+# Dart Reference
+
+inFilter()
+
+Finds all rows whose value on the stated `column` is found on the specified `values`.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('characters')
+  .select()
+  .inFilter('name', ['Luke', 'Leia']);
+```
+
+
+# Dart Reference
+
+contains()
+
+Only relevant for jsonb, array, and range columns. Match only rows where `column` contains every element appearing in `value`.
+
+## Examples
+
+### On array columns
+
+```dart
+final data = await supabase
+  .from('issues')
+  .select()
+  .contains('tags', ['is:open', 'priority:low']);
+```
+
+
+### On range columns
+
+```dart
+final data = await supabase
+  .from('reservations')
+  .select()
+  .contains('during', '[2000-01-01 13:00, 2000-01-01 13:30)');
+```
+
+
+### On `jsonb` columns
+
+```dart
+final data = await supabase
+  .from('users')
+  .select('name')
+  .contains('address', { 'street': 'Melrose Place' });
+```
+
+
+# Dart Reference
+
+containedBy()
+
+Only relevant for jsonb, array, and range columns. Match only rows where every element appearing in `column` is contained by `value`.
+
+
+## Examples
+
+### On array columns
+
+```dart
+final data = await supabase
+  .from('classes')
+  .select('name')
+  .containedBy('days', ['monday', 'tuesday', 'wednesday', 'friday']);
+```
+
+
+### On range columns
+
+```dart
+final data = await supabase
+  .from('reservations')
+  .select()
+  .containedBy('during', '[2000-01-01 00:00, 2000-01-01 23:59)');
+```
+
+
+### On `jsonb` columns
+
+```dart
+final data = await supabase
+  .from('users')
+  .select('name')
+  .containedBy('address', {'postcode': 90210});
+```
+
+
+# Dart Reference
+
+rangeGt()
+
+Only relevant for range columns. Match only rows where every element in `column` is greater than any element in `range`.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('reservations')
+  .select()
+  .rangeGt('during', '[2000-01-02 08:00, 2000-01-02 09:00)');
+```
+
+
+# Dart Reference
+
+rangeGte()
+
+Only relevant for range columns. Match only rows where every element in `column` is either contained in `range` or greater than any element in `range`.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('reservations')
+  .select()
+  .rangeGte('during', '[2000-01-02 08:30, 2000-01-02 09:30)');
+```
+
+
+# Dart Reference
+
+rangeLt()
+
+Only relevant for range columns. Match only rows where every element in `column` is less than any element in `range`.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('reservations')
+  .select()
+  .rangeLt('during', '[2000-01-01 15:00, 2000-01-01 16:00)');
+```
+
+
+# Dart Reference
+
+rangeLte()
+
+Only relevant for range columns. Match only rows where every element in `column` is either contained in `range` or less than any element in `range`.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('reservations')
+  .select()
+  .rangeLte('during', '[2000-01-01 15:00, 2000-01-01 16:00)');
+```
+
+
+# Dart Reference
+
+rangeAdjacent()
+
+Only relevant for range columns. Match only rows where `column` is mutually exclusive to `range` and there can be no element between the two ranges.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('reservations')
+  .select()
+  .rangeAdjacent('during', '[2000-01-01 12:00, 2000-01-01 13:00)');
+```
+
+
+# Dart Reference
+
+overlaps()
+
+Only relevant for array and range columns. Match only rows where `column` and `value` have an element in common.
+
+
+## Examples
+
+### On array columns
+
+```dart
+final data = await supabase
+  .from('issues')
+  .select('title')
+  .overlaps('tags', ['is:closed', 'severity:high']);
+```
+
+
+### On range columns
+
+```dart
+final data = await supabase
+  .from('reservations')
+  .select()
+  .overlaps('during', '[2000-01-01 12:45, 2000-01-01 13:15)');
+```
+
+
+# Dart Reference
+
+textSearch()
+
+Finds all rows whose tsvector value on the stated `column` matches to_tsquery(query).
+
+
+## Examples
+
+### Text search
+
+```dart
+final data = await supabase
+  .from('quotes')
+  .select('catchphrase')
+  .textSearch('content', "'eggs' & 'ham'",
+    config: 'english'
+  );
+```
+
+
+### Basic normalization
+
+```dart
+final data = await supabase
+  .from('quotes')
+  .select('catchphrase')
+  .textSearch('catchphrase', "'fat' & 'cat'",
+    type: TextSearchType.plain,
+    config: 'english'
+  );
+```
+
+
+### Full normalization
+
+```dart
+final data = await supabase
+  .from('quotes')
+  .select('catchphrase')
+  .textSearch('catchphrase', "'fat' & 'cat'",
+    type: TextSearchType.phrase,
+    config: 'english'
+  );
+```
+
+
+### Websearch
+
+```dart
+final data = await supabase
+  .from('quotes')
+  .select('catchphrase')
+  .textSearch('catchphrase', "'fat or cat'",
+    type: TextSearchType.websearch,
+    config: 'english'
+  );
+```
+
+
+# Dart Reference
+
+match()
+
+Finds all rows whose columns match the specified `query` object.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .select()
+  .match({ 'id': 2, 'name': 'viola' });
+```
+
+
+# Dart Reference
+
+not()
+
+Finds all rows which doesn't satisfy the filter.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('countries')
+  .select()
+  .not('name', 'is', null)
+```
+
+
+### With update()
+
+```dart
+final data = await supabase
+  .from('cities')
+  .update({ 'name': 'Mordor' })
+  .not('name', 'eq', 'Rohan');
+```
+
+
+### With delete()
+
+```dart
+final data = await supabase
+  .from('cities')
+  .delete()
+  .not('name', 'eq', 'Mordor');
+```
+
+
+### With rpc()
+
+```dart
+// Only valid if the Stored Procedure returns a table type.
+final data = await supabase
+  .rpc('echo_all_cities')
+  .not('name', 'eq', 'Mordor');
+```
+
+
+# Dart Reference
+
+or()
+
+Finds all rows satisfying at least one of the filters.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .select('name')
+  .or('id.eq.2,name.eq.cello');
+```
+
+
+### Use `or` with `and`
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .select('name')
+  .or('id.gt.3,and(id.eq.1,name.eq.violin)');
+```
+
+
+### Use `or` on referenced tables
+
+```dart
+final data = await supabase
+  .from('orchestral_sections')
+  .select('''
+    name,
+    instruments!inner (
+      name
+    )
+  ''')
+  .or('section_id.eq.1,name.eq.guzheng', referencedTable: 'instruments' );
+```
+
+
+# Dart Reference
+
+filter()
+
+Match only rows which satisfy the filter. This is an escape hatch - you should use the specific filter methods wherever possible.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('characters')
+  .select()
+  .filter('name', 'in', '("Ron","Dumbledore")')
+```
+
+
+### With update()
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .update({ 'name': 'piano' })
+  .filter('name', 'in', '("harpsichord","clavichord")');
+```
+
+
+### With delete()
+
+```dart
+final data = await supabase
+  .from('countries')
+  .delete()
+  .filter('name', 'in', '("Rohan","Mordor")');
+```
+
+
+### With rpc()
+
+```dart
+// Only valid if the Stored Procedure returns a table type.
+final data = await supabase
+  .rpc('echo_all_countries')
+  .filter('name', 'in', '("Rohan","Mordor")');
+```
+
+
+### On a referenced table
+
+```dart
+final data = await supabase
+  .from('orchestral_sections')
+  .select('''
+    name,
+    instruments!inner (
+      name
+    )
+  ''')
+  .filter('characters.name', 'eq', 'flute')
+```
+
+
+# Dart Reference
+
+Using Modifiers
+
+Filters work on the row level. That is, they allow you to return rows that
+only match certain conditions without changing the shape of the rows.
+Modifiers are everything that don't fit that definition—allowing you to
+change the format of the response (e.g., returning a CSV string).
+
+Modifiers must be specified after filters. Some modifiers only apply for
+queries that return rows (e.g., `select()` or `rpc()` on a function that
+returns a table response).
+
+
+## Examples
+
+
+
+# Dart Reference
+
+select()
+
+
+
+## Examples
+
+### With `upsert()`
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .upsert({ 'id': 1, 'name': 'piano' })
+  .select();
+```
+
+
+# Dart Reference
+
+order()
+
+Orders the result with the specified column.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .select('id, name')
+  .order('id', ascending: false);
+```
+
+
+### On a referenced table
+
+```dart
+final data = await supabase
+    .from('orchestral_sections')
+    .select('''
+      name,
+      instruments (
+        name
+      )
+    ''')
+    .order('name', referencedTable: 'instruments', ascending: false);
+  ```
+
+
+### Order parent table by a referenced table
+
+```dart
+final data = await supabase
+    .from('instruments')
+    .select('''
+      name,
+      section:orchestral_sections (
+        name
+      )
+    ''')
+    .order('section(name)', ascending: true)
+```
+
+
+# Dart Reference
+
+limit()
+
+Limits the result with the specified count.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .select('name')
+  .limit(1);
+```
+
+
+### On a referenced table
+
+```dart
+final data = await supabase
+  .from('orchestral_sections')
+  .select('''
+    name,
+    instruments (
+      name
+    )
+  ''')
+  .limit(1, referencedTable: 'instruments');
+```
+
+
+# Dart Reference
+
+range()
+
+Limits the result to rows within the specified range, inclusive.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .select('name')
+  .range(0, 1);
+```
+
+
+# Dart Reference
+
+single()
+
+Retrieves only one row from the result. Result must be one row (e.g. using limit), otherwise this will result in an error.
+
+
+## Examples
+
+### With select()
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .select('name')
+  .limit(1)
+  .single();
+```
+
+
+# Dart Reference
+
+maybeSingle()
+
+
+
+## Examples
+
+### With `select()`
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .select()
+  .eq('name', 'guzheng')
+  .maybeSingle();
+```
+
+
+# Dart Reference
+
+csv()
+
+
+
+## Examples
+
+### Return data as CSV
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .select()
+  .csv();
+```
+
+
+# Dart Reference
+
+Using Explain
+
+For debugging slow queries, you can get the [Postgres `EXPLAIN` execution plan](https://www.postgresql.org/docs/current/sql-explain.html) of a query
+using the `explain()` method. This works on any query, even for `rpc()` or writes.
+
+Explain is not enabled by default as it can reveal sensitive information about your database.
+It's best to only enable this for testing environments but if you wish to enable it for production you can provide additional protection by using a `pre-request` function.
+
+Follow the [Performance Debugging Guide](/docs/guides/database/debugging-performance) to enable the functionality on your project.
+
+
+## Examples
+
+### Get the execution plan
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .select()
+  .explain();
+```
+
+
+### Get the execution plan with analyze and verbose
+
+```dart
+final data = await supabase
+  .from('instruments')
+  .select()
+  .explain(analyze:true, verbose:true);
+```
+
+
+# Dart Reference
+
+signUp()
+
+Creates a new user.
+
+
+## Examples
+
+### Sign up with an email and password
+
+```dart
+final AuthResponse res = await supabase.auth.signUp(
+  email: 'example@email.com',
+  password: 'example-password',
+);
+final Session? session = res.session;
+final User? user = res.user;
+```
+
+
+### Sign up with a phone number and password (SMS)
+
+```dart
+final AuthResponse res = await supabase.auth.signUp(
+  phone: '123456789',
+  password: 'example-password',
+  channel: OtpChannel.sms,
+);
+```
+
+
+### Sign up with additional metadata
+
+```dart
+final AuthResponse res = await supabase.auth.signUp(
+  email: 'example@email.com',
+  password: 'example-password',
+  data: {'username': 'my_user_name'},
+);
+final Session? session = res.session;
+final User? user = res.user;
+```
+
+
+### Sign up with redirect URL
+
+```dart
+final AuthResponse res = await supabase.auth.signUp(
+  email: 'example@email.com',
+  password: 'example-password',
+  emailRedirectTo: 'com.supabase.myapp://callback',
+);
+final Session? session = res.session;
+final User? user = res.user;
+```
+
+
+# Dart Reference
+
+onAuthStateChange()
+
+Receive a notification every time an auth event happens.
+
+
+## Examples
+
+### Listen to auth changes
+
+```dart
+final authSubscription = supabase.auth.onAuthStateChange.listen((data) {
+  final AuthChangeEvent event = data.event;
+  final Session? session = data.session;
+
+  print('event: $event, session: $session');
+
+  switch (event) {
+    case AuthChangeEvent.initialSession:
+    // handle initial session
+    case AuthChangeEvent.signedIn:
+    // handle signed in
+    case AuthChangeEvent.signedOut:
+    // handle signed out
+    case AuthChangeEvent.passwordRecovery:
+    // handle password recovery
+    case AuthChangeEvent.tokenRefreshed:
+    // handle token refreshed
+    case AuthChangeEvent.userUpdated:
+    // handle user updated
+    case AuthChangeEvent.userDeleted:
+    // handle user deleted
+    case AuthChangeEvent.mfaChallengeVerified:
+    // handle mfa challenge verified
+  }
+});
+```
+
+
+### Listen to a specific event
+
+```dart
+final authSubscription = supabase.auth.onAuthStateChange.listen((data) {
+  final AuthChangeEvent event = data.event;
+  if (event == AuthChangeEvent.signedIn) {
+    // handle signIn
+  }
+});
+```
+
+
+### Unsubscribe from auth subscription
+
+```dart
+final authSubscription = supabase.auth.onAuthStateChange.listen((data) {});
+
+authSubscription.cancel();
+```
+
+
+# Dart Reference
+
+signInAnonymously()
+
+Creates an anonymous user.
+
+
+## Examples
+
+### Create an anonymous user
+
+```dart
+await supabase.auth.signInAnonymously();
+```
+
+
+### Create an anonymous user with custom user metadata
+
+```dart
+await supabase.auth.signInAnonymously(
+  data: {'hello': 'world'},
+);
+```
+
+
+# Dart Reference
+
+signInWithPassword()
+
+Log in an existing user using email or phone number with password.
+
+
+## Examples
+
+### Sign in with email and password
+
+```dart
+final AuthResponse res = await supabase.auth.signInWithPassword(
+  email: 'example@email.com',
+  password: 'example-password',
+);
+final Session? session = res.session;
+final User? user = res.user;
+```
+
+
+### Sign in with phone and password
+
+```dart
+final AuthResponse res = await supabase.auth.signInWithPassword(
+  phone: '+13334445555',
+  password: 'example-password',
+);
+final Session? session = res.session;
+final User? user = res.user;
+```
+
+
+# Dart Reference
+
+signInWithIdToken()
+
+Allows you to perform native Google, Apple, and Facebook sign in by combining it with [google_sign_in](https://pub.dev/packages/google_sign_in), [sign_in_with_apple](https://pub.dev/packages/sign_in_with_apple), or [flutter_facebook_auth](https://pub.dev/packages/flutter_facebook_auth) packages.
+
+
+## Examples
+
+### Native Google sign in
+
+```dart
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+const webClientId = '<web client ID that you registered on Google Cloud, for example my-web.apps.googleusercontent.com>';
+
+const iosClientId = '<iOS client ID that you registered on Google Cloud, for example my-ios.apps.googleusercontent.com';
+
+final GoogleSignIn googleSignIn = GoogleSignIn(
+  clientId: iosClientId,
+  serverClientId: webClientId,
+);
+final googleUser = await googleSignIn.signIn();
+final googleAuth = await googleUser!.authentication;
+final accessToken = googleAuth.accessToken;
+final idToken = googleAuth.idToken;
+
+if (accessToken == null) {
+  throw 'No Access Token found.';
+}
+if (idToken == null) {
+  throw 'No ID Token found.';
+}
+
+final response = await supabase.auth.signInWithIdToken(
+  provider: OAuthProvider.google,
+  idToken: idToken,
+  accessToken: accessToken,
+);
+```
+
+
+### Native Apple Sign in
+
+```dart
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:crypto/crypto.dart';
+
+/// Performs Apple sign in on iOS or macOS
+final rawNonce = supabase.auth.generateRawNonce();
+final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+
+final credential = await SignInWithApple.getAppleIDCredential(
+  scopes: [
+    AppleIDAuthorizationScopes.email,
+    AppleIDAuthorizationScopes.fullName,
+  ],
+  nonce: hashedNonce,
+);
+
+final idToken = credential.identityToken;
+if (idToken == null) {
+  throw const AuthException(
+    'Could not find ID Token from generated credential.',
+  );
+}
+
+final response = await supabase.auth.signInWithIdToken(
+  provider: OAuthProvider.apple,
+  idToken: idToken,
+  nonce: rawNonce,
+);
+```
+
+
+### Native Facebook Sign in
+
+```dart
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+Future<void> signInWithFacebook() async {
+  final LoginResult result = await FacebookAuth.instance.login(
+    permissions: ['public_profile', 'email'],
+  );
+
+  if (result.status == LoginStatus.success) {
+    final accessToken = result.accessToken!.tokenString;
+
+    final response = await supabase.auth.signInWithIdToken(
+      provider: OAuthProvider.facebook,
+      idToken: accessToken,
+    );
+  } else {
+    throw const AuthException(
+      'Facebook login failed: ${result.status}',
+    );
+  }
+}
+```
+
+
+# Dart Reference
+
+signInWithOtp()
+
+
+
+## Examples
+
+### Sign in with email.
+
+```dart
+await supabase.auth.signInWithOtp(
+  email: 'example@email.com',
+  emailRedirectTo: kIsWeb ? null : 'io.supabase.flutter://signin-callback/',
+);
+```
+
+
+### Sign in with SMS OTP.
+
+```dart
+await supabase.auth.signInWithOtp(
+  phone: '+13334445555',
+);
+```
+
+
+### Sign in with WhatsApp OTP
+
+```dart
+await supabase.auth.signInWithOtp(
+  phone: '+13334445555',
+  channel: OtpChannel.whatsapp,
+);
+```
+
+
+# Dart Reference
+
+signInWithOAuth()
+
+Signs the user in using third-party OAuth providers.
+
+
+## Examples
+
+### Sign in using a third-party provider
+
+```dart
+await supabase.auth.signInWithOAuth(
+  OAuthProvider.github,
+  redirectTo: kIsWeb ? null : 'my.scheme://my-host', // Optionally set the redirect link to bring back the user via deeplink.
+  authScreenLaunchMode:
+      kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication, // Launch the auth screen in a new webview on mobile.
+);
+```
+
+
+### With `redirectTo`
+
+```dart
+await supabase.auth.signInWithOAuth(
+  OAuthProvider.github,
+  redirectTo: kIsWeb ? null : 'io.supabase.flutter://reset-callback/',
+);
+```
+
+
+### With scopes
+
+```dart
+await supabase.auth.signInWithOAuth(
+  OAuthProvider.github,
+  scopes: 'repo gist notifications'
+);
+...
+// after user comes back from signin flow
+
+final Session? session = supabase.auth.currentSession;
+final String? oAuthToken = session?.providerToken;
+```
+
+
+# Dart Reference
+
+signInWithSSO()
+
+
+
+## Examples
+
+### Sign in with email domain
+
+```dart
+await supabase.auth.signInWithSSO(
+  domain: 'company.com',
+);
+```
+
+
+### Sign in with provider UUID
+
+```dart
+await supabase.auth.signInWithSSO(
+  providerId: '21648a9d-8d5a-4555-a9d1-d6375dc14e92',
+);
+```
+
+
+# Dart Reference
+
+signOut()
+
+Signs out the current user, if there is a logged in user.
+
+
+## Examples
+
+### Sign out
+
+```dart
+await supabase.auth.signOut();
+```
+
+
+# Dart Reference
+
+verifyOtp()
+
+
+
+## Examples
+
+### Verify Signup One-Time Password (OTP)
+
+```dart
+final AuthResponse res = await supabase.auth.verifyOTP(
+  type: OtpType.signup,
+  token: token,
+  phone: '+13334445555',
+);
+final Session? session = res.session;
+final User? user = res.user;
+```
+
+
+### Verify SMS One-Time Password (OTP)
+
+```dart
+final AuthResponse res = await supabase.auth.verifyOTP(
+  type: OtpType.sms,
+  token: '111111',
+  phone: '+13334445555',
+);
+final Session? session = res.session;
+final User? user = res.user;
+```
+
+
+# Dart Reference
+
+currentSession
+
+Returns the session data, if there is an active session.
+
+
+## Examples
+
+### Get the session data
+
+```dart
+final Session? session = supabase.auth.currentSession;
+```
+
+
+# Dart Reference
+
+refreshSession()
+
+
+
+## Examples
+
+### Refresh session using the current session
+
+```dart
+final AuthResponse res = await supabase.auth.refreshSession();
+final session = res.session;
+```
+
+
+# Dart Reference
+
+currentUser
+
+Returns the user data, if there is a logged in user.
+
+
+## Examples
+
+### Get the logged in user
+
+```dart
+final User? user = supabase.auth.currentUser;
+```
+
+
+# Dart Reference
+
+updateUser()
+
+Updates user data for a logged in user.
+
+
+## Examples
+
+### Update the email for an authenticated user
+
+```dart
+final UserResponse res = await supabase.auth.updateUser(
+  UserAttributes(
+    email: 'example@email.com',
+  ),
+);
+final User? updatedUser = res.user;
+```
+
+
+### Update the password for an authenticated user
+
+```dart
+final UserResponse res = await supabase.auth.updateUser(
+  UserAttributes(
+    password: 'new password',
+  ),
+);
+final User? updatedUser = res.user;
+```
+
+
+### Update the user's metadata
+
+```dart
+final UserResponse res = await supabase.auth.updateUser(
+  UserAttributes(
+    data: { 'hello': 'world' },
+  ),
+);
+final User? updatedUser = res.user;
+```
+
+
+### Update the user's password with a nonce
+
+```dart
+supabase.auth.updateUser(UserAttributes(
+  email: 'example@email.com',
+  nonce: '123456',
+));
+```
+
+
+# Dart Reference
+
+getUserIdentities()
+
+Gets all the identities linked to a user.
+
+
+## Examples
+
+### Returns a list of identities linked to the user
+
+```dart
+final identities = await supabase.auth.getUserIdentities();
+```
+
+
+# Dart Reference
+
+linkIdentity()
+
+Links an oauth identity to an existing user. This method supports the PKCE flow.
+
+
+## Examples
+
+### Link an identity to a user
+
+```dart
+await supabase.auth.linkIdentity(OAuthProvider.google);
+```
+
+
+# Dart Reference
+
+unlinkIdentity()
+
+Unlinks an identity from a user by deleting it. The user will no longer be able to sign in with that identity once it's unlinked.
+
+
+## Examples
+
+### Unlink an identity
+
+```dart
+// retrieve all identities linked to a user
+final identities = await supabase.auth.getUserIdentities();
+
+// find the google identity
+final googleIdentity = identities.firstWhere(
+  (element) => element.provider == 'google',
+);
+
+// unlink the google identity
+await supabase.auth.unlinkIdentity(googleIdentity);
+```
+
+
+# Dart Reference
+
+reauthenticate()
+
+
+
+## Examples
+
+### Send reauthentication nonce
+
+```dart
+await supabase.auth.reauthenticate();
+```
+
+
+# Dart Reference
+
+resend()
+
+
+
+## Examples
+
+### Resend an email signup confirmation
+
+```dart
+final ResendResponse res = await supabase.auth.resend(
+  type: OtpType.signup,
+  email: 'email@example.com',
+);
+```
+
+
+# Dart Reference
+
+setSession()
+
+
+
+## Examples
+
+### Refresh the session
+
+```dart
+final refreshToken = supabase.currentSession?.refreshToken ?? '';
+final AuthResponse response = await supabase.auth.setSession(refreshToken);
+
+final session = res.session;
+```
+
+
+# Dart Reference
+
+Overview
+
+
+
+## Examples
+
+
+
+# Dart Reference
+
+mfa.enroll()
+
+
+
+## Examples
+
+### Enroll a time-based, one-time password (TOTP) factor
+
+```dart
+final res = await supabase.auth.mfa.enroll(factorType: FactorType.totp);
+
+final qrCodeUrl = res.totp.qrCode;
+```
+
+
+### Enroll a Phone Factor
+
+```dart
+final res = await supabase.auth.mfa.enroll(factorType: FactorType.phone, phone: '+1234567890');
+
+final phone = res.phone;
+```
+
+
+# Dart Reference
+
+mfa.challenge()
+
+
+
+## Examples
+
+### Create a challenge for a factor
+
+```dart
+final res = await supabase.auth.mfa.challenge(
+  factorId: '34e770dd-9ff9-416c-87fa-43b31d7ef225',
+);
+```
+
+
+# Dart Reference
+
+mfa.verify()
+
+
+
+## Examples
+
+### Verify a challenge for a factor
+
+```dart
+final res = await supabase.auth.mfa.verify(
+  factorId: '34e770dd-9ff9-416c-87fa-43b31d7ef225',
+  challengeId: '4034ae6f-a8ce-4fb5-8ee5-69a5863a7c15',
+  code: '123456',
+);
+```
+
+
+# Dart Reference
+
+mfa.challengeAndVerify()
+
+
+
+## Examples
+
+### Create and verify a challenge for a factor
+
+```dart
+final res = await supabase.auth.mfa.challengeAndVerify(
+  factorId: '34e770dd-9ff9-416c-87fa-43b31d7ef225',
+  code: '123456',
+);
+```
+
+
+# Dart Reference
+
+mfa.unenroll()
+
+
+
+## Examples
+
+### Unenroll a factor
+
+```dart
+final res = await supabase.auth.mfa.unenroll(
+  '34e770dd-9ff9-416c-87fa-43b31d7ef225',
+);
+```
+
+
+# Dart Reference
+
+mfa.getAuthenticatorAssuranceLevel()
+
+
+
+## Examples
+
+### Get the AAL details of a session
+
+```dart
+final res = supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+final currentLevel = res.currentLevel;
+final nextLevel = res.nextLevel;
+final currentAuthenticationMethods = res.currentAuthenticationMethods;
+```
+
+
+# Dart Reference
+
+Overview
+
+
+
+## Examples
+
+### Create server-side auth client
+
+```dart
+final supabase = SupabaseClient(supabaseUrl, serviceRoleKey);
+```
+
+
+# Dart Reference
+
+getUserById()
+
+
+
+## Examples
+
+### Fetch the user object using the access_token jwt
+
+```dart
+final res = await supabase.auth.admin.getUserById(userId);
+final user = res.user;
+```
+
+
+# Dart Reference
+
+listUsers()
+
+
+
+## Examples
+
+### Get a page of users
+
+```dart
+// Returns the first 50 users.
+final List<User> users = await supabase.auth.admin.listUsers();
+```
+
+
+### Paginated list of users
+
+```dart
+// Returns the 101th - 200th users.
+final List<User> res = await supabase.auth.admin.listUsers(
+  page: 2,
+  perPage: 100,
+);
+```
+
+
+# Dart Reference
+
+createUser()
+
+
+
+## Examples
+
+### With custom user metadata
+
+```dart
+final res = await supabase.auth.admin.createUser(AdminUserAttributes(
+  email: 'user@email.com',
+  password: 'password',
+  userMetadata: {'name': 'Yoda'},
+));
+```
+
+
+### Auto-confirm the user's email
+
+```dart
+final res = await supabase.auth.admin.createUser(AdminUserAttributes(
+  email: 'user@email.com',
+  emailConfirm: true,
+));
+```
+
+
+### Auto-confirm the user's phone number
+
+```dart
+final res = await supabase.auth.admin.createUser(AdminUserAttributes(
+  phone: '1234567890',
+  phoneConfirm: true,
+));
+```
+
+
+# Dart Reference
+
+deleteUser()
+
+
+
+## Examples
+
+### Removes a user
+
+```dart
+await supabase.auth.admin
+    .deleteUser('715ed5db-f090-4b8c-a067-640ecee36aa0');
+```
+
+
+# Dart Reference
+
+inviteUserByEmail()
+
+
+
+## Examples
+
+### Invite a user
+
+```dart
+final UserResponse res = await supabase.auth.admin
+    .inviteUserByEmail('email@example.com');
+final User? user = res.user;
+```
+
+
+# Dart Reference
+
+generateLink()
+
+
+
+## Examples
+
+### Generate a signup link
+
+```dart
+final res = await supabase.auth.admin.generateLink(
+  type: GenerateLinkType.signup,
+  email: 'email@example.com',
+  password: 'secret',
+);
+final actionLink = res.properties.actionLink;
+```
+
+
+# Dart Reference
+
+updateUserById()
+
+
+
+## Examples
+
+### Updates a user's email
+
+```dart
+await supabase.auth.admin.updateUserById(
+  '6aa5d0d4-2a9f-4483-b6c8-0cf4c6c98ac4',
+  attributes: AdminUserAttributes(
+    email: 'new@email.com',
+  ),
+);
+```
+
+
+# Dart Reference
+
+invoke()
+
+Invokes a Supabase Function. See the [guide](/docs/guides/functions) for details on writing Functions.
+
+
+## Examples
+
+### Basic invocation.
+
+```dart
+final res = await supabase.functions.invoke('hello', body: {'foo': 'baa'});
+final data = res.data;
+```
+
+
+### Parsing custom headers.
+
+```dart
+final res = await supabase.functions.invoke(
+  'hello',
+  body: {'foo': 'baa'},
+  headers: {
+    'Authorization': 'Bearer ${supabase.auth.currentSession?.accessToken}'
+  },
+);
+```
+
+
+# Dart Reference
+
+stream()
+
+Returns real-time data from your table as a `Stream`.
+
+
+## Examples
+
+### Listen to a table
+
+```dart
+supabase.from('countries')
+  .stream(primaryKey: ['id'])
+  .listen((List<Map<String, dynamic>> data) {
+  // Do something awesome with the data
+});
+```
+
+
+### With filter, order and limit
+
+```dart
+supabase.from('countries')
+  .stream(primaryKey: ['id'])
+  .eq('id', 120)
+  .order('name')
+  .limit(10);
+```
+
+
+### With an IN filter
+
+```dart
+supabase.from('countries')
+  .stream(primaryKey: ['id'])
+  .inFilter('id', [1, 2, 3])
+  .order('name')
+  .limit(10);
+```
+
+
+### Using `stream()` with `StreamBuilder`
+
+```dart
+final supabase = Supabase.instance.client;
+
+class MyWidget extends StatefulWidget {
+  const MyWidget({Key? key}) : super(key: key);
+
+  @override
+  State<MyWidget> createState() => _MyWidgetState();
+}
+
+class _MyWidgetState extends State<MyWidget> {
+  // Persist the stream in a local variable to prevent refetching upon rebuilds
+  final _stream = supabase.from('countries').stream(primaryKey: ['id']);
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder(
+      stream: _stream,
+      builder: (context, snapshot) {
+        // Return your widget with the data from the snapshot
+      },
+    );
+  }
+}
+```
+
+
+# Dart Reference
+
+on().subscribe()
+
+Subscribe to realtime changes in your database.
+
+
+## Examples
+
+### Listen to database changes
+
+```dart
+supabase
+    .channel('public:countries')
+    .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'countries',
+        callback: (payload) {
+          print('Change received: ${payload.toString()}');
+        })
+    .subscribe();
+```
+
+
+### Listen to inserts
+
+```dart
+supabase
+    .channel('public:countries')
+    .onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'countries',
+        callback: (payload) {
+          print('Change received: ${payload.toString()}');
+        })
+    .subscribe();
+```
+
+
+### Listen to updates
+
+```dart
+supabase
+    .channel('public:countries')
+    .onPostgresChanges(
+        event: PostgresChangeEvent.update,
+        schema: 'public',
+        table: 'countries',
+        callback: (payload) {
+          print('Change received: ${payload.toString()}');
+        })
+    .subscribe();
+```
+
+
+### Listen to deletes
+
+```dart
+supabase
+    .channel('public:countries')
+    .onPostgresChanges(
+        event: PostgresChangeEvent.delete,
+        schema: 'public',
+        table: 'countries',
+        callback: (payload) {
+          print('Change received: ${payload.toString()}');
+        })
+    .subscribe();
+```
+
+
+### Listen to multiple events
+
+```dart
+supabase
+    .channel('public:countries')
+    .onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'countries',
+        callback: (payload) {
+          print('Insert event received: ${payload.toString()}');
+        })
+    .onPostgresChanges(
+        event: PostgresChangeEvent.delete,
+        schema: 'public',
+        table: 'countries',
+        callback: (payload) {
+          print('Delete event received: ${payload.toString()}');
+        })
+    .subscribe();
+```
+
+
+### Listen to row level changes
+
+```dart
+supabase
+    .channel('public:countries:id=eq.200')
+    .onPostgresChanges(
+        event: PostgresChangeEvent.delete,
+        schema: 'public',
+        table: 'countries',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'id',
+          value: 200,
+        ),
+        callback: (payload) {
+          print('Change received: ${payload.toString()}');
+        })
+    .subscribe();
+```
+
+
+### Listen to broadcast messages
+
+```dart
+supabase
+    .channel('room1')
+    .onBroadcast(
+        event: 'cursor-pos',
+        callback: (payload) {
+          print('Cursor position received!: $payload');
+        })
+    .subscribe();
+```
+
+
+### Listen to presence events
+
+```dart
+final channel = supabase.channel('room1');
+
+channel.onPresenceSync((payload) {
+  print('Synced presence state: ${channel.presenceState()}');
+}).onPresenceJoin((payload) {
+  print('Newly joined presences $payload');
+}).onPresenceLeave((payload) {
+  print('Newly left presences: $payload');
+}).subscribe((status, error) async {
+  if (status == RealtimeSubscribeStatus.subscribed) {
+    await channel.track({'online_at': DateTime.now().toIso8601String()});
+  }
+});
+```
+
+
+# Dart Reference
+
+removeChannel()
+
+Unsubscribes and removes Realtime channel from Realtime client.
+
+
+## Examples
+
+### Remove a channel
+
+```dart
+final status = await supabase.removeChannel(channel);
+```
+
+
+# Dart Reference
+
+removeAllChannels()
+
+Unsubscribes and removes all Realtime channels from Realtime client.
+
+
+## Examples
+
+### Remove all channels
+
+```dart
+final statuses = await supabase.removeAllChannels();
+```
+
+
+# Dart Reference
+
+getChannels()
+
+Returns all Realtime channels.
+
+
+## Examples
+
+### Get all channels
+
+```dart
+final channels = supabase.getChannels();
+```
+
+
+# Dart Reference
+
+Overview
+
+
+
+## Examples
+
+
+
+# Dart Reference
+
+listBuckets()
+
+Retrieves the details of all Storage buckets within an existing product.
+
+
+## Examples
+
+### List buckets
+
+```dart
+final List<Bucket> buckets = await supabase
+  .storage
+  .listBuckets();
+```
+
+
+# Dart Reference
+
+getBucket()
+
+Retrieves the details of an existing Storage bucket.
+
+
+## Examples
+
+### Get bucket
+
+```dart
+final Bucket bucket = await supabase
+  .storage
+  .getBucket('avatars');
+```
+
+
+# Dart Reference
+
+createBucket()
+
+Creates a new Storage bucket
+
+
+## Examples
+
+### Create bucket
+
+```dart
+final String bucketId = await supabase
+  .storage
+  .createBucket('avatars');
+```
+
+
+# Dart Reference
+
+emptyBucket()
+
+Removes all objects inside a single bucket.
+
+
+## Examples
+
+### Empty bucket
+
+```dart
+final String res = await supabase
+  .storage
+  .emptyBucket('avatars');
+```
+
+
+# Dart Reference
+
+updateBucket()
+
+Updates a new Storage bucket
+
+
+## Examples
+
+### Update bucket
+
+```dart
+final String res = await supabase
+  .storage
+  .updateBucket('avatars', const BucketOptions(public: false));
+```
+
+
+# Dart Reference
+
+deleteBucket()
+
+Deletes an existing bucket. A bucket can't be deleted with existing objects inside it. You must first `empty()` the bucket.
+
+
+## Examples
+
+### Delete bucket
+
+```dart
+final String res = await supabase
+  .storage
+  .deleteBucket('avatars');
+```
+
+
+# Dart Reference
+
+from.upload()
+
+Uploads a file to an existing bucket.
+
+
+## Examples
+
+### Upload file
+
+```dart
+final avatarFile = File('path/to/file');
+final String fullPath = await supabase.storage.from('avatars').upload(
+      'public/avatar1.png',
+      avatarFile,
+      fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+    );
+```
+
+
+### Upload file on web
+
+```dart
+final Uint8List avatarFile = file.bytes;
+final String fullPath = await supabase.storage.from('avatars').uploadBinary(
+      'public/avatar1.png',
+      avatarFile,
+      fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+    );
+```
+
+
+# Dart Reference
+
+from.update()
+
+Replaces an existing file at the specified path with a new one.
+
+
+## Examples
+
+### Update file
+
+```dart
+final avatarFile = File('path/to/local/file');
+final String path = await supabase.storage.from('avatars').update(
+      'public/avatar1.png',
+      avatarFile,
+      fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+    );
+```
+
+
+### Update file on web
+
+```dart
+final Uint8List avatarFile = file.bytes;
+final String path = await supabase.storage.from('avatars').updateBinary(
+      'public/avatar1.png',
+      avatarFile,
+      fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+    );
+```
+
+
+# Dart Reference
+
+from.move()
+
+Moves an existing file, optionally renaming it at the same time.
+
+
+## Examples
+
+### Move file
+
+```dart
+final String result = await supabase
+  .storage
+  .from('avatars')
+  .move('public/avatar1.png', 'private/avatar2.png');
+```
+
+
+# Dart Reference
+
+from.createSignedUrl()
+
+Create signed url to download file without requiring permissions. This URL can be valid for a set number of seconds.
+
+
+## Examples
+
+### Create Signed URL
+
+```dart
+final String signedUrl = await supabase
+  .storage
+  .from('avatars')
+  .createSignedUrl('avatar1.png', 60);
+```
+
+
+### With transform
+
+```dart
+final String signedUrl = await supabase
+  .storage
+  .from('avatars')
+  .createSignedUrl(
+    'avatar1.png',
+    60,
+    transform: TransformOptions(
+      width: 200,
+      height: 200,
+    ),
+  );
+```
+
+
+# Dart Reference
+
+from.getPublicUrl()
+
+Retrieve URLs for assets in public buckets
+
+
+## Examples
+
+### Returns the URL for an asset in a public bucket
+
+```dart
+final String publicUrl = supabase
+  .storage
+  .from('public-bucket')
+  .getPublicUrl('avatar1.png');
+```
+
+
+### With transform
+
+```dart
+final String publicUrl = await supabase
+  .storage
+  .from('public-bucket')
+  .getPublicUrl(
+    'avatar1.png',
+    transform: TransformOptions(
+      width: 200,
+      height: 200,
+    ),
+  );
+```
+
+
+# Dart Reference
+
+from.download()
+
+Downloads a file.
+
+
+## Examples
+
+### Download file
+
+```dart
+final Uint8List file = await supabase
+  .storage
+  .from('avatars')
+  .download('avatar1.png');
+```
+
+
+### With transform
+
+```dart
+final Uint8List file = await supabase
+  .storage
+  .from('avatars')
+  .download(
+    'avatar1.png',
+    transform: TransformOptions(
+      width: 200,
+      height: 200,
+    ),
+  );
+```
+
+
+# Dart Reference
+
+from.remove()
+
+Deletes files within the same bucket
+
+
+## Examples
+
+### Delete file
+
+```dart
+final List<FileObject> objects = await supabase
+  .storage
+  .from('avatars')
+  .remove(['avatar1.png']);
+```
+
+
+# Dart Reference
+
+from.list()
+
+Lists all the files within a bucket.
+
+
+## Examples
+
+### List files in a bucket
+
+```dart
+final List<FileObject> objects = await supabase
+  .storage
+  .from('avatars')
+  .list();
+```
