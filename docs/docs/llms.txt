@@ -1,6 +1,7 @@
 # Deep Lake Docs
 
 - [Deep Lake Python Reference](https://docs.deeplake.ai/llms/python.txt) (1,023 lines, 20KB) - Comprehensive Python API reference with all classes, methods, and functions including datasets, columns, queries, version control, async operations, and ML integrations
+- [Deep Lake PostgreSQL Extension](https://docs.deeplake.ai/llms/postgres.txt) (799 lines, 18KB) - Complete PostgreSQL extension reference with SQL syntax for vector similarity search, BM25 text search, hybrid search, and DeepLake table operations
 - [Deep Lake TQL Reference](https://docs.deeplake.ai/llms/tql.txt) (593 lines, 12KB) - Complete Tensor Query Language syntax and examples for vector search, text search, and complex queries
 - [Deep Lake Guides](https://docs.deeplake.ai/llms/guides.txt) (1,047 lines, 26KB) - Detailed tutorials, use cases, best practices, RAG applications, deep learning integration examples, and production patterns
 - [Deep Lake CLI Reference](https://docs.deeplake.ai/llms/cli.txt) (1,416 lines, 37KB) - Complete command-line interface reference with all dataset operations, column management, version control, query execution, and data import/export commands

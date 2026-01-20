@@ -1,0 +1,799 @@
+Deep Lake PostgreSQL Extension Reference
+
+# PostgreSQL Extension Reference
+
+The `pg_deeplake` PostgreSQL extension provides vector similarity search, full-text search, and hybrid search capabilities using DeepLake storage. It allows you to use PostgreSQL SQL syntax to interact with DeepLake datasets while leveraging PostgreSQL's query optimizer and access methods.
+
+## Installation
+
+### Docker Installation (Quick Start)
+
+```bash
+# Pull and run the Docker container
+docker run -d \
+  --name pg-deeplake \
+  -e POSTGRES_PASSWORD=postgres \
+  -p 5432:5432 \
+  quay.io/activeloopai/pg-deeplake:18
+```
+
+### Connect to Database
+
+```bash
+# Connect using psql
+psql -h localhost -p 5432 -U postgres
+```
+
+### Enable Extension
+
+```sql
+-- Enable the pg_deeplake extension
+CREATE EXTENSION pg_deeplake;
+```
+
+## Basic Usage
+
+### Creating Tables with DeepLake Storage
+
+```sql
+-- Create a table with DeepLake storage backend
+CREATE TABLE vectors (
+    id SERIAL PRIMARY KEY,
+    v1 float4[],
+    v2 float4[]
+) USING deeplake;
+```
+
+### Inserting Data
+
+```sql
+-- Insert vector data
+INSERT INTO vectors (v1, v2) VALUES
+    (ARRAY[1.0, 2.0, 3.0], ARRAY[1.0, 2.0, 3.0]),
+    (ARRAY[4.0, 5.0, 6.0], ARRAY[4.0, 5.0, 6.0]),
+    (ARRAY[7.0, 8.0, 9.0], ARRAY[7.0, 8.0, 9.0]);
+```
+
+### Creating Indexes
+
+```sql
+-- Create vector similarity index
+CREATE INDEX index_for_v1 ON vectors USING deeplake_index (v1 DESC);
+
+-- Create text search index with BM25
+CREATE INDEX idx_content_bm25 ON documents USING deeplake_index (content) 
+    WITH (index_type = 'bm25');
+
+-- Create inverted index for exact text search
+CREATE INDEX idx_tags_exact ON documents USING deeplake_index (tags) 
+    WITH (index_type = 'exact_text');
+
+-- Create inverted index for numeric columns
+CREATE INDEX idx_id_inverted ON documents USING deeplake_index (id) 
+    WITH (index_type = 'inverted');
+```
+
+## Vector Similarity Search
+
+### Cosine Similarity Operator
+
+The `<#>` operator performs cosine similarity search on vector columns:
+
+```sql
+-- Find similar vectors using cosine similarity
+SELECT id, v1 <#> ARRAY[1.0, 2.0, 3.0] AS score
+FROM vectors
+ORDER BY score DESC
+LIMIT 10;
+```
+
+### Vector Comparison Operators
+
+DeepLake supports standard comparison operators for vectors:
+
+```sql
+-- Vector equality
+SELECT * FROM vectors WHERE v1 = ARRAY[1.0, 2.0, 3.0];
+
+-- Vector inequality
+SELECT * FROM vectors WHERE v1 <> ARRAY[1.0, 2.0, 3.0];
+
+-- Vector comparison (lexicographic)
+SELECT * FROM vectors WHERE v1 < ARRAY[4.0, 5.0, 6.0];
+SELECT * FROM vectors WHERE v1 <= ARRAY[4.0, 5.0, 6.0];
+SELECT * FROM vectors WHERE v1 >= ARRAY[4.0, 5.0, 6.0];
+SELECT * FROM vectors WHERE v1 > ARRAY[4.0, 5.0, 6.0];
+```
+
+### Vector Functions
+
+```sql
+-- Cosine similarity function
+SELECT deeplake_cosine_similarity(
+    ARRAY[1.0, 2.0, 3.0],
+    ARRAY[4.0, 5.0, 6.0]
+) AS similarity;
+
+-- MAXSIM similarity for 2D embeddings (ColPali style)
+SELECT deeplake_maxsim(
+    ARRAY[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+    ARRAY[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
+) AS maxsim_score;
+```
+
+### MAXSIM Similarity for 2D Embeddings
+
+```sql
+-- Create table with 2D embeddings
+CREATE TABLE documents_2d (
+    id SERIAL PRIMARY KEY,
+    embedding_2d float4[][],
+    content text
+) USING deeplake;
+
+-- Create MAXSIM index
+CREATE INDEX idx_maxsim ON documents_2d USING deeplake_index (embedding_2d DESC);
+
+-- Query with MAXSIM similarity
+SELECT id, content, 
+    embedding_2d <#> ARRAY[[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]] AS score
+FROM documents_2d
+ORDER BY score DESC
+LIMIT 10;
+```
+
+## Text Search
+
+### BM25 Similarity Search
+
+BM25 provides semantic text search with relevance scoring:
+
+```sql
+-- Create table with text columns
+CREATE TABLE documents (
+    id SERIAL PRIMARY KEY,
+    title text,
+    content text,
+    tags text
+) USING deeplake;
+
+-- Create BM25 index
+CREATE INDEX idx_content_bm25 ON documents USING deeplake_index (content) 
+    WITH (index_type = 'bm25');
+
+-- Search using BM25 similarity
+SELECT id, title, content,
+    content <#> 'machine learning algorithms' AS score
+FROM documents
+ORDER BY score DESC
+LIMIT 10;
+```
+
+### Contains Search
+
+Full-text contains search using the `@>` operator:
+
+```sql
+-- Create exact text index
+CREATE INDEX idx_tags_exact ON documents USING deeplake_index (tags) 
+    WITH (index_type = 'exact_text');
+
+-- Contains search using @> operator
+SELECT id, title, tags
+FROM documents
+WHERE contains(tags, 'machine')
+LIMIT 10;
+
+-- Or use @> directly
+SELECT id, title, tags
+FROM documents
+WHERE tags @> 'machine'
+LIMIT 10;
+```
+
+### Exact Text Match
+
+```sql
+-- Exact text matching
+SELECT id, title, tags
+FROM documents
+WHERE tags = 'machine learning algorithms introduction'
+LIMIT 10;
+```
+
+## Hybrid Search
+
+Hybrid search combines vector similarity and text search for improved results.
+
+### Hybrid Record Types
+
+```sql
+-- Hybrid record type combines embedding and text
+-- Default weights (0.5, 0.5)
+SELECT (embedding_1d, keywords)::deeplake_hybrid_record AS hybrid_data
+FROM documents;
+
+-- Weighted hybrid record
+SELECT deeplake_hybrid_record(
+    ARRAY[0.1, 0.2, 0.3, 0.4, 0.5],
+    'machine learning',
+    0.6,  -- embedding weight
+    0.4   -- text weight
+) AS weighted_hybrid;
+```
+
+### Hybrid Search Queries
+
+```sql
+-- Create hybrid index
+CREATE INDEX idx_hybrid_docs ON documents USING deeplake_index(
+    ((embedding_1d, keywords)::deeplake_hybrid_record) deeplake_hybrid_ops DESC
+);
+
+-- Hybrid search with default weights (50/50)
+SELECT id, title, content,
+    (embedding_1d, keywords) <#> deeplake_hybrid_record(
+        ARRAY[0.1, 0.2, 0.3, 0.4, 0.5],
+        'machine learning'
+    ) AS score
+FROM documents
+ORDER BY score DESC
+LIMIT 10;
+
+-- Hybrid search with custom weights
+SELECT id, title, content,
+    (embedding_1d, keywords) <#> deeplake_hybrid_record(
+        ARRAY[0.1, 0.2, 0.3, 0.4, 0.5],
+        'machine learning',
+        0.7,  -- 70% weight on embeddings
+        0.3   -- 30% weight on text
+    ) AS score
+FROM documents
+ORDER BY score DESC
+LIMIT 10;
+
+-- Hybrid search using weighted type directly
+SELECT id, title, content,
+    (embedding_1d, keywords) <#> (
+        ARRAY[0.1, 0.2, 0.3, 0.4, 0.5],
+        'machine learning',
+        0.4,  -- embedding weight
+        0.6   -- text weight
+    )::deeplake_hybrid_record_weighted AS score
+FROM documents
+ORDER BY score DESC
+LIMIT 10;
+```
+
+### Hybrid Search with MAXSIM
+
+```sql
+-- Hybrid search combining MAXSIM and BM25
+CREATE INDEX idx_hybrid_maxsim ON documents USING deeplake_index(
+    ((embedding_2d, keywords)::deeplake_hybrid_record) deeplake_hybrid_ops DESC
+);
+
+SELECT id, title, content,
+    (embedding_2d, keywords) <#> deeplake_hybrid_record(
+        ARRAY[[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]],
+        'machine learning',
+        0.5, 0.5
+    ) AS score
+FROM documents
+ORDER BY score DESC
+LIMIT 10;
+```
+
+## Index Types
+
+### Vector Index
+
+Default embedding index for vector similarity search:
+
+```sql
+-- Create vector index
+CREATE INDEX idx_embeddings ON vectors USING deeplake_index (embedding DESC);
+```
+
+### Text Index Types
+
+```sql
+-- BM25 index for semantic text search
+CREATE INDEX idx_bm25 ON documents USING deeplake_index (content) 
+    WITH (index_type = 'bm25');
+
+-- Exact text index for exact matching
+CREATE INDEX idx_exact ON documents USING deeplake_index (tags) 
+    WITH (index_type = 'exact_text');
+
+-- Inverted index for keyword search
+CREATE INDEX idx_inverted ON documents USING deeplake_index (keywords) 
+    WITH (index_type = 'inverted');
+```
+
+### Numeric Indexes
+
+Inverted indexes for efficient numeric queries:
+
+```sql
+-- Integer index
+CREATE INDEX idx_id ON documents USING deeplake_index (id) 
+    WITH (index_type = 'inverted');
+
+-- Bigint index
+CREATE INDEX idx_timestamp ON events USING deeplake_index (timestamp) 
+    WITH (index_type = 'inverted');
+
+-- Numeric/decimal index
+CREATE INDEX idx_price ON products USING deeplake_index (price) 
+    WITH (index_type = 'inverted');
+
+-- Real/float4 index
+CREATE INDEX idx_score ON ratings USING deeplake_index (score) 
+    WITH (index_type = 'inverted');
+
+-- Double precision/float8 index
+CREATE INDEX idx_precision ON measurements USING deeplake_index (value) 
+    WITH (index_type = 'inverted');
+```
+
+### JSONB Index
+
+Index-aware JSONB field equality:
+
+```sql
+-- Create table with JSONB
+CREATE TABLE metadata (
+    id SERIAL PRIMARY KEY,
+    data jsonb
+) USING deeplake;
+
+-- Create JSONB index
+CREATE INDEX idx_jsonb ON metadata USING deeplake_index (data) 
+    WITH (index_type = 'inverted');
+
+-- Index-friendly JSONB field query
+SELECT * FROM metadata
+WHERE jsonb_field_eq(data, 'status', 'active');
+```
+
+## Data Types
+
+### Custom Domain Types
+
+```sql
+-- IMAGE domain for binary image data
+CREATE TABLE images (
+    id SERIAL PRIMARY KEY,
+    image_data IMAGE
+) USING deeplake;
+
+-- EMBEDDING domain for 1D embeddings
+CREATE TABLE embeddings (
+    id SERIAL PRIMARY KEY,
+    embedding EMBEDDING  -- 1D float4 array
+) USING deeplake;
+
+-- EMBEDDING_2D domain for 2D embeddings
+CREATE TABLE embeddings_2d (
+    id SERIAL PRIMARY KEY,
+    embeddings EMBEDDING_2D  -- 2D float4 array
+) USING deeplake;
+```
+
+### Standard PostgreSQL Types
+
+DeepLake supports all standard PostgreSQL types:
+
+```sql
+-- Numeric types
+CREATE TABLE numbers (
+    id SERIAL PRIMARY KEY,
+    small_int smallint,
+    int_col integer,
+    big_int bigint,
+    real_col real,
+    double_col double precision,
+    numeric_col numeric(10, 2),
+    decimal_col decimal(10, 2)
+) USING deeplake;
+
+-- Text types
+CREATE TABLE text_data (
+    id SERIAL PRIMARY KEY,
+    text_col text,
+    varchar_col varchar(255),
+    char_col char(10)
+) USING deeplake;
+
+-- Arrays
+CREATE TABLE arrays (
+    id SERIAL PRIMARY KEY,
+    int_array integer[],
+    float_array float4[],
+    text_array text[]
+) USING deeplake;
+
+-- Boolean
+CREATE TABLE flags (
+    id SERIAL PRIMARY KEY,
+    is_active boolean
+) USING deeplake;
+
+-- UUID
+CREATE TABLE uuids (
+    id uuid PRIMARY KEY,
+    name text
+) USING deeplake;
+
+-- JSONB
+CREATE TABLE json_data (
+    id SERIAL PRIMARY KEY,
+    metadata jsonb
+) USING deeplake;
+
+-- Date/Time
+CREATE TABLE timestamps (
+    id SERIAL PRIMARY KEY,
+    created_at timestamp,
+    updated_at timestamp with time zone,
+    event_date date,
+    event_time time
+) USING deeplake;
+```
+
+## Complex Queries
+
+### Filtering with WHERE
+
+```sql
+-- Filter by vector similarity score
+SELECT id, title, v1 <#> ARRAY[1.0, 2.0, 3.0] AS score
+FROM vectors
+WHERE v1 <#> ARRAY[1.0, 2.0, 3.0] > 0.9
+ORDER BY score DESC;
+
+-- Combine vector search with filters
+SELECT id, title, content,
+    content <#> 'machine learning' AS score
+FROM documents
+WHERE category = 'AI'
+AND score > 0.5
+ORDER BY score DESC
+LIMIT 10;
+```
+
+### Joins
+
+```sql
+-- Join DeepLake tables
+SELECT i.id, i.image, m.metadata
+FROM images i
+JOIN metadata m ON i.id = m.image_id
+WHERE i.category = 'nature';
+
+-- Cross-dataset joins with different DeepLake paths
+SELECT i.id, i.image, e.embedding
+FROM images i
+JOIN embeddings e ON i.id = e.image_id
+WHERE e.embedding <#> ARRAY[0.1, 0.2, 0.3] > 0.8;
+```
+
+### Aggregations
+
+```sql
+-- Aggregate with vector search
+SELECT category, 
+    AVG(content <#> 'machine learning') AS avg_score,
+    COUNT(*) AS count
+FROM documents
+GROUP BY category
+ORDER BY avg_score DESC;
+```
+
+### Subqueries
+
+```sql
+-- Use vector search in subquery
+SELECT id, title
+FROM documents
+WHERE id IN (
+    SELECT id
+    FROM documents
+    WHERE content <#> 'machine learning' > 0.7
+    ORDER BY content <#> 'machine learning' DESC
+    LIMIT 10
+);
+```
+
+## Utility Functions
+
+### Create DeepLake Table
+
+```sql
+-- Create a table with DeepLake storage at a specific path
+SELECT create_deeplake_table('my_table', 's3://bucket/dataset');
+
+-- The table will be created automatically when using USING deeplake
+CREATE TABLE my_table (
+    id SERIAL PRIMARY KEY,
+    data text
+) USING deeplake;
+```
+
+### Array Dimensions
+
+```sql
+-- Get array dimensions
+SELECT array_ndims(ARRAY[1, 2, 3]) AS dims;  -- Returns 1
+SELECT array_ndims(ARRAY[[1, 2], [3, 4]]) AS dims;  -- Returns 2
+```
+
+## Index Metadata
+
+### View Index Information
+
+```sql
+-- View all DeepLake indexes
+SELECT * FROM pg_deeplake_metadata;
+
+-- View DeepLake tables
+SELECT * FROM pg_deeplake_tables;
+
+-- View DeepLake views
+SELECT * FROM pg_deeplake_views;
+```
+
+## Best Practices
+
+### Index Creation
+
+```sql
+-- Create indexes after inserting data
+INSERT INTO documents (title, content) VALUES (...);
+COMMIT;
+
+-- Then create indexes
+CREATE INDEX idx_content_bm25 ON documents USING deeplake_index (content) 
+    WITH (index_type = 'bm25');
+
+CREATE INDEX idx_embedding ON documents USING deeplake_index (embedding DESC);
+```
+
+### Query Optimization
+
+```sql
+-- Use EXPLAIN to verify index usage
+EXPLAIN SELECT id, title, content <#> 'machine learning' AS score
+FROM documents
+ORDER BY score DESC
+LIMIT 10;
+
+-- Ensure index scan is used
+SET enable_seqscan = off;
+EXPLAIN SELECT id, title, embedding <#> ARRAY[0.1, 0.2, 0.3] AS score
+FROM documents
+ORDER BY score DESC
+LIMIT 10;
+```
+
+### Batch Operations
+
+```sql
+-- Batch insert for better performance
+INSERT INTO documents (title, content, embedding) VALUES
+    ('Title 1', 'Content 1', ARRAY[0.1, 0.2, 0.3]),
+    ('Title 2', 'Content 2', ARRAY[0.4, 0.5, 0.6]),
+    ('Title 3', 'Content 3', ARRAY[0.7, 0.8, 0.9]);
+
+-- Instead of multiple single inserts
+```
+
+### Storage Paths
+
+```sql
+-- Use create_deeplake_table to specify storage path
+SELECT create_deeplake_table('vectors', 's3://my-bucket/vectors-dataset');
+
+-- Or use local storage
+SELECT create_deeplake_table('vectors', 'file:///path/to/local/dataset');
+
+-- Cloud storage paths are supported
+SELECT create_deeplake_table('vectors', 'gcs://my-bucket/vectors-dataset');
+SELECT create_deeplake_table('vectors', 'azure://container/vectors-dataset');
+```
+
+## Examples
+
+### RAG Application
+
+```sql
+-- Create RAG documents table
+CREATE TABLE rag_documents (
+    id SERIAL PRIMARY KEY,
+    document_id text,
+    content text,
+    embedding float4[],
+    metadata jsonb
+) USING deeplake;
+
+-- Create indexes
+CREATE INDEX idx_content_bm25 ON rag_documents USING deeplake_index (content) 
+    WITH (index_type = 'bm25');
+CREATE INDEX idx_embedding ON rag_documents USING deeplake_index (embedding DESC);
+
+-- Hybrid search for RAG
+SELECT document_id, content, metadata,
+    (embedding, content) <#> deeplake_hybrid_record(
+        ARRAY[0.1, 0.2, 0.3, ...],  -- Query embedding
+        'user query text',
+        0.6,  -- 60% weight on semantic
+        0.4   -- 40% weight on keyword
+    ) AS score
+FROM rag_documents
+ORDER BY score DESC
+LIMIT 5;
+```
+
+### Image Search
+
+```sql
+-- Create images table with embeddings
+CREATE TABLE images (
+    id SERIAL PRIMARY KEY,
+    image_url text,
+    image_embedding float4[],
+    tags text,
+    category text
+) USING deeplake;
+
+-- Create indexes
+CREATE INDEX idx_embedding ON images USING deeplake_index (image_embedding DESC);
+CREATE INDEX idx_tags ON images USING deeplake_index (tags) 
+    WITH (index_type = 'bm25');
+
+-- Vector similarity search
+SELECT id, image_url, tags,
+    image_embedding <#> ARRAY[0.1, 0.2, 0.3, ...] AS score
+FROM images
+WHERE category = 'nature'
+ORDER BY score DESC
+LIMIT 10;
+```
+
+### Multi-Modal Search
+
+```sql
+-- Create multi-modal table
+CREATE TABLE multimodal (
+    id SERIAL PRIMARY KEY,
+    image_embedding float4[],
+    text_embedding float4[],
+    text_content text,
+    image_url text
+) USING deeplake;
+
+-- Create hybrid index
+CREATE INDEX idx_multimodal ON multimodal USING deeplake_index(
+    ((image_embedding, text_content)::deeplake_hybrid_record) deeplake_hybrid_ops DESC
+);
+
+-- Multi-modal hybrid search
+SELECT id, image_url, text_content,
+    (image_embedding, text_content) <#> deeplake_hybrid_record(
+        ARRAY[0.1, 0.2, 0.3, ...],  -- Image query embedding
+        'search query text',
+        0.5, 0.5
+    ) AS score
+FROM multimodal
+ORDER BY score DESC
+LIMIT 20;
+```
+
+## Configuration
+
+### Extension Settings
+
+```sql
+-- Check extension version
+SELECT * FROM pg_extension WHERE extname = 'pg_deeplake';
+
+-- View extension configuration (if available)
+SHOW pg_deeplake.use_deeplake_executor;
+```
+
+## Error Handling
+
+### Common Errors
+
+```sql
+-- Table already exists
+ERROR: relation "vectors" already exists
+
+-- Index already exists
+ERROR: relation "idx_embedding" already exists
+
+-- Invalid index type
+ERROR: invalid index_type parameter
+
+-- Dimension mismatch for embeddings
+ERROR: array dimensions must match
+
+-- Missing index for query
+NOTICE: Seq scan used (index may not exist or query not optimized)
+```
+
+## Integration with Python
+
+### Accessing from Python
+
+```python
+import psycopg2
+import numpy as np
+
+# Connect to PostgreSQL
+conn = psycopg2.connect(
+    host="localhost",
+    port=5432,
+    database="postgres",
+    user="postgres",
+    password="postgres"
+)
+cur = conn.cursor()
+
+# Query with vector similarity
+query_vector = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
+vector_str = 'ARRAY[' + ','.join(map(str, query_vector)) + ']'
+
+cur.execute(f"""
+    SELECT id, title, embedding <#> {vector_str} AS score
+    FROM documents
+    ORDER BY score DESC
+    LIMIT 10
+""")
+
+results = cur.fetchall()
+for row in results:
+    print(f"ID: {row[0]}, Title: {row[1]}, Score: {row[2]}")
+```
+
+## Performance Tips
+
+### Index Selection
+
+```sql
+-- Use DESC for similarity search indexes
+CREATE INDEX idx_embedding ON vectors USING deeplake_index (embedding DESC);
+
+-- Use appropriate index type for each column
+CREATE INDEX idx_text_bm25 ON documents USING deeplake_index (content) 
+    WITH (index_type = 'bm25');  -- For semantic search
+
+CREATE INDEX idx_tags_exact ON documents USING deeplake_index (tags) 
+    WITH (index_type = 'exact_text');  -- For exact matching
+```
+
+### Query Optimization
+
+```sql
+-- Limit results early
+SELECT * FROM documents
+WHERE content <#> 'query' > 0.5
+ORDER BY content <#> 'query' DESC
+LIMIT 10;  -- Early LIMIT
+
+-- Combine filters with vector search
+SELECT * FROM documents
+WHERE category = 'AI'
+AND content <#> 'machine learning' > 0.7
+ORDER BY content <#> 'machine learning' DESC;
+```
+
+## Documentation
+
+For more information, see:
+
+- [Python API Reference](https://docs.deeplake.ai/llms/python.txt): Complete Python API
+- [TQL Reference](https://docs.deeplake.ai/llms/tql.txt): Tensor Query Language syntax
+- [Deep Lake Guides](https://docs.deeplake.ai/llms/guides.txt): Tutorials and use cases
+- [PostgreSQL Extension README](https://github.com/activeloopai/deeplake/blob/main/postgres/README.md): Extension documentation
