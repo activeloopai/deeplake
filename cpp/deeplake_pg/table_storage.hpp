@@ -223,11 +223,6 @@ public:
         up_to_date_ = up_to_date;
     }
 
-    inline void set_primary_keys(std::map<std::string, std::set<std::string>>&& primary_keys) noexcept
-    {
-        primary_keys_ = std::move(primary_keys);
-    }
-
 private:
     table_storage() = default;
 
@@ -236,7 +231,6 @@ private:
 
     std::unordered_map<Oid, table_data> tables_;
     std::unordered_map<Oid, std::pair<std::string, std::string>> views_;
-    std::map<std::string, std::set<std::string>> primary_keys_;
     std::string schema_name_ = "public";
     bool tables_loaded_ = false;
     bool up_to_date_ = true;

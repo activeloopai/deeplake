@@ -677,14 +677,6 @@ void table_storage::create_table(const std::string& table_name, Oid table_id, Tu
         ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("%s", e.what())));
     }
 
-    if (auto it = primary_keys_.find(simple_table_name); it != primary_keys_.end() && !it->second.empty()) {
-        try {
-            td.set_primary_keys(it->second);
-        } catch (const base::exception& e) {
-            elog(WARNING, "Failed to set primary keys for table %s: %s", table_name.c_str(), e.what());
-        }
-    }
-
     tables_.emplace(table_id, std::move(td));
     up_to_date_ = false;
 }
