@@ -77,7 +77,6 @@ struct table_data
     inline void clear_delete_rows() noexcept;
     inline void add_update_row(int64_t row_id, icm::string_map<nd::array> update_row);
     inline void clear_update_rows() noexcept;
-    inline void set_primary_keys(const std::set<std::string>& primary_keys);
     inline Oid get_table_oid() const noexcept;
     inline bool flush();
 

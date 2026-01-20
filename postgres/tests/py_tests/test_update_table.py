@@ -80,7 +80,9 @@ async def test_update_with_index(db_conn: asyncpg.Connection):
             LIMIT 5
         """)
 
-        expected_ids_after = [1, 2, 3, 4]
+        # After update: id=2 has [9,10,11] which is farther from query [1,2,3] than id=3's [7,8,9]
+        # L2 distances: id=1=0, id=3=10.4, id=2=13.9, id=4=441
+        expected_ids_after = [1, 3, 2, 4]
         actual_ids_after = [row['id'] for row in results_after]
         assert actual_ids_after == expected_ids_after, \
             f"Expected order {expected_ids_after}, got {actual_ids_after}"
