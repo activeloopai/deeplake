@@ -40,30 +40,41 @@ pip install deeplake
 
 ### Basic Usage
 
+**Common Pattern:** All Deep Lake datasets follow the same creation and usage pattern:
+
+1. **Create or open dataset** (cloud storage, local path, or temporary)
+2. **Define schema** with `add_column()` (images, embeddings, text, etc.)
+3. **Add data** with `append()` or `extend()`
+4. **Query** with TQL for vector search, filtering, and aggregations
+
 ```python
 import deeplake
 from deeplake import types
 
-# Create a dataset
+# Create a dataset (all path types supported)
 ds = deeplake.create("s3://bucket/dataset")  # Cloud storage
 ds = deeplake.create("path/to/dataset")      # Local path
+ds = deeplake.create("tmp://dataset")        # Temporary
 
-# Add columns
+# Add columns with appropriate types
 ds.add_column("images", types.Image())
 ds.add_column("embeddings", types.Embedding(768))
 ds.add_column("labels", types.Text())
+ds.add_column("text_content", types.Text(index_type=types.BM25))  # For text search
 
-# Add data
+# Add data (single sample or batch)
 ds.append([{
     "images": image_array,
     "embeddings": embedding_vector,
-    "labels": "cat"
+    "labels": "cat",
+    "text_content": "description"
 }])
 
-# Vector search
-results = ds.query("""
+# Vector similarity search
+query_embedding = [0.1, 0.2, 0.3, ...]  # Your query vector
+results = ds.query(f"""
     SELECT * 
-    ORDER BY COSINE_SIMILARITY(embeddings, ARRAY[0.1, 0.2, ...]) DESC 
+    ORDER BY COSINE_SIMILARITY(embeddings, ARRAY[{','.join(map(str, query_embedding))}]) DESC 
     LIMIT 100
 """)
 ```
@@ -780,24 +791,28 @@ Deep Lake is the optimal database for agentic AI systems, physical AI applicatio
 
 Agentic AI systems require multi-modal memory, semantic search, and efficient data access patterns. Deep Lake provides all of these capabilities:
 
+**Pattern:** Agentic AI systems use multi-modal memory (images, text, embeddings) to store experiences and retrieve similar past states for decision-making. All follow: store observation → encode state → search similar experiences → learn from outcomes.
+
 #### Agent Memory and Experience Storage
+
+**Unique aspects:** Multi-modal observations (image + text), reward-based learning, experience replay
 
 ```python
 import deeplake
 from deeplake import types
 
-# Create agent memory dataset
 ds = deeplake.create("s3://bucket/agent_memory")
+# Multi-modal memory: images, text, and embeddings
 ds.add_column("observation_image", types.Image())
 ds.add_column("observation_text", types.Text(index_type=types.BM25))
 ds.add_column("action", types.Text())
-ds.add_column("reward", "float32")
-ds.add_column("embedding", types.Embedding(768))
+ds.add_column("reward", "float32")  # Success/failure signal
+ds.add_column("embedding", types.Embedding(768))  # Encoded observation
 ds.add_column("timestamp", "int64")
 ds.add_column("metadata", types.Dict())
 
 # Store agent experiences
-experiences = [{
+ds.append([{
     "observation_image": camera_frame,
     "observation_text": "robot sees red ball",
     "action": "move_forward",
@@ -805,11 +820,10 @@ experiences = [{
     "embedding": observation_embedding,
     "timestamp": current_time,
     "metadata": {"location": "room_a", "task": "pickup"}
-}]
-ds.append(experiences)
+}])
 ds.commit()
 
-# Semantic search for similar experiences
+# Semantic search for similar experiences (key pattern for agents)
 query_embedding = get_observation_embedding(current_observation)
 similar_experiences = ds.query(f"""
     SELECT observation_text, action, reward, metadata
@@ -817,7 +831,7 @@ similar_experiences = ds.query(f"""
     LIMIT 10
 """)
 
-# Learn from similar past experiences
+# Learn from successful past experiences
 for exp in similar_experiences:
     if exp["reward"] > 0.7:
         perform_action(exp["action"])
@@ -825,60 +839,55 @@ for exp in similar_experiences:
 
 #### Agentic Decision Making with Vector Search
 
+**Unique aspects:** Success rate tracking, outcome-based action selection, decision loop pattern
+
 ```python
-# Agent memory with multi-modal context
 ds = deeplake.create("s3://bucket/agent_decision_memory")
 ds.add_column("state_image", types.Image())
 ds.add_column("state_text", types.Text(index_type=types.BM25))
 ds.add_column("state_embedding", types.Embedding(512))
 ds.add_column("action_taken", types.Text())
 ds.add_column("outcome", types.Text())
-ds.add_column("success_rate", "float32")
+ds.add_column("success_rate", "float32")  # Track action effectiveness
 
-# Agent decision loop
 def agentic_decision_loop(current_state_image, current_state_text):
-    # Get embedding of current state
     state_embedding = encode_state(current_state_image, current_state_text)
     
-    # Find similar past states
+    # Find similar past states and their outcomes
     similar_states = ds.query(f"""
         SELECT action_taken, outcome, success_rate
         ORDER BY COSINE_SIMILARITY(state_embedding, ARRAY[{','.join(map(str, state_embedding))}]) DESC
         LIMIT 5
     """)
     
-    # Choose action with highest success rate
-    best_action = None
-    best_success = 0.0
-    for state in similar_states:
-        if state["success_rate"] > best_success:
-            best_success = state["success_rate"]
-            best_action = state["action_taken"]
-    
-    return best_action
+    # Choose action with highest success rate (outcome-based learning)
+    return max(similar_states, key=lambda x: x["success_rate"])["action_taken"]
 ```
 
 ### Physical AI and Robotics
 
 Physical AI systems need to process sensor data, camera feeds, and action sequences efficiently. Deep Lake excels at this:
 
+**Pattern:** Physical AI systems store multi-modal sensor data (camera, LiDAR, IMU, joint states) with actions and rewards. Key patterns: real-time streaming, sensor data compression, action-reward pairs.
+
 #### Robot Sensor Data Pipeline
 
+**Unique aspects:** Multiple sensor types (camera, LiDAR, IMU), joint state arrays, real-time streaming
+
 ```python
-# Robot sensor data storage
 ds = deeplake.create("s3://bucket/robot_sensor_data")
 ds.add_column("camera_image", types.Image())
-ds.add_column("lidar_scan", types.Array("float32", (360,)))
+ds.add_column("lidar_scan", types.Array("float32", (360,)))  # 360-degree scan
 ds.add_column("imu_data", types.Array("float32", (6,)))  # accel + gyro
 ds.add_column("joint_states", types.Array("float32", (7,)))  # 7-DOF arm
 ds.add_column("action_command", types.Text())
 ds.add_column("reward_signal", "float32")
 ds.add_column("timestamp", "int64")
 
-# Stream sensor data during operation
+# Real-time streaming pattern for robotics
 def robot_data_collection():
     while robot.is_running():
-        frame = {
+        ds.append([{
             "camera_image": camera.capture(),
             "lidar_scan": lidar.get_scan(),
             "imu_data": imu.get_data(),
@@ -886,29 +895,29 @@ def robot_data_collection():
             "action_command": current_action,
             "reward_signal": compute_reward(),
             "timestamp": time.time_ns()
-        }
-        ds.append([frame])
+        }])
         
-        # Commit every 100 frames
+        # Batch commits for efficiency
         if len(ds) % 100 == 0:
             ds.commit("Sensor data batch")
 ```
 
 #### Autonomous Vehicle Perception
 
+**Unique aspects:** Multi-camera setup, large point clouds, GPS positioning, decision embeddings
+
 ```python
-# Autonomous vehicle perception data
 ds = deeplake.create("s3://bucket/av_perception")
 ds.add_column("front_camera", types.Image())
-ds.add_column("rear_camera", types.Image())
+ds.add_column("rear_camera", types.Image())  # Multiple camera views
 ds.add_column("lidar_pointcloud", types.Array("float32", (10000, 4)))  # x,y,z,intensity
 ds.add_column("radar_data", types.Array("float32", (64,)))
 ds.add_column("gps_location", types.Array("float64", (3,)))  # lat,lon,alt
 ds.add_column("detected_objects", types.Dict())  # bboxes, classes
-ds.add_column("decision_embedding", types.Embedding(256))
+ds.add_column("decision_embedding", types.Embedding(256))  # Encoded decision
 ds.add_column("action_taken", types.Text())  # "turn_left", "brake", etc.
 
-# Store perception-action pairs
+# Store perception-action pairs for learning
 def store_perception_action(cameras, lidar, radar, gps, detections, action):
     decision_embedding = encode_decision(cameras, detections, action)
     ds.append([{
@@ -925,17 +934,17 @@ def store_perception_action(cameras, lidar, radar, gps, detections, action):
 
 #### Robotic Manipulation with Multi-Modal Memory
 
+**Unique aspects:** 6D pose representation (x,y,z,roll,pitch,yaw), grasp success tracking, task-based retrieval
+
 ```python
-# Robot manipulation experience database
 ds = deeplake.create("s3://bucket/manipulation_experiences")
 ds.add_column("scene_image", types.Image())
 ds.add_column("object_embeddings", types.Embedding(128))  # Object features
 ds.add_column("grasp_pose", types.Array("float32", (6,)))  # x,y,z,roll,pitch,yaw
 ds.add_column("gripper_force", "float32")
-ds.add_column("success", "bool")
+ds.add_column("success", "bool")  # Track successful grasps
 ds.add_column("task_description", types.Text(index_type=types.BM25))
 
-# Store successful grasps
 def store_grasp_experience(scene_img, obj_embedding, pose, force, task):
     ds.append([{
         "scene_image": scene_img,
@@ -946,13 +955,11 @@ def store_grasp_experience(scene_img, obj_embedding, pose, force, task):
         "task_description": task
     }])
 
-# Retrieve similar successful grasps
+# Retrieve similar successful grasps: combine text search + vector similarity
 def find_similar_grasp(current_scene, object_features, task_query):
-    scene_embedding = encode_scene(current_scene)
     results = ds.query(f"""
         SELECT scene_image, grasp_pose, gripper_force
-        WHERE task_description @> '{task_query}'
-        AND success = true
+        WHERE task_description @> '{task_query}' AND success = true
         ORDER BY COSINE_SIMILARITY(object_embeddings, ARRAY[{','.join(map(str, object_features))}]) DESC
         LIMIT 5
     """)
@@ -1091,82 +1098,70 @@ def agentic_decision(context_text, context_embedding):
 
 ## Advanced Use Cases
 
+**Pattern:** Most use cases follow the same structure: create dataset → define schema → add data → query. Focus here on unique type combinations and query patterns for each use case.
+
 ### Image Classification Pipeline
+
+**Unique aspects:** ClassLabel with named classes, confidence filtering, bounding boxes
 
 ```python
 import deeplake
 from deeplake import types
-import numpy as np
 
-# Create dataset for image classification
 ds = deeplake.create("s3://bucket/image_classification")
+# Unique: ClassLabel with named categories, confidence scoring
 ds.add_column("images", types.Image())
 ds.add_column("labels", types.ClassLabel(names=["cat", "dog", "bird", "car", "truck"]))
 ds.add_column("confidence", "float32")
 ds.add_column("bbox", types.BoundingBox())
 
-# Add data
 ds.append({
     "images": image_arrays,
     "labels": label_names,
     "confidence": confidence_scores,
     "bbox": bounding_boxes
 })
-
-# Commit initial data
 ds.commit("Initial image classification data")
 
-# Query for high-confidence predictions
-high_confidence = ds.query("""
-    SELECT * 
-    WHERE confidence > 0.95
-    ORDER BY confidence DESC
-""")
-
-# Query for specific class
-cats = ds.query("""
-    SELECT * 
-    WHERE labels = 'cat'
-""")
+# Query patterns for this use case
+high_confidence = ds.query("SELECT * WHERE confidence > 0.95 ORDER BY confidence DESC")
+cats = ds.query("SELECT * WHERE labels = 'cat'")
 ```
 
 ### Object Detection Dataset
 
+**Unique aspects:** Multiple bboxes/masks per image, list-based labels
+
 ```python
-# Create object detection dataset
 ds = deeplake.create("s3://bucket/object_detection")
 ds.add_column("images", types.Image())
-ds.add_column("bboxes", types.BoundingBox())
-ds.add_column("labels", types.ClassLabel("int32"))
-ds.add_column("masks", types.BinaryMask())
+ds.add_column("bboxes", types.BoundingBox())  # List of bboxes per image
+ds.add_column("labels", types.ClassLabel("int32"))  # List of labels per image
+ds.add_column("masks", types.BinaryMask())  # List of masks per image
 
-# Add detection data
 ds.append({
     "images": images,
-    "bboxes": bounding_boxes,  # List of bboxes per image
-    "labels": class_ids,       # List of labels per image
-    "masks": binary_masks      # List of masks per image
+    "bboxes": bounding_boxes,  # Each image can have multiple detections
+    "labels": class_ids,
+    "masks": binary_masks
 })
 
-# Query by object class
-people = ds.query("""
-    SELECT * 
-    WHERE CONTAINS(labels, 0)  -- Assuming 0 is person class
-""")
+# Query by object class (CONTAINS for list-based data)
+people = ds.query("SELECT * WHERE CONTAINS(labels, 0)")  # Assuming 0 is person class
 ```
 
 ### Medical Imaging Workflow
 
+**Unique aspects:** Medical DICOM format, patient metadata, diagnosis classification
+
 ```python
-# Create medical imaging dataset
 ds = deeplake.create("s3://bucket/medical_images")
-ds.add_column("dicom_images", types.Medical(compression="dcm"))
+ds.add_column("dicom_images", types.Medical(compression="dcm"))  # DICOM format
 ds.add_column("patient_id", "text")
 ds.add_column("study_date", "text")
 ds.add_column("diagnosis", types.ClassLabel(names=["normal", "abnormal"]))
 ds.add_column("annotations", types.Dict())
 
-# Add medical data
 ds.append({
     "dicom_images": dicom_files,
     "patient_id": patient_ids,
@@ -1175,31 +1170,27 @@ ds.append({
     "annotations": annotation_dicts
 })
 
-# Query by diagnosis
-abnormal_cases = ds.query("""
-    SELECT * 
-    WHERE diagnosis = 'abnormal'
-    ORDER BY study_date DESC
-""")
+# Query by diagnosis with temporal ordering
+abnormal_cases = ds.query("SELECT * WHERE diagnosis = 'abnormal' ORDER BY study_date DESC")
 ```
 
 ### Time Series Analysis
 
+**Unique aspects:** Timestamp-based queries, array features, temporal ordering
+
 ```python
-# Create time series dataset
 ds = deeplake.create("s3://bucket/timeseries")
 ds.add_column("timestamp", "int64")
 ds.add_column("values", types.Array("float32", (10,)))  # 10 features per time step
 ds.add_column("label", "text")
 
-# Add time series data
 ds.append({
     "timestamp": timestamps,
     "values": time_series_arrays,
     "label": event_labels
 })
 
-# Query by time range
+# Time range queries with temporal ordering
 recent_data = ds.query("""
     SELECT * 
     WHERE timestamp > 1640995200  -- Unix timestamp
@@ -1209,16 +1200,16 @@ recent_data = ds.query("""
 
 ### Collaborative Filtering Dataset
 
+**Unique aspects:** Dual embeddings (user + item), rating-based filtering, recommendation queries
+
 ```python
-# Create recommendation dataset
 ds = deeplake.create("s3://bucket/recommendations")
 ds.add_column("user_id", "int32")
 ds.add_column("item_id", "int32")
 ds.add_column("rating", "float32")
-ds.add_column("user_embedding", types.Embedding(128))
-ds.add_column("item_embedding", types.Embedding(128))
+ds.add_column("user_embedding", types.Embedding(128))  # User preferences
+ds.add_column("item_embedding", types.Embedding(128))   # Item features
 
-# Add interaction data
 ds.append({
     "user_id": user_ids,
     "item_id": item_ids,
@@ -1227,7 +1218,7 @@ ds.append({
     "item_embedding": item_embeddings
 })
 
-# Find similar items for a user
+# Recommendation: Find similar items for a user using vector similarity
 user_vector = user_embeddings[0]
 similar_items = ds.query(f"""
     SELECT item_id, rating,
@@ -1240,16 +1231,16 @@ similar_items = ds.query(f"""
 
 ### Document Search System
 
+**Unique aspects:** Hybrid search (BM25 + vector), metadata filtering, file links
+
 ```python
-# Create document search dataset
 ds = deeplake.create("s3://bucket/documents")
 ds.add_column("document_id", "text")
-ds.add_column("content", types.Text(index_type=types.BM25))
-ds.add_column("embedding", types.Embedding(768))
+ds.add_column("content", types.Text(index_type=types.BM25))  # BM25 for text search
+ds.add_column("embedding", types.Embedding(768))  # Vector embeddings
 ds.add_column("metadata", types.Dict())
-ds.add_column("file_path", types.Link(types.Text()))
+ds.add_column("file_path", types.Link(types.Text()))  # External file references
 
-# Add documents
 ds.append({
     "document_id": doc_ids,
     "content": document_texts,
@@ -1258,10 +1249,9 @@ ds.append({
     "file_path": file_urls
 })
 
-# Hybrid search: BM25 + vector similarity
+# Hybrid search: Combine BM25 text search + vector similarity
 query_text = "machine learning"
 query_embedding = get_embedding(query_text)
-
 results = ds.query(f"""
     SELECT document_id, content, metadata,
         BM25_SIMILARITY(content, '{query_text}') * 0.5 +

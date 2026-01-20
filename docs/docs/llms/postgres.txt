@@ -56,19 +56,27 @@ INSERT INTO vectors (v1, v2) VALUES
 
 ### Creating Indexes
 
+**Pattern:** All indexes use `USING deeplake_index`. For vectors, use `DESC` order. For text/numeric/JSONB, specify `index_type` in `WITH` clause.
+
 ```sql
--- Create vector similarity index
+-- Generic pattern:
+-- CREATE INDEX index_name ON table_name USING deeplake_index (column <DESC|ASC|index_type>);
+-- For text/numeric: WITH (index_type = 'bm25'|'inverted'|'exact_text'|'jsonb')
+
+-- Vector similarity index (default, use DESC for similarity)
 CREATE INDEX index_for_v1 ON vectors USING deeplake_index (v1 DESC);
 
--- Create text search index with BM25
+-- Text search indexes (specify index_type)
 CREATE INDEX idx_content_bm25 ON documents USING deeplake_index (content) 
-    WITH (index_type = 'bm25');
+    WITH (index_type = 'bm25');  -- Semantic text search
 
--- Create inverted index for exact text search
 CREATE INDEX idx_tags_exact ON documents USING deeplake_index (tags) 
-    WITH (index_type = 'exact_text');
+    WITH (index_type = 'exact_text');  -- Exact matching
 
--- Create inverted index for numeric columns
+CREATE INDEX idx_tags_inverted ON documents USING deeplake_index (tags) 
+    WITH (index_type = 'inverted');  -- Keyword search
+
+-- Numeric indexes (all use 'inverted' type)
 CREATE INDEX idx_id_inverted ON documents USING deeplake_index (id) 
     WITH (index_type = 'inverted');
 ```
@@ -286,60 +294,63 @@ LIMIT 10;
 
 ## Index Types
 
+**Pattern:** All indexes use `USING deeplake_index`. Vector indexes use `DESC` order. Text/numeric/JSONB indexes require `index_type` in `WITH` clause.
+
 ### Vector Index
 
-Default embedding index for vector similarity search:
+Default embedding index for vector similarity search. Use `DESC` order (higher similarity = better):
 
 ```sql
--- Create vector index
 CREATE INDEX idx_embeddings ON vectors USING deeplake_index (embedding DESC);
 ```
 
 ### Text Index Types
 
+Three text index types, each optimized for different search patterns:
+
+**BM25** - Semantic/relevance-based text search:
 ```sql
--- BM25 index for semantic text search
 CREATE INDEX idx_bm25 ON documents USING deeplake_index (content) 
     WITH (index_type = 'bm25');
+-- Use with: content <#> 'search query'
+```
 
--- Exact text index for exact matching
+**Exact Text** - Exact phrase matching:
+```sql
 CREATE INDEX idx_exact ON documents USING deeplake_index (tags) 
     WITH (index_type = 'exact_text');
+-- Use with: WHERE tags = 'exact phrase'
+```
 
--- Inverted index for keyword search
+**Inverted** - Keyword-based search:
+```sql
 CREATE INDEX idx_inverted ON documents USING deeplake_index (keywords) 
     WITH (index_type = 'inverted');
+-- Use with: WHERE contains(keywords, 'keyword')
 ```
 
 ### Numeric Indexes
 
-Inverted indexes for efficient numeric queries:
+All numeric types use `'inverted'` index type for efficient range and equality queries:
 
 ```sql
--- Integer index
+-- Supported types: integer, bigint, smallint, numeric, real, double precision
 CREATE INDEX idx_id ON documents USING deeplake_index (id) 
     WITH (index_type = 'inverted');
-
--- Bigint index
+    
 CREATE INDEX idx_timestamp ON events USING deeplake_index (timestamp) 
     WITH (index_type = 'inverted');
-
--- Numeric/decimal index
+    
 CREATE INDEX idx_price ON products USING deeplake_index (price) 
     WITH (index_type = 'inverted');
-
--- Real/float4 index
+    
 CREATE INDEX idx_score ON ratings USING deeplake_index (score) 
-    WITH (index_type = 'inverted');
-
--- Double precision/float8 index
-CREATE INDEX idx_precision ON measurements USING deeplake_index (value) 
     WITH (index_type = 'inverted');
 ```
 
 ### JSONB Index
 
-Index-aware JSONB field equality:
+Index-aware JSONB field queries using inverted index:
 
 ```sql
 -- Create table with JSONB

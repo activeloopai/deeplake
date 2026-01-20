@@ -34,56 +34,76 @@ JOIN "gcs://bucket/embeddings" AS e ON i.id = e.image_id
 
 ## Vector Similarity Search
 
-### Cosine Similarity
-
-Returns similarity scores between -1 and 1, where 1 is most similar:
+All similarity functions follow the same query pattern. Replace `<SIMILARITY_FUNCTION>` and adjust sort direction based on whether higher or lower values indicate similarity:
 
 ```sql
--- Higher scores = more similar (DESC)
+-- Generic pattern for similarity search
 SELECT * 
-ORDER BY COSINE_SIMILARITY(embeddings, ARRAY[0.1, 0.2, 0.3, ...]) DESC 
+ORDER BY <SIMILARITY_FUNCTION>(embeddings, ARRAY[0.1, 0.2, 0.3, ...]) <ASC|DESC>
 LIMIT 100
 
 -- With filtering
 SELECT * 
 WHERE category = 'animals'
-ORDER BY COSINE_SIMILARITY(embeddings, ARRAY[0.1, 0.2, 0.3, ...]) DESC 
+ORDER BY <SIMILARITY_FUNCTION>(embeddings, ARRAY[0.1, 0.2, 0.3, ...]) <ASC|DESC>
+LIMIT 100
+```
+
+### Cosine Similarity
+
+**Returns:** Similarity scores between -1 and 1, where 1 = most similar  
+**Sort Direction:** DESC (higher scores = more similar)  
+**Use Case:** Most common for normalized embeddings, captures angular similarity regardless of magnitude
+
+```sql
+-- Cosine similarity example
+SELECT image, label,
+       COSINE_SIMILARITY(embeddings, ARRAY[0.1, 0.2, 0.3, ...]) as similarity
+FROM dataset
+WHERE similarity > 0.8
+ORDER BY similarity DESC
 LIMIT 100
 ```
 
 ### L2 Norm (Euclidean Distance)
 
-Returns distance, where lower values = more similar (use ASC):
+**Returns:** Distance value (lower = more similar)  
+**Sort Direction:** ASC (lower distances = more similar)  
+**Use Case:** Captures absolute distance, good for unnormalized embeddings
 
 ```sql
--- Lower distances = more similar (ASC)
-SELECT * 
-ORDER BY L2_NORM(embeddings - ARRAY[0.1, 0.2, 0.3, ...]) ASC 
-LIMIT 100
-
--- Vector subtraction syntax
+-- L2 distance example (two syntaxes supported)
 SELECT * 
 ORDER BY L2_NORM(embeddings, ARRAY[0.1, 0.2, 0.3, ...]) ASC 
+LIMIT 100
+
+-- Alternative subtraction syntax
+SELECT * 
+ORDER BY L2_NORM(embeddings - ARRAY[0.1, 0.2, 0.3, ...]) ASC 
 LIMIT 100
 ```
 
 ### L1 Norm (Manhattan Distance)
 
-Returns Manhattan distance:
+**Returns:** Manhattan distance (lower = more similar)  
+**Sort Direction:** ASC (lower distances = more similar)  
+**Use Case:** Less sensitive to outliers than L2, useful for sparse embeddings
 
 ```sql
--- Lower distances = more similar (ASC)
+-- L1 distance example
 SELECT * 
 ORDER BY L1_NORM(embeddings - ARRAY[0.1, 0.2, 0.3, ...]) ASC 
 LIMIT 100
 ```
 
-### Inner Product
+### Inner Product (Dot Product)
 
-Returns dot product, where higher values = more similar:
+**Returns:** Dot product (higher = more similar)  
+**Sort Direction:** DESC (higher products = more similar)  
+**Use Case:** Fast computation, equivalent to cosine when embeddings are normalized
 
 ```sql
--- Higher products = more similar (DESC)
+-- Inner product example
 SELECT * 
 ORDER BY INNER_PRODUCT(embeddings, ARRAY[0.1, 0.2, 0.3, ...]) DESC 
 LIMIT 100
