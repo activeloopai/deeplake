@@ -533,7 +533,7 @@ ORDER BY COSINE_SIMILARITY(embeddings, $1) DESC
 LIMIT $2
 ```
 
-### Query Explaination
+### Query Explanation
 
 ```sql
 -- Explain query execution plan
