@@ -13,6 +13,8 @@ extern "C" {
 #include <catalog/pg_type.h>
 #include <executor/spi.h>
 #include <miscadmin.h>
+#include <nodes/makefuncs.h>
+#include <nodes/parsenodes.h>
 #include <utils/builtins.h>
 #include <utils/elog.h>
 #include <utils/errcodes.h>
@@ -20,6 +22,7 @@ extern "C" {
 #include <utils/lsyscache.h>
 #include <utils/rel.h>
 #include <utils/syscache.h>
+#include <utils/snapmgr.h>
 
 #ifdef __cplusplus
 }
@@ -28,6 +31,7 @@ extern "C" {
 #include "table_storage.hpp"
 
 #include "exceptions.hpp"
+#include "dl_catalog.hpp"
 #include <storage/exceptions.hpp>
 #include "logger.hpp"
 #include "memory_tracker.hpp"
@@ -216,19 +220,136 @@ void table_storage::save_table_metadata(const pg::table_data& table_data)
         }
         return true;
     });
+
+    // Also write into Deep Lake catalog for stateless multi-instance support.
+    const auto root_dir = []() {
+        auto root = session_credentials::get_root_path();
+        if (root.empty()) {
+            root = pg::utils::get_deeplake_root_directory();
+        }
+        return root;
+    }();
+    auto creds = session_credentials::get_credentials();
+    pg::dl_catalog::ensure_catalog(root_dir, creds);
+
+    auto [schema_name, simple_table_name] = split_table_name(table_name);
+    pg::dl_catalog::table_meta meta;
+    meta.table_id = schema_name + "." + simple_table_name;
+    meta.schema_name = schema_name;
+    meta.table_name = simple_table_name;
+    meta.dataset_path = ds_path;
+    meta.state = "ready";
+    pg::dl_catalog::upsert_table(root_dir, std::move(creds), meta);
+    pg::dl_catalog::bump_catalog_version(root_dir, session_credentials::get_credentials());
+    catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, session_credentials::get_credentials());
 }
 
 void table_storage::load_table_metadata()
 {
+    const auto root_dir = []() {
+        auto root = session_credentials::get_root_path();
+        if (root.empty()) {
+            root = pg::utils::get_deeplake_root_directory();
+        }
+        return root;
+    }();
+    auto creds = session_credentials::get_credentials();
+    pg::dl_catalog::ensure_catalog(root_dir, creds);
+
     if (tables_loaded_) {
-        return;
+        const auto current_version = pg::dl_catalog::get_catalog_version(root_dir, creds);
+        if (current_version == catalog_version_) {
+            return;
+        }
+        tables_.clear();
+        views_.clear();
+        tables_loaded_ = false;
     }
     /// set this first to avoid reloading metadata
     tables_loaded_ = true;
+    catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, creds);
+
+    auto catalog_tables = pg::dl_catalog::load_tables(root_dir, creds);
+    if (!catalog_tables.empty()) {
+        for (const auto& meta : catalog_tables) {
+            const std::string qualified_name = meta.schema_name + "." + meta.table_name;
+            auto* rel = makeRangeVar(pstrdup(meta.schema_name.c_str()), pstrdup(meta.table_name.c_str()), -1);
+            Oid relid = RangeVarGetRelid(rel, NoLock, true);
+            if (!OidIsValid(relid)) {
+                // Attempt to create missing table from catalog entry.
+                pg::utils::memory_context_switcher context_switcher;
+                pg::utils::spi_connector connector;
+                bool pushed_snapshot = false;
+                if (!ActiveSnapshotSet()) {
+                    PushActiveSnapshot(GetTransactionSnapshot());
+                    pushed_snapshot = true;
+                }
+                const char* qschema = quote_identifier(meta.schema_name.c_str());
+                char* qpath = quote_literal_cstr(meta.dataset_path.c_str());
+
+                StringInfoData buf;
+                initStringInfo(&buf);
+                appendStringInfo(&buf, "CREATE SCHEMA IF NOT EXISTS %s", qschema);
+                SPI_execute(buf.data, false, 0);
+
+                resetStringInfo(&buf);
+                appendStringInfo(&buf,
+                                 "SELECT create_deeplake_table(%s, %s)",
+                                 quote_literal_cstr(qualified_name.c_str()),
+                                 qpath);
+                if (SPI_execute(buf.data, false, 0) != SPI_OK_SELECT) {
+                    elog(WARNING,
+                         "Failed to auto-create deeplake table %s from catalog",
+                         qualified_name.c_str());
+                }
+                if (pushed_snapshot) {
+                    PopActiveSnapshot();
+                }
+                relid = RangeVarGetRelid(rel, NoLock, true);
+            }
+            if (!OidIsValid(relid)) {
+                elog(WARNING, "Catalog table %s does not exist in PG instance", qualified_name.c_str());
+                continue;
+            }
+            Relation relation = try_relation_open(relid, NoLock);
+            if (relation == nullptr) {
+                elog(WARNING, "Could not open relation for table %s", qualified_name.c_str());
+                continue;
+            }
+            {
+                pg::utils::memory_context_switcher context_switcher(TopMemoryContext);
+                table_data td(
+                    relid, qualified_name, CreateTupleDescCopy(RelationGetDescr(relation)), meta.dataset_path, creds);
+                auto it2status = tables_.emplace(relid, std::move(td));
+                up_to_date_ = false;
+                ASSERT(it2status.second);
+            }
+            relation_close(relation, NoLock);
+        }
+        load_schema_name();
+        return;
+    }
 
     if (!pg::utils::check_table_exists("pg_deeplake_tables")) {
         return;
     }
+
+    struct snapshot_guard {
+        bool active = false;
+        snapshot_guard()
+        {
+            if (!ActiveSnapshotSet()) {
+                PushActiveSnapshot(GetTransactionSnapshot());
+                active = true;
+            }
+        }
+        ~snapshot_guard()
+        {
+            if (active) {
+                PopActiveSnapshot();
+            }
+        }
+    } guard;
 
     // Backward compatibility: Check if table_oid column exists
     // If not, drop and recreate the table with the correct schema
@@ -281,9 +402,10 @@ void table_storage::load_table_metadata()
     SPITupleTable* tuptable = SPI_tuptable;
 
     // Get credentials from current session
-    auto creds = session_credentials::get_credentials();
+    creds = session_credentials::get_credentials();
 
     std::vector<Oid> invalid_table_oids;
+    bool catalog_seeded = false;
 
     for (auto i = 0; i < proc; ++i) {
         HeapTuple tuple = tuptable->vals[i];
@@ -300,6 +422,17 @@ void table_storage::load_table_metadata()
             continue;
         }
         try {
+            // Seed the DL catalog with legacy metadata.
+            auto [schema_name, simple_table_name] = split_table_name(table_name);
+            pg::dl_catalog::table_meta meta;
+            meta.table_id = schema_name + "." + simple_table_name;
+            meta.schema_name = schema_name;
+            meta.table_name = simple_table_name;
+            meta.dataset_path = ds_path;
+            meta.state = "ready";
+            pg::dl_catalog::upsert_table(root_dir, creds, meta);
+            catalog_seeded = true;
+
             // Get the relation and its tuple descriptor
             Relation rel = try_relation_open(relid, NoLock);
             if (rel == nullptr) {
@@ -331,6 +464,10 @@ void table_storage::load_table_metadata()
             base::log_warning(
                 base::log_channel::generic, "Failed to delete invalid table metadata for table_oid: {}", invalid_oid);
         }
+    }
+    if (catalog_seeded) {
+        pg::dl_catalog::bump_catalog_version(root_dir, session_credentials::get_credentials());
+        catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, session_credentials::get_credentials());
     }
     load_views();
     load_schema_name();
@@ -432,23 +569,22 @@ void table_storage::create_table(const std::string& table_name, Oid table_id, Tu
     std::string dataset_path;
     // Use provided dataset path or construct default path
     if (!options.dataset_path().empty()) {
+        if (!pg::allow_custom_paths) {
+            ereport(ERROR,
+                    (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+                     errmsg("Custom dataset_path is disabled"),
+                     errhint("Set deeplake.allow_custom_paths=on or omit dataset_path and configure deeplake.root_path")));
+        }
         // Explicit path provided via WITH clause
         dataset_path = options.dataset_path();
     } else {
-        // Get session root path if set
+        // Get session root path if set, otherwise fall back to default root.
         auto session_root = session_credentials::get_root_path();
-        std::string root_dir;
-
-        if (!session_root.empty()) {
-            // Use session-level root path from deeplake.root_path GUC
-            root_dir = session_root;
-        } else {
-            // Fall back to DEEPLAKE_ROOT_PATH env var or PostgreSQL data directory
-            root_dir = pg::utils::get_deeplake_root_directory();
+        if (session_root.empty()) {
+            session_root = pg::utils::get_deeplake_root_directory();
         }
-
         // Construct path: root_dir/schema_name/table_name
-        dataset_path = root_dir + "/" + schema_name + "/" + simple_table_name;
+        dataset_path = session_root + "/" + schema_name + "/" + simple_table_name;
     }
 
     // Get credentials from current session
@@ -698,6 +834,24 @@ void table_storage::drop_table(const std::string& table_name)
     if (table_exists(table_name)) {
         auto& table_data = get_table_data(table_name);
         auto creds = session_credentials::get_credentials();
+        const auto root_dir = []() {
+            auto root = session_credentials::get_root_path();
+            if (root.empty()) {
+                root = pg::utils::get_deeplake_root_directory();
+            }
+            return root;
+        }();
+        pg::dl_catalog::ensure_catalog(root_dir, creds);
+        auto [schema_name, simple_table_name] = split_table_name(table_name);
+        pg::dl_catalog::table_meta meta;
+        meta.table_id = schema_name + "." + simple_table_name;
+        meta.schema_name = schema_name;
+        meta.table_name = simple_table_name;
+        meta.dataset_path = table_data.get_dataset_path().url();
+        meta.state = "dropping";
+        pg::dl_catalog::upsert_table(root_dir, creds, meta);
+        pg::dl_catalog::bump_catalog_version(root_dir, session_credentials::get_credentials());
+        catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, session_credentials::get_credentials());
         try {
             table_data.commit(); // Ensure all changes are committed before deletion
             table_version_tracker::drop_table(table_data.get_table_oid());

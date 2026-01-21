@@ -185,6 +185,11 @@ public:
         tables_loaded_ = false;
         load_table_metadata();
     }
+    void mark_metadata_stale() noexcept
+    {
+        tables_loaded_ = false;
+        up_to_date_ = false;
+    }
     void load_views();
 
     inline const auto& get_views() const noexcept
@@ -240,6 +245,7 @@ private:
     std::string schema_name_ = "public";
     bool tables_loaded_ = false;
     bool up_to_date_ = true;
+    int64_t catalog_version_ = 0;
 };
 
 } // namespace pg 

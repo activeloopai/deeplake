@@ -25,6 +25,7 @@ extern "C" {
 #include <utils/guc.h>
 #include <utils/lsyscache.h>
 #include <utils/memutils.h>
+#include <utils/snapmgr.h>
 #include <utils/syscache.h>
 #include <utils/varlena.h>
 
@@ -55,6 +56,7 @@ extern bool treat_numeric_as_double;
 extern bool print_progress_during_seq_scan;
 extern bool use_shared_mem_for_refresh;
 extern bool enable_dataset_logging;
+extern bool allow_custom_paths;
 
 namespace utils {
 
@@ -659,8 +661,17 @@ inline bool check_table_exists(const std::string& table_name, const std::string&
     std::string query = fmt::format("SELECT 1 FROM information_schema.tables WHERE "
                                     "table_schema = '{}' AND table_name = '{}'",
                                     schema_name, table_name);
+    bool pushed_snapshot = false;
+    if (!ActiveSnapshotSet()) {
+        PushActiveSnapshot(GetTransactionSnapshot());
+        pushed_snapshot = true;
+    }
     spi_connector connector;
-    return SPI_execute(query.c_str(), true, 0) == SPI_OK_SELECT && SPI_processed > 0;
+    bool exists = SPI_execute(query.c_str(), true, 0) == SPI_OK_SELECT && SPI_processed > 0;
+    if (pushed_snapshot) {
+        PopActiveSnapshot();
+    }
+    return exists;
 }
 
 inline bool check_column_exists(const std::string& table_name, const std::string& column_name, const std::string& schema_name = "public")
@@ -668,8 +679,17 @@ inline bool check_column_exists(const std::string& table_name, const std::string
     std::string query = fmt::format("SELECT 1 FROM information_schema.columns WHERE "
                                     "table_schema = '{}' AND table_name = '{}' AND column_name = '{}'",
                                     schema_name, table_name, column_name);
+    bool pushed_snapshot = false;
+    if (!ActiveSnapshotSet()) {
+        PushActiveSnapshot(GetTransactionSnapshot());
+        pushed_snapshot = true;
+    }
     spi_connector connector;
-    return SPI_execute(query.c_str(), true, 0) == SPI_OK_SELECT && SPI_processed > 0;
+    bool exists = SPI_execute(query.c_str(), true, 0) == SPI_OK_SELECT && SPI_processed > 0;
+    if (pushed_snapshot) {
+        PopActiveSnapshot();
+    }
+    return exists;
 }
 
 } // namespace utils

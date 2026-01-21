@@ -56,6 +56,7 @@ bool treat_numeric_as_double = true; // Treat numeric types as double by default
 bool print_progress_during_seq_scan = false;
 bool use_shared_mem_for_refresh = false;
 bool enable_dataset_logging = false; // Enable dataset operation logging for debugging
+bool allow_custom_paths = true; // Allow dataset_path in CREATE TABLE options
 
 } // namespace pg
 
@@ -224,6 +225,17 @@ void initialize_guc_parameters()
                              nullptr,
                              nullptr // check_hook, assign_hook, show_hook
     );
+
+    DefineCustomBoolVariable("deeplake.allow_custom_paths",
+                             "Allow custom dataset paths via USING deeplake WITH (dataset_path=...).",
+                             "If disabled, dataset_path options are rejected and tables must use deeplake.root_path.",
+                             &pg::allow_custom_paths,
+                             true,
+                             PGC_USERSET,
+                             0,
+                             nullptr,
+                             nullptr,
+                             nullptr);
 
     DefineCustomBoolVariable("pg_deeplake.enable_dataset_logging",
                              "Enable operation logging for deeplake datasets.",
@@ -613,6 +625,7 @@ static void process_utility(PlannedStmt* pstmt,
         elog(DEBUG1, "stmt->accessMethod: %s", stmt->accessMethod);
         const bool deeplake_table = (stmt->accessMethod != nullptr && std::strcmp(stmt->accessMethod, "deeplake") == 0);
         if (deeplake_table && stmt->options != nullptr) {
+            List* new_options = NIL;
             ListCell* lc = nullptr;
             foreach (lc, stmt->options) {
                 DefElem* def = (DefElem*)lfirst(lc);
@@ -620,10 +633,11 @@ static void process_utility(PlannedStmt* pstmt,
                     const char* ds_path = defGetString(def);
                     pg::table_options::current().set_dataset_path(ds_path);
                     elog(DEBUG1, "ds_path: %s", ds_path);
+                    continue;
                 }
+                new_options = lappend(new_options, def);
             }
-            list_free_deep(stmt->options);
-            stmt->options = NIL;
+            stmt->options = new_options;
         }
         // Remove PRIMARY KEY constraints
         if (pg::ignore_primary_keys && deeplake_table && stmt->tableElts != nullptr) {
@@ -972,7 +986,7 @@ static void process_utility(PlannedStmt* pstmt,
                                     // Invalidate cached table data to force reload in current session
                                     RelationClose(relation);
                                     pg::table_storage::instance().erase_table(table_name);
-                                    pg::table_storage::instance().force_load_table_metadata();
+                                    pg::table_storage::instance().mark_metadata_stale();
                                     return; // Exit early after erasing table
 
                                 } catch (const base::exception& e) {
@@ -992,7 +1006,7 @@ static void process_utility(PlannedStmt* pstmt,
                     // Column has been dropped from PostgreSQL catalog, now reload table_data
                     // to pick up the updated TupleDesc (with the column marked as dropped)
                     pg::table_storage::instance().erase_table(table_name);
-                    pg::table_storage::instance().force_load_table_metadata();
+                    pg::table_storage::instance().mark_metadata_stale();
                     elog(INFO, "Reloaded table_data after DROP COLUMN for table '%s'", table_name.c_str());
                     return; // Exit early after reloading table
                 }
@@ -1047,7 +1061,7 @@ static void process_utility(PlannedStmt* pstmt,
 
                     // Invalidate cached table data to force reload in current session
                     pg::table_storage::instance().erase_table(table_name);
-                    pg::table_storage::instance().force_load_table_metadata();
+                    pg::table_storage::instance().mark_metadata_stale();
 
                 } catch (const base::exception& e) {
                     ereport(ERROR,

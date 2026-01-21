@@ -219,6 +219,11 @@ void deeplake_relation_vacuum(Relation rel, struct VacuumParams* params, BufferA
     return;
 }
 
+TransactionId deeplake_index_delete_tuples(Relation rel, TM_IndexDeleteOp* delstate)
+{
+    return InvalidTransactionId;
+}
+
 void deeplake_estimate_rel_size(
     Relation rel, int32_t* attr_widths, BlockNumber* pages, double* tuples, double* allvisfrac)
 {
@@ -627,6 +632,7 @@ void deeplake_table_am_routine::initialize()
     // Index support
     routine.index_build_range_scan = deeplake_index_build_range_scan;
     routine.index_validate_scan = deeplake_index_validate_scan;
+    routine.index_delete_tuples = deeplake_index_delete_tuples;
 
     // VACUUM support
     routine.relation_vacuum = deeplake_relation_vacuum;
