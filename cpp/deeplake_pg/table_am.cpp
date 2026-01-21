@@ -205,6 +205,9 @@ void deeplake_index_validate_scan(Relation heap_rel,
 
 void deeplake_relation_vacuum(Relation rel, struct VacuumParams* params, BufferAccessStrategy bstrategy)
 {
+    // Ensure DeepLake is initialized (for autovacuum workers that bypass planner/executor hooks)
+    pg::init_deeplake();
+
     // Check for VACUUM FULL - not supported for deeplake tables
     if (params != nullptr && (params->options & VACOPT_FULL)) {
         ereport(
@@ -227,6 +230,10 @@ TransactionId deeplake_index_delete_tuples(Relation rel, TM_IndexDeleteOp* delst
 void deeplake_estimate_rel_size(
     Relation rel, int32_t* attr_widths, BlockNumber* pages, double* tuples, double* allvisfrac)
 {
+    // Ensure DeepLake is initialized (for processes that bypass planner/executor hooks,
+    // such as autovacuum workers or parallel workers)
+    pg::init_deeplake();
+
     constexpr int32_t MIN_COLUMN_WIDTH = 8; // Minimum column width in bytes
 
     auto table_id = RelationGetRelid(rel);
@@ -668,6 +675,10 @@ TableScanDesc deeplake_table_am_routine::scan_begin(Relation relation,
                                                     ParallelTableScanDesc parallel_scan,
                                                     uint32_t flags)
 {
+    // Ensure DeepLake is initialized (for processes that bypass planner/executor hooks,
+    // such as autovacuum workers, parallel workers, or standalone ANALYZE)
+    pg::init_deeplake();
+
     DeeplakeScanData* extended_scan = static_cast<DeeplakeScanData*>(palloc0(sizeof(DeeplakeScanData)));
     auto table_id = RelationGetRelid(relation);
     bool is_parallel = (pg::use_parallel_workers && parallel_scan != nullptr);

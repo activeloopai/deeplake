@@ -1170,6 +1170,13 @@ static void process_utility(PlannedStmt* pstmt,
             }
             pg::table_storage::instance().set_schema_name(std::move(schema_name));
         }
+        // When root_path is set, auto-discover tables from the deeplake catalog
+        if (vstmt->name != nullptr && pg_strcasecmp(vstmt->name, "deeplake.root_path") == 0) {
+            // Reload table metadata from the catalog at the new root_path
+            // This enables stateless multi-instance support where tables are
+            // auto-discovered when pointing to a shared root_path
+            pg::table_storage::instance().force_load_table_metadata();
+        }
     }
 }
 
