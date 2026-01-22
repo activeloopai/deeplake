@@ -530,32 +530,6 @@ inline bool table_data::flush_updates()
     return true;
 }
 
-inline void table_data::set_primary_keys(const std::set<std::string>& primary_keys)
-{
-    get_dataset()->set_indexing_mode(deeplake::indexing_mode::always);
-    bool index_created = false;
-    for (const auto& column_name : primary_keys) {
-        auto& column = get_dataset()->get_column(column_name);
-        auto index_holder = column.index_holder();
-        if (index_holder != nullptr) {
-            continue;
-        }
-        auto column_type_kind = column.type().kind();
-        if (column_type_kind == deeplake_core::type_kind::generic && !column.type().data_type().is_array() &&
-            nd::dtype_is_numeric(column.type().data_type().get_dtype())) {
-            column.create_index(deeplake_core::index_type(
-                deeplake_core::numeric_index_type(deeplake_core::deeplake_index_type::type::inverted_index)));
-            index_created = true;
-            elog(DEBUG1, "Created numeric index on table '%s' column '%s'", table_name_.c_str(), column_name.c_str());
-        } else {
-            elog(DEBUG1, "Column %s is not supported yet for indexing", column_name.c_str());
-        }
-    }
-    if (index_created) {
-        commit();
-    }
-}
-
 inline Oid table_data::get_table_oid() const noexcept
 {
     return table_oid_;

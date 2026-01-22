@@ -259,7 +259,7 @@ jobs:
   build_container_images:
     name: Build Container Images
     if: github.event_name == 'workflow_dispatch'
-    needs: [setup, extension-build, repo-build]
+    needs: [setup, extension-build]
     env:
       OP_SERVICE_ACCOUNT_TOKEN: "${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}"
       VERSION: "${{ needs.extension-build.outputs.version }}"
@@ -271,6 +271,49 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v6.0.1
+
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v5.1.1
+        with:
+          role-to-assume: "arn:aws:iam::067976305224:role/github"
+          aws-region: us-east-1
+
+      - name: download build artifacts
+        shell: bash
+        run: |-
+          for arch in x86_64 aarch64; do
+            aws s3 cp "s3://activeloop-platform-tests/indra/artifacts/postgres/postgres-${arch}.tar" postgres-"${arch}".tar
+            tar xf postgres-"${arch}".tar
+          done
+
+      - name: build deb packages
+        shell: bash
+        env:
+          PG_VERSION: "${{ matrix.version }}"
+          VERSION: "${{ needs.extension-build.outputs.version }}"
+        run: |-
+          mkdir -p ./debs
+          for arch_pair in "amd64:x86_64" "arm64:aarch64"; do
+            ARCH="${arch_pair%%:*}"
+            ARTIFACT_DIR="postgres-${arch_pair##*:}"
+            DEB_PATH=$(mktemp -d)
+            mkdir -p "${DEB_PATH}/pg-deeplake-${PG_VERSION}/DEBIAN/"
+            mkdir -p "${DEB_PATH}/pg-deeplake-${PG_VERSION}/usr/lib/postgresql/${PG_VERSION}/lib/"
+            mkdir -p "${DEB_PATH}/pg-deeplake-${PG_VERSION}/usr/share/postgresql/${PG_VERSION}/extension/"
+            install -m 644 "${ARTIFACT_DIR}"/pg_deeplake_"${PG_VERSION}".so "${DEB_PATH}/pg-deeplake-${PG_VERSION}/usr/lib/postgresql/${PG_VERSION}/lib/pg_deeplake"
+            install -m 644 "${ARTIFACT_DIR}"/pg_deeplake*.sql "${DEB_PATH}/pg-deeplake-${PG_VERSION}/usr/share/postgresql/${PG_VERSION}/extension/"
+            install -m 644 "${ARTIFACT_DIR}"/pg_deeplake.control "${DEB_PATH}/pg-deeplake-${PG_VERSION}/usr/share/postgresql/${PG_VERSION}/extension/"
+            printf '%s\n' \
+              "Package: pg-deeplake-${PG_VERSION}" \
+              "Version: ${VERSION}" \
+              "Section: database" \
+              "Priority: optional" \
+              "Architecture: ${ARCH}" \
+              "Maintainer: Activeloop SRE <sre@activeloop.dev>" \
+              "Description: PostgreSQL ${PG_VERSION} DeepLake Extension." \
+              > "${DEB_PATH}/pg-deeplake-${PG_VERSION}/DEBIAN/control"
+            dpkg --build "${DEB_PATH}/pg-deeplake-${PG_VERSION}" "./debs/pg-deeplake-${PG_VERSION}_${VERSION}-1_${ARCH}.deb"
+          done
 
       - name: load 1pass
         id: load-1pass
@@ -298,10 +341,7 @@ jobs:
           PG_VERSION: "${{ matrix.version }}"
           VERSION: "${{ needs.extension-build.outputs.version }}"
         run: |-
-          mkdir -p ./debs
           echo "Using package version: ${VERSION}"
-          wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-"${PG_VERSION}"_"${VERSION}"-1_amd64.deb -O ./debs/pg-deeplake-"${PG_VERSION}"_"${VERSION}"-1_amd64.deb
-          wget https://packages.activeloop.io/deb/pg-deeplake/pool/main/pg-deeplake-"${PG_VERSION}"_"${VERSION}"-1_arm64.deb -O ./debs/pg-deeplake-"${PG_VERSION}"_"${VERSION}"-1_arm64.deb
           sed s/BASE_IMAGE/postgres:"${PG_VERSION}"-bookworm/g postgres/Dockerfile > Dockerfile.build
           docker buildx build \
             --push \

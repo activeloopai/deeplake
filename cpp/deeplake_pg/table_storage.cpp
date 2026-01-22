@@ -813,14 +813,6 @@ void table_storage::create_table(const std::string& table_name, Oid table_id, Tu
         ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("%s", e.what())));
     }
 
-    if (auto it = primary_keys_.find(simple_table_name); it != primary_keys_.end() && !it->second.empty()) {
-        try {
-            td.set_primary_keys(it->second);
-        } catch (const base::exception& e) {
-            elog(WARNING, "Failed to set primary keys for table %s: %s", table_name.c_str(), e.what());
-        }
-    }
-
     tables_.emplace(table_id, std::move(td));
     up_to_date_ = false;
 }
@@ -946,7 +938,10 @@ bool table_storage::fetch_tuple(Oid table_id, ItemPointer tid, TupleTableSlot* s
         ExecClearTuple(slot);
 
         const auto row_number = utils::tid_to_row_number(tid);
-        if (row_number >= table_data.num_rows()) {
+        // Use num_total_rows() to include uncommitted rows in the current transaction.
+        // This is necessary for AFTER triggers (like FK checks) that need to see
+        // rows inserted earlier in the same transaction.
+        if (row_number >= table_data.num_total_rows()) {
             return false;
         }
         Datum* values = slot->tts_values;
