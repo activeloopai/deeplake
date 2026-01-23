@@ -37,10 +37,8 @@ std::string join_path(const std::string& root, const std::string& name)
     return root + "/" + k_catalog_dir + "/" + name;
 }
 
-std::shared_ptr<deeplake_api::catalog_table> open_or_create_table(
-    const std::string& path,
-    deeplake_api::catalog_table_schema schema,
-    icm::string_map<> creds)
+std::shared_ptr<deeplake_api::catalog_table>
+open_or_create_table(const std::string& path, deeplake_api::catalog_table_schema schema, icm::string_map<> creds)
 {
     return deeplake_api::open_or_create_catalog_table(path, schema, std::move(creds)).get_future().get();
 }
@@ -51,9 +49,8 @@ int64_t now_ms()
     return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 }
 
-std::shared_ptr<deeplake_api::catalog_table> open_catalog_table(const std::string& root_path,
-                                                                const std::string& name,
-                                                                icm::string_map<> creds)
+std::shared_ptr<deeplake_api::catalog_table>
+open_catalog_table(const std::string& root_path, const std::string& name, icm::string_map<> creds)
 {
     const auto path = join_path(root_path, name);
     return deeplake_api::open_catalog_table(path, std::move(creds)).get_future().get();
@@ -213,8 +210,8 @@ std::vector<table_meta> load_tables(const std::string& root_path, icm::string_ma
             auto path_it = row.find("dataset_path");
             auto state_it = row.find("state");
             auto updated_it = row.find("updated_at");
-            if (table_id_it == row.end() || schema_it == row.end() || table_it == row.end() ||
-                path_it == row.end() || state_it == row.end() || updated_it == row.end()) {
+            if (table_id_it == row.end() || schema_it == row.end() || table_it == row.end() || path_it == row.end() ||
+                state_it == row.end() || updated_it == row.end()) {
                 continue;
             }
 

@@ -7,7 +7,7 @@ namespace pg {
 // Session-level credentials management
 struct session_credentials
 {
-    static char* creds_guc_string; // GUC string variable for credentials
+    static char* creds_guc_string;     // GUC string variable for credentials
     static char* root_path_guc_string; // GUC string variable for root path
 
     // Get credentials from current session
@@ -228,7 +228,37 @@ public:
         up_to_date_ = up_to_date;
     }
 
+    /**
+     * RAII guard to suppress auto-creation of tables during load_table_metadata().
+     *
+     * When creating a table concurrently, we don't want load_table_metadata() to
+     * auto-create tables from the catalog, as this causes race conditions with
+     * other backends that are also creating tables.
+     *
+     * Usage: Create this guard before calling table_storage::instance() during DDL.
+     */
+    class ddl_context_guard
+    {
+    public:
+        ddl_context_guard()
+        {
+            in_ddl_context_ = true;
+        }
+        ~ddl_context_guard()
+        {
+            in_ddl_context_ = false;
+        }
+        ddl_context_guard(const ddl_context_guard&) = delete;
+        ddl_context_guard& operator=(const ddl_context_guard&) = delete;
+    };
+
+    static bool in_ddl_context() noexcept
+    {
+        return in_ddl_context_;
+    }
+
 private:
+    static inline thread_local bool in_ddl_context_ = false;
     table_storage() = default;
 
     void save_table_metadata(const table_data& td);
@@ -242,4 +272,4 @@ private:
     int64_t catalog_version_ = 0;
 };
 
-} // namespace pg 
+} // namespace pg

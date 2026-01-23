@@ -4,8 +4,8 @@
 #include <fmt/format.h>
 #include <nd/array.hpp>
 
-#include <exception>
 #include <charconv>
+#include <exception>
 
 #ifdef __cplusplus
 extern "C" {
@@ -81,7 +81,7 @@ inline Oid get_base_type(Oid typid)
         return typid; // Type not found, return as-is
     }
 
-    Form_pg_type typTup = (Form_pg_type) GETSTRUCT(tup);
+    Form_pg_type typTup = (Form_pg_type)GETSTRUCT(tup);
 
     // If it's a domain, recursively get the base type
     Oid result = InvalidOid;
@@ -255,10 +255,7 @@ struct parsed_special_datum_result
 inline bool is_string_type(Oid attr_typeid)
 {
     // Check if the type is one of the text-like types
-    return (attr_typeid == TEXTOID ||
-            attr_typeid == VARCHAROID ||
-            attr_typeid == BPCHAROID ||
-            attr_typeid == JSONOID ||
+    return (attr_typeid == TEXTOID || attr_typeid == VARCHAROID || attr_typeid == BPCHAROID || attr_typeid == JSONOID ||
             attr_typeid == JSONBOID);
 }
 
@@ -344,31 +341,37 @@ inline parsed_special_datum_result parse_space_separated_values(const char* data
     }
 
     // Skip space
-    if (p1 >= end || *p1 != ' ') return result;
+    if (p1 >= end || *p1 != ' ')
+        return result;
     ptr = p1 + 1;
 
     // Parse table_id
     uint32_t table_id = 0;
     auto [p2, ec2] = std::from_chars(ptr, end, table_id);
-    if (ec2 != std::errc{}) return result;
+    if (ec2 != std::errc{})
+        return result;
 
     // Skip space
-    if (p2 >= end || *p2 != ' ') return result;
+    if (p2 >= end || *p2 != ' ')
+        return result;
     ptr = p2 + 1;
 
     // Parse row_id
     int64_t row_id = 0;
     auto [p3, ec3] = std::from_chars(ptr, end, row_id);
-    if (ec3 != std::errc{}) return result;
+    if (ec3 != std::errc{})
+        return result;
 
     // Skip space
-    if (p3 >= end || *p3 != ' ') return result;
+    if (p3 >= end || *p3 != ' ')
+        return result;
     ptr = p3 + 1;
 
     // Parse column_id
     int32_t column_id = 0;
     auto [p4, ec4] = std::from_chars(ptr, end, column_id);
-    if (ec4 != std::errc{}) return result;
+    if (ec4 != std::errc{})
+        return result;
 
     result.is_valid = true;
     result.table_id = table_id;
@@ -379,10 +382,11 @@ inline parsed_special_datum_result parse_space_separated_values(const char* data
 }
 
 // Helper function to parse a single bytea element as a number
-template<typename T>
+template <typename T>
 inline bool parse_bytea_element(bytea* b, T& value)
 {
-    if (b == nullptr) return false;
+    if (b == nullptr)
+        return false;
 
     const char* data = VARDATA(b);
     size_t len = VARSIZE(b) - VARHDRSZ;
@@ -400,8 +404,7 @@ inline Datum make_special_datum(Oid table_id, int64_t row_id, AttrNumber column_
         std::string str = fmt::format("{} {} {} {}", g_not_fetched_magic, table_id, row_id, column_id);
         return PointerGetDatum(cstring_to_text_with_len(str.data(), static_cast<int>(str.size())));
     } else if (type_is_array(attr_typeid)) {
-        switch (attr_typeid)
-        {
+        switch (attr_typeid) {
         case INT2ARRAYOID: {
             Datum* elements = (Datum*)palloc(8 * sizeof(Datum));
             elements[0] = Int16GetDatum(static_cast<int16_t>(g_not_fetched_magic & 0xFFFF));
@@ -534,7 +537,8 @@ inline parsed_special_datum_result parse_special_datum(Datum d, Oid attr_typeid)
 
         switch (attr_typeid) {
         case INT2ARRAYOID: {
-            if (dims[0] != 8) return result;
+            if (dims[0] != 8)
+                return result;
 
             int16* data = (int16*)ARR_DATA_PTR(arr);
 
@@ -546,9 +550,8 @@ inline parsed_special_datum_result parse_special_datum(Datum d, Oid attr_typeid)
 
             // Reconstruct table_id and row_id from split parts
             uint32_t table_id = static_cast<uint32_t>(data[2]) | (static_cast<uint32_t>(data[3]) << 16);
-            int64_t row_id = static_cast<int64_t>(data[4]) |
-                           (static_cast<int64_t>(data[5]) << 16) |
-                           (static_cast<int64_t>(data[6]) << 32);
+            int64_t row_id = static_cast<int64_t>(data[4]) | (static_cast<int64_t>(data[5]) << 16) |
+                             (static_cast<int64_t>(data[6]) << 32);
 
             result.is_valid = true;
             result.table_id = table_id;
@@ -659,7 +662,8 @@ inline bool check_table_exists(const std::string& table_name, const std::string&
 {
     std::string query = fmt::format("SELECT 1 FROM information_schema.tables WHERE "
                                     "table_schema = '{}' AND table_name = '{}'",
-                                    schema_name, table_name);
+                                    schema_name,
+                                    table_name);
     bool pushed_snapshot = false;
     if (!ActiveSnapshotSet()) {
         PushActiveSnapshot(GetTransactionSnapshot());
@@ -673,11 +677,15 @@ inline bool check_table_exists(const std::string& table_name, const std::string&
     return exists;
 }
 
-inline bool check_column_exists(const std::string& table_name, const std::string& column_name, const std::string& schema_name = "public")
+inline bool check_column_exists(const std::string& table_name,
+                                const std::string& column_name,
+                                const std::string& schema_name = "public")
 {
     std::string query = fmt::format("SELECT 1 FROM information_schema.columns WHERE "
                                     "table_schema = '{}' AND table_name = '{}' AND column_name = '{}'",
-                                    schema_name, table_name, column_name);
+                                    schema_name,
+                                    table_name,
+                                    column_name);
     bool pushed_snapshot = false;
     if (!ActiveSnapshotSet()) {
         PushActiveSnapshot(GetTransactionSnapshot());

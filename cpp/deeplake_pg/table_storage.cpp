@@ -21,8 +21,8 @@ extern "C" {
 #include <utils/guc.h>
 #include <utils/lsyscache.h>
 #include <utils/rel.h>
-#include <utils/syscache.h>
 #include <utils/snapmgr.h>
+#include <utils/syscache.h>
 
 #ifdef __cplusplus
 }
@@ -30,15 +30,15 @@ extern "C" {
 
 #include "table_storage.hpp"
 
-#include "exceptions.hpp"
 #include "dl_catalog.hpp"
-#include <storage/exceptions.hpp>
+#include "exceptions.hpp"
 #include "logger.hpp"
 #include "memory_tracker.hpp"
 #include "nd_utils.hpp"
 #include "table_ddl_lock.hpp"
 #include "table_scan.hpp"
 #include "utils.hpp"
+#include <storage/exceptions.hpp>
 
 #include <icm/json.hpp>
 #include <icm/string_map.hpp>
@@ -276,7 +276,13 @@ void table_storage::load_table_metadata()
             auto* rel = makeRangeVar(pstrdup(meta.schema_name.c_str()), pstrdup(meta.table_name.c_str()), -1);
             Oid relid = RangeVarGetRelid(rel, NoLock, true);
             if (!OidIsValid(relid)) {
-                // Attempt to create missing table from catalog entry.
+                // Table exists in catalog but not in PostgreSQL.
+                if (in_ddl_context()) {
+                    // During DDL (CREATE TABLE), skip auto-creation to avoid races.
+                    // The table might be in the middle of being created by another backend.
+                    continue;
+                }
+                // Not in DDL context (e.g., SET root_path) - safe to auto-create.
                 pg::utils::memory_context_switcher context_switcher;
                 pg::utils::spi_connector connector;
                 bool pushed_snapshot = false;
@@ -293,14 +299,10 @@ void table_storage::load_table_metadata()
                 SPI_execute(buf.data, false, 0);
 
                 resetStringInfo(&buf);
-                appendStringInfo(&buf,
-                                 "SELECT create_deeplake_table(%s, %s)",
-                                 quote_literal_cstr(qualified_name.c_str()),
-                                 qpath);
+                appendStringInfo(
+                    &buf, "SELECT create_deeplake_table(%s, %s)", quote_literal_cstr(qualified_name.c_str()), qpath);
                 if (SPI_execute(buf.data, false, 0) != SPI_OK_SELECT) {
-                    elog(WARNING,
-                         "Failed to auto-create deeplake table %s from catalog",
-                         qualified_name.c_str());
+                    elog(WARNING, "Failed to auto-create deeplake table %s from catalog", qualified_name.c_str());
                 }
                 if (pushed_snapshot) {
                     PopActiveSnapshot();
@@ -334,7 +336,8 @@ void table_storage::load_table_metadata()
         return;
     }
 
-    struct snapshot_guard {
+    struct snapshot_guard
+    {
         bool active = false;
         snapshot_guard()
         {
@@ -355,8 +358,8 @@ void table_storage::load_table_metadata()
     // If not, drop and recreate the table with the correct schema
     if (!pg::utils::check_column_exists("pg_deeplake_tables", "table_oid")) {
         base::log_warning(base::log_channel::generic,
-            "Detected old schema for pg_deeplake_tables without table_oid column. "
-            "Dropping and recreating table to match current schema.");
+                          "Detected old schema for pg_deeplake_tables without table_oid column. "
+                          "Dropping and recreating table to match current schema.");
 
         pg::utils::spi_connector connector;
         const char* drop_query = "DROP TABLE IF EXISTS public.pg_deeplake_tables CASCADE";
@@ -364,13 +367,12 @@ void table_storage::load_table_metadata()
             base::log_warning(base::log_channel::generic, "Failed to drop old pg_deeplake_tables table");
         }
 
-        const char* create_query =
-            "CREATE TABLE public.pg_deeplake_tables ("
-            "    id SERIAL PRIMARY KEY,"
-            "    table_oid OID NOT NULL UNIQUE,"
-            "    table_name NAME NOT NULL UNIQUE,"
-            "    ds_path TEXT NOT NULL UNIQUE"
-            ")";
+        const char* create_query = "CREATE TABLE public.pg_deeplake_tables ("
+                                   "    id SERIAL PRIMARY KEY,"
+                                   "    table_oid OID NOT NULL UNIQUE,"
+                                   "    table_name NAME NOT NULL UNIQUE,"
+                                   "    ds_path TEXT NOT NULL UNIQUE"
+                                   ")";
         if (SPI_execute(create_query, false, 0) != SPI_OK_UTILITY) {
             base::log_warning(base::log_channel::generic, "Failed to create new pg_deeplake_tables table");
         }
@@ -445,8 +447,10 @@ void table_storage::load_table_metadata()
                 // Use the actual relation name from PostgreSQL catalog, not the cached metadata name
                 // This ensures we have the current name even if the table was renamed
                 std::string actual_table_name = get_qualified_table_name(rel);
-                elog(DEBUG1, "Loading table from metadata: cached_name=%s, actual_name=%s",
-                     table_name, actual_table_name.c_str());
+                elog(DEBUG1,
+                     "Loading table from metadata: cached_name=%s, actual_name=%s",
+                     table_name,
+                     actual_table_name.c_str());
                 table_data td(
                     relid, actual_table_name, CreateTupleDescCopy(RelationGetDescr(rel)), std::string(ds_path), creds);
                 auto it2status = tables_.emplace(relid, std::move(td));
@@ -570,10 +574,11 @@ void table_storage::create_table(const std::string& table_name, Oid table_id, Tu
     // Use provided dataset path or construct default path
     if (!options.dataset_path().empty()) {
         if (!pg::allow_custom_paths) {
-            ereport(ERROR,
-                    (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-                     errmsg("Custom dataset_path is disabled"),
-                     errhint("Set deeplake.allow_custom_paths=on or omit dataset_path and configure deeplake.root_path")));
+            ereport(
+                ERROR,
+                (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+                 errmsg("Custom dataset_path is disabled"),
+                 errhint("Set deeplake.allow_custom_paths=on or omit dataset_path and configure deeplake.root_path")));
         }
         // Explicit path provided via WITH clause
         dataset_path = options.dataset_path();

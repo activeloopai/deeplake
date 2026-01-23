@@ -13,8 +13,6 @@ extern "C" {
 #include <catalog/namespace.h>
 #include <catalog/storage.h>
 #include <catalog/storage_xlog.h>
-#include <storage/smgr.h>
-#include <storage/bufmgr.h>
 #include <commands/vacuum.h> // For VacuumParams and VACOPT_* flags
 #include <miscadmin.h>
 #include <nodes/bitmapset.h>  // For bitmap operations
@@ -22,13 +20,15 @@ extern "C" {
 #include <nodes/parsenodes.h> // For parse nodes
 #include <pgstat.h>           // For statistics collector integration
 #include <storage/block.h>
+#include <storage/bufmgr.h>
 #include <storage/relfilelocator.h>
+#include <storage/smgr.h>
 #include <utils/builtins.h> // For text conversion functions
 #include <utils/lsyscache.h>
 #include <utils/rel.h>
 #include <utils/relcache.h>
 #include <utils/snapshot.h> // For SNAPSHOT_DIRTY and snapshot types
-#include <utils/varlena.h> // For text functions
+#include <utils/varlena.h>  // For text functions
 
 #ifdef __cplusplus
 }
@@ -261,8 +261,7 @@ void deeplake_estimate_rel_size(
         }
         if (pages != nullptr) {
             constexpr uint32_t min_pages = 1;
-            const uint32_t num_blocks =
-                static_cast<uint32_t>(std::ceil(static_cast<double>(total_rows) / 65536.0));
+            const uint32_t num_blocks = static_cast<uint32_t>(std::ceil(static_cast<double>(total_rows) / 65536.0));
             *pages = std::max(min_pages, num_blocks);
         }
 
@@ -338,7 +337,7 @@ bool deeplake_scan_analyze_next_block(TableScanDesc scan, ReadStream* stream)
     Buffer buf = read_stream_next_buffer(stream, NULL);
 
     if (!BufferIsValid(buf)) {
-        return false;  // No more blocks to sample
+        return false; // No more blocks to sample
     }
 
     // Release the buffer immediately - we don't actually need the physical data
@@ -346,7 +345,7 @@ bool deeplake_scan_analyze_next_block(TableScanDesc scan, ReadStream* stream)
     // But we needed to consume the stream to increment bs.m.
     ReleaseBuffer(buf);
 
-    return true;  // Indicate we have data to process
+    return true; // Indicate we have data to process
 }
 #endif
 
@@ -754,7 +753,8 @@ void deeplake_table_am_routine::scan_rescan(TableScanDesc scan,
             std::string pre_msg = "Progress of sequential scan for table '" +
                                   scan_data->scan_state.get_table_data().get_table_name() + "'" + " (rescan " +
                                   std::to_string(scan_data->num_rescans) + ")";
-            scan_data->progress_bar.restart(scan_data->scan_state.get_table_data().num_total_rows(), std::move(pre_msg));
+            scan_data->progress_bar.restart(scan_data->scan_state.get_table_data().num_total_rows(),
+                                            std::move(pre_msg));
         }
     }
 }
@@ -1179,6 +1179,10 @@ void deeplake_table_am_routine::relation_set_new_node(
     }
 
     convert_schema(tupdesc);
+
+    // Set DDL context to prevent auto-creation of tables from catalog during
+    // concurrent table creation (which causes race conditions).
+    table_storage::ddl_context_guard ddl_guard;
 
     try {
         table_storage::instance().create_table(table_name, RelationGetRelid(rel), tupdesc);

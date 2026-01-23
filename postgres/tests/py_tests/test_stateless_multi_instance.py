@@ -110,11 +110,14 @@ class PostgresInstance:
         if self.data_dir.exists():
             shutil.rmtree(self.data_dir)
 
-        # Create data directory with proper permissions
-        self.data_dir.mkdir(parents=True, exist_ok=True)
+        # Note: Do NOT create data_dir here - initdb expects to create it.
+        # Just ensure the parent directory exists and is accessible.
+        parent_dir = self.data_dir.parent
+        if not parent_dir.exists():
+            parent_dir.mkdir(parents=True, exist_ok=True)
         if os.geteuid() == 0:
-            shutil.chown(str(self.data_dir), user=self.user, group=self.user)
-            os.chmod(self.data_dir, 0o700)
+            shutil.chown(str(parent_dir), user=self.user, group=self.user)
+            os.chmod(parent_dir, 0o777)
 
         # Install extension only if not already installed by primary
         if not skip_extension_install:
@@ -215,7 +218,7 @@ async def primary_conn(pg_server):
 
 
 @pytest.fixture(scope="session")
-def second_instance(pg_server, pg_paths, tmp_path_factory) -> PostgresInstance:
+def second_instance(pg_server, pg_paths) -> PostgresInstance:
     """
     Create a second PostgreSQL instance on a different port.
 
@@ -228,13 +231,14 @@ def second_instance(pg_server, pg_paths, tmp_path_factory) -> PostgresInstance:
     Note: Depends on pg_server to ensure primary is started first and
     extension is properly installed before we initialize.
     """
-    tmp_path = tmp_path_factory.mktemp("secondary")
+    import tempfile
+    tmp_path = Path(tempfile.mkdtemp(prefix="deeplake_secondary_"))
 
     # When running as root in CI, ensure the postgres user can access the directory
     if os.geteuid() == 0:
         user = os.environ.get("USER", "postgres")
         shutil.chown(str(tmp_path), user=user, group=user)
-        os.chmod(tmp_path, 0o755)
+        os.chmod(tmp_path, 0o777)
 
     data_dir = tmp_path / "pg_data_secondary"
     log_file = tmp_path / "secondary_server.log"

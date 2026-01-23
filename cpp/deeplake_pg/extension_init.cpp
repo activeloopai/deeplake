@@ -55,7 +55,7 @@ bool treat_numeric_as_double = true; // Treat numeric types as double by default
 bool print_progress_during_seq_scan = false;
 bool use_shared_mem_for_refresh = false;
 bool enable_dataset_logging = false; // Enable dataset operation logging for debugging
-bool allow_custom_paths = true; // Allow dataset_path in CREATE TABLE options
+bool allow_custom_paths = true;      // Allow dataset_path in CREATE TABLE options
 
 } // namespace pg
 
@@ -132,7 +132,6 @@ void initialize_guc_parameters()
                              nullptr,
                              nullptr // check_hook, assign_hook, show_hook
     );
-
 
     DefineCustomBoolVariable("pg_deeplake.print_runtime_stats",
                              "Enable runtime statistics printing for pg_deeplake operations.",
