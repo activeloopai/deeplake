@@ -229,6 +229,13 @@ def second_instance(pg_server, pg_paths, tmp_path_factory) -> PostgresInstance:
     extension is properly installed before we initialize.
     """
     tmp_path = tmp_path_factory.mktemp("secondary")
+
+    # When running as root in CI, ensure the postgres user can access the directory
+    if os.geteuid() == 0:
+        user = os.environ.get("USER", "postgres")
+        shutil.chown(str(tmp_path), user=user, group=user)
+        os.chmod(tmp_path, 0o755)
+
     data_dir = tmp_path / "pg_data_secondary"
     log_file = tmp_path / "secondary_server.log"
 
@@ -506,6 +513,12 @@ async def test_stateless_instance_restart_persistence(
     print(f"Instance A: Created table with 5 rows")
 
     # Create a fresh Instance B (simulating a new server start)
+    # When running as root in CI, ensure the postgres user can access tmp_path
+    if os.geteuid() == 0:
+        user = os.environ.get("USER", "postgres")
+        shutil.chown(str(tmp_path), user=user, group=user)
+        os.chmod(tmp_path, 0o755)
+
     data_dir_b = tmp_path / "pg_data_fresh"
     log_file_b = tmp_path / "fresh_server.log"
 

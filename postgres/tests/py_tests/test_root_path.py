@@ -5,7 +5,6 @@ Tests session-level root path configuration for automatic table path resolution.
 """
 import pytest
 import asyncpg
-import tempfile
 import os
 from pathlib import Path
 
@@ -148,7 +147,7 @@ async def test_root_path_explicit_override(db_conn: asyncpg.Connection, temp_dir
 
 
 @pytest.mark.asyncio
-async def test_root_path_reset(db_conn: asyncpg.Connection):
+async def test_root_path_reset(db_conn: asyncpg.Connection, temp_dir_for_postgres):
     """
     Test resetting root_path.
 
@@ -157,43 +156,42 @@ async def test_root_path_reset(db_conn: asyncpg.Connection):
     - Resetting root_path
     - After reset, tables use default location
     """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        root_path = tmpdir
+    root_path = temp_dir_for_postgres
 
-        # Set root path
-        await db_conn.execute(f"SET deeplake.root_path = '{root_path}'")
-        current = await db_conn.fetchval("SHOW deeplake.root_path")
-        assert current == root_path, "Root path should be set"
-        print(f"✓ Set root_path to: {root_path}")
+    # Set root path
+    await db_conn.execute(f"SET deeplake.root_path = '{root_path}'")
+    current = await db_conn.fetchval("SHOW deeplake.root_path")
+    assert current == root_path, "Root path should be set"
+    print(f"✓ Set root_path to: {root_path}")
 
-        # Reset root path
-        await db_conn.execute("RESET deeplake.root_path")
-        current = await db_conn.fetchval("SHOW deeplake.root_path")
-        assert current == "", "Root path should be empty after reset"
-        print("✓ Reset root_path (now empty)")
+    # Reset root path
+    await db_conn.execute("RESET deeplake.root_path")
+    current = await db_conn.fetchval("SHOW deeplake.root_path")
+    assert current == "", "Root path should be empty after reset"
+    print("✓ Reset root_path (now empty)")
 
-        try:
-            # Create table after reset - should use default location (pg data dir)
-            await db_conn.execute("""
-                CREATE TABLE test_after_reset (
-                    id INT
-                ) USING deeplake
-            """)
+    try:
+        # Create table after reset - should use default location (pg data dir)
+        await db_conn.execute("""
+            CREATE TABLE test_after_reset (
+                id INT
+            ) USING deeplake
+        """)
 
-            # Get the dataset path
-            ds_path = await db_conn.fetchval("""
-                SELECT ds_path FROM pg_deeplake_tables
-                WHERE table_name = 'public.test_after_reset'
-            """)
+        # Get the dataset path
+        ds_path = await db_conn.fetchval("""
+            SELECT ds_path FROM pg_deeplake_tables
+            WHERE table_name = 'public.test_after_reset'
+        """)
 
-            # Should NOT be in our temp root_path
-            assert not ds_path.startswith(root_path), \
-                f"Path should not start with reset root_path: {ds_path}"
-            print(f"✓ After reset, table uses default location: {ds_path}")
+        # Should NOT be in our temp root_path
+        assert not ds_path.startswith(root_path), \
+            f"Path should not start with reset root_path: {ds_path}"
+        print(f"✓ After reset, table uses default location: {ds_path}")
 
-        finally:
-            # Cleanup
-            await db_conn.execute("DROP TABLE IF EXISTS test_after_reset CASCADE")
+    finally:
+        # Cleanup
+        await db_conn.execute("DROP TABLE IF EXISTS test_after_reset CASCADE")
 
 
 @pytest.mark.asyncio

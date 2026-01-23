@@ -47,7 +47,6 @@ inline static constexpr const char* index_type_option_name = "index_type";
 extern bool use_parallel_workers;
 extern bool use_deeplake_executor;
 extern bool explain_query_before_execute;
-extern bool ignore_primary_keys;
 extern bool print_runtime_stats;
 extern bool is_filter_pushdown_enabled;
 extern int32_t max_streamable_column_width;

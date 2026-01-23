@@ -46,7 +46,6 @@ namespace pg {
 bool use_parallel_workers = false;
 bool use_deeplake_executor = true;
 bool explain_query_before_execute = false;
-bool ignore_primary_keys = true;
 bool print_runtime_stats = false;
 bool support_json_index = false;
 bool is_filter_pushdown_enabled = true;
@@ -134,17 +133,6 @@ void initialize_guc_parameters()
                              nullptr // check_hook, assign_hook, show_hook
     );
 
-    DefineCustomBoolVariable("pg_deeplake.ignore_primary_keys",
-                             "If set to true, PRIMARY KEY constraints will be ignored during table creation.",
-                             nullptr,                  // optional long description
-                             &pg::ignore_primary_keys, // linked C variable
-                             true,                     // default value
-                             PGC_USERSET,              // context (USERSET, SUSET, etc.)
-                             0,                        // flags
-                             nullptr,
-                             nullptr,
-                             nullptr // check_hook, assign_hook, show_hook
-    );
 
     DefineCustomBoolVariable("pg_deeplake.print_runtime_stats",
                              "Enable runtime statistics printing for pg_deeplake operations.",
@@ -638,70 +626,6 @@ static void process_utility(PlannedStmt* pstmt,
                 new_options = lappend(new_options, def);
             }
             stmt->options = new_options;
-        }
-        // Remove PRIMARY KEY constraints
-        if (pg::ignore_primary_keys && deeplake_table && stmt->tableElts != nullptr) {
-            List* new_table_elts = NIL;
-            ListCell* lc = nullptr;
-            bool has_primary_key = false;
-            // Get table name from the CreateStmt
-            std::string table_name = stmt->relation ? stmt->relation->relname : "";
-            std::map<std::string, std::set<std::string>> primary_keys;
-            foreach (lc, stmt->tableElts) {
-                Node* element = (Node*)lfirst(lc);
-                // Handle table-level PRIMARY KEY constraints
-                if (IsA(element, Constraint)) {
-                    Constraint* constraint = (Constraint*)element;
-                    if (constraint->contype == CONSTR_PRIMARY) {
-                        has_primary_key = true;
-                        // Extract primary key column names
-                        if (constraint->keys != nullptr) {
-                            ListCell* key_lc = nullptr;
-                            foreach (key_lc, constraint->keys) {
-                                std::string col_name = strVal(lfirst(key_lc));
-                                elog(DEBUG1,
-                                     "Removing table-level PRIMARY KEY constraint on table '%s' for column: %s",
-                                     table_name.c_str(),
-                                     col_name.c_str());
-                                primary_keys[table_name].insert(col_name);
-                            }
-                        }
-                        continue; // Skip adding this constraint
-                    }
-                }
-
-                // Handle column-level PRIMARY KEY constraints (e.g., "col INT PRIMARY KEY")
-                if (IsA(element, ColumnDef)) {
-                    ColumnDef* coldef = (ColumnDef*)element;
-                    if (coldef->constraints != nullptr) {
-                        List* new_constraints = NIL;
-                        ListCell* const_lc = nullptr;
-
-                        foreach (const_lc, coldef->constraints) {
-                            Constraint* constraint = (Constraint*)lfirst(const_lc);
-                            if (constraint->contype == CONSTR_PRIMARY) {
-                                has_primary_key = true;
-                                elog(DEBUG1,
-                                     "Removing column-level PRIMARY KEY constraint on table '%s' for column: %s",
-                                     table_name.c_str(),
-                                     coldef->colname);
-                                primary_keys[table_name].insert(coldef->colname);
-                                continue;
-                            }
-                            new_constraints = lappend(new_constraints, constraint);
-                        }
-
-                        // Update column's constraints list
-                        coldef->constraints = new_constraints;
-                    }
-                }
-
-                new_table_elts = lappend(new_table_elts, element);
-            }
-            if (has_primary_key) {
-                stmt->tableElts = new_table_elts;
-                pg::table_storage::instance().set_primary_keys(std::move(primary_keys));
-            }
         }
     }
 
