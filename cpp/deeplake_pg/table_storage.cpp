@@ -44,6 +44,9 @@ extern "C" {
 #include <icm/string_map.hpp>
 #include <nd/none.hpp>
 
+#include <algorithm>
+#include <vector>
+
 namespace {
 
 std::string get_qualified_table_name(Relation rel)
@@ -270,6 +273,7 @@ void table_storage::load_table_metadata()
     catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, creds);
 
     auto catalog_tables = pg::dl_catalog::load_tables(root_dir, creds);
+    auto catalog_columns = pg::dl_catalog::load_columns(root_dir, creds);
     if (!catalog_tables.empty()) {
         for (const auto& meta : catalog_tables) {
             const std::string qualified_name = meta.schema_name + "." + meta.table_name;
@@ -282,6 +286,22 @@ void table_storage::load_table_metadata()
                     // The table might be in the middle of being created by another backend.
                     continue;
                 }
+
+                // Gather columns for this table, sorted by position
+                std::vector<pg::dl_catalog::column_meta> table_columns;
+                for (const auto& col : catalog_columns) {
+                    if (col.table_id == meta.table_id) {
+                        table_columns.push_back(col);
+                    }
+                }
+                std::sort(table_columns.begin(), table_columns.end(),
+                          [](const auto& a, const auto& b) { return a.position < b.position; });
+
+                if (table_columns.empty()) {
+                    elog(WARNING, "No columns found for catalog table %s, skipping", qualified_name.c_str());
+                    continue;
+                }
+
                 // Not in DDL context (e.g., SET root_path) - safe to auto-create.
                 pg::utils::memory_context_switcher context_switcher;
                 pg::utils::spi_connector connector;
@@ -291,19 +311,33 @@ void table_storage::load_table_metadata()
                     pushed_snapshot = true;
                 }
                 const char* qschema = quote_identifier(meta.schema_name.c_str());
-                char* qpath = quote_literal_cstr(meta.dataset_path.c_str());
 
                 StringInfoData buf;
                 initStringInfo(&buf);
                 appendStringInfo(&buf, "CREATE SCHEMA IF NOT EXISTS %s", qschema);
                 SPI_execute(buf.data, false, 0);
 
+                // Build CREATE TABLE statement directly from catalog metadata
+                // This avoids calling the SQL function create_deeplake_table which may not exist
                 resetStringInfo(&buf);
-                appendStringInfo(
-                    &buf, "SELECT create_deeplake_table(%s, %s)", quote_literal_cstr(qualified_name.c_str()), qpath);
-                if (SPI_execute(buf.data, false, 0) != SPI_OK_SELECT) {
+                appendStringInfo(&buf, "CREATE TABLE %s (", qualified_name.c_str());
+
+                bool first = true;
+                for (const auto& col : table_columns) {
+                    if (!first) {
+                        appendStringInfoString(&buf, ", ");
+                    }
+                    first = false;
+                    appendStringInfo(&buf, "%s %s", quote_identifier(col.column_name.c_str()), col.pg_type.c_str());
+                }
+
+                appendStringInfo(&buf, ") USING deeplake WITH (dataset_path=%s)", quote_literal_cstr(meta.dataset_path.c_str()));
+
+                if (SPI_execute(buf.data, false, 0) != SPI_OK_UTILITY) {
                     elog(WARNING, "Failed to auto-create deeplake table %s from catalog", qualified_name.c_str());
                 }
+                pfree(buf.data);
+
                 if (pushed_snapshot) {
                     PopActiveSnapshot();
                 }

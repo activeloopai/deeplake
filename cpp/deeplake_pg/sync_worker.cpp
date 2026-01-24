@@ -31,6 +31,9 @@ extern "C" {
 #include "table_storage.hpp"
 #include "utils.hpp"
 
+#include <algorithm>
+#include <vector>
+
 // GUC variables
 int deeplake_sync_interval_ms = 2000;  // Default 2 seconds
 bool deeplake_sync_enabled = true;
@@ -66,6 +69,7 @@ void deeplake_sync_worker_sighup(SIGNAL_ARGS)
 void deeplake_sync_tables_from_catalog(const std::string& root_path, icm::string_map<> creds)
 {
     auto catalog_tables = pg::dl_catalog::load_tables(root_path, creds);
+    auto catalog_columns = pg::dl_catalog::load_columns(root_path, creds);
 
     for (const auto& meta : catalog_tables) {
         // Skip tables marked as dropping
@@ -83,8 +87,22 @@ void deeplake_sync_tables_from_catalog(const std::string& root_path, icm::string
             // Table doesn't exist locally - create it
             elog(LOG, "pg_deeplake sync: creating table %s from catalog", qualified_name.c_str());
 
+            // Gather columns for this table, sorted by position
+            std::vector<pg::dl_catalog::column_meta> table_columns;
+            for (const auto& col : catalog_columns) {
+                if (col.table_id == meta.table_id) {
+                    table_columns.push_back(col);
+                }
+            }
+            std::sort(table_columns.begin(), table_columns.end(),
+                      [](const auto& a, const auto& b) { return a.position < b.position; });
+
+            if (table_columns.empty()) {
+                elog(DEBUG1, "pg_deeplake sync: no columns found for table %s, skipping", qualified_name.c_str());
+                continue;
+            }
+
             const char* qschema = quote_identifier(meta.schema_name.c_str());
-            char* qpath = quote_literal_cstr(meta.dataset_path.c_str());
 
             StringInfoData buf;
             initStringInfo(&buf);
@@ -99,14 +117,24 @@ void deeplake_sync_tables_from_catalog(const std::string& root_path, icm::string
                 continue;
             }
 
-            // Create table using create_deeplake_table
-            // Note: The dataset might not be immediately available after catalog update
-            // due to filesystem sync timing, so we just log a warning and continue
+            // Build CREATE TABLE statement directly from catalog metadata
+            // This avoids calling the SQL function create_deeplake_table which may not exist
+            // in the postgres database (extension might not be installed there)
             resetStringInfo(&buf);
-            appendStringInfo(
-                &buf, "SELECT create_deeplake_table(%s, %s)", quote_literal_cstr(qualified_name.c_str()), qpath);
+            appendStringInfo(&buf, "CREATE TABLE %s (", qualified_name.c_str());
 
-            if (SPI_execute(buf.data, false, 0) != SPI_OK_SELECT) {
+            bool first = true;
+            for (const auto& col : table_columns) {
+                if (!first) {
+                    appendStringInfoString(&buf, ", ");
+                }
+                first = false;
+                appendStringInfo(&buf, "%s %s", quote_identifier(col.column_name.c_str()), col.pg_type.c_str());
+            }
+
+            appendStringInfo(&buf, ") USING deeplake WITH (dataset_path=%s)", quote_literal_cstr(meta.dataset_path.c_str()));
+
+            if (SPI_execute(buf.data, false, 0) != SPI_OK_UTILITY) {
                 // Don't log as warning - the dataset might not be available yet
                 // The sync worker will retry on the next cycle
                 elog(DEBUG1, "pg_deeplake sync: table %s not ready yet, will retry", qualified_name.c_str());
