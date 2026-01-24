@@ -1,6 +1,7 @@
 #include "deeplake_executor.hpp"
 #include "pg_deeplake.hpp"
 #include "pg_version_compat.h"
+#include "sync_worker.hpp"
 #include "table_am.hpp"
 #include "table_ddl_lock.hpp"
 #include "table_scan.hpp"
@@ -32,6 +33,7 @@ extern "C" {
 #include <commands/defrem.h>
 #include <nodes/nodeFuncs.h>
 #include <optimizer/planner.h>
+#include <postmaster/bgworker.h>
 #include <storage/ipc.h>
 #include <tcop/utility.h>
 #include <utils/jsonb.h>
@@ -234,6 +236,36 @@ void initialize_guc_parameters()
                              false,                       // default value
                              PGC_USERSET,                 // context (USERSET, SUSET, etc.)
                              0,                           // flags
+                             nullptr,
+                             nullptr,
+                             nullptr // check_hook, assign_hook, show_hook
+    );
+
+    // Sync worker GUC variables for stateless multi-instance support
+    DefineCustomIntVariable("deeplake.sync_interval_ms",
+                            "Interval between catalog sync checks in milliseconds.",
+                            "The background sync worker polls the catalog version at this interval. "
+                            "When the version changes, tables are synced from the shared catalog.",
+                            &deeplake_sync_interval_ms, // linked C variable
+                            2000,                       // default value (2 seconds)
+                            100,                        // min value
+                            60000,                      // max value (1 minute)
+                            PGC_SIGHUP,                 // context - reloadable
+                            GUC_UNIT_MS,                // flags
+                            nullptr,
+                            nullptr,
+                            nullptr // check_hook, assign_hook, show_hook
+    );
+
+    DefineCustomBoolVariable("deeplake.sync_enabled",
+                             "Enable background sync worker for stateless mode.",
+                             "When enabled, the background worker polls the catalog and automatically "
+                             "syncs tables from the shared storage. This enables stateless multi-instance "
+                             "deployments where tables created on one instance appear on others.",
+                             &deeplake_sync_enabled, // linked C variable
+                             true,                   // default value
+                             PGC_SIGHUP,             // context - reloadable
+                             0,                      // flags
                              nullptr,
                              nullptr,
                              nullptr // check_hook, assign_hook, show_hook
@@ -1453,9 +1485,28 @@ PGDLLEXPORT void _PG_init()
     prev_set_rel_pathlist_hook = set_rel_pathlist_hook;
     set_rel_pathlist_hook = set_rel_pathlist;
 
+    // Initialize GUC parameters first (needed for sync worker config)
+    ::initialize_guc_parameters();
+
+    // Register background sync worker for stateless multi-instance support
+    BackgroundWorker worker;
+    memset(&worker, 0, sizeof(worker));
+
+    snprintf(worker.bgw_name, BGW_MAXLEN, "pg_deeplake sync worker");
+    snprintf(worker.bgw_type, BGW_MAXLEN, "pg_deeplake sync worker");
+    snprintf(worker.bgw_library_name, BGW_MAXLEN, "pg_deeplake");
+    snprintf(worker.bgw_function_name, BGW_MAXLEN, "deeplake_sync_worker_main");
+
+    worker.bgw_flags = BGWORKER_SHMEM_ACCESS | BGWORKER_BACKEND_DATABASE_CONNECTION;
+    worker.bgw_start_time = BgWorkerStart_RecoveryFinished;
+    worker.bgw_restart_time = 5;  // Restart after 5 seconds if it crashes
+    worker.bgw_notify_pid = 0;
+    worker.bgw_main_arg = (Datum)0;
+
+    RegisterBackgroundWorker(&worker);
+
     pg::install_signal_handlers();
     pg::deeplake_table_am_routine::initialize();
-    ::initialize_guc_parameters();
 }
 
 PGDLLEXPORT void _PG_fini()

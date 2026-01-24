@@ -6,14 +6,19 @@ extern "C" {
 
 // Must be first to avoid macro conflicts
 #include <postgres.h>
-#undef gettext
-#undef dgettext
-#undef ngettext
-#undef dngettext
+
+// Include access/parallel.h here inside extern "C" to ensure
+// postmaster/bgworker.h (which it includes) has C linkage
+#include <access/parallel.h>
 
 #ifdef __cplusplus
 }
 #endif
+
+#undef gettext
+#undef dgettext
+#undef ngettext
+#undef dngettext
 
 #include "memory_tracker.hpp"
 #include "progress_utils.hpp"
@@ -21,8 +26,6 @@ extern "C" {
 #include "utils.hpp"
 
 #include <heimdall_common/filtered_column.hpp>
-
-#include <access/parallel.h>
 
 // Inline implementation functions for table_data
 // This file should be included at the end of table_data.hpp
