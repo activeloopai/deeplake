@@ -5,6 +5,28 @@
 #include <deeplake_api/deeplake_api.hpp>
 #include <deeplake_core/deeplake_index_type.hpp>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <storage/ipc.h>
+
+#ifdef __cplusplus
+}
+#endif
+
+namespace {
+
+// Exit handler that uses _exit() to avoid C++ static destructor crashes.
+// PostgreSQL background workers (autovacuum, parallel workers, etc.) can crash
+// during normal exit when C++ static objects are destroyed in unpredictable order.
+void deeplake_quick_exit(int code, Datum arg)
+{
+    _exit(code);
+}
+
+} // anonymous namespace
+
 namespace pg {
 
 QueryDesc* query_info::current_query_desc = nullptr;
@@ -338,6 +360,10 @@ void init_deeplake()
         return;
     }
     initialized = true;
+
+    // Register exit handler first (runs last due to LIFO order) to use _exit()
+    // and avoid C++ static destructor crashes in background workers.
+    on_proc_exit(deeplake_quick_exit, 0);
 
     constexpr int THREAD_POOL_MULTIPLIER = 8;  // Threads per CPU core for async operations
     deeplake_api::initialize(std::make_shared<pg::logger_adapter>(), THREAD_POOL_MULTIPLIER * base::system_report::cpu_cores());
