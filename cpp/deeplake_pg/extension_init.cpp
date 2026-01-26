@@ -33,6 +33,7 @@ extern "C" {
 #include <commands/defrem.h>
 #include <nodes/nodeFuncs.h>
 #include <optimizer/planner.h>
+#include <parser/parser.h>
 #include <postmaster/bgworker.h>
 #include <storage/ipc.h>
 #include <tcop/utility.h>
@@ -1135,6 +1136,22 @@ static void process_utility(PlannedStmt* pstmt,
     }
 }
 
+// Check if the query string represents a pure SELECT statement (not CTAS, INSERT, etc.)
+static bool is_pure_select_statement(const char* query_string)
+{
+    if (query_string == nullptr) {
+        return false;
+    }
+
+    List* raw_parsetree_list = raw_parser(query_string, RAW_PARSE_DEFAULT);
+    if (raw_parsetree_list == NIL) {
+        return false;
+    }
+
+    RawStmt* raw_stmt = linitial_node(RawStmt, raw_parsetree_list);
+    return nodeTag(raw_stmt->stmt) == T_SelectStmt;
+}
+
 static PlannedStmt*
 deeplake_planner(Query* parse, const char* query_string, int32_t cursorOptions, ParamListInfo boundParams)
 {
@@ -1146,7 +1163,7 @@ deeplake_planner(Query* parse, const char* query_string, int32_t cursorOptions, 
     }
 
     PlannedStmt* planned_stmt = nullptr;
-    if (pg::use_deeplake_executor) {
+    if (pg::use_deeplake_executor && is_pure_select_statement(query_string)) {
         planned_stmt = deeplake_create_direct_execution_plan(parse, query_string, cursorOptions, boundParams);
     }
 
