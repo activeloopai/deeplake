@@ -31,18 +31,11 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: delete workflow run
-        uses: actions/github-script@v8
+      - name: cleanup workflow runs
+        uses: mattraks/delete-workflow-runs@v2.1.0
         with:
-          script: |
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            try {
-              await github.rest.actions.deleteWorkflowRun({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                run_id: context.runId
-              });
-              console.log('Deleted workflow run');
-            } catch (error) {
-              console.log('Could not delete run:', error.message);
-            }
+          token: "${{ github.token }}"
+          repository: "${{ github.repository }}"
+          retain_days: 0
+          keep_minimum_runs: 0
+          delete_workflow_pattern: Claude PR Review
