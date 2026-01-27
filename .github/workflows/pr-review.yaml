@@ -25,3 +25,24 @@ jobs:
       ActiveloopAI/shared-github-actions/.github/workflows/claude-pr-review.yaml@main
     secrets:
       OP_SERVICE_ACCOUNT_TOKEN: "${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}"
+
+  cleanup:
+    needs: claude_review
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: delete workflow run
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            try {
+              await github.rest.actions.deleteWorkflowRun({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: context.runId
+              });
+              console.log('Deleted workflow run');
+            } catch (error) {
+              console.log('Could not delete run:', error.message);
+            }
