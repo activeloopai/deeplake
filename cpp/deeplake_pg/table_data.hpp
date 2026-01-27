@@ -93,30 +93,47 @@ public:
     {
         struct batch_data
         {
-            std::mutex mutex_;
-            async::promise<nd::array> promise_;
+            std::atomic<bool> initialized_{false};
             nd::array owner_;
             const uint8_t* data_ = nullptr;
             impl::string_stream_array_holder holder_;
 
             batch_data() = default;
-            batch_data(const batch_data& other) = delete;
-            batch_data(batch_data&& other) noexcept = delete;
-            batch_data& operator=(const batch_data& other) = delete;
-            batch_data& operator=(batch_data&& other) noexcept = delete;
+            batch_data(const batch_data&) = delete;
+            batch_data(batch_data&& other) noexcept
+                : initialized_(other.initialized_.load())
+                , owner_(std::move(other.owner_))
+                , data_(other.data_)
+                , holder_(std::move(other.holder_))
+            {
+                other.data_ = nullptr;
+            }
+            batch_data& operator=(const batch_data&) = delete;
+            batch_data& operator=(batch_data&&) = delete;
         };
 
-        using column_data = std::vector<batch_data>;
+        struct column_data
+        {
+            std::mutex mutex_;
+            std::vector<batch_data> batches;
+
+            column_data() = default;
+            column_data(const column_data&) = delete;
+            column_data(column_data&& other) noexcept
+                : batches(std::move(other.batches))
+            {
+            }
+            column_data& operator=(const column_data&) = delete;
+            column_data& operator=(column_data&&) = delete;
+        };
+
         std::vector<column_data> column_to_batches;
+        std::vector<std::unique_ptr<bifrost::column_streamer>> streamers;
 
         inline void reset() noexcept
         {
-            for (auto& batches : column_to_batches) {
-                for (auto& batch : batches) {
-                    batch.promise_.cancel();
-                }
-            }
             column_to_batches.clear();
+            streamers.clear();
         }
 
         inline nd::array get_sample(int32_t column_number, int64_t row_number);
