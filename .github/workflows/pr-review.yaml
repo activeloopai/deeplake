@@ -26,23 +26,17 @@ jobs:
     secrets:
       OP_SERVICE_ACCOUNT_TOKEN: "${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}"
 
-  cleanup:
+  delete-runs:
     needs: claude_review
     if: always()
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
     steps:
       - name: delete workflow run
-        uses: actions/github-script@v8
+        uses: mattraks/delete-workflow-runs@v2.1.0
         with:
-          script: |
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            try {
-              await github.rest.actions.deleteWorkflowRun({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                run_id: context.runId
-              });
-              console.log('Deleted workflow run');
-            } catch (error) {
-              console.log('Could not delete run:', error.message);
-            }
+          token: "${{ github.token }}"
+          repository: "${{ github.repository }}"
+          delete_workflow_pattern: claude_review
