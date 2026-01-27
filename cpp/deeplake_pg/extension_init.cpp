@@ -1,6 +1,7 @@
 #include "deeplake_executor.hpp"
 #include "pg_deeplake.hpp"
 #include "pg_version_compat.h"
+#include "sync_worker.hpp"
 #include "table_am.hpp"
 #include "table_ddl_lock.hpp"
 #include "table_scan.hpp"
@@ -32,6 +33,8 @@ extern "C" {
 #include <commands/defrem.h>
 #include <nodes/nodeFuncs.h>
 #include <optimizer/planner.h>
+#include <parser/parser.h>
+#include <postmaster/bgworker.h>
 #include <storage/ipc.h>
 #include <tcop/utility.h>
 #include <utils/jsonb.h>
@@ -55,6 +58,7 @@ bool treat_numeric_as_double = true; // Treat numeric types as double by default
 bool print_progress_during_seq_scan = false;
 bool use_shared_mem_for_refresh = false;
 bool enable_dataset_logging = false; // Enable dataset operation logging for debugging
+bool allow_custom_paths = true;      // Allow dataset_path in CREATE TABLE options
 
 } // namespace pg
 
@@ -131,7 +135,6 @@ void initialize_guc_parameters()
                              nullptr,
                              nullptr // check_hook, assign_hook, show_hook
     );
-
 
     DefineCustomBoolVariable("pg_deeplake.print_runtime_stats",
                              "Enable runtime statistics printing for pg_deeplake operations.",
@@ -213,6 +216,17 @@ void initialize_guc_parameters()
                              nullptr // check_hook, assign_hook, show_hook
     );
 
+    DefineCustomBoolVariable("deeplake.allow_custom_paths",
+                             "Allow custom dataset paths via USING deeplake WITH (dataset_path=...).",
+                             "If disabled, dataset_path options are rejected and tables must use deeplake.root_path.",
+                             &pg::allow_custom_paths,
+                             true,
+                             PGC_USERSET,
+                             0,
+                             nullptr,
+                             nullptr,
+                             nullptr);
+
     DefineCustomBoolVariable("pg_deeplake.enable_dataset_logging",
                              "Enable operation logging for deeplake datasets.",
                              "When enabled, all dataset operations (append_row, update_row, delete_row, etc.) "
@@ -223,6 +237,36 @@ void initialize_guc_parameters()
                              false,                       // default value
                              PGC_USERSET,                 // context (USERSET, SUSET, etc.)
                              0,                           // flags
+                             nullptr,
+                             nullptr,
+                             nullptr // check_hook, assign_hook, show_hook
+    );
+
+    // Sync worker GUC variables for stateless multi-instance support
+    DefineCustomIntVariable("deeplake.sync_interval_ms",
+                            "Interval between catalog sync checks in milliseconds.",
+                            "The background sync worker polls the catalog version at this interval. "
+                            "When the version changes, tables are synced from the shared catalog.",
+                            &deeplake_sync_interval_ms, // linked C variable
+                            2000,                       // default value (2 seconds)
+                            100,                        // min value
+                            60000,                      // max value (1 minute)
+                            PGC_SIGHUP,                 // context - reloadable
+                            GUC_UNIT_MS,                // flags
+                            nullptr,
+                            nullptr,
+                            nullptr // check_hook, assign_hook, show_hook
+    );
+
+    DefineCustomBoolVariable("deeplake.sync_enabled",
+                             "Enable background sync worker for stateless mode.",
+                             "When enabled, the background worker polls the catalog and automatically "
+                             "syncs tables from the shared storage. This enables stateless multi-instance "
+                             "deployments where tables created on one instance appear on others.",
+                             &deeplake_sync_enabled, // linked C variable
+                             true,                   // default value
+                             PGC_SIGHUP,             // context - reloadable
+                             0,                      // flags
                              nullptr,
                              nullptr,
                              nullptr // check_hook, assign_hook, show_hook
@@ -601,6 +645,7 @@ static void process_utility(PlannedStmt* pstmt,
         elog(DEBUG1, "stmt->accessMethod: %s", stmt->accessMethod);
         const bool deeplake_table = (stmt->accessMethod != nullptr && std::strcmp(stmt->accessMethod, "deeplake") == 0);
         if (deeplake_table && stmt->options != nullptr) {
+            List* new_options = NIL;
             ListCell* lc = nullptr;
             foreach (lc, stmt->options) {
                 DefElem* def = (DefElem*)lfirst(lc);
@@ -608,10 +653,11 @@ static void process_utility(PlannedStmt* pstmt,
                     const char* ds_path = defGetString(def);
                     pg::table_options::current().set_dataset_path(ds_path);
                     elog(DEBUG1, "ds_path: %s", ds_path);
+                    continue;
                 }
+                new_options = lappend(new_options, def);
             }
-            list_free_deep(stmt->options);
-            stmt->options = NIL;
+            stmt->options = new_options;
         }
     }
 
@@ -896,7 +942,7 @@ static void process_utility(PlannedStmt* pstmt,
                                     // Invalidate cached table data to force reload in current session
                                     RelationClose(relation);
                                     pg::table_storage::instance().erase_table(table_name);
-                                    pg::table_storage::instance().force_load_table_metadata();
+                                    pg::table_storage::instance().mark_metadata_stale();
                                     return; // Exit early after erasing table
 
                                 } catch (const base::exception& e) {
@@ -916,7 +962,7 @@ static void process_utility(PlannedStmt* pstmt,
                     // Column has been dropped from PostgreSQL catalog, now reload table_data
                     // to pick up the updated TupleDesc (with the column marked as dropped)
                     pg::table_storage::instance().erase_table(table_name);
-                    pg::table_storage::instance().force_load_table_metadata();
+                    pg::table_storage::instance().mark_metadata_stale();
                     elog(INFO, "Reloaded table_data after DROP COLUMN for table '%s'", table_name.c_str());
                     return; // Exit early after reloading table
                 }
@@ -971,7 +1017,7 @@ static void process_utility(PlannedStmt* pstmt,
 
                     // Invalidate cached table data to force reload in current session
                     pg::table_storage::instance().erase_table(table_name);
-                    pg::table_storage::instance().force_load_table_metadata();
+                    pg::table_storage::instance().mark_metadata_stale();
 
                 } catch (const base::exception& e) {
                     ereport(ERROR,
@@ -1080,7 +1126,43 @@ static void process_utility(PlannedStmt* pstmt,
             }
             pg::table_storage::instance().set_schema_name(std::move(schema_name));
         }
+        // When root_path is set, auto-discover tables from the deeplake catalog
+        if (vstmt->name != nullptr && pg_strcasecmp(vstmt->name, "deeplake.root_path") == 0) {
+            // Reload table metadata from the catalog at the new root_path
+            // This enables stateless multi-instance support where tables are
+            // auto-discovered when pointing to a shared root_path
+            pg::table_storage::instance().force_load_table_metadata();
+        }
     }
+}
+
+// Check if the query string represents a pure SELECT statement (not CTAS, INSERT, etc.)
+static bool is_pure_select_statement(const char* query_string)
+{
+    if (query_string == nullptr) {
+        return false;
+    }
+
+    // Use PG_TRY to catch parse errors from invalid SQL (e.g., expression fragments
+    // from plpgsql functions during constant folding)
+    bool result = false;
+    PG_TRY();
+    {
+        List* raw_parsetree_list = raw_parser(query_string, RAW_PARSE_DEFAULT);
+        if (raw_parsetree_list != NIL) {
+            RawStmt* raw_stmt = linitial_node(RawStmt, raw_parsetree_list);
+            result = nodeTag(raw_stmt->stmt) == T_SelectStmt;
+        }
+    }
+    PG_CATCH();
+    {
+        // Parse failed - not a valid SQL statement (e.g., expression fragment)
+        FlushErrorState();
+        result = false;
+    }
+    PG_END_TRY();
+
+    return result;
 }
 
 static PlannedStmt*
@@ -1094,7 +1176,7 @@ deeplake_planner(Query* parse, const char* query_string, int32_t cursorOptions, 
     }
 
     PlannedStmt* planned_stmt = nullptr;
-    if (pg::use_deeplake_executor) {
+    if (pg::use_deeplake_executor && is_pure_select_statement(query_string)) {
         planned_stmt = deeplake_create_direct_execution_plan(parse, query_string, cursorOptions, boundParams);
     }
 
@@ -1433,9 +1515,28 @@ PGDLLEXPORT void _PG_init()
     prev_set_rel_pathlist_hook = set_rel_pathlist_hook;
     set_rel_pathlist_hook = set_rel_pathlist;
 
+    // Initialize GUC parameters first (needed for sync worker config)
+    ::initialize_guc_parameters();
+
+    // Register background sync worker for stateless multi-instance support
+    BackgroundWorker worker;
+    memset(&worker, 0, sizeof(worker));
+
+    snprintf(worker.bgw_name, BGW_MAXLEN, "pg_deeplake sync worker");
+    snprintf(worker.bgw_type, BGW_MAXLEN, "pg_deeplake sync worker");
+    snprintf(worker.bgw_library_name, BGW_MAXLEN, "pg_deeplake");
+    snprintf(worker.bgw_function_name, BGW_MAXLEN, "deeplake_sync_worker_main");
+
+    worker.bgw_flags = BGWORKER_SHMEM_ACCESS | BGWORKER_BACKEND_DATABASE_CONNECTION;
+    worker.bgw_start_time = BgWorkerStart_RecoveryFinished;
+    worker.bgw_restart_time = 5;  // Restart after 5 seconds if it crashes
+    worker.bgw_notify_pid = 0;
+    worker.bgw_main_arg = (Datum)0;
+
+    RegisterBackgroundWorker(&worker);
+
     pg::install_signal_handlers();
     pg::deeplake_table_am_routine::initialize();
-    ::initialize_guc_parameters();
 }
 
 PGDLLEXPORT void _PG_fini()

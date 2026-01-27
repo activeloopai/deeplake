@@ -28,6 +28,7 @@
         },
         "indicators",
         "rapidjson",
+        "simdjson",
         "roaring",
         "zlib",
         "minimp3"
