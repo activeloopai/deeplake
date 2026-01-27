@@ -422,12 +422,13 @@ async def test_concurrent_create_different_tables(db_conn: asyncpg.Connection):
     """
 
     temp_dir = tempfile.mkdtemp(prefix="deeplake_test_concurrent_diff_")
-    schema_name = "test_schema"
+    schema_name = "test_schema_diff"  # Use unique schema to avoid conflicts with other tests
     num_tables = 10
 
     try:
-        # Create schema
-        await db_conn.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+        # Clean up any leftover schema and recreate
+        await db_conn.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
+        await db_conn.execute(f'CREATE SCHEMA "{schema_name}"')
 
         async def create_different_table(table_id: int):
             """Create a unique table."""

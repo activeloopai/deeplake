@@ -16,6 +16,27 @@ Usage: python3 scripts/build_pg_ext.py dev --pg-versions 16                #Buil
 Usage: python3 scripts/build_pg_ext.py prod --pg-versions all              #Build for all supported PostgreSQL versions
 """
 
+def get_pinned_version():
+    """
+    Read the pinned deeplake API version from DEEPLAKE_API_VERSION file.
+    """
+    # Look for version file in repo root (one level up from scripts/)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(script_dir)
+    version_file = os.path.join(repo_root, "DEEPLAKE_API_VERSION")
+
+    if not os.path.exists(version_file):
+        raise Exception(f"Version file not found: {version_file}")
+
+    with open(version_file, 'r') as f:
+        version = f.read().strip()
+
+    if not version:
+        raise Exception(f"Version file is empty: {version_file}")
+
+    return version
+
+
 def download_api_lib(api_root_dir, overwrite=True):
     """
     Download and extract the full deeplake API library including:
@@ -29,23 +50,9 @@ def download_api_lib(api_root_dir, overwrite=True):
 
     machine = platform.machine()
 
-    # Get latest release from GitHub
-    api_url = "https://api.github.com/repos/activeloopai/deeplake/releases/latest"
-    print(f"Fetching latest release from {api_url} ...")
-
-    response = requests.get(api_url)
-    if response.status_code != 200:
-        raise Exception(f"Failed to fetch latest release info. Status code: {response.status_code}")
-
-    release_data = response.json()
-    tag_name = release_data.get("tag_name")
-    if not tag_name:
-        raise Exception("Failed to get tag_name from latest release")
-
-    print(f"Latest release: {tag_name}")
-
-    # Strip 'v' prefix from tag name if present (e.g., v4.4.2 -> 4.4.2)
-    version = tag_name.lstrip('v')
+    # Get pinned version from DEEPLAKE_API_VERSION file
+    version = get_pinned_version()
+    print(f"Using pinned deeplake API version: {version}")
 
     # Check if library already exists
     lib_dir = os.path.join(api_root_dir, "lib")
@@ -58,22 +65,15 @@ def download_api_lib(api_root_dir, overwrite=True):
             print(f"Library version {version} already exists. Skipping download.")
             return
         else:
-            print(f"Found existing version {existing_version}, but latest is {version}. Downloading latest...")
+            print(f"Found existing version {existing_version}, but pinned version is {version}. Downloading...")
 
     # Construct asset name based on platform
     archive_name = f"deeplake-api-{version}-linux-{machine}"
     zip_archive_name = f"{archive_name}.zip"
     tar_archive_name = f"{archive_name}.tar.gz"
 
-    # Find the matching asset in the release
-    asset_url = None
-    for asset in release_data.get("assets", []):
-        if asset.get("name") == zip_archive_name:
-            asset_url = asset.get("browser_download_url")
-            break
-
-    if not asset_url:
-        raise Exception(f"Could not find asset '{zip_archive_name}' in latest release")
+    # Construct download URL directly (GitHub releases follow a predictable URL pattern)
+    asset_url = f"https://github.com/activeloopai/deeplake/releases/download/v{version}/{zip_archive_name}"
 
     print(f"Downloading prebuilt api libraries from {asset_url} ...")
 
