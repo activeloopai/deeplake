@@ -236,13 +236,34 @@ void table_storage::save_table_metadata(const pg::table_data& table_data)
     pg::dl_catalog::ensure_catalog(root_dir, creds);
 
     auto [schema_name, simple_table_name] = split_table_name(table_name);
+    const std::string table_id = schema_name + "." + simple_table_name;
+
     pg::dl_catalog::table_meta meta;
-    meta.table_id = schema_name + "." + simple_table_name;
+    meta.table_id = table_id;
     meta.schema_name = schema_name;
     meta.table_name = simple_table_name;
     meta.dataset_path = ds_path;
     meta.state = "ready";
-    pg::dl_catalog::upsert_table(root_dir, std::move(creds), meta);
+    pg::dl_catalog::upsert_table(root_dir, creds, meta);
+
+    // Save column metadata to catalog
+    TupleDesc tupdesc = table_data.get_tuple_descriptor();
+    std::vector<pg::dl_catalog::column_meta> columns;
+    for (int i = 0; i < tupdesc->natts; i++) {
+        Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
+        if (attr->attisdropped) {
+            continue;
+        }
+        pg::dl_catalog::column_meta col;
+        col.table_id = table_id;
+        col.column_name = NameStr(attr->attname);
+        col.pg_type = format_type_be(attr->atttypid);
+        col.nullable = !attr->attnotnull;
+        col.position = i;
+        columns.push_back(std::move(col));
+    }
+    pg::dl_catalog::upsert_columns(root_dir, creds, columns);
+
     pg::dl_catalog::bump_catalog_version(root_dir, session_credentials::get_credentials());
     catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, session_credentials::get_credentials());
 }

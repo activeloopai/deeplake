@@ -1143,13 +1143,26 @@ static bool is_pure_select_statement(const char* query_string)
         return false;
     }
 
-    List* raw_parsetree_list = raw_parser(query_string, RAW_PARSE_DEFAULT);
-    if (raw_parsetree_list == NIL) {
-        return false;
+    // Use PG_TRY to catch parse errors from invalid SQL (e.g., expression fragments
+    // from plpgsql functions during constant folding)
+    bool result = false;
+    PG_TRY();
+    {
+        List* raw_parsetree_list = raw_parser(query_string, RAW_PARSE_DEFAULT);
+        if (raw_parsetree_list != NIL) {
+            RawStmt* raw_stmt = linitial_node(RawStmt, raw_parsetree_list);
+            result = nodeTag(raw_stmt->stmt) == T_SelectStmt;
+        }
     }
+    PG_CATCH();
+    {
+        // Parse failed - not a valid SQL statement (e.g., expression fragment)
+        FlushErrorState();
+        result = false;
+    }
+    PG_END_TRY();
 
-    RawStmt* raw_stmt = linitial_node(RawStmt, raw_parsetree_list);
-    return nodeTag(raw_stmt->stmt) == T_SelectStmt;
+    return result;
 }
 
 static PlannedStmt*

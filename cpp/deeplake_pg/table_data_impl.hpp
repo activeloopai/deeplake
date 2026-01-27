@@ -386,7 +386,7 @@ inline table_data::streamer_info& table_data::get_streamers() noexcept
 
 inline bool table_data::column_has_streamer(uint32_t idx) const noexcept
 {
-    return streamers_.column_to_batches.size() > idx && !streamers_.column_to_batches[idx].empty();
+    return streamers_.streamers.size() > idx && streamers_.streamers[idx] != nullptr;
 }
 
 inline void table_data::reset_streamers() noexcept
@@ -556,13 +556,13 @@ inline std::pair<int64_t, int64_t> table_data::get_row_range(int32_t worker_id) 
 inline void table_data::create_streamer(int32_t idx, int32_t worker_id)
 {
     const auto col_count = num_columns();
-    if (streamers_.column_to_batches.empty()) {
+    if (streamers_.streamers.empty()) {
+        streamers_.streamers.resize(col_count);
         streamers_.column_to_batches.resize(col_count);
     }
     ASSERT(idx >= 0 && idx < col_count);
-    auto& column_batches = streamers_.column_to_batches[idx];
-    if (!column_batches.empty()) {
-        return;
+    if (streamers_.streamers[idx]) {
+        return; // Already created
     }
     if (pg::memory_tracker::has_memory_limit()) {
         const auto column_size = pg::utils::get_column_width(get_base_atttypid(idx), get_atttypmod(idx)) * num_total_rows();
@@ -574,30 +574,26 @@ inline void table_data::create_streamer(int32_t idx, int32_t worker_id)
         cv = heimdall_common::create_filtered_column(*(cv),
                                                      icm::index_mapping_t<int64_t>::slice({start_row, end_row, 1}));
     }
+    streamers_.streamers[idx] = std::make_unique<bifrost::column_streamer>(cv, batch_size_);
     const int64_t row_count = num_total_rows();
     const int64_t batch_count = (row_count + batch_size_ - 1) / batch_size_;
-    column_batches = std::vector<streamer_info::batch_data>(batch_count);
-    for (int64_t i = 0; i < batch_count; ++i) {
-        const auto range_start = i * batch_size_;
-        const auto range_end = std::min<int64_t>(range_start + batch_size_, row_count);
-        auto p = async::run_on_main([cv, range_start, range_end, row_count]() {
-            return cv->request_range(
-                range_start, range_end, storage::fetch_options(static_cast<int>(row_count - range_start)));
-        });
-        column_batches[i].promise_ = std::move(p);
-    }
+    streamers_.column_to_batches[idx].batches.resize(batch_count);
 }
 
 inline nd::array table_data::streamer_info::get_sample(int32_t column_number, int64_t row_number)
 {
     const int64_t batch_index = row_number >> batch_size_log2_;
     const int64_t row_in_batch = row_number & batch_mask_;
-    auto& batch = column_to_batches[column_number][batch_index];
-    if (static_cast<bool>(batch.promise_)) [[unlikely]] {
-        std::lock_guard lock(batch.mutex_);
-        if (static_cast<bool>(batch.promise_)) {
-            batch.owner_ = batch.promise_.get_future().get();
-            batch.promise_ = async::promise<nd::array>();
+
+    auto& col_data = column_to_batches[column_number];
+    auto& batch = col_data.batches[batch_index];
+    if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
+        std::lock_guard lock(col_data.mutex_);
+        for (int64_t i = 0; i <= batch_index; ++i) {
+            if (!col_data.batches[i].initialized_.load(std::memory_order_relaxed)) {
+                col_data.batches[i].owner_ = streamers[column_number]->next_batch();
+                col_data.batches[i].initialized_.store(true, std::memory_order_release);
+            }
         }
     }
     return batch.owner_[static_cast<size_t>(row_in_batch)];
@@ -615,13 +611,16 @@ inline const T* table_data::streamer_info::value_ptr(int32_t column_number, int6
     const int64_t batch_index = row_number >> batch_size_log2_;
     const int64_t row_in_batch = row_number & batch_mask_;
 
-    auto& batch = column_to_batches[column_number][batch_index];
-    if (static_cast<bool>(batch.promise_)) [[unlikely]] {
-        std::lock_guard lock(batch.mutex_);
-        if (static_cast<bool>(batch.promise_)) {
-            batch.owner_ = utils::eval_with_nones<T>(batch.promise_.get_future().get());
-            batch.data_ = batch.owner_.data().data();
-            batch.promise_ = async::promise<nd::array>();
+    auto& col_data = column_to_batches[column_number];
+    auto& batch = col_data.batches[batch_index];
+    if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
+        std::lock_guard lock(col_data.mutex_);
+        for (int64_t i = 0; i <= batch_index; ++i) {
+            if (!col_data.batches[i].initialized_.load(std::memory_order_relaxed)) {
+                col_data.batches[i].owner_ = utils::eval_with_nones<T>(streamers[column_number]->next_batch());
+                col_data.batches[i].data_ = col_data.batches[i].owner_.data().data();
+                col_data.batches[i].initialized_.store(true, std::memory_order_release);
+            }
         }
     }
 
@@ -634,13 +633,16 @@ inline std::string_view table_data::streamer_info::value(int32_t column_number, 
     const int64_t batch_index = row_number >> batch_size_log2_;
     const int64_t row_in_batch = row_number & batch_mask_;
 
-    auto& batch = column_to_batches[column_number][batch_index];
-    if (static_cast<bool>(batch.promise_)) [[unlikely]] {
-        std::lock_guard lock(batch.mutex_);
-        if (static_cast<bool>(batch.promise_)) {
-            batch.owner_ = batch.promise_.get_future().get();
-            batch.holder_ = impl::string_stream_array_holder(batch.owner_);
-            batch.promise_ = async::promise<nd::array>();
+    auto& col_data = column_to_batches[column_number];
+    auto& batch = col_data.batches[batch_index];
+    if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
+        std::lock_guard lock(col_data.mutex_);
+        for (int64_t i = 0; i <= batch_index; ++i) {
+            if (!col_data.batches[i].initialized_.load(std::memory_order_relaxed)) {
+                col_data.batches[i].owner_ = streamers[column_number]->next_batch();
+                col_data.batches[i].holder_ = impl::string_stream_array_holder(col_data.batches[i].owner_);
+                col_data.batches[i].initialized_.store(true, std::memory_order_release);
+            }
         }
     }
 

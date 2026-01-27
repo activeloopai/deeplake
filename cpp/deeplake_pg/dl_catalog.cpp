@@ -155,13 +155,15 @@ void ensure_catalog(const std::string& root_path, icm::string_map<> creds)
 
     {
         deeplake_api::catalog_table_schema schema;
-        schema.add("table_id", deeplake_core::type::text(codecs::compression::null))
+        // Use column_id (table_id:column_name) as primary key to support multiple columns per table
+        schema.add("column_id", deeplake_core::type::text(codecs::compression::null))
+            .add("table_id", deeplake_core::type::text(codecs::compression::null))
             .add("column_name", deeplake_core::type::text(codecs::compression::null))
             .add("pg_type", deeplake_core::type::text(codecs::compression::null))
             .add("dl_type_json", deeplake_core::type::text(codecs::compression::null))
             .add("nullable", deeplake_core::type::generic(nd::type::scalar(nd::dtype::boolean)))
             .add("position", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int32)))
-            .set_primary_key("table_id");
+            .set_primary_key("column_id");
         ensure_table(columns_path, std::move(schema));
     }
 
@@ -246,9 +248,64 @@ std::vector<table_meta> load_tables(const std::string& root_path, icm::string_ma
     }
 }
 
-std::vector<column_meta> load_columns(const std::string&, icm::string_map<>)
+std::vector<column_meta> load_columns(const std::string& root_path, icm::string_map<> creds)
 {
-    return {};
+    std::vector<column_meta> out;
+    try {
+        auto table = open_catalog_table(root_path, k_columns_name, std::move(creds));
+        if (!table) {
+            return out;
+        }
+        auto snapshot = table->read().get_future().get();
+        if (snapshot.row_count() == 0) {
+            return out;
+        }
+
+        for (const auto& row : snapshot.rows()) {
+            auto table_id_it = row.find("table_id");
+            auto column_name_it = row.find("column_name");
+            auto pg_type_it = row.find("pg_type");
+            auto dl_type_it = row.find("dl_type_json");
+            auto nullable_it = row.find("nullable");
+            auto position_it = row.find("position");
+
+            if (table_id_it == row.end() || column_name_it == row.end() || pg_type_it == row.end()) {
+                continue;
+            }
+
+            column_meta meta;
+            meta.table_id = deeplake_api::array_to_string(table_id_it->second);
+            meta.column_name = deeplake_api::array_to_string(column_name_it->second);
+            meta.pg_type = deeplake_api::array_to_string(pg_type_it->second);
+            if (dl_type_it != row.end()) {
+                meta.dl_type_json = deeplake_api::array_to_string(dl_type_it->second);
+            }
+            if (nullable_it != row.end()) {
+                try {
+                    meta.nullable = nullable_it->second.value<bool>(0);
+                } catch (...) {
+                    meta.nullable = true;
+                }
+            }
+            if (position_it != row.end()) {
+                try {
+                    meta.position = position_it->second.value<int32_t>(0);
+                } catch (...) {
+                    auto pos_vec = load_int64_vector(position_it->second);
+                    meta.position = pos_vec.empty() ? 0 : static_cast<int32_t>(pos_vec.front());
+                }
+            }
+
+            out.push_back(std::move(meta));
+        }
+        return out;
+    } catch (const std::exception& e) {
+        elog(WARNING, "Failed to load catalog columns: %s", e.what());
+        return out;
+    } catch (...) {
+        elog(WARNING, "Failed to load catalog columns: unknown error");
+        return out;
+    }
 }
 
 std::vector<index_meta> load_indexes(const std::string&, icm::string_map<>)
@@ -267,6 +324,26 @@ void upsert_table(const std::string& root_path, icm::string_map<> creds, const t
     row["state"] = nd::adapt(meta.state);
     row["updated_at"] = nd::adapt(meta.updated_at == 0 ? now_ms() : meta.updated_at);
     table->upsert(std::move(row)).get_future().get();
+}
+
+void upsert_columns(const std::string& root_path, icm::string_map<> creds, const std::vector<column_meta>& columns)
+{
+    if (columns.empty()) {
+        return;
+    }
+    auto table = open_catalog_table(root_path, k_columns_name, std::move(creds));
+    for (const auto& col : columns) {
+        icm::string_map<nd::array> row;
+        // column_id is the composite key: table_id:column_name
+        row["column_id"] = nd::adapt(col.table_id + ":" + col.column_name);
+        row["table_id"] = nd::adapt(col.table_id);
+        row["column_name"] = nd::adapt(col.column_name);
+        row["pg_type"] = nd::adapt(col.pg_type);
+        row["dl_type_json"] = nd::adapt(col.dl_type_json);
+        row["nullable"] = nd::adapt(col.nullable);
+        row["position"] = nd::adapt(col.position);
+        table->upsert(std::move(row)).get_future().get();
+    }
 }
 
 int64_t get_catalog_version(const std::string& root_path, icm::string_map<> creds)

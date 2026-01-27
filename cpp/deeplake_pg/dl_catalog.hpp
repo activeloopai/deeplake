@@ -43,6 +43,7 @@ std::vector<column_meta> load_columns(const std::string& root_path, icm::string_
 std::vector<index_meta> load_indexes(const std::string& root_path, icm::string_map<> creds);
 
 void upsert_table(const std::string& root_path, icm::string_map<> creds, const table_meta& meta);
+void upsert_columns(const std::string& root_path, icm::string_map<> creds, const std::vector<column_meta>& columns);
 
 int64_t get_catalog_version(const std::string& root_path, icm::string_map<> creds);
 void bump_catalog_version(const std::string& root_path, icm::string_map<> creds);
