@@ -4,6 +4,7 @@
 #include "utils.hpp"
 
 #include <access/htup.h>
+#include <access/parallel.h>
 #include <access/tupdesc.h>
 #include <postgres.h>
 #include <executor/tuptable.h>

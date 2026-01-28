@@ -1,10 +1,11 @@
 #pragma once
 
+// NOTE: postgres.h and libintl.h must be included first in the compilation unit before this header
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <postgres.h>
 #include <nodes/execnodes.h>
 #include <nodes/pathnodes.h>
 #include <nodes/plannodes.h>
@@ -13,11 +14,6 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-
-#undef gettext
-#undef dgettext
-#undef ngettext
-#undef dngettext
 
 #ifdef __cplusplus
 extern "C" {

@@ -1,3 +1,27 @@
+// Include libintl.h first to avoid conflicts with PostgreSQL's gettext macro
+#include <libintl.h>
+
+#ifdef __cplusplus
+#define typeof __typeof__
+extern "C" {
+#endif
+
+#include <postgres.h>
+
+#include <catalog/namespace.h>
+#include <commands/defrem.h>
+#include <nodes/nodeFuncs.h>
+#include <optimizer/planner.h>
+#include <parser/parser.h>
+#include <postmaster/bgworker.h>
+#include <storage/ipc.h>
+#include <tcop/utility.h>
+#include <utils/jsonb.h>
+
+#ifdef __cplusplus
+} /// extern "C"
+#endif
+
 #include "deeplake_executor.hpp"
 #include "pg_deeplake.hpp"
 #include "pg_version_compat.h"
@@ -20,28 +44,6 @@
 #include <numeric>
 #include <set>
 #include <vector>
-
-#ifdef __cplusplus
-#define typeof __typeof__
-extern "C" {
-#endif
-
-/// Keep this first
-#include <postgres.h>
-
-#include <catalog/namespace.h>
-#include <commands/defrem.h>
-#include <nodes/nodeFuncs.h>
-#include <optimizer/planner.h>
-#include <parser/parser.h>
-#include <postmaster/bgworker.h>
-#include <storage/ipc.h>
-#include <tcop/utility.h>
-#include <utils/jsonb.h>
-
-#ifdef __cplusplus
-} /// extern "C"
-#endif
 
 // Define GUC variables (declared as extern in utils.hpp)
 namespace pg {

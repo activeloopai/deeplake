@@ -1,8 +1,10 @@
+// Include libintl.h first to avoid conflicts with PostgreSQL's gettext macro
+#include <libintl.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Must be first to avoid macro conflicts
 #include <postgres.h>
 
 #include <access/multixact.h>

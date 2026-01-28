@@ -1,6 +1,10 @@
+// Include libintl.h first to avoid conflicts with PostgreSQL's gettext macro
+#include <libintl.h>
+
+// DuckDB headers must come before PostgreSQL headers to avoid namespace pollution
 // Use C++ API only for table function registration (required)
 #include <duckdb.hpp>
-// Use C API for query execution (public API)  
+// Use C API for query execution (public API)
 #include <duckdb.h>
 
 #include "duckdb_deeplake_convert.hpp"
