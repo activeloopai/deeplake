@@ -1,3 +1,27 @@
+// Include libintl.h first to avoid conflicts with PostgreSQL's gettext macro
+#include <libintl.h>
+
+#ifdef __cplusplus
+#define typeof __typeof__
+extern "C" {
+#endif
+
+#include <postgres.h>
+
+#include <catalog/namespace.h>
+#include <commands/defrem.h>
+#include <nodes/nodeFuncs.h>
+#include <optimizer/planner.h>
+#include <parser/parser.h>
+#include <postmaster/bgworker.h>
+#include <storage/ipc.h>
+#include <tcop/utility.h>
+#include <utils/jsonb.h>
+
+#ifdef __cplusplus
+} /// extern "C"
+#endif
+
 #include "deeplake_executor.hpp"
 #include "pg_deeplake.hpp"
 #include "pg_version_compat.h"
@@ -20,28 +44,6 @@
 #include <numeric>
 #include <set>
 #include <vector>
-
-#ifdef __cplusplus
-#define typeof __typeof__
-extern "C" {
-#endif
-
-/// Keep this first
-#include <postgres.h>
-
-#include <catalog/namespace.h>
-#include <commands/defrem.h>
-#include <nodes/nodeFuncs.h>
-#include <optimizer/planner.h>
-#include <parser/parser.h>
-#include <postmaster/bgworker.h>
-#include <storage/ipc.h>
-#include <tcop/utility.h>
-#include <utils/jsonb.h>
-
-#ifdef __cplusplus
-} /// extern "C"
-#endif
 
 // Define GUC variables (declared as extern in utils.hpp)
 namespace pg {
@@ -1444,8 +1446,17 @@ PGDLLEXPORT Datum create_deeplake_table(PG_FUNCTION_ARGS)
                 (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg("Dataset does not exist: %s", dataset_path.c_str())));
     }
 
+    // Parse schema.table format and quote identifiers
+    std::string schema_name = "public";
+    std::string simple_table_name = table_name;
+    size_t dot_pos = table_name.find('.');
+    if (dot_pos != std::string::npos) {
+        schema_name = table_name.substr(0, dot_pos);
+        simple_table_name = table_name.substr(dot_pos + 1);
+    }
+
     std::ostringstream sql;
-    sql << "CREATE TABLE " << table_name << " (";
+    sql << "CREATE TABLE " << quote_identifier(schema_name.c_str()) << "." << quote_identifier(simple_table_name.c_str()) << " (";
 
     bool first = true;
     for (const auto& column : *ds) {
@@ -1456,10 +1467,10 @@ PGDLLEXPORT Datum create_deeplake_table(PG_FUNCTION_ARGS)
         const auto pg_type_str = pg::utils::pg_try([t = column.type()]() {
             return pg::utils::nd_to_pg_type(t);
         });
-        sql << column.name() << " " << pg_type_str;
+        sql << quote_identifier(column.name().c_str()) << " " << pg_type_str;
     }
 
-    sql << ") USING deeplake WITH (dataset_path='" << dataset_path << "');";
+    sql << ") USING deeplake WITH (dataset_path=" << quote_literal_cstr(dataset_path.c_str()) << ");";
 
     elog(INFO, "Execute SQL command to create table:\n%s", sql.str().c_str());
 

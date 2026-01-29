@@ -1,24 +1,6 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// Must be first to avoid macro conflicts
-#include <postgres.h>
-
-// Include access/parallel.h here inside extern "C" to ensure
-// postmaster/bgworker.h (which it includes) has C linkage
-#include <access/parallel.h>
-
-#ifdef __cplusplus
-}
-#endif
-
-#undef gettext
-#undef dgettext
-#undef ngettext
-#undef dngettext
+// NOTE: postgres.h and libintl.h must be included first in the compilation unit before this header
 
 #include "memory_tracker.hpp"
 #include "progress_utils.hpp"

@@ -1,3 +1,7 @@
+// Include libintl.h first to avoid conflicts with PostgreSQL's gettext macro
+#include <libintl.h>
+
+// DuckDB headers must come before PostgreSQL headers to avoid namespace pollution
 #include <duckdb.hpp>
 
 #include "duckdb_executor.hpp"
@@ -8,10 +12,12 @@
 
 #include "deeplake_executor.hpp"
 #include "pg_deeplake.hpp"
+#include "pg_version_compat.h"
 #include "reporter.hpp"
 #include "table_storage.hpp"
 
 extern "C" {
+#include <postgres.h>
 #include <access/table.h>
 #include <catalog/pg_type_d.h>
 #include <executor/executor.h>
@@ -33,8 +39,6 @@ extern void RegisterCustomScanMethods(const CustomScanMethods* methods);
 extern PlannedStmt* standard_planner(Query* parse, const char* query_string,
                                      int32_t cursorOptions, ParamListInfo boundParams);
 }
-
-#include "pg_version_compat.h"
 
 namespace pg {
 

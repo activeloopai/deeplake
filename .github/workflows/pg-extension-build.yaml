@@ -105,6 +105,15 @@ jobs:
           python3 -m pip install -U pip
           python3 -m pip install requests
 
+      - name: fix ccache architecture mismatch
+        if: matrix.arch == 'aarch64'
+        shell: bash
+        run: |
+          if [ -f /usr/local/bin/ccache ] && ! /usr/local/bin/ccache --version >/dev/null 2>&1; then
+            echo "Removing incompatible ccache binary"
+            rm -f /usr/local/bin/ccache
+          fi
+
       - name: build pg_deeplake for "${{ matrix.arch }}"
         shell: bash
         run: |-

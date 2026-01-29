@@ -1,18 +1,10 @@
-#include "hybrid_query_merge.hpp"
-#include "pg_deeplake.hpp"
-#include "table_am.hpp"
-#include "table_scan.hpp"
-#include "table_storage.hpp"
-
-#include <cstdint>
-#include <numeric>
-#include <vector>
+// Include libintl.h first to avoid conflicts with PostgreSQL's gettext macro
+#include <libintl.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/// Keep this first
 #include <postgres.h>
 
 #include <access/amapi.h>
@@ -25,6 +17,16 @@ extern "C" {
 #ifdef __cplusplus
 } /// extern "C"
 #endif
+
+#include "hybrid_query_merge.hpp"
+#include "pg_deeplake.hpp"
+#include "table_am.hpp"
+#include "table_scan.hpp"
+#include "table_storage.hpp"
+
+#include <cstdint>
+#include <numeric>
+#include <vector>
 
 namespace {
 

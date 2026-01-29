@@ -1,3 +1,7 @@
+// Include libintl.h first to avoid conflicts with PostgreSQL's gettext macro
+#include <libintl.h>
+
+// DuckDB headers must come before PostgreSQL headers to avoid namespace pollution
 #include "duckdb_deeplake_scan.hpp"
 
 #include <duckdb.hpp>

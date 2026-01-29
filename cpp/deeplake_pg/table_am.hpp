@@ -1,17 +1,12 @@
 #pragma once
 
-// Must be first to avoid macro conflicts
-#include <postgres.h>
-#undef gettext
-#undef dgettext
-#undef ngettext
-#undef dngettext
+// NOTE: postgres.h and libintl.h must be included first in the compilation unit before this header
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Other PostgreSQL includes
+// PostgreSQL includes
 #include <access/htup.h>
 #include <access/htup_details.h>
 #include <access/skey.h>
