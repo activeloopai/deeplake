@@ -13,6 +13,9 @@ instead of:
 This caused syntax errors because "default" is a SQL reserved word.
 """
 import pytest
+
+# Skip all tests in this module - stateless is disabled by default (deeplake.stateless_enabled=false)
+pytestmark = pytest.mark.skip(reason="Stateless mode disabled by default")
 import asyncpg
 import os
 import shutil

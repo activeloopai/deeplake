@@ -56,6 +56,7 @@ extern bool print_progress_during_seq_scan;
 extern bool use_shared_mem_for_refresh;
 extern bool enable_dataset_logging;
 extern bool allow_custom_paths;
+extern bool stateless_enabled;
 
 namespace utils {
 

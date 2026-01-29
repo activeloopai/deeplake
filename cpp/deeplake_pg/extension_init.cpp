@@ -61,6 +61,7 @@ bool print_progress_during_seq_scan = false;
 bool use_shared_mem_for_refresh = false;
 bool enable_dataset_logging = false; // Enable dataset operation logging for debugging
 bool allow_custom_paths = true;      // Allow dataset_path in CREATE TABLE options
+bool stateless_enabled = false;      // Enable stateless catalog sync across instances
 
 } // namespace pg
 
@@ -223,6 +224,19 @@ void initialize_guc_parameters()
                              "If disabled, dataset_path options are rejected and tables must use deeplake.root_path.",
                              &pg::allow_custom_paths,
                              true,
+                             PGC_USERSET,
+                             0,
+                             nullptr,
+                             nullptr,
+                             nullptr);
+
+    DefineCustomBoolVariable("deeplake.stateless_enabled",
+                             "Enable stateless catalog for multi-instance sync.",
+                             "When enabled, table metadata is written to the shared catalog in storage, "
+                             "allowing multiple PostgreSQL instances to share the same tables. "
+                             "This adds latency for remote storage (S3, GCS) due to catalog sync operations.",
+                             &pg::stateless_enabled,
+                             false,
                              PGC_USERSET,
                              0,
                              nullptr,

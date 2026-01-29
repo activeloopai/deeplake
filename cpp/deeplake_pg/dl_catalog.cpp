@@ -332,6 +332,8 @@ void upsert_columns(const std::string& root_path, icm::string_map<> creds, const
         return;
     }
     auto table = open_catalog_table(root_path, k_columns_name, std::move(creds));
+    std::vector<icm::string_map<nd::array>> rows;
+    rows.reserve(columns.size());
     for (const auto& col : columns) {
         icm::string_map<nd::array> row;
         // column_id is the composite key: table_id:column_name
@@ -342,8 +344,9 @@ void upsert_columns(const std::string& root_path, icm::string_map<> creds, const
         row["dl_type_json"] = nd::adapt(col.dl_type_json);
         row["nullable"] = nd::adapt(col.nullable);
         row["position"] = nd::adapt(col.position);
-        table->upsert(std::move(row)).get_future().get();
+        rows.push_back(std::move(row));
     }
+    table->upsert_many(std::move(rows)).get_future().get();
 }
 
 int64_t get_catalog_version(const std::string& root_path, icm::string_map<> creds)
@@ -353,22 +356,9 @@ int64_t get_catalog_version(const std::string& root_path, icm::string_map<> cred
         if (!table) {
             return 0;
         }
-        auto snapshot = table->read().get_future().get();
-        if (snapshot.row_count() == 0) {
-            return 0;
-        }
-        int64_t max_version = 0;
-        for (const auto& row : snapshot.rows()) {
-            auto it = row.find("catalog_version");
-            if (it == row.end()) {
-                continue;
-            }
-            auto values = load_int64_vector(it->second);
-            if (!values.empty()) {
-                max_version = std::max(max_version, values.front());
-            }
-        }
-        return max_version;
+        // Use version() for fast HEAD request instead of reading the whole table.
+        // Returns a hash of the ETag which changes whenever the table is modified.
+        return static_cast<int64_t>(table->version().get_future().get());
     } catch (const std::exception& e) {
         elog(WARNING, "Failed to read catalog version: %s", e.what());
         return 0;
@@ -381,11 +371,12 @@ int64_t get_catalog_version(const std::string& root_path, icm::string_map<> cred
 void bump_catalog_version(const std::string& root_path, icm::string_map<> creds)
 {
     auto table = open_catalog_table(root_path, k_meta_name, std::move(creds));
-    int64_t version = get_catalog_version(root_path, creds);
     icm::string_map<nd::array> row;
-    row["catalog_version"] = nd::adapt(version + 1);
+    // Use a fixed key and upsert - the updated_at timestamp change will trigger
+    // a new ETag, which is what get_catalog_version() now detects via version().
+    row["catalog_version"] = nd::adapt(static_cast<int64_t>(1));
     row["updated_at"] = nd::adapt(now_ms());
-    table->insert(std::move(row)).get_future().get();
+    table->upsert(std::move(row)).get_future().get();
 }
 
 } // namespace pg::dl_catalog

@@ -192,25 +192,28 @@ PGDLLEXPORT void deeplake_sync_worker_main(Datum main_arg)
             // Initialize DeepLake (loads table metadata, etc.)
             pg::init_deeplake();
 
-            auto root_path = pg::session_credentials::get_root_path();
-            if (root_path.empty()) {
-                root_path = pg::utils::get_deeplake_root_directory();
-            }
+            // Only sync from catalog when stateless mode is enabled
+            if (pg::stateless_enabled) {
+                auto root_path = pg::session_credentials::get_root_path();
+                if (root_path.empty()) {
+                    root_path = pg::utils::get_deeplake_root_directory();
+                }
 
-            if (!root_path.empty()) {
-                auto creds = pg::session_credentials::get_credentials();
+                if (!root_path.empty()) {
+                    auto creds = pg::session_credentials::get_credentials();
 
-                // Ensure catalog exists
-                pg::dl_catalog::ensure_catalog(root_path, creds);
+                    // Ensure catalog exists
+                    pg::dl_catalog::ensure_catalog(root_path, creds);
 
-                // Use existing catalog version API to check for changes
-                int64_t current_version = pg::dl_catalog::get_catalog_version(root_path, creds);
+                    // Use existing catalog version API to check for changes
+                    int64_t current_version = pg::dl_catalog::get_catalog_version(root_path, creds);
 
-                if (current_version != last_catalog_version) {
-                    // Version changed - sync tables from catalog
-                    deeplake_sync_tables_from_catalog(root_path, creds);
-                    last_catalog_version = current_version;
-                    elog(LOG, "pg_deeplake sync: synced tables (catalog version %ld)", current_version);
+                    if (current_version != last_catalog_version) {
+                        // Version changed - sync tables from catalog
+                        deeplake_sync_tables_from_catalog(root_path, creds);
+                        last_catalog_version = current_version;
+                        elog(LOG, "pg_deeplake sync: synced tables (catalog version %ld)", current_version);
+                    }
                 }
             }
         }
