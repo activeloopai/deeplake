@@ -77,9 +77,6 @@ struct DeeplakeScanData
     bool sample_scan_active = false;
     struct SampleScanState* current_sample_scanstate = nullptr;
 
-    // ANALYZE scanning state
-    bool analyze_block_returned = false;
-
     bool print_progress = false;
     pg::utils::progress_display progress_bar;
     int64_t num_rescans = 0;
@@ -96,7 +93,6 @@ struct DeeplakeScanData
         current_offset = InvalidOffsetNumber;
         sample_scan_active = false;
         current_sample_scanstate = nullptr;
-        analyze_block_returned = false;
     }
 
     DeeplakeScanData(pg::table_scan&& state)
@@ -185,15 +181,9 @@ bool deeplake_relation_needs_toast_table(Relation)
 
 uint64_t deeplake_relation_size(Relation rel, ForkNumber fork)
 {
-    // For ANALYZE to work correctly with PostgreSQL's block-based sampling,
-    // we must return a size that matches the actual physical storage file.
-    // PostgreSQL's BlockSampler uses this to decide which blocks to sample,
-    // and read_stream_next_buffer will fail if we report more blocks than exist.
-    //
-    // We always return exactly BLCKSZ (1 block) because that's what we create
-    // in relation_set_new_node. The planner uses relation_estimate_size for
-    // accurate row estimates, which is set correctly via deeplake_estimate_rel_size.
-    return BLCKSZ;
+    // DeepLake uses cloud/columnar storage, not PostgreSQL's physical files.
+    // Return 0 since we have no local physical storage.
+    return 0;
 }
 
 void deeplake_index_validate_scan(Relation heap_rel,
@@ -207,20 +197,17 @@ void deeplake_index_validate_scan(Relation heap_rel,
 
 void deeplake_relation_vacuum(Relation rel, struct VacuumParams* params, BufferAccessStrategy bstrategy)
 {
-    // Ensure DeepLake is initialized (for autovacuum workers that bypass planner/executor hooks)
-    pg::init_deeplake();
-
     // Check for VACUUM FULL - not supported for deeplake tables
     if (params != nullptr && (params->options & VACOPT_FULL)) {
         ereport(
             ERROR,
             (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
              errmsg("VACUUM FULL is not supported for deeplake tables"),
-             errhint(
-                 "Deeplake uses columnar storage which is already compact. Use VACUUM or VACUUM ANALYZE instead.")));
+             errhint("Deeplake uses columnar storage which is already compact. Use regular VACUUM instead.")));
     }
 
-    // Regular VACUUM is a no-op for columnar storage
+    // VACUUM is a no-op for columnar storage (no dead tuples to reclaim)
+    // ANALYZE is also a no-op - statistics should be injected via DeepLake core
     return;
 }
 
@@ -232,8 +219,7 @@ TransactionId deeplake_index_delete_tuples(Relation rel, TM_IndexDeleteOp* delst
 void deeplake_estimate_rel_size(
     Relation rel, int32_t* attr_widths, BlockNumber* pages, double* tuples, double* allvisfrac)
 {
-    // Ensure DeepLake is initialized (for processes that bypass planner/executor hooks,
-    // such as autovacuum workers or parallel workers)
+    // Ensure DeepLake is initialized (for processes that bypass planner/executor hooks)
     pg::init_deeplake();
 
     constexpr int32_t MIN_COLUMN_WIDTH = 8; // Minimum column width in bytes
@@ -287,67 +273,17 @@ void deeplake_estimate_rel_size(
 bool deeplake_scan_analyze_next_tuple(
     TableScanDesc scan, TransactionId OldestXmin, double* liverows, double* deadrows, TupleTableSlot* slot)
 {
-    CHECK_FOR_INTERRUPTS();
-
-    DeeplakeScanData* scan_data = get_scan_data(scan);
-    if (scan_data == nullptr) {
-        return false;
-    }
-
-    if (!scan_data->scan_state.get_next_tuple(slot)) {
-        return false; // no more tuples
-    }
-
-    /*
-     * For columnar DeepLake we don't track tuple visibility like heap.
-     * All tuples are live, there are never dead tuples in columnar storage.
-     */
-    if (liverows) {
-        *liverows += 1.0;
-    }
-
-    // IMPORTANT: Always keep deadrows at 0 for columnar storage
-    // We don't have MVCC dead tuples in columnar format
-    // Don't increment deadrows even if pointer is not null
-
-    return true;
+    // DeepLake doesn't support PostgreSQL's block-based ANALYZE.
+    // Statistics should be computed in DeepLake core and injected into pg_statistic directly.
+    return false;
 }
 
 #if PG_VERSION_NUM >= PG_VERSION_NUM_17
 bool deeplake_scan_analyze_next_block(TableScanDesc scan, ReadStream* stream)
 {
-    DeeplakeScanData* scan_data = get_scan_data(scan);
-    if (scan_data == nullptr) {
-        return false;
-    }
-
-    // PostgreSQL's ANALYZE formula requires:
-    //   totalrows = (liverows / bs.m) * totalblocks
-    //
-    // Where bs.m is tracked by the BlockSampler. To properly set bs.m,
-    // we must consume blocks from the stream via read_stream_next_buffer.
-    // Each call to read_stream_next_buffer triggers the stream's callback
-    // (block_sampling_read_stream_next) which calls BlockSampler_Next,
-    // incrementing bs.m.
-    //
-    // For columnar storage, we have a minimal physical storage file
-    // (created in relation_set_new_node) that allows the stream to work.
-    // We consume ONE block per call to this function, and return true
-    // to indicate there's data to process. scan_analyze_next_tuple will
-    // then return all rows from our columnar storage.
-
-    Buffer buf = read_stream_next_buffer(stream, NULL);
-
-    if (!BufferIsValid(buf)) {
-        return false; // No more blocks to sample
-    }
-
-    // Release the buffer immediately - we don't actually need the physical data
-    // because our columnar storage provides the data via scan_analyze_next_tuple.
-    // But we needed to consume the stream to increment bs.m.
-    ReleaseBuffer(buf);
-
-    return true; // Indicate we have data to process
+    // DeepLake doesn't support PostgreSQL's block-based ANALYZE.
+    // No physical blocks to sample - we use cloud/columnar storage.
+    return false;
 }
 #endif
 
@@ -677,7 +613,7 @@ TableScanDesc deeplake_table_am_routine::scan_begin(Relation relation,
                                                     uint32_t flags)
 {
     // Ensure DeepLake is initialized (for processes that bypass planner/executor hooks,
-    // such as autovacuum workers, parallel workers, or standalone ANALYZE)
+    // such as parallel workers)
     pg::init_deeplake();
 
     DeeplakeScanData* extended_scan = static_cast<DeeplakeScanData*>(palloc0(sizeof(DeeplakeScanData)));
@@ -711,9 +647,7 @@ TableScanDesc deeplake_table_am_routine::scan_begin(Relation relation,
     auto& td = table_storage::instance().get_table_data(table_id);
     // For UPDATE/DELETE operations, we need all columns because PostgreSQL needs to reconstruct
     // the entire tuple. For SELECT *, we also need all columns.
-    // For ANALYZE, we also need all columns to sample data and calculate statistics.
-    bool need_all_columns = (flags & SO_TYPE_ANALYZE) ||
-                            (!pg::query_info::current().is_count_star() && td.is_star_selected()) ||
+    bool need_all_columns = (!pg::query_info::current().is_count_star() && td.is_star_selected()) ||
                             (pg::query_info::current().command_type() == pg::command_type::CMD_UPDATE) ||
                             (pg::query_info::current().command_type() == pg::command_type::CMD_DELETE);
 
@@ -1150,19 +1084,10 @@ void deeplake_table_am_routine::relation_set_new_node(
     *freezeXid = RecentXmin;
     *minmulti = GetOldestMultiXactId();
 
-    // Create physical storage for the relation.
-    // Even though DeepLake uses columnar storage (S3/cloud), PostgreSQL's ANALYZE
-    // requires a physical storage file for block sampling. The read_stream API
-    // expects to read physical blocks from the relation's storage file.
-    // Without this, ANALYZE fails with "could not open file" errors.
+    // DeepLake uses cloud/columnar storage, not PostgreSQL's physical files.
+    // We still need to create a minimal storage entry for PostgreSQL's catalog,
+    // but we don't need to allocate any blocks.
     SMgrRelation srel = RelationCreateStorage(*newrnode, persistence, true);
-
-    // Extend the storage to have at least one block.
-    // This is needed because ANALYZE's BlockSampler will try to read blocks,
-    // and if the file is empty, read_stream_next_buffer will fail.
-    // We create a minimal block so that ANALYZE can proceed.
-    // The actual data comes from our columnar storage via scan_analyze_next_tuple.
-    smgrzeroextend(srel, MAIN_FORKNUM, 0, 1, true);
 
     if (persistence == RELPERSISTENCE_UNLOGGED) {
         smgrcreate(srel, INIT_FORKNUM, false);

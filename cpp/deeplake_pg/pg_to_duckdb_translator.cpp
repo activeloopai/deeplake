@@ -86,27 +86,27 @@ std::string pg_to_duckdb_translator::translate(const std::string& pg_query) {
 }
 
 std::string pg_to_duckdb_translator::translate_json_operators(const std::string& query) {
-    std::string result = query;
-
     // Pattern: identifier followed by one or more (-> 'key') or (->> 'key')
     // Must handle spaces: json -> 'commit' -> 'collection'
     // The key is to match -> or ->> followed by optional spaces and a quoted string
-    std::regex json_access_pattern(
+    static const std::regex json_access_pattern(
         R"((\w+)(\s*(?:->|->>\s*)\s*'[^']+')+)"
     );
+    static const std::regex key_pattern(R"(->>?\s*'([^']+)')");
+
+    std::string result;
+    result.reserve(query.size() + 64);
 
     std::smatch match;
-    std::string temp = result;
-    result.clear();
 
     size_t last_pos = 0;
-    auto search_start = temp.cbegin();
+    auto search_start = query.cbegin();
 
-    while (std::regex_search(search_start, temp.cend(), match, json_access_pattern)) {
-        size_t match_pos = std::distance(temp.cbegin(), match[0].first);
+    while (std::regex_search(search_start, query.cend(), match, json_access_pattern)) {
+        size_t match_pos = std::distance(query.cbegin(), match[0].first);
 
         // Copy everything before the match
-        result.append(temp.substr(last_pos, match_pos - last_pos));
+        result.append(query, last_pos, match_pos - last_pos);
 
         // Extract column name and the FULL chain of operators
         // Note: match[2] only captures the last repetition, so we need to use the full match
@@ -115,9 +115,7 @@ std::string pg_to_duckdb_translator::translate_json_operators(const std::string&
         std::string operators_chain = full_match.substr(column_name.length());
 
         // Parse the operators chain to extract keys
-        // Updated pattern to handle spaces properly
         std::vector<std::string> keys;
-        std::regex key_pattern(R"(->>?\s*'([^']+)')");
         auto keys_begin = std::sregex_iterator(operators_chain.begin(), operators_chain.end(), key_pattern);
         auto keys_end = std::sregex_iterator();
 
@@ -142,14 +140,12 @@ std::string pg_to_duckdb_translator::translate_json_operators(const std::string&
     }
 
     // Append remaining text
-    result.append(temp.substr(last_pos));
+    result.append(query, last_pos, std::string::npos);
 
     return result;
 }
 
 std::string pg_to_duckdb_translator::translate_type_casts(const std::string& query) {
-    std::string result = query;
-
     // Constants
     constexpr size_t PRECISION_KEYWORD_LENGTH = 9; // Length of "PRECISION"
 
@@ -160,18 +156,13 @@ std::string pg_to_duckdb_translator::translate_type_casts(const std::string& que
     // First, handle simple JSON path casts (must be before complex patterns)
     // json->>'key'::BIGINT => CAST(json->>'key' AS BIGINT)
     // Note: DOUBLE PRECISION is handled as a compound type in parenthesized casts
-    std::regex json_cast_pattern(R"((\w+->>'[^']+')::(BIGINT|INTEGER|VARCHAR|TEXT|DOUBLE PRECISION|DOUBLE|FLOAT|TIMESTAMP|DATE|BOOLEAN|DECIMAL)\b)",
+    static const std::regex json_cast_pattern(R"((\w+->>'[^']+')::(BIGINT|INTEGER|VARCHAR|TEXT|DOUBLE PRECISION|DOUBLE|FLOAT|TIMESTAMP|DATE|BOOLEAN|DECIMAL)\b)",
                                 std::regex::icase);
-    result = std::regex_replace(result, json_cast_pattern, "CAST($1 AS $2)");
+    std::string result = std::regex_replace(query, json_cast_pattern, "CAST($1 AS $2)");
 
-    // Handle parenthesized expression casts with manual parenthesis balancing
-    // (expr)::BIGINT => CAST(expr AS BIGINT)
-    std::regex paren_cast_marker(R"(\(.*?\)::(BIGINT|INTEGER|VARCHAR|TEXT|DOUBLE|FLOAT|TIMESTAMP|DATE|BOOLEAN|DECIMAL|String)\b)",
-                                 std::regex::icase);
-
-    std::smatch match;
-    std::string temp = result;
+    std::string temp = std::move(result);
     result.clear();
+    result.reserve(temp.size() + 64);
     size_t last_pos = 0;
 
     // Process each potential cast
@@ -279,20 +270,20 @@ std::string pg_to_duckdb_translator::translate_type_casts(const std::string& que
         pos++;
     }
 
-    result.append(temp.substr(last_pos));
+    result.append(temp, last_pos, std::string::npos);
 
     // Also handle simple identifier casts
     // Note: For DOUBLE PRECISION with identifiers, match the compound type first
-    std::regex simple_cast_double_prec(R"((\w+)::(DOUBLE\s+PRECISION)\b)", std::regex::icase);
+    static const std::regex simple_cast_double_prec(R"((\w+)::(DOUBLE\s+PRECISION)\b)", std::regex::icase);
     result = std::regex_replace(result, simple_cast_double_prec, "CAST($1 AS $2)");
 
     // Handle string literal casts: 'string'::TYPE
     // Pattern matches: 'text'::varchar or 'some''escaped''text'::text
-    std::regex string_literal_cast(R"(('(?:[^']|'')*')::(BIGINT|INTEGER|VARCHAR|TEXT|DOUBLE|FLOAT|TIMESTAMP|DATE|BOOLEAN|DECIMAL)\b)",
+    static const std::regex string_literal_cast(R"(('(?:[^']|'')*')::(BIGINT|INTEGER|VARCHAR|TEXT|DOUBLE|FLOAT|TIMESTAMP|DATE|BOOLEAN|DECIMAL)\b)",
                                    std::regex::icase);
     result = std::regex_replace(result, string_literal_cast, "CAST($1 AS $2)");
 
-    std::regex simple_cast_pattern(R"((\w+)::(BIGINT|INTEGER|VARCHAR|TEXT|DOUBLE|FLOAT|TIMESTAMP|DATE|BOOLEAN|DECIMAL)\b)",
+    static const std::regex simple_cast_pattern(R"((\w+)::(BIGINT|INTEGER|VARCHAR|TEXT|DOUBLE|FLOAT|TIMESTAMP|DATE|BOOLEAN|DECIMAL)\b)",
                                    std::regex::icase);
     result = std::regex_replace(result, simple_cast_pattern, "CAST($1 AS $2)");
 
@@ -300,36 +291,35 @@ std::string pg_to_duckdb_translator::translate_type_casts(const std::string& que
 }
 
 std::string pg_to_duckdb_translator::translate_timestamp_functions(const std::string& query) {
-    std::string result = query;
-
     // Pattern: Find TIMESTAMP WITH TIME ZONE 'epoch' + INTERVAL...
     // and manually extract the following expression with balanced parentheses
-    std::regex epoch_start_pattern(
+    static const std::regex epoch_start_pattern(
         R"(TIMESTAMP\s+WITH\s+TIME\s+ZONE\s+'epoch'\s*\+\s*INTERVAL\s+'1\s+microsecond'\s*\*\s*)",
         std::regex::icase
     );
+    static const std::regex cast_wrapper(R"(^CAST\s*\((.+?)\s+AS\s+BIGINT\)$)", std::regex::icase);
+
+    std::string result;
+    result.reserve(query.size() + 64);
 
     std::smatch match;
-    std::string temp = result;
-    result.clear();
-
     size_t last_pos = 0;
-    auto search_start = temp.cbegin();
+    auto search_start = query.cbegin();
 
-    while (std::regex_search(search_start, temp.cend(), match, epoch_start_pattern)) {
-        size_t match_pos = std::distance(temp.cbegin(), match[0].first);
+    while (std::regex_search(search_start, query.cend(), match, epoch_start_pattern)) {
+        size_t match_pos = std::distance(query.cbegin(), match[0].first);
         size_t expr_start = match_pos + match[0].length();
 
         // Copy everything before the match
-        result.append(temp.substr(last_pos, match_pos - last_pos));
+        result.append(query, last_pos, match_pos - last_pos);
 
         // Extract expression with balanced parentheses
         size_t expr_end = expr_start;
         int paren_depth = 0;
         bool in_quotes = false;
 
-        for (size_t i = expr_start; i < temp.length(); ++i) {
-            char c = temp[i];
+        for (size_t i = expr_start; i < query.length(); ++i) {
+            char c = query[i];
             if (c == '\'') {
                 in_quotes = !in_quotes;
             } else if (!in_quotes) {
@@ -345,11 +335,9 @@ std::string pg_to_duckdb_translator::translate_timestamp_functions(const std::st
             }
         }
 
-        std::string expr = trim(temp.substr(expr_start, expr_end - expr_start));
+        std::string expr = trim(query.substr(expr_start, expr_end - expr_start));
 
         // If it's already a CAST(...), extract the inner expression
-        // Use non-greedy match for the content
-        std::regex cast_wrapper(R"(^CAST\s*\((.+?)\s+AS\s+BIGINT\)$)", std::regex::icase);
         std::smatch cast_match;
         if (std::regex_match(expr, cast_match, cast_wrapper)) {
             expr = trim(cast_match[1].str());
@@ -362,39 +350,37 @@ std::string pg_to_duckdb_translator::translate_timestamp_functions(const std::st
 
         // Update position
         last_pos = expr_end;
-        search_start = temp.cbegin() + static_cast<std::ptrdiff_t>(expr_end);
+        search_start = query.cbegin() + static_cast<std::ptrdiff_t>(expr_end);
     }
 
     // Append remaining text
-    result.append(temp.substr(last_pos));
+    result.append(query, last_pos, std::string::npos);
 
     return result;
 }
 
 std::string pg_to_duckdb_translator::translate_extract_functions(const std::string& query) {
-    std::string result = query;
-
     // Pattern: EXTRACT(field FROM expr)
     // Common fields: HOUR, DAY, MONTH, YEAR, MINUTE, SECOND
     // Convert to: field(expr)
 
-    std::regex extract_pattern(
+    static const std::regex extract_pattern(
         R"(EXTRACT\s*\(\s*(HOUR|DAY|MONTH|YEAR|MINUTE|SECOND|DOW|DOY|WEEK)\s+FROM\s+([^)]+)\))",
         std::regex::icase
     );
 
+    std::string result;
+    result.reserve(query.size() + 32);
+
     std::smatch match;
-    std::string temp = result;
-    result.clear();
-
     size_t last_pos = 0;
-    auto search_start = temp.cbegin();
+    auto search_start = query.cbegin();
 
-    while (std::regex_search(search_start, temp.cend(), match, extract_pattern)) {
-        size_t match_pos = std::distance(temp.cbegin(), match[0].first);
+    while (std::regex_search(search_start, query.cend(), match, extract_pattern)) {
+        size_t match_pos = std::distance(query.cbegin(), match[0].first);
 
         // Copy everything before the match
-        result.append(temp.substr(last_pos, match_pos - last_pos));
+        result.append(query, last_pos, match_pos - last_pos);
 
         // Extract field and expression
         std::string field = match[1].str();
@@ -415,32 +401,31 @@ std::string pg_to_duckdb_translator::translate_extract_functions(const std::stri
     }
 
     // Append remaining text
-    result.append(temp.substr(last_pos));
+    result.append(query, last_pos, std::string::npos);
 
     return result;
 }
 
 std::string pg_to_duckdb_translator::translate_date_diff(const std::string& query) {
-    std::string result = query;
-
     // Pattern: EXTRACT(EPOCH FROM ( ... - ... )) * multiplier
     // Need to handle nested parentheses manually
     // Common multipliers: 1 => seconds, 1000 => milliseconds, 1000000 => microseconds
 
-    std::regex extract_start_pattern(
+    static const std::regex extract_start_pattern(
         R"(EXTRACT\s*\(\s*EPOCH\s+FROM\s*\(\s*)",
         std::regex::icase
     );
+    static const std::regex multiplier_pattern(R"(\s*\)\s*\)\s*\*\s*(\d+))");
+
+    std::string result;
+    result.reserve(query.size() + 64);
 
     std::smatch match;
-    std::string temp = result;
-    result.clear();
-
     size_t last_pos = 0;
-    auto search_start = temp.cbegin();
+    auto search_start = query.cbegin();
 
-    while (std::regex_search(search_start, temp.cend(), match, extract_start_pattern)) {
-        size_t match_pos = std::distance(temp.cbegin(), match[0].first);
+    while (std::regex_search(search_start, query.cend(), match, extract_start_pattern)) {
+        size_t match_pos = std::distance(query.cbegin(), match[0].first);
         size_t expr_start = match_pos + match[0].length();
 
         // Manually find the matching close parens and extract expr1 - expr2
@@ -449,8 +434,8 @@ std::string pg_to_duckdb_translator::translate_date_diff(const std::string& quer
         size_t expr_end = expr_start;
         size_t minus_pos = std::string::npos;
 
-        for (size_t i = expr_start; i < temp.length(); ++i) {
-            char c = temp[i];
+        for (size_t i = expr_start; i < query.length(); ++i) {
+            char c = query[i];
             if (c == '\'') {
                 in_quotes = !in_quotes;
             } else if (!in_quotes) {
@@ -472,31 +457,30 @@ std::string pg_to_duckdb_translator::translate_date_diff(const std::string& quer
         // Check if this is a date diff pattern (has - and * multiplier after)
         if (minus_pos == std::string::npos || expr_end == expr_start) {
             // Not a date diff, skip
-            result.append(temp.substr(last_pos, match_pos + match[0].length() - last_pos));
+            result.append(query, last_pos, match_pos + match[0].length() - last_pos);
             last_pos = match_pos + match[0].length();
-            search_start = temp.cbegin() + static_cast<std::ptrdiff_t>(last_pos);
+            search_start = query.cbegin() + static_cast<std::ptrdiff_t>(last_pos);
             continue;
         }
 
         // Look for )) * number after expr_end
-        std::regex multiplier_pattern(R"(\s*\)\s*\)\s*\*\s*(\d+))");
         std::smatch mult_match;
-        std::string remaining = temp.substr(expr_end);
+        std::string remaining = query.substr(expr_end);
         if (!std::regex_search(remaining, mult_match, multiplier_pattern)) {
             // Not a date diff pattern
-            result.append(temp.substr(last_pos, match_pos + match[0].length() - last_pos));
+            result.append(query, last_pos, match_pos + match[0].length() - last_pos);
             last_pos = match_pos + match[0].length();
-            search_start = temp.cbegin() + static_cast<std::ptrdiff_t>(last_pos);
+            search_start = query.cbegin() + static_cast<std::ptrdiff_t>(last_pos);
             continue;
         }
 
         // Extract expressions
-        std::string expr1 = trim(temp.substr(expr_start, minus_pos - expr_start));
-        std::string expr2 = trim(temp.substr(minus_pos + 1, expr_end - minus_pos - 1));
+        std::string expr1 = trim(query.substr(expr_start, minus_pos - expr_start));
+        std::string expr2 = trim(query.substr(minus_pos + 1, expr_end - minus_pos - 1));
         std::string multiplier = mult_match[1].str();
 
         // Copy everything before the match
-        result.append(temp.substr(last_pos, match_pos - last_pos));
+        result.append(query, last_pos, match_pos - last_pos);
 
         // Determine unit based on multiplier
         std::string unit;
@@ -519,38 +503,36 @@ std::string pg_to_duckdb_translator::translate_date_diff(const std::string& quer
 
         // Update position - skip past the entire EXTRACT(...)) * number
         last_pos = expr_end + mult_match[0].length();
-        search_start = temp.cbegin() + static_cast<std::ptrdiff_t>(last_pos);
+        search_start = query.cbegin() + static_cast<std::ptrdiff_t>(last_pos);
     }
 
     // Append remaining text
-    result.append(temp.substr(last_pos));
+    result.append(query, last_pos, std::string::npos);
 
     return result;
 }
 
 std::string pg_to_duckdb_translator::translate_in_clauses(const std::string& query) {
-    std::string result = query;
-
     // Pattern: expr IN ('val1', 'val2', 'val3')
     // Convert to: expr in ['val1', 'val2', 'val3']
 
-    std::regex in_clause_pattern(
+    static const std::regex in_clause_pattern(
         R"(\bIN\s*\(\s*('[^']+'\s*(?:,\s*'[^']+')*)\s*\))",
         std::regex::icase
     );
 
+    std::string result;
+    result.reserve(query.size() + 32);
+
     std::smatch match;
-    std::string temp = result;
-    result.clear();
-
     size_t last_pos = 0;
-    auto search_start = temp.cbegin();
+    auto search_start = query.cbegin();
 
-    while (std::regex_search(search_start, temp.cend(), match, in_clause_pattern)) {
-        size_t match_pos = std::distance(temp.cbegin(), match[0].first);
+    while (std::regex_search(search_start, query.cend(), match, in_clause_pattern)) {
+        size_t match_pos = std::distance(query.cbegin(), match[0].first);
 
         // Copy everything before the match
-        result.append(temp.substr(last_pos, match_pos - last_pos));
+        result.append(query, last_pos, match_pos - last_pos);
 
         // Extract values list
         std::string values_list = match[1].str();
@@ -566,7 +548,7 @@ std::string pg_to_duckdb_translator::translate_in_clauses(const std::string& que
     }
 
     // Append remaining text
-    result.append(temp.substr(last_pos));
+    result.append(query, last_pos, std::string::npos);
 
     return result;
 }
@@ -574,7 +556,7 @@ std::string pg_to_duckdb_translator::translate_in_clauses(const std::string& que
 std::string pg_to_duckdb_translator::translate_count_star(const std::string& query) {
     // Optional: Convert COUNT(*) to count()
     // DuckDB supports both, so this is optional
-    std::regex count_star_pattern(R"(\bCOUNT\s*\(\s*\*\s*\))", std::regex::icase);
+    static const std::regex count_star_pattern(R"(\bCOUNT\s*\(\s*\*\s*\))", std::regex::icase);
     return std::regex_replace(query, count_star_pattern, "count()");
 }
 
@@ -582,7 +564,9 @@ std::string pg_to_duckdb_translator::wrap_where_predicates(const std::string& qu
     // Find WHERE clause and wrap each predicate (separated by AND/OR) in parentheses
     // Example: WHERE a = 1 AND b = 2 => WHERE (a = 1) AND (b = 2)
 
-    std::regex where_pattern(R"(\bWHERE\s+)", std::regex::icase);
+    static const std::regex where_pattern(R"(\bWHERE\s+)", std::regex::icase);
+    static const std::regex keyword_pattern(R"(^\s*\b(GROUP\s+BY|ORDER\s+BY|LIMIT|OFFSET|HAVING|UNION|INTERSECT|EXCEPT)\b)",
+                                           std::regex::icase);
     std::smatch match;
 
     if (!std::regex_search(query, match, where_pattern)) {
@@ -627,8 +611,6 @@ std::string pg_to_duckdb_translator::wrap_where_predicates(const std::string& qu
 
                 // Check for SQL keywords
                 std::string remaining = after_where.substr(i);
-                std::regex keyword_pattern(R"(^\s*\b(GROUP\s+BY|ORDER\s+BY|LIMIT|OFFSET|HAVING|UNION|INTERSECT|EXCEPT)\b)",
-                                          std::regex::icase);
                 std::smatch keyword_match;
                 if (std::regex_search(remaining, keyword_match, keyword_pattern)) {
                     where_end = i;
@@ -658,7 +640,9 @@ std::string pg_to_duckdb_translator::wrap_where_predicates(const std::string& qu
     // Now split the WHERE clause by AND/OR (but not within parentheses or quotes)
     // and wrap each predicate in parentheses if not already wrapped
 
-    std::string result = before_where;
+    std::string result;
+    result.reserve(query.size() + 64);
+    result = before_where;
     std::vector<std::string> predicates;
     std::vector<std::string> operators; // AND or OR
 
@@ -834,7 +818,7 @@ std::string pg_to_duckdb_translator::build_json_path(const std::vector<std::stri
 std::string pg_to_duckdb_translator::translate_to_date(const std::string& query) {
     // PostgreSQL: to_date(string, format)
     // DuckDB: strptime(string, format)
-    std::regex to_date_pattern(
+    static const std::regex to_date_pattern(
         R"(\bto_date\s*\()",
         std::regex::icase
     );
@@ -845,24 +829,23 @@ std::string pg_to_duckdb_translator::translate_to_date(const std::string& query)
 std::string pg_to_duckdb_translator::translate_div_function(const std::string& query) {
     // PostgreSQL: DIV(a, b)
     // DuckDB: (a // b)
-    std::regex div_pattern(
+    static const std::regex div_pattern(
         R"(\bDIV\s*\(\s*([^,]+)\s*,\s*([^)]+)\s*\))",
         std::regex::icase
     );
 
-    std::string result = query;
+    std::string result;
+    result.reserve(query.size() + 32);
+
     std::smatch match;
-    std::string temp = result;
-    result.clear();
-
     size_t last_pos = 0;
-    auto search_start = temp.cbegin();
+    auto search_start = query.cbegin();
 
-    while (std::regex_search(search_start, temp.cend(), match, div_pattern)) {
-        size_t match_pos = std::distance(temp.cbegin(), match[0].first);
+    while (std::regex_search(search_start, query.cend(), match, div_pattern)) {
+        size_t match_pos = std::distance(query.cbegin(), match[0].first);
 
         // Copy everything before the match
-        result.append(temp.substr(last_pos, match_pos - last_pos));
+        result.append(query, last_pos, match_pos - last_pos);
 
         // Replace DIV(a, b) with (a // b)
         result.append("(");
@@ -875,14 +858,14 @@ std::string pg_to_duckdb_translator::translate_div_function(const std::string& q
         search_start = match[0].second;
     }
 
-    result.append(temp.substr(last_pos));
+    result.append(query, last_pos, std::string::npos);
     return result;
 }
 
 std::string pg_to_duckdb_translator::translate_regexp_substr(const std::string& query) {
     // PostgreSQL: regexp_substr(string, pattern)
     // DuckDB: regexp_extract(string, pattern)
-    std::regex regexp_substr_pattern(
+    static const std::regex regexp_substr_pattern(
         R"(\bregexp_substr\s*\()",
         std::regex::icase
     );
