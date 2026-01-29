@@ -121,7 +121,8 @@ void deeplake_sync_tables_from_catalog(const std::string& root_path, icm::string
             // This avoids calling the SQL function create_deeplake_table which may not exist
             // in the postgres database (extension might not be installed there)
             resetStringInfo(&buf);
-            appendStringInfo(&buf, "CREATE TABLE %s (", qualified_name.c_str());
+            const char* qtable = quote_identifier(meta.table_name.c_str());
+            appendStringInfo(&buf, "CREATE TABLE %s.%s (", qschema, qtable);
 
             bool first = true;
             for (const auto& col : table_columns) {
@@ -132,7 +133,9 @@ void deeplake_sync_tables_from_catalog(const std::string& root_path, icm::string
                 appendStringInfo(&buf, "%s %s", quote_identifier(col.column_name.c_str()), col.pg_type.c_str());
             }
 
-            appendStringInfo(&buf, ") USING deeplake WITH (dataset_path=%s)", quote_literal_cstr(meta.dataset_path.c_str()));
+            // Table path is now derived from deeplake.root_path GUC set at database level
+            // Path: {root_path}/{schema}/{table_name}
+            appendStringInfo(&buf, ") USING deeplake");
 
             if (SPI_execute(buf.data, false, 0) != SPI_OK_UTILITY) {
                 // Don't log as warning - the dataset might not be available yet

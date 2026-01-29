@@ -1446,8 +1446,17 @@ PGDLLEXPORT Datum create_deeplake_table(PG_FUNCTION_ARGS)
                 (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg("Dataset does not exist: %s", dataset_path.c_str())));
     }
 
+    // Parse schema.table format and quote identifiers
+    std::string schema_name = "public";
+    std::string simple_table_name = table_name;
+    size_t dot_pos = table_name.find('.');
+    if (dot_pos != std::string::npos) {
+        schema_name = table_name.substr(0, dot_pos);
+        simple_table_name = table_name.substr(dot_pos + 1);
+    }
+
     std::ostringstream sql;
-    sql << "CREATE TABLE " << table_name << " (";
+    sql << "CREATE TABLE " << quote_identifier(schema_name.c_str()) << "." << quote_identifier(simple_table_name.c_str()) << " (";
 
     bool first = true;
     for (const auto& column : *ds) {
@@ -1458,10 +1467,10 @@ PGDLLEXPORT Datum create_deeplake_table(PG_FUNCTION_ARGS)
         const auto pg_type_str = pg::utils::pg_try([t = column.type()]() {
             return pg::utils::nd_to_pg_type(t);
         });
-        sql << column.name() << " " << pg_type_str;
+        sql << quote_identifier(column.name().c_str()) << " " << pg_type_str;
     }
 
-    sql << ") USING deeplake WITH (dataset_path='" << dataset_path << "');";
+    sql << ") USING deeplake WITH (dataset_path=" << quote_literal_cstr(dataset_path.c_str()) << ");";
 
     elog(INFO, "Execute SQL command to create table:\n%s", sql.str().c_str());
 
