@@ -10,6 +10,7 @@ extern "C" {
 
 #include <catalog/namespace.h>
 #include <commands/defrem.h>
+#include <commands/vacuum.h>
 #include <nodes/nodeFuncs.h>
 #include <optimizer/planner.h>
 #include <parser/parser.h>
@@ -22,6 +23,7 @@ extern "C" {
 } /// extern "C"
 #endif
 
+#include "column_statistics.hpp"
 #include "deeplake_executor.hpp"
 #include "pg_deeplake.hpp"
 #include "pg_version_compat.h"
@@ -1077,6 +1079,46 @@ static void process_utility(PlannedStmt* pstmt,
                 if (!td->flush()) {
                     ereport(ERROR, (errmsg("Failed to flush inserts after COPY")));
                 }
+            }
+        }
+    }
+
+    // Handle ANALYZE statement - inject pre-computed DeepLake statistics
+    // This runs after PostgreSQL's standard ANALYZE to override sampled statistics
+    // with more accurate pre-computed statistics from DeepLake's incremental computation
+    if (IsA(pstmt->utilityStmt, VacuumStmt)) {
+        VacuumStmt* vstmt = (VacuumStmt*)pstmt->utilityStmt;
+
+        // Check if this is an ANALYZE operation (is_vacuumcmd=false means ANALYZE)
+        if (!vstmt->is_vacuumcmd) {
+            // Get the list of relations to analyze
+            List* rels = vstmt->rels;
+
+            if (rels != NIL) {
+                // Specific relations were named
+                ListCell* lc = nullptr;
+                foreach (lc, rels) {
+                    VacuumRelation* vrel = (VacuumRelation*)lfirst(lc);
+                    if (vrel->relation != nullptr) {
+                        Oid rel_oid = RangeVarGetRelid(vrel->relation, NoLock, true);
+                        if (OidIsValid(rel_oid) && pg::table_storage::instance().table_exists(rel_oid)) {
+                            Relation rel = RelationIdGetRelation(rel_oid);
+                            if (RelationIsValid(rel)) {
+                                if (pg::inject_deeplake_statistics(rel)) {
+                                    elog(INFO,
+                                         "Injected pre-computed DeepLake statistics for table '%s'",
+                                         RelationGetRelationName(rel));
+                                }
+                                RelationClose(rel);
+                            }
+                        }
+                    }
+                }
+            } else {
+                // ANALYZE with no table specified - analyze all DeepLake tables
+                // This is handled by PostgreSQL which will call ANALYZE on each table,
+                // so each individual table will be processed by the specific-relation path above
+                // when PostgreSQL recursively analyzes each table.
             }
         }
     }
