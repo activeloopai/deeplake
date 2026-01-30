@@ -276,19 +276,6 @@ void initialize_guc_parameters()
                             nullptr // check_hook, assign_hook, show_hook
     );
 
-    DefineCustomBoolVariable("deeplake.sync_enabled",
-                             "Enable background sync worker for stateless mode.",
-                             "When enabled, the background worker polls the catalog and automatically "
-                             "syncs tables from the shared storage. This enables stateless multi-instance "
-                             "deployments where tables created on one instance appear on others.",
-                             &deeplake_sync_enabled, // linked C variable
-                             true,                   // default value
-                             PGC_SIGHUP,             // context - reloadable
-                             0,                      // flags
-                             nullptr,
-                             nullptr,
-                             nullptr // check_hook, assign_hook, show_hook
-    );
 
     // Initialize PostgreSQL memory tracking
     pg::memory_tracker::initialize_guc_parameters();
