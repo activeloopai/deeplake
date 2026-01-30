@@ -143,6 +143,13 @@ public:
 
         template <typename T>
         inline const T* value_ptr(int32_t column_number, int64_t row_number);
+
+        // Get string holder for a batch containing the given row (for zero-copy string access)
+        inline std::pair<impl::string_stream_array_holder*, int64_t> get_string_batch(
+            int32_t column_number, int64_t row_number);
+
+        // Get batch owner array for a given row (for keeping buffer alive in DuckDB vector)
+        inline nd::array* get_batch_owner(int32_t column_number, int64_t row_number);
     };
 
     inline streamer_info& get_streamers() noexcept;
