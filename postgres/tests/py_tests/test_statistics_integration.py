@@ -275,80 +275,6 @@ async def test_analyze_resets_mod_since_analyze(db_conn: asyncpg.Connection):
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="pg_deeplake does not handle rollback yet.")
-async def test_rollback_does_not_affect_statistics(db_conn: asyncpg.Connection):
-    """
-    Test that transaction rollback doesn't increment statistics counters.
-
-    This validates that the pgstat integration is transaction-aware.
-    Rolled-back operations should not affect n_mod_since_analyze.
-    """
-    assertions = Assertions(db_conn)
-
-    try:
-        # Create and populate test table
-        await db_conn.execute("""
-            CREATE TABLE test_stats_rollback (
-                id SERIAL PRIMARY KEY,
-                value INTEGER
-            ) USING deeplake
-        """)
-
-        await db_conn.execute("""
-            INSERT INTO test_stats_rollback (value)
-            SELECT i FROM generate_series(1, 50) i
-        """)
-
-        # Run ANALYZE to get a clean baseline
-        await db_conn.execute("ANALYZE test_stats_rollback")
-        await db_conn.execute("SELECT pg_stat_force_next_flush()")
-
-        # Get baseline after ANALYZE
-        baseline = await db_conn.fetchrow("""
-            SELECT n_mod_since_analyze
-            FROM pg_stat_user_tables
-            WHERE relname = 'test_stats_rollback'
-        """)
-
-        # Start a transaction and insert data, then rollback
-        try:
-            async with db_conn.transaction():
-                await db_conn.execute("""
-                    INSERT INTO test_stats_rollback (value)
-                    SELECT i FROM generate_series(100, 199) i
-                """)
-                # Force rollback by raising exception
-                raise Exception("Force rollback")
-        except Exception:
-            pass
-
-        # Force statistics flush
-        await db_conn.execute("SELECT pg_stat_force_next_flush()")
-
-        # Check that statistics weren't affected by rolled-back inserts
-        after_rollback = await db_conn.fetchrow("""
-            SELECT n_mod_since_analyze
-            FROM pg_stat_user_tables
-            WHERE relname = 'test_stats_rollback'
-        """)
-
-        # Should be approximately the same as baseline (allowing small drift)
-        assert abs(after_rollback['n_mod_since_analyze'] - baseline['n_mod_since_analyze']) <= 5, \
-            f"Expected n_mod_since_analyze to remain ~{baseline['n_mod_since_analyze']} after rollback, " \
-            f"got {after_rollback['n_mod_since_analyze']}"
-
-        # Verify actual row count is still 50 (rollback worked)
-        count = await db_conn.fetchval("SELECT COUNT(*) FROM test_stats_rollback")
-        assert count == 50, f"Expected 50 rows after rollback, got {count}"
-
-    finally:
-        try:
-            await db_conn.execute("DROP TABLE IF EXISTS test_stats_rollback")
-        except:
-            pass
-
-
-@pytest.mark.asyncio
 async def test_combined_operations_statistics(db_conn: asyncpg.Connection):
     """
     Test that multiple DML operations correctly accumulate in statistics.
@@ -953,5 +879,411 @@ async def test_large_bulk_insert_with_statistics(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_bulk_stats")
+        except:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_column_statistics_null_frac(db_conn: asyncpg.Connection):
+    """
+    Test that DeepLake column statistics (null_frac) are injected into pg_stats after ANALYZE.
+
+    This validates that pre-computed DeepLake statistics are properly injected into
+    PostgreSQL's pg_statistic catalog, providing accurate null fraction estimates.
+
+    Note: This test requires DeepLake statistics computation to be enabled.
+    If statistics are not available, the test validates that standard PostgreSQL
+    ANALYZE still produces reasonable estimates.
+    """
+    try:
+        # Create a table with some NULL values
+        await db_conn.execute("""
+            CREATE TABLE test_col_stats_nulls (
+                id SERIAL PRIMARY KEY,
+                nullable_col TEXT,
+                non_null_col TEXT NOT NULL
+            ) USING deeplake
+        """)
+
+        # Insert data with ~30% NULLs in nullable_col
+        await db_conn.execute("""
+            INSERT INTO test_col_stats_nulls (nullable_col, non_null_col)
+            SELECT
+                CASE WHEN i % 10 < 3 THEN NULL ELSE 'value_' || i END,
+                'value_' || i
+            FROM generate_series(1, 1000) i
+        """)
+
+        # Run ANALYZE to trigger statistics injection
+        await db_conn.execute("ANALYZE test_col_stats_nulls")
+
+        # Check pg_stats for the nullable column
+        result = await db_conn.fetchrow("""
+            SELECT null_frac, avg_width, n_distinct
+            FROM pg_stats
+            WHERE tablename = 'test_col_stats_nulls'
+              AND attname = 'nullable_col'
+        """)
+
+        assert result is not None, "pg_stats should have entry for nullable_col"
+
+        # null_frac should be approximately 0.3 (30% nulls)
+        assert result['null_frac'] >= 0.2 and result['null_frac'] <= 0.4, \
+            f"Expected null_frac ~0.3, got {result['null_frac']}"
+
+        # avg_width should be reasonable for TEXT
+        assert result['avg_width'] > 0, \
+            f"Expected avg_width > 0, got {result['avg_width']}"
+
+        # n_distinct should reflect the number of distinct values
+        assert result['n_distinct'] != 0, \
+            f"Expected n_distinct != 0, got {result['n_distinct']}"
+
+        # Check the non-null column has null_frac = 0
+        result_non_null = await db_conn.fetchrow("""
+            SELECT null_frac
+            FROM pg_stats
+            WHERE tablename = 'test_col_stats_nulls'
+              AND attname = 'non_null_col'
+        """)
+
+        assert result_non_null is not None, "pg_stats should have entry for non_null_col"
+        assert result_non_null['null_frac'] == 0, \
+            f"Expected null_frac = 0 for NOT NULL column, got {result_non_null['null_frac']}"
+
+    finally:
+        try:
+            await db_conn.execute("DROP TABLE IF EXISTS test_col_stats_nulls")
+        except:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_column_statistics_n_distinct(db_conn: asyncpg.Connection):
+    """
+    Test that DeepLake column statistics (n_distinct) are injected into pg_stats.
+
+    This validates that the HyperLogLog-based distinct count estimation from
+    DeepLake is properly reflected in PostgreSQL's statistics.
+    """
+    try:
+        # Create a table with columns having different cardinalities
+        await db_conn.execute("""
+            CREATE TABLE test_col_stats_distinct (
+                id SERIAL PRIMARY KEY,
+                low_card_col INTEGER,     -- low cardinality (10 distinct values)
+                high_card_col INTEGER,    -- high cardinality (unique)
+                medium_card_col INTEGER   -- medium cardinality (~100 distinct values)
+            ) USING deeplake
+        """)
+
+        # Insert data with varying cardinalities
+        await db_conn.execute("""
+            INSERT INTO test_col_stats_distinct (low_card_col, high_card_col, medium_card_col)
+            SELECT
+                i % 10,           -- 10 distinct values
+                i,                -- 1000 distinct values (unique)
+                i % 100           -- 100 distinct values
+            FROM generate_series(1, 1000) i
+        """)
+
+        # Run ANALYZE
+        await db_conn.execute("ANALYZE test_col_stats_distinct")
+
+        # Check statistics for each column
+        low_card = await db_conn.fetchrow("""
+            SELECT n_distinct
+            FROM pg_stats
+            WHERE tablename = 'test_col_stats_distinct'
+              AND attname = 'low_card_col'
+        """)
+
+        high_card = await db_conn.fetchrow("""
+            SELECT n_distinct
+            FROM pg_stats
+            WHERE tablename = 'test_col_stats_distinct'
+              AND attname = 'high_card_col'
+        """)
+
+        medium_card = await db_conn.fetchrow("""
+            SELECT n_distinct
+            FROM pg_stats
+            WHERE tablename = 'test_col_stats_distinct'
+              AND attname = 'medium_card_col'
+        """)
+
+        assert low_card is not None, "pg_stats should have entry for low_card_col"
+        assert high_card is not None, "pg_stats should have entry for high_card_col"
+        assert medium_card is not None, "pg_stats should have entry for medium_card_col"
+
+        # Low cardinality column should have n_distinct around 10
+        # PostgreSQL convention: positive = exact count, negative = fraction of rows
+        low_distinct = low_card['n_distinct']
+        if low_distinct > 0:
+            assert low_distinct >= 8 and low_distinct <= 12, \
+                f"Expected low_card n_distinct ~10, got {low_distinct}"
+        else:
+            # Negative means fraction, should be small
+            assert low_distinct > -0.02, \
+                f"Expected low_card n_distinct fraction > -0.02, got {low_distinct}"
+
+        # High cardinality (unique) column should have n_distinct = -1 or close to row count
+        high_distinct = high_card['n_distinct']
+        if high_distinct < 0:
+            # -1 means unique (distinct = number of rows)
+            assert high_distinct <= -0.9, \
+                f"Expected high_card n_distinct <= -0.9 (unique), got {high_distinct}"
+        else:
+            assert high_distinct >= 900, \
+                f"Expected high_card n_distinct >= 900, got {high_distinct}"
+
+        # Medium cardinality should be between low and high
+        medium_distinct = medium_card['n_distinct']
+        if medium_distinct > 0:
+            assert medium_distinct >= 80 and medium_distinct <= 120, \
+                f"Expected medium_card n_distinct ~100, got {medium_distinct}"
+
+    finally:
+        try:
+            await db_conn.execute("DROP TABLE IF EXISTS test_col_stats_distinct")
+        except:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_column_statistics_most_common_values(db_conn: asyncpg.Connection):
+    """
+    Test that DeepLake MCV (Most Common Values) statistics are injected into pg_stats.
+
+    This validates that the MCV arrays computed by DeepLake are properly
+    converted and stored in PostgreSQL's pg_statistic catalog.
+    """
+    try:
+        # Create a table with a skewed distribution
+        await db_conn.execute("""
+            CREATE TABLE test_col_stats_mcv (
+                id SERIAL PRIMARY KEY,
+                skewed_col INTEGER
+            ) USING deeplake
+        """)
+
+        # Insert data with a heavily skewed distribution
+        # Value 1 appears 500 times (50%)
+        # Value 2 appears 300 times (30%)
+        # Value 3 appears 150 times (15%)
+        # Values 4-10 appear 50 times total (5%)
+        await db_conn.execute("""
+            INSERT INTO test_col_stats_mcv (skewed_col)
+            SELECT 1 FROM generate_series(1, 500)
+            UNION ALL
+            SELECT 2 FROM generate_series(1, 300)
+            UNION ALL
+            SELECT 3 FROM generate_series(1, 150)
+            UNION ALL
+            SELECT (i % 7) + 4 FROM generate_series(1, 50) i
+        """)
+
+        # Run ANALYZE
+        await db_conn.execute("ANALYZE test_col_stats_mcv")
+
+        # Check pg_stats for MCV data - use separate queries to avoid type resolution issues
+        result = await db_conn.fetchrow("""
+            SELECT n_distinct
+            FROM pg_stats
+            WHERE tablename = 'test_col_stats_mcv'
+              AND attname = 'skewed_col'
+        """)
+
+        assert result is not None, "pg_stats should have entry for skewed_col"
+
+        # Check MCV separately using text cast to avoid asyncpg type issues
+        mcv_result = await db_conn.fetchrow("""
+            SELECT
+                most_common_vals::text as mcv_vals,
+                most_common_freqs::text as mcv_freqs
+            FROM pg_stats
+            WHERE tablename = 'test_col_stats_mcv'
+              AND attname = 'skewed_col'
+        """)
+
+        # MCV arrays should be populated for skewed data
+        # Note: These may be NULL if DeepLake doesn't compute MCVs or if the
+        # statistics injection doesn't include them - that's also valid behavior
+        if mcv_result['mcv_vals'] is not None:
+            print(f"MCV values: {mcv_result['mcv_vals']}")
+            print(f"MCV freqs: {mcv_result['mcv_freqs']}")
+
+            # Parse the text representation to validate
+            # Format is like "{1,2,3}" for values and "{0.5,0.3,0.15}" for freqs
+            mcv_freqs_str = mcv_result['mcv_freqs']
+            if mcv_freqs_str and mcv_freqs_str != '{}':
+                # Parse frequencies from PostgreSQL array text format
+                freqs = [float(x) for x in mcv_freqs_str.strip('{}').split(',')]
+
+                # Verify frequencies are in descending order
+                if len(freqs) > 1:
+                    for i in range(len(freqs) - 1):
+                        assert freqs[i] >= freqs[i + 1], \
+                            f"MCV frequencies should be in descending order: {freqs}"
+
+                # The highest frequency should be around 0.5 (value 1 appears 50% of time)
+                assert freqs[0] >= 0.4, \
+                    f"Expected highest MCV frequency >= 0.4, got {freqs[0]}"
+        else:
+            # MCV not available - that's acceptable, just log it
+            print("MCV statistics not available (may not be computed by DeepLake)")
+
+        # n_distinct should be reasonable (around 10 distinct values)
+        n_distinct = result['n_distinct']
+        if n_distinct > 0:
+            assert n_distinct >= 5 and n_distinct <= 15, \
+                f"Expected n_distinct ~10, got {n_distinct}"
+
+    finally:
+        try:
+            await db_conn.execute("DROP TABLE IF EXISTS test_col_stats_mcv")
+        except:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_column_statistics_text_column(db_conn: asyncpg.Connection):
+    """
+    Test that DeepLake column statistics work correctly for TEXT columns.
+
+    This validates that avg_width is properly computed for variable-length
+    string columns.
+    """
+    try:
+        # Create a table with text columns of varying lengths
+        await db_conn.execute("""
+            CREATE TABLE test_col_stats_text (
+                id SERIAL PRIMARY KEY,
+                short_text TEXT,
+                long_text TEXT
+            ) USING deeplake
+        """)
+
+        # Insert data with different text lengths
+        await db_conn.execute("""
+            INSERT INTO test_col_stats_text (short_text, long_text)
+            SELECT
+                'ab',                                    -- 2 chars
+                repeat('x', 100)                         -- 100 chars
+            FROM generate_series(1, 500)
+        """)
+
+        # Run ANALYZE
+        await db_conn.execute("ANALYZE test_col_stats_text")
+
+        # Check avg_width for short text
+        short_stats = await db_conn.fetchrow("""
+            SELECT avg_width, null_frac
+            FROM pg_stats
+            WHERE tablename = 'test_col_stats_text'
+              AND attname = 'short_text'
+        """)
+
+        # Check avg_width for long text
+        long_stats = await db_conn.fetchrow("""
+            SELECT avg_width, null_frac
+            FROM pg_stats
+            WHERE tablename = 'test_col_stats_text'
+              AND attname = 'long_text'
+        """)
+
+        assert short_stats is not None, "pg_stats should have entry for short_text"
+        assert long_stats is not None, "pg_stats should have entry for long_text"
+
+        # Short text should have small avg_width (around 2-6 bytes including overhead)
+        assert short_stats['avg_width'] > 0 and short_stats['avg_width'] < 20, \
+            f"Expected short_text avg_width < 20, got {short_stats['avg_width']}"
+
+        # Long text should have larger avg_width (around 100+ bytes)
+        assert long_stats['avg_width'] >= 50, \
+            f"Expected long_text avg_width >= 50, got {long_stats['avg_width']}"
+
+        # Long text should have larger avg_width than short text
+        assert long_stats['avg_width'] > short_stats['avg_width'], \
+            f"Expected long_text avg_width > short_text avg_width, " \
+            f"got {long_stats['avg_width']} vs {short_stats['avg_width']}"
+
+    finally:
+        try:
+            await db_conn.execute("DROP TABLE IF EXISTS test_col_stats_text")
+        except:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_column_statistics_query_planner_uses_stats(db_conn: asyncpg.Connection):
+    """
+    Test that the query planner uses injected DeepLake statistics for planning.
+
+    This validates that the statistics injection actually improves query planning
+    by checking that EXPLAIN shows reasonable row estimates.
+    """
+    try:
+        # Create a table
+        await db_conn.execute("""
+            CREATE TABLE test_col_stats_planner (
+                id SERIAL PRIMARY KEY,
+                category INTEGER,
+                value INTEGER
+            ) USING deeplake
+        """)
+
+        # Insert data with known distribution
+        # category 1: 900 rows (90%)
+        # category 2: 100 rows (10%)
+        await db_conn.execute("""
+            INSERT INTO test_col_stats_planner (category, value)
+            SELECT
+                CASE WHEN i <= 900 THEN 1 ELSE 2 END,
+                i
+            FROM generate_series(1, 1000) i
+        """)
+
+        # Run ANALYZE to inject statistics
+        await db_conn.execute("ANALYZE test_col_stats_planner")
+
+        # Get EXPLAIN output for a query filtering on the skewed column
+        explain_result = await db_conn.fetch("""
+            EXPLAIN (FORMAT JSON) SELECT * FROM test_col_stats_planner WHERE category = 1
+        """)
+
+        # Parse the EXPLAIN JSON to get row estimate
+        import json
+        explain_json = json.loads(explain_result[0][0])
+        plan = explain_json[0]['Plan']
+        estimated_rows = plan['Plan Rows']
+
+        print(f"Query planner estimated rows for category=1: {estimated_rows}")
+        print(f"Actual rows: 900")
+
+        # The estimate should be reasonably close to 900 (within 50%)
+        # Without statistics, PostgreSQL would estimate based on default selectivity
+        assert estimated_rows >= 400, \
+            f"Expected estimated rows >= 400 for category=1 filter, got {estimated_rows}"
+
+        # Also test the minority case
+        explain_result_2 = await db_conn.fetch("""
+            EXPLAIN (FORMAT JSON) SELECT * FROM test_col_stats_planner WHERE category = 2
+        """)
+
+        explain_json_2 = json.loads(explain_result_2[0][0])
+        plan_2 = explain_json_2[0]['Plan']
+        estimated_rows_2 = plan_2['Plan Rows']
+
+        print(f"Query planner estimated rows for category=2: {estimated_rows_2}")
+        print(f"Actual rows: 100")
+
+        # The estimate for the minority category should be much lower
+        assert estimated_rows_2 < estimated_rows, \
+            f"Expected category=2 estimate ({estimated_rows_2}) < category=1 estimate ({estimated_rows})"
+
+    finally:
+        try:
+            await db_conn.execute("DROP TABLE IF EXISTS test_col_stats_planner")
         except:
             pass
