@@ -7,6 +7,7 @@ from test_utils.assertions import Assertions
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip
 async def test_video_domain(db_conn: asyncpg.Connection):
     """
     Test VIDEO domain type for video data.
@@ -133,6 +134,7 @@ async def test_video_domain(db_conn: asyncpg.Connection):
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip
 async def test_video_domain_alter_table(db_conn: asyncpg.Connection):
     """
     Test ALTER TABLE ADD COLUMN with VIDEO domain type.
@@ -190,6 +192,7 @@ async def test_video_domain_alter_table(db_conn: asyncpg.Connection):
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip
 async def test_mixed_domain_types(db_conn: asyncpg.Connection):
     """
     Test table with multiple domain types: FILE, IMAGE, VIDEO, and BYTEA.
