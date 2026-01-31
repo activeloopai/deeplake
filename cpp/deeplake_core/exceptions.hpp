@@ -108,7 +108,7 @@ class invalid_video_compression : public exception
 {
 public:
     explicit invalid_video_compression(const std::string& comp)
-        : exception(fmt::format("Provided image compression '{}' is not supported. Only mp4 are supported", comp))
+        : exception(fmt::format("Provided video compression '{}' is not supported. Only mp4 is supported", comp))
     {
     }
 };

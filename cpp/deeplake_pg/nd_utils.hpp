@@ -324,7 +324,16 @@ inline std::string nd_to_pg_type(deeplake_core::type t)
     case deeplake_core::type_kind::generic:
         res = t.to_string();
         break;
-    case deeplake_core::type_kind::link:
+    case deeplake_core::type_kind::link: {
+        // Check if link contains bytes (file type) vs other types
+        auto inner = t.as_link().get_type();
+        if (inner->is_generic() && inner->data_type().get_dtype() == nd::dtype::byte) {
+            res = "file";
+        } else {
+            res = "text";
+        }
+        break;
+    }
     case deeplake_core::type_kind::text:
         res = "text";
         break;
@@ -336,6 +345,12 @@ inline std::string nd_to_pg_type(deeplake_core::type t)
         res = "float4";
         break;
     case deeplake_core::type_kind::image:
+        res = "image";
+        break;
+    case deeplake_core::type_kind::video:
+        res = "video";
+        break;
+    case deeplake_core::type_kind::audio:
     case deeplake_core::type_kind::bmask:
     case deeplake_core::type_kind::smask:
     case deeplake_core::type_kind::medical:

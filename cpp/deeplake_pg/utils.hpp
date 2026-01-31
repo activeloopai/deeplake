@@ -110,6 +110,58 @@ inline Oid get_base_array_element_type(Oid typid)
     return InvalidOid;
 }
 
+/**
+ * @brief Check if a type OID is a domain type with the given name
+ * @param typid The type OID to check
+ * @param domain_name The domain name to match
+ * @return true if this is a domain type with the given name, false otherwise
+ */
+inline bool is_domain_type(Oid typid, const char* domain_name)
+{
+    if (typid == InvalidOid) {
+        return false;
+    }
+
+    HeapTuple tup = SearchSysCache1(TYPEOID, ObjectIdGetDatum(typid));
+    if (!HeapTupleIsValid(tup)) {
+        return false;
+    }
+
+    Form_pg_type typTup = (Form_pg_type)GETSTRUCT(tup);
+
+    bool is_match = (typTup->typtype == TYPTYPE_DOMAIN && strcmp(NameStr(typTup->typname), domain_name) == 0);
+
+    ReleaseSysCache(tup);
+    return is_match;
+}
+
+/**
+ * @brief Check if a type OID is the FILE domain type
+ * FILE is a domain over BYTEA that represents link-of-bytes semantics.
+ */
+inline bool is_file_domain_type(Oid typid)
+{
+    return is_domain_type(typid, "file");
+}
+
+/**
+ * @brief Check if a type OID is the IMAGE domain type
+ * IMAGE is a domain over BYTEA that represents image data.
+ */
+inline bool is_image_domain_type(Oid typid)
+{
+    return is_domain_type(typid, "image");
+}
+
+/**
+ * @brief Check if a type OID is the VIDEO domain type
+ * VIDEO is a domain over BYTEA that represents video data.
+ */
+inline bool is_video_domain_type(Oid typid)
+{
+    return is_domain_type(typid, "video");
+}
+
 /// Error handling wrapper
 template <typename Func>
 inline auto pg_try(Func&& f) -> decltype(f())
