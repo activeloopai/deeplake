@@ -824,7 +824,7 @@ static void process_utility(PlannedStmt* pstmt,
                                         if (pg::utils::is_video_domain_type(attr->atttypid)) {
                                             // VIDEO domain -> video type
                                             ds->add_column(column_name,
-                                                           deeplake_core::type::video(codecs::compression::null));
+                                                           deeplake_core::type::video(codecs::compression::mp4));
                                             break;
                                         }
                                         ds->add_column(column_name,

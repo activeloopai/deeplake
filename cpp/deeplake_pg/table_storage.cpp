@@ -783,7 +783,7 @@ void table_storage::create_table(const std::string& table_name, Oid table_id, Tu
                     if (pg::utils::is_video_domain_type(attr->atttypid)) {
                         // VIDEO domain -> video type
                         td.get_dataset()->add_column(column_name,
-                                                     deeplake_core::type::video(codecs::compression::null));
+                                                     deeplake_core::type::video(codecs::compression::mp4));
                         break;
                     }
                     td.get_dataset()->add_column(column_name,
