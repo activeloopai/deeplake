@@ -5,6 +5,14 @@
 CREATE DOMAIN IMAGE AS BYTEA;
 COMMENT ON DOMAIN IMAGE IS 'Binary image data stored as BYTEA';
 
+-- VIDEO domain: behaves like BYTEA but semantically represents video data
+CREATE DOMAIN VIDEO AS BYTEA;
+COMMENT ON DOMAIN VIDEO IS 'Binary video data stored as BYTEA';
+
+-- FILE domain: behaves like BYTEA but semantically represents file data
+CREATE DOMAIN FILE AS BYTEA;
+COMMENT ON DOMAIN FILE IS 'Binary file data stored as BYTEA';
+
 CREATE FUNCTION handle_index_creation() RETURNS event_trigger AS 'pg_deeplake' LANGUAGE C VOLATILE;
 
 -- Create the event trigger to listen for CREATE INDEX events
