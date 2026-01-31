@@ -762,10 +762,34 @@ void table_storage::create_table(const std::string& table_name, Oid table_id, Tu
                 case JSONBOID:
                     td.get_dataset()->add_column(column_name, deeplake_core::type::dict());
                     break;
-                case BYTEAOID:
+                case BYTEAOID: {
+                    // Check for special domain types over BYTEA
+                    if (pg::utils::is_file_domain_type(attr->atttypid)) {
+                        // FILE domain -> link of bytes
+                        td.get_dataset()->add_column(
+                            column_name,
+                            deeplake_core::type::link(
+                                deeplake_core::type::generic(nd::type::scalar(nd::dtype::byte))));
+                        break;
+                    }
+                    if (pg::utils::is_image_domain_type(attr->atttypid)) {
+                        // IMAGE domain -> image type
+                        td.get_dataset()->add_column(
+                            column_name,
+                            deeplake_core::type::image(
+                                nd::type::array(nd::dtype::byte, 3), codecs::compression::null));
+                        break;
+                    }
+                    if (pg::utils::is_video_domain_type(attr->atttypid)) {
+                        // VIDEO domain -> video type
+                        td.get_dataset()->add_column(column_name,
+                                                     deeplake_core::type::video(codecs::compression::null));
+                        break;
+                    }
                     td.get_dataset()->add_column(column_name,
                                                  deeplake_core::type::generic(nd::type::scalar(nd::dtype::byte)));
                     break;
+                }
                 case INT2ARRAYOID: {
                     int32_t ndims = (attr->attndims > 0) ? attr->attndims : 1;
                     if (ndims > 255) {
