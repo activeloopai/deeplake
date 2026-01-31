@@ -631,6 +631,48 @@ inline std::string_view table_data::streamer_info::value(int32_t column_number, 
     return batch.holder_.data(static_cast<size_t>(row_in_batch));
 }
 
+inline std::pair<impl::string_stream_array_holder*, int64_t>
+table_data::streamer_info::get_string_batch(int32_t column_number, int64_t row_number)
+{
+    const int64_t batch_index = row_number >> batch_size_log2_;
+    const int64_t row_in_batch = row_number & batch_mask_;
+
+    auto& col_data = column_to_batches[column_number];
+    auto& batch = col_data.batches[batch_index];
+    if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
+        std::lock_guard lock(col_data.mutex_);
+        for (int64_t i = 0; i <= batch_index; ++i) {
+            if (!col_data.batches[i].initialized_.load(std::memory_order_relaxed)) {
+                col_data.batches[i].owner_ = streamers[column_number]->next_batch();
+                col_data.batches[i].holder_ = impl::string_stream_array_holder(col_data.batches[i].owner_);
+                col_data.batches[i].initialized_.store(true, std::memory_order_release);
+            }
+        }
+    }
+
+    return {&batch.holder_, row_in_batch};
+}
+
+inline nd::array* table_data::streamer_info::get_batch_owner(int32_t column_number, int64_t row_number)
+{
+    const int64_t batch_index = row_number >> batch_size_log2_;
+
+    auto& col_data = column_to_batches[column_number];
+    auto& batch = col_data.batches[batch_index];
+    if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
+        std::lock_guard lock(col_data.mutex_);
+        for (int64_t i = 0; i <= batch_index; ++i) {
+            if (!col_data.batches[i].initialized_.load(std::memory_order_relaxed)) {
+                col_data.batches[i].owner_ = streamers[column_number]->next_batch();
+                col_data.batches[i].holder_ = impl::string_stream_array_holder(col_data.batches[i].owner_);
+                col_data.batches[i].initialized_.store(true, std::memory_order_release);
+            }
+        }
+    }
+
+    return &batch.owner_;
+}
+
 inline bool table_data::flush()
 {
     const bool s1 = flush_inserts(true);
