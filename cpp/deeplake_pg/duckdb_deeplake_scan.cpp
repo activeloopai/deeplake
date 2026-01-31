@@ -1048,12 +1048,45 @@ private:
                             duckdb_data[row_in_batch] = duckdb::string_t(str_ptr, len);
                         }
                     } else {
-                        for (duckdb::idx_t row_in_batch = 0; row_in_batch < batch_size; ++row_in_batch) {
-                            auto value = holder->data(batch_start + row_in_batch);
-                            const auto len = static_cast<uint32_t>(value.size());
-                            // string_t constructor: for len <= 12, copies data inline;
-                            // for len > 12, stores pointer + copies 4-byte prefix (zero-copy)
-                            duckdb_data[row_in_batch] = duckdb::string_t(value.data(), len);
+                        // OPTIMIZATION: Multi-chunk batch access - iterate chunk by chunk.
+                        // This avoids binary search (upper_bound) on every row by:
+                        // 1. Finding the starting chunk once
+                        // 2. Processing all rows within each chunk using direct buffer access
+                        // 3. Moving to the next chunk only when we cross a boundary
+                        //
+                        // For a batch spanning N chunks, this reduces binary search from
+                        // O(batch_size * log(chunks)) to O(N) + O(batch_size) array indexing.
+
+                        auto [chunk_idx, row_in_chunk] = holder->find_chunk(batch_start);
+                        duckdb::idx_t row_in_batch = 0;
+
+                        while (row_in_batch < batch_size) {
+                            // Get chunk boundaries and data
+                            auto [chunk_start, chunk_end] = holder->get_chunk_bounds(chunk_idx);
+                            auto contiguous = holder->get_chunk_strings(chunk_idx, row_in_chunk);
+                            const auto* buffer = contiguous.buffer;
+                            const auto* offsets = contiguous.offsets;
+                            const auto base_offset = contiguous.base_offset;
+                            auto local_idx = contiguous.start_index;
+
+                            // Process rows until we hit the chunk boundary or batch end
+                            const auto global_row = batch_start + static_cast<int64_t>(row_in_batch);
+                            const auto remaining_in_batch = static_cast<int64_t>(batch_size - row_in_batch);
+                            const auto remaining_in_chunk = chunk_end - global_row;
+                            const auto rows_in_chunk = static_cast<duckdb::idx_t>(
+                                std::min(remaining_in_batch, remaining_in_chunk));
+
+                            for (duckdb::idx_t i = 0; i < rows_in_chunk; ++i, ++row_in_batch, ++local_idx) {
+                                const auto str_start = offsets[local_idx] - base_offset;
+                                const auto str_end = offsets[local_idx + 1] - base_offset;
+                                const auto len = static_cast<uint32_t>(str_end - str_start);
+                                const auto* str_ptr = reinterpret_cast<const char*>(buffer + str_start);
+                                duckdb_data[row_in_batch] = duckdb::string_t(str_ptr, len);
+                            }
+
+                            // Move to next chunk
+                            chunk_idx++;
+                            row_in_chunk = 0;
                         }
                     }
                 }
