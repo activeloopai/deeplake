@@ -28,7 +28,7 @@ jobs:
 
   cleanup:
     needs: claude_review
-    if: job.status != 'cancelled'
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - name: cleanup workflow runs
