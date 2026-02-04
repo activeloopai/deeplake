@@ -10,6 +10,7 @@ extern "C" {
 
 #include <catalog/namespace.h>
 #include <commands/defrem.h>
+#include <commands/vacuum.h>
 #include <nodes/nodeFuncs.h>
 #include <optimizer/planner.h>
 #include <parser/parser.h>
@@ -22,6 +23,7 @@ extern "C" {
 } /// extern "C"
 #endif
 
+#include "column_statistics.hpp"
 #include "deeplake_executor.hpp"
 #include "pg_deeplake.hpp"
 #include "pg_version_compat.h"
@@ -274,19 +276,6 @@ void initialize_guc_parameters()
                             nullptr // check_hook, assign_hook, show_hook
     );
 
-    DefineCustomBoolVariable("deeplake.sync_enabled",
-                             "Enable background sync worker for stateless mode.",
-                             "When enabled, the background worker polls the catalog and automatically "
-                             "syncs tables from the shared storage. This enables stateless multi-instance "
-                             "deployments where tables created on one instance appear on others.",
-                             &deeplake_sync_enabled, // linked C variable
-                             true,                   // default value
-                             PGC_SIGHUP,             // context - reloadable
-                             0,                      // flags
-                             nullptr,
-                             nullptr,
-                             nullptr // check_hook, assign_hook, show_hook
-    );
 
     // Initialize PostgreSQL memory tracking
     pg::memory_tracker::initialize_guc_parameters();
@@ -814,10 +803,34 @@ static void process_utility(PlannedStmt* pstmt,
                                     case JSONBOID:
                                         ds->add_column(column_name, deeplake_core::type::dict());
                                         break;
-                                    case BYTEAOID:
+                                    case BYTEAOID: {
+                                        // Check for special domain types over BYTEA
+                                        if (pg::utils::is_file_domain_type(attr->atttypid)) {
+                                            // FILE domain -> link of bytes
+                                            ds->add_column(
+                                                column_name,
+                                                deeplake_core::type::link(
+                                                    deeplake_core::type::generic(nd::type::scalar(nd::dtype::byte))));
+                                            break;
+                                        }
+                                        if (pg::utils::is_image_domain_type(attr->atttypid)) {
+                                            // IMAGE domain -> image type
+                                            ds->add_column(
+                                                column_name,
+                                                deeplake_core::type::image(
+                                                    nd::type::array(nd::dtype::byte, 3), codecs::compression::null));
+                                            break;
+                                        }
+                                        if (pg::utils::is_video_domain_type(attr->atttypid)) {
+                                            // VIDEO domain -> video type
+                                            ds->add_column(column_name,
+                                                           deeplake_core::type::video(codecs::compression::mp4));
+                                            break;
+                                        }
                                         ds->add_column(column_name,
                                                        deeplake_core::type::generic(nd::type::scalar(nd::dtype::byte)));
                                         break;
+                                    }
                                     case INT2ARRAYOID: {
                                         int32_t ndims = (attr->attndims > 0) ? attr->attndims : 1;
                                         if (ndims > 255) {
@@ -1077,6 +1090,46 @@ static void process_utility(PlannedStmt* pstmt,
                 if (!td->flush()) {
                     ereport(ERROR, (errmsg("Failed to flush inserts after COPY")));
                 }
+            }
+        }
+    }
+
+    // Handle ANALYZE statement - inject pre-computed DeepLake statistics
+    // This runs after PostgreSQL's standard ANALYZE to override sampled statistics
+    // with more accurate pre-computed statistics from DeepLake's incremental computation
+    if (IsA(pstmt->utilityStmt, VacuumStmt)) {
+        VacuumStmt* vstmt = (VacuumStmt*)pstmt->utilityStmt;
+
+        // Check if this is an ANALYZE operation (is_vacuumcmd=false means ANALYZE)
+        if (!vstmt->is_vacuumcmd) {
+            // Get the list of relations to analyze
+            List* rels = vstmt->rels;
+
+            if (rels != NIL) {
+                // Specific relations were named
+                ListCell* lc = nullptr;
+                foreach (lc, rels) {
+                    VacuumRelation* vrel = (VacuumRelation*)lfirst(lc);
+                    if (vrel->relation != nullptr) {
+                        Oid rel_oid = RangeVarGetRelid(vrel->relation, NoLock, true);
+                        if (OidIsValid(rel_oid) && pg::table_storage::instance().table_exists(rel_oid)) {
+                            Relation rel = RelationIdGetRelation(rel_oid);
+                            if (RelationIsValid(rel)) {
+                                if (pg::inject_deeplake_statistics(rel)) {
+                                    elog(INFO,
+                                         "Injected pre-computed DeepLake statistics for table '%s'",
+                                         RelationGetRelationName(rel));
+                                }
+                                RelationClose(rel);
+                            }
+                        }
+                    }
+                }
+            } else {
+                // ANALYZE with no table specified - analyze all DeepLake tables
+                // This is handled by PostgreSQL which will call ANALYZE on each table,
+                // so each individual table will be processed by the specific-relation path above
+                // when PostgreSQL recursively analyzes each table.
             }
         }
     }
