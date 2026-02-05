@@ -291,22 +291,29 @@ void table_storage::load_table_metadata()
 
     // Stateless catalog sync (only when enabled)
     if (pg::stateless_enabled) {
-        pg::dl_catalog::ensure_catalog(root_dir, creds);
-
+        // Fast path: if already loaded, just check version without ensure_catalog
         if (tables_loaded_) {
             const auto current_version = pg::dl_catalog::get_catalog_version(root_dir, creds);
             if (current_version == catalog_version_) {
                 return;
             }
+            // Version changed, need to reload
             tables_.clear();
             views_.clear();
             tables_loaded_ = false;
+            catalog_version_ = current_version; // Reuse the version we just fetched
         }
-        tables_loaded_ = true;
-        catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, creds);
 
-        auto catalog_tables = pg::dl_catalog::load_tables(root_dir, creds);
-        auto catalog_columns = pg::dl_catalog::load_columns(root_dir, creds);
+        // Only ensure catalog exists when we need to load/reload
+        pg::dl_catalog::ensure_catalog(root_dir, creds);
+        tables_loaded_ = true;
+        // Only fetch version if we don't already have it from the check above
+        if (catalog_version_ == 0) {
+            catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, creds);
+        }
+
+        // Load tables and columns in parallel for better performance
+        auto [catalog_tables, catalog_columns] = pg::dl_catalog::load_tables_and_columns(root_dir, creds);
         if (!catalog_tables.empty()) {
             for (const auto& meta : catalog_tables) {
                 const std::string qualified_name = meta.schema_name + "." + meta.table_name;

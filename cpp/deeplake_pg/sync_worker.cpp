@@ -67,8 +67,8 @@ void deeplake_sync_worker_sighup(SIGNAL_ARGS)
  */
 void deeplake_sync_tables_from_catalog(const std::string& root_path, icm::string_map<> creds)
 {
-    auto catalog_tables = pg::dl_catalog::load_tables(root_path, creds);
-    auto catalog_columns = pg::dl_catalog::load_columns(root_path, creds);
+    // Load tables and columns in parallel for better performance
+    auto [catalog_tables, catalog_columns] = pg::dl_catalog::load_tables_and_columns(root_path, creds);
 
     for (const auto& meta : catalog_tables) {
         // Skip tables marked as dropping
@@ -168,6 +168,8 @@ PGDLLEXPORT void deeplake_sync_worker_main(Datum main_arg)
     elog(LOG, "pg_deeplake sync worker started");
 
     int64_t last_catalog_version = 0;
+    std::string last_root_path;  // Track root_path to detect changes
+    bool catalog_ensured = false;
 
     while (!got_sigterm) {
         // Handle SIGHUP - reload configuration
@@ -199,10 +201,15 @@ PGDLLEXPORT void deeplake_sync_worker_main(Datum main_arg)
             if (!root_path.empty()) {
                 auto creds = pg::session_credentials::get_credentials();
 
-                // Ensure catalog exists
-                pg::dl_catalog::ensure_catalog(root_path, creds);
+                // Only ensure catalog on first call or when root_path changes
+                if (!catalog_ensured || root_path != last_root_path) {
+                    pg::dl_catalog::ensure_catalog(root_path, creds);
+                    catalog_ensured = true;
+                    last_root_path = root_path;
+                    last_catalog_version = 0;  // Reset version when path changes
+                }
 
-                // Use existing catalog version API to check for changes
+                // Use existing catalog version API to check for changes (now fast with cache)
                 int64_t current_version = pg::dl_catalog::get_catalog_version(root_path, creds);
 
                 if (current_version != last_catalog_version) {

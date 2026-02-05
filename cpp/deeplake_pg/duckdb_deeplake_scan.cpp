@@ -43,7 +43,7 @@ struct deeplake_scan_bind_data final : public duckdb::TableFunctionData
 struct deeplake_scan_global_state final : public duckdb::GlobalTableFunctionState
 {
     duckdb::vector<duckdb::column_t> column_ids;
-    std::vector<base::function<async::promise<std::vector<icm::roaring>>()>> index_searchers;
+    icm::vector<base::function<async::promise<icm::vector<icm::roaring>>()>> index_searchers;
     duckdb::unique_ptr<duckdb::Expression> filter_expr;
     std::mutex index_search_mutex;
     heimdall::dataset_view_ptr index_search_result;
@@ -205,10 +205,10 @@ duckdb::unique_ptr<duckdb::FunctionData> deeplake_scan_bind(duckdb::ClientContex
     return duckdb::make_uniq<deeplake_scan_bind_data>(td, return_types);
 }
 
-base::function<async::promise<std::vector<icm::roaring>>()>
+base::function<async::promise<icm::vector<icm::roaring>>()>
 try_get_index_searcher(heimdall::column_view_ptr column_view, const duckdb::ConstantFilter& filter)
 {
-    base::function<async::promise<std::vector<icm::roaring>>()> result;
+    base::function<async::promise<icm::vector<icm::roaring>>()> result;
     auto index_holder = column_view->index_holder();
     ASSERT(index_holder != nullptr);
     auto constant = pg::to_deeplake_value(filter.constant);
@@ -250,7 +250,7 @@ try_get_index_searcher(heimdall::column_view_ptr column_view, const duckdb::Cons
             query_core::text_search_info info;
             info.column_name = column_view->name();
             info.type = query_core::text_search_info::search_type::equals;
-            info.search_values.push_back(std::vector<std::string>{filter.constant.ToString()});
+            info.search_values.push_back(icm::vector<std::string>{filter.constant.ToString()});
             if (index_holder->can_run_query(info)) {
                 result = [index_holder, si = std::move(info)]() {
                     return index_holder->run_query(si);
@@ -261,7 +261,7 @@ try_get_index_searcher(heimdall::column_view_ptr column_view, const duckdb::Cons
     return result;
 }
 
-base::function<async::promise<std::vector<icm::roaring>>()>
+base::function<async::promise<icm::vector<icm::roaring>>()>
 try_get_index_searcher(heimdall::column_view_ptr column_view, const duckdb::InFilter& filter)
 {
     query_core::inverted_index_search_info info;
@@ -277,10 +277,10 @@ try_get_index_searcher(heimdall::column_view_ptr column_view, const duckdb::InFi
     };
 }
 
-base::function<async::promise<std::vector<icm::roaring>>()>
+base::function<async::promise<icm::vector<icm::roaring>>()>
 try_get_index_searcher(heimdall::column_view_ptr column_view, const duckdb::TableFilter& filter)
 {
-    base::function<async::promise<std::vector<icm::roaring>>()> result;
+    base::function<async::promise<icm::vector<icm::roaring>>()> result;
     ASSERT(column_view != nullptr);
     if (column_view->index_holder() == nullptr) {
         return result;
@@ -887,14 +887,14 @@ private:
         if (is_index_search_done()) {
             return;
         }
-        std::vector<async::promise<icm::roaring>> promises;
+        icm::vector<async::promise<icm::roaring>> promises;
         for (auto& is : global_state_.index_searchers) {
-            promises.push_back(is().then_any([](std::vector<icm::roaring>&& results) {
+            promises.push_back(is().then_any([](icm::vector<icm::roaring>&& results) {
                 ASSERT(results.size() == 1);
                 return std::move(results.front());
             }));
         }
-        auto combined_promise = async::combine(std::move(promises)).then_any([](std::vector<icm::roaring>&& results) {
+        auto combined_promise = async::combine(std::move(promises)).then_any([](icm::vector<icm::roaring>&& results) {
             ASSERT(!results.empty());
             icm::roaring& combined = results[0];
             for (size_t i = 1; i < results.size(); ++i) {
@@ -903,7 +903,7 @@ private:
             return std::move(combined);
         });
         auto indices = combined_promise.get_future().get();
-        std::vector<int64_t> indices_vec;
+        icm::vector<int64_t> indices_vec;
         indices_vec.reserve(indices.cardinality());
         for (auto x : indices) {
             indices_vec.push_back(x);
@@ -955,7 +955,7 @@ private:
         }
 
         ASSERT(output_.ColumnCount() == global_state_.column_ids.size());
-        std::vector<async::promise<void>> column_promises;
+        icm::vector<async::promise<void>> column_promises;
         // Fill output vectors column by column using table_data streamers
         for (unsigned i = 0; i < global_state_.column_ids.size(); ++i) {
             const auto col_idx = global_state_.column_ids[i];

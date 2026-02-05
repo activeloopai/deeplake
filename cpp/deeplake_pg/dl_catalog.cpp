@@ -1,5 +1,6 @@
 #include "dl_catalog.hpp"
 
+#include <async/promise.hpp>
 #include <codecs/compression.hpp>
 #include <deeplake_api/catalog_table.hpp>
 #include <deeplake_api/dataset.hpp>
@@ -16,8 +17,6 @@ extern "C" {
 #include <postgres.h>
 #include <utils/elog.h>
 }
-
-#include <chrono>
 
 namespace pg::dl_catalog {
 
@@ -36,6 +35,36 @@ std::string join_path(const std::string& root, const std::string& name)
     }
     return root + "/" + k_catalog_dir + "/" + name;
 }
+
+// Cache for catalog table handles to avoid repeated S3 opens
+struct catalog_table_cache
+{
+    std::string root_path;
+    std::shared_ptr<deeplake_api::catalog_table> meta_table;
+
+    static catalog_table_cache& instance()
+    {
+        static thread_local catalog_table_cache cache;
+        return cache;
+    }
+
+    std::shared_ptr<deeplake_api::catalog_table> get_meta_table(const std::string& path, icm::string_map<> creds)
+    {
+        if (path != root_path || !meta_table) {
+            // Cache miss or path changed - open and cache
+            root_path = path;
+            const auto meta_path = join_path(path, k_meta_name);
+            meta_table = deeplake_api::open_catalog_table(meta_path, std::move(creds)).get_future().get();
+        }
+        return meta_table;
+    }
+
+    void invalidate()
+    {
+        root_path.clear();
+        meta_table.reset();
+    }
+};
 
 std::shared_ptr<deeplake_api::catalog_table>
 open_or_create_table(const std::string& path, deeplake_api::catalog_table_schema schema, icm::string_map<> creds)
@@ -107,87 +136,63 @@ void ensure_catalog(const std::string& root_path, icm::string_map<> creds)
     const auto indexes_path = join_path(root_path, k_indexes_name);
     const auto meta_path = join_path(root_path, k_meta_name);
 
-    auto ensure_table = [&](const std::string& path,
-                            deeplake_api::catalog_table_schema schema) -> std::shared_ptr<deeplake_api::catalog_table> {
-        bool exists = false;
-        try {
-            exists = deeplake_api::exists(path, icm::string_map<>(creds)).get_future().get();
-        } catch (...) {
-            exists = false;
-        }
-        if (exists) {
-            bool is_catalog = false;
-            try {
-                is_catalog = deeplake_api::is_catalog_table(path, icm::string_map<>(creds)).get_future().get();
-            } catch (...) {
-                is_catalog = false;
-            }
-            if (!is_catalog) {
-                elog(WARNING,
-                     "Existing catalog path %s is not a catalog table. Recreating catalog table.",
-                     path.c_str());
-                try {
-                    deeplake_api::delete_dataset(path, icm::string_map<>(creds)).get_future().get();
-                } catch (...) {
-                    elog(WARNING, "Failed to delete legacy dataset at %s", path.c_str());
-                }
-            }
-        }
-        try {
-            return open_or_create_table(path, std::move(schema), icm::string_map<>(creds));
-        } catch (const std::exception& e) {
-            elog(ERROR, "Failed to open or create catalog table at %s: %s", path.c_str(), e.what());
-        }
-        return {};
-    };
+    // Build schemas for all catalog tables
+    deeplake_api::catalog_table_schema tables_schema;
+    tables_schema.add("table_id", deeplake_core::type::text(codecs::compression::null))
+        .add("schema_name", deeplake_core::type::text(codecs::compression::null))
+        .add("table_name", deeplake_core::type::text(codecs::compression::null))
+        .add("dataset_path", deeplake_core::type::text(codecs::compression::null))
+        .add("state", deeplake_core::type::text(codecs::compression::null))
+        .add("updated_at", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
+        .set_primary_key("table_id");
 
-    {
-        deeplake_api::catalog_table_schema schema;
-        schema.add("table_id", deeplake_core::type::text(codecs::compression::null))
-            .add("schema_name", deeplake_core::type::text(codecs::compression::null))
-            .add("table_name", deeplake_core::type::text(codecs::compression::null))
-            .add("dataset_path", deeplake_core::type::text(codecs::compression::null))
-            .add("state", deeplake_core::type::text(codecs::compression::null))
-            .add("updated_at", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
-            .set_primary_key("table_id");
-        ensure_table(tables_path, std::move(schema));
-    }
+    deeplake_api::catalog_table_schema columns_schema;
+    columns_schema.add("column_id", deeplake_core::type::text(codecs::compression::null))
+        .add("table_id", deeplake_core::type::text(codecs::compression::null))
+        .add("column_name", deeplake_core::type::text(codecs::compression::null))
+        .add("pg_type", deeplake_core::type::text(codecs::compression::null))
+        .add("dl_type_json", deeplake_core::type::text(codecs::compression::null))
+        .add("nullable", deeplake_core::type::generic(nd::type::scalar(nd::dtype::boolean)))
+        .add("position", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int32)))
+        .set_primary_key("column_id");
 
-    {
-        deeplake_api::catalog_table_schema schema;
-        // Use column_id (table_id:column_name) as primary key to support multiple columns per table
-        schema.add("column_id", deeplake_core::type::text(codecs::compression::null))
-            .add("table_id", deeplake_core::type::text(codecs::compression::null))
-            .add("column_name", deeplake_core::type::text(codecs::compression::null))
-            .add("pg_type", deeplake_core::type::text(codecs::compression::null))
-            .add("dl_type_json", deeplake_core::type::text(codecs::compression::null))
-            .add("nullable", deeplake_core::type::generic(nd::type::scalar(nd::dtype::boolean)))
-            .add("position", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int32)))
-            .set_primary_key("column_id");
-        ensure_table(columns_path, std::move(schema));
-    }
-
-    {
-        deeplake_api::catalog_table_schema schema;
-        schema.add("table_id", deeplake_core::type::text(codecs::compression::null))
-            .add("column_names", deeplake_core::type::text(codecs::compression::null))
-            .add("index_type", deeplake_core::type::text(codecs::compression::null))
-            .add("order_type", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int32)))
-            .set_primary_key("table_id");
-        ensure_table(indexes_path, std::move(schema));
-    }
+    deeplake_api::catalog_table_schema indexes_schema;
+    indexes_schema.add("table_id", deeplake_core::type::text(codecs::compression::null))
+        .add("column_names", deeplake_core::type::text(codecs::compression::null))
+        .add("index_type", deeplake_core::type::text(codecs::compression::null))
+        .add("order_type", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int32)))
+        .set_primary_key("table_id");
 
     deeplake_api::catalog_table_schema meta_schema;
     meta_schema.add("catalog_version", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
         .add("updated_at", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
         .set_primary_key("catalog_version");
-    auto meta_table = ensure_table(meta_path, std::move(meta_schema));
-    auto snapshot = meta_table->read().get_future().get();
-    if (snapshot.row_count() == 0) {
-        icm::string_map<nd::array> row;
-        row["catalog_version"] = nd::adapt(static_cast<int64_t>(1));
-        row["updated_at"] = nd::adapt(now_ms());
-        meta_table->insert(std::move(row)).get_future().get();
+
+    // Launch all 4 open_or_create operations in parallel
+    std::vector<async::promise<std::shared_ptr<deeplake_api::catalog_table>>> promises;
+    promises.reserve(4);
+    promises.push_back(
+        deeplake_api::open_or_create_catalog_table(tables_path, std::move(tables_schema), icm::string_map<>(creds)));
+    promises.push_back(
+        deeplake_api::open_or_create_catalog_table(columns_path, std::move(columns_schema), icm::string_map<>(creds)));
+    promises.push_back(
+        deeplake_api::open_or_create_catalog_table(indexes_path, std::move(indexes_schema), icm::string_map<>(creds)));
+    promises.push_back(
+        deeplake_api::open_or_create_catalog_table(meta_path, std::move(meta_schema), icm::string_map<>(creds)));
+
+    // Wait for all to complete
+    auto results = async::combine(std::move(promises)).get_future().get();
+
+    // Initialize meta table if empty (index 3 is meta)
+    auto& meta_table = results[3];
+    if (meta_table) {
+        auto snapshot = meta_table->read().get_future().get();
+        if (snapshot.row_count() == 0) {
+            icm::string_map<nd::array> row;
+            row["catalog_version"] = nd::adapt(static_cast<int64_t>(1));
+            row["updated_at"] = nd::adapt(now_ms());
+            meta_table->insert(std::move(row)).get_future().get();
+        }
     }
 }
 
@@ -313,6 +318,132 @@ std::vector<index_meta> load_indexes(const std::string&, icm::string_map<>)
     return {};
 }
 
+std::pair<std::vector<table_meta>, std::vector<column_meta>>
+load_tables_and_columns(const std::string& root_path, icm::string_map<> creds)
+{
+    std::vector<table_meta> tables_out;
+    std::vector<column_meta> columns_out;
+
+    try {
+        // Open both catalog tables in parallel
+        auto tables_promise = deeplake_api::open_catalog_table(join_path(root_path, k_tables_name), icm::string_map<>(creds));
+        auto columns_promise = deeplake_api::open_catalog_table(join_path(root_path, k_columns_name), icm::string_map<>(creds));
+
+        std::vector<async::promise<std::shared_ptr<deeplake_api::catalog_table>>> open_promises;
+        open_promises.push_back(std::move(tables_promise));
+        open_promises.push_back(std::move(columns_promise));
+
+        auto catalog_tables = async::combine(std::move(open_promises)).get_future().get();
+
+        auto& tables_table = catalog_tables[0];
+        auto& columns_table = catalog_tables[1];
+
+        if (!tables_table || !columns_table) {
+            return {tables_out, columns_out};
+        }
+
+        // Read both snapshots in parallel
+        auto tables_read_promise = tables_table->read();
+        auto columns_read_promise = columns_table->read();
+
+        std::vector<async::promise<deeplake_api::catalog_table_snapshot>> read_promises;
+        read_promises.push_back(std::move(tables_read_promise));
+        read_promises.push_back(std::move(columns_read_promise));
+
+        auto snapshots = async::combine(std::move(read_promises)).get_future().get();
+
+        auto& tables_snapshot = snapshots[0];
+        auto& columns_snapshot = snapshots[1];
+
+        // Process tables
+        if (tables_snapshot.row_count() > 0) {
+            std::unordered_map<std::string, table_meta> latest;
+            for (const auto& row : tables_snapshot.rows()) {
+                auto table_id_it = row.find("table_id");
+                auto schema_it = row.find("schema_name");
+                auto table_it = row.find("table_name");
+                auto path_it = row.find("dataset_path");
+                auto state_it = row.find("state");
+                auto updated_it = row.find("updated_at");
+                if (table_id_it == row.end() || schema_it == row.end() || table_it == row.end() || path_it == row.end() ||
+                    state_it == row.end() || updated_it == row.end()) {
+                    continue;
+                }
+
+                table_meta meta;
+                meta.table_id = deeplake_api::array_to_string(table_id_it->second);
+                meta.schema_name = deeplake_api::array_to_string(schema_it->second);
+                meta.table_name = deeplake_api::array_to_string(table_it->second);
+                meta.dataset_path = deeplake_api::array_to_string(path_it->second);
+                meta.state = deeplake_api::array_to_string(state_it->second);
+                auto updated_vec = load_int64_vector(updated_it->second);
+                meta.updated_at = updated_vec.empty() ? 0 : updated_vec.front();
+
+                auto it = latest.find(meta.table_id);
+                if (it == latest.end() || it->second.updated_at <= meta.updated_at) {
+                    latest[meta.table_id] = std::move(meta);
+                }
+            }
+
+            tables_out.reserve(latest.size());
+            for (auto& [_, meta] : latest) {
+                if (meta.state == "ready") {
+                    tables_out.push_back(std::move(meta));
+                }
+            }
+        }
+
+        // Process columns
+        if (columns_snapshot.row_count() > 0) {
+            for (const auto& row : columns_snapshot.rows()) {
+                auto table_id_it = row.find("table_id");
+                auto column_name_it = row.find("column_name");
+                auto pg_type_it = row.find("pg_type");
+                auto dl_type_it = row.find("dl_type_json");
+                auto nullable_it = row.find("nullable");
+                auto position_it = row.find("position");
+
+                if (table_id_it == row.end() || column_name_it == row.end() || pg_type_it == row.end()) {
+                    continue;
+                }
+
+                column_meta meta;
+                meta.table_id = deeplake_api::array_to_string(table_id_it->second);
+                meta.column_name = deeplake_api::array_to_string(column_name_it->second);
+                meta.pg_type = deeplake_api::array_to_string(pg_type_it->second);
+                if (dl_type_it != row.end()) {
+                    meta.dl_type_json = deeplake_api::array_to_string(dl_type_it->second);
+                }
+                if (nullable_it != row.end()) {
+                    try {
+                        meta.nullable = nullable_it->second.value<bool>(0);
+                    } catch (...) {
+                        meta.nullable = true;
+                    }
+                }
+                if (position_it != row.end()) {
+                    try {
+                        meta.position = position_it->second.value<int32_t>(0);
+                    } catch (...) {
+                        auto pos_vec = load_int64_vector(position_it->second);
+                        meta.position = pos_vec.empty() ? 0 : static_cast<int32_t>(pos_vec.front());
+                    }
+                }
+
+                columns_out.push_back(std::move(meta));
+            }
+        }
+
+        return {tables_out, columns_out};
+    } catch (const std::exception& e) {
+        elog(WARNING, "Failed to load catalog tables and columns: %s", e.what());
+        return {tables_out, columns_out};
+    } catch (...) {
+        elog(WARNING, "Failed to load catalog tables and columns: unknown error");
+        return {tables_out, columns_out};
+    }
+}
+
 void upsert_table(const std::string& root_path, icm::string_map<> creds, const table_meta& meta)
 {
     auto table = open_catalog_table(root_path, k_tables_name, std::move(creds));
@@ -352,7 +483,8 @@ void upsert_columns(const std::string& root_path, icm::string_map<> creds, const
 int64_t get_catalog_version(const std::string& root_path, icm::string_map<> creds)
 {
     try {
-        auto table = open_catalog_table(root_path, k_meta_name, std::move(creds));
+        // Use cached meta table handle to avoid repeated S3 opens
+        auto table = catalog_table_cache::instance().get_meta_table(root_path, std::move(creds));
         if (!table) {
             return 0;
         }
@@ -361,9 +493,11 @@ int64_t get_catalog_version(const std::string& root_path, icm::string_map<> cred
         return static_cast<int64_t>(table->version().get_future().get());
     } catch (const std::exception& e) {
         elog(WARNING, "Failed to read catalog version: %s", e.what());
+        catalog_table_cache::instance().invalidate();
         return 0;
     } catch (...) {
         elog(WARNING, "Failed to read catalog version: unknown error");
+        catalog_table_cache::instance().invalidate();
         return 0;
     }
 }
