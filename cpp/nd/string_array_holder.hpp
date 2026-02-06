@@ -7,6 +7,7 @@
 
 #include "array.hpp"
 
+#include <algorithm>
 #include <string_view>
 
 namespace nd {
@@ -77,6 +78,52 @@ public:
         const auto start = offsets[local_idx];
         const auto end = offsets[local_idx + count];
         return end - start;
+    }
+
+    // MULTI-CHUNK SUPPORT: Methods for iterating over data that spans multiple chunks.
+    // These enable efficient batch processing without per-row binary search overhead.
+
+    // Find which chunk contains the given global index.
+    // Returns: (chunk_index, row_within_chunk)
+    inline std::pair<size_t, int64_t> find_chunk(int64_t global_index) const noexcept
+    {
+        // offsets_ contains cumulative row counts: [chunk0_end, chunk0_end+chunk1_size, ...]
+        // So chunk i spans from (i==0 ? 0 : offsets_[i-1]) to offsets_[i]
+        //
+        // Binary search to find first cumulative offset > global_index
+        auto it = std::upper_bound(offsets_.begin(), offsets_.end(), global_index);
+        size_t chunk_idx = static_cast<size_t>(std::distance(offsets_.begin(), it));
+        
+        // Calculate row within chunk
+        int64_t chunk_start = (chunk_idx == 0) ? 0 : offsets_[chunk_idx - 1];
+        int64_t row_in_chunk = global_index - chunk_start;
+        
+        return {chunk_idx, row_in_chunk};
+    }
+
+    // Get the global row range [start, end) for a specific chunk.
+    inline std::pair<int64_t, int64_t> get_chunk_bounds(size_t chunk_idx) const noexcept
+    {
+        // offsets_ is cumulative: chunk i spans from (i==0 ? 0 : offsets_[i-1]) to offsets_[i]
+        int64_t chunk_start = (chunk_idx == 0) ? 0 : offsets_[chunk_idx - 1];
+        int64_t chunk_end = offsets_[chunk_idx];
+        return {chunk_start, chunk_end};
+    }
+
+    // Get contiguous string data for a specific chunk, starting at row_in_chunk.
+    // Similar to get_contiguous_strings() but for multi-chunk case.
+    inline contiguous_string_data get_chunk_strings(size_t chunk_idx, int64_t row_in_chunk) const noexcept
+    {
+        const auto local_idx = range_offsets_[chunk_idx] + row_in_chunk;
+        const auto* offsets = offsets_cache_[chunk_idx];
+        const auto base_offset = offsets[0];
+        return {buffer_cache_[chunk_idx], offsets, base_offset, local_idx};
+    }
+
+    // Get the number of chunks
+    inline size_t num_chunks() const noexcept
+    {
+        return offsets_.empty() ? 0 : offsets_.size();
     }
 
 private:

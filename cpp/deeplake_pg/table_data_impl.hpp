@@ -112,6 +112,19 @@ inline void table_data::open_dataset(bool create)
         ASSERT(dataset_ != nullptr);
         num_total_rows_ = dataset_->num_rows();
 
+        // Validate row count doesn't exceed BlockNumber limits for TID conversion
+        // With TUPLES_PER_BLOCK=256 and BlockNumber=uint32_t, max is ~1.1 trillion rows
+        constexpr int64_t MAX_SUPPORTED_ROWS =
+            static_cast<int64_t>(UINT32_MAX) * static_cast<int64_t>(pg::DEEPLAKE_TUPLES_PER_BLOCK);
+        if (num_total_rows_ > MAX_SUPPORTED_ROWS) {
+            elog(WARNING,
+                 "Table '%s' has %ld rows, exceeding max supported %ld for TID conversion. "
+                 "Consider partitioning or sharding.",
+                 table_name_.c_str(),
+                 num_total_rows_,
+                 MAX_SUPPORTED_ROWS);
+        }
+
         // Enable logging if GUC parameter is set
         if (pg::enable_dataset_logging && dataset_ && !dataset_->is_logging_enabled()) {
             dataset_->start_logging();

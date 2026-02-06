@@ -23,6 +23,7 @@
 #include <heimdall_common/filtered_dataset.hpp>
 #include <query_core/index_holder.hpp>
 
+#include <algorithm>
 #include <chrono>
 
 namespace {
@@ -1224,10 +1225,28 @@ void deeplake_scan_function(duckdb::ClientContext& context, duckdb::TableFunctio
     deeplake_scan_function_helper helper(context, data, output);
     try {
         helper.scan();
+    } catch (const duckdb::OutOfMemoryException& e) {
+        // Specific handling for DuckDB out-of-memory errors
+        elog(ERROR,
+             "DuckDB out of memory during Deeplake scan: %s. "
+             "Consider increasing pg_deeplake.duckdb_memory_limit_mb or setting "
+             "pg_deeplake.duckdb_temp_directory for disk spilling.",
+             e.what());
     } catch (const duckdb::Exception& e) {
         elog(ERROR, "DuckDB exception during Deeplake scan: %s", e.what());
     } catch (const std::exception& e) {
-        elog(ERROR, "STD exception during Deeplake scan: %s", e.what());
+        // Fallback: check if the error message contains memory-related keywords
+        std::string msg = e.what();
+        std::transform(msg.begin(), msg.end(), msg.begin(), ::tolower);
+        if (msg.find("memory") != std::string::npos || msg.find("oom") != std::string::npos) {
+            elog(ERROR,
+                 "Out of memory during Deeplake scan: %s. "
+                 "Consider increasing pg_deeplake.duckdb_memory_limit_mb or setting "
+                 "pg_deeplake.duckdb_temp_directory for disk spilling.",
+                 e.what());
+        } else {
+            elog(ERROR, "STD exception during Deeplake scan: %s", e.what());
+        }
     } catch (...) {
         elog(ERROR, "Unknown exception during Deeplake scan");
     }
