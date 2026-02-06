@@ -12,6 +12,8 @@
 #include <icm/vector.hpp>
 
 #include <algorithm>
+#include <chrono>
+#include <filesystem>
 #include <unordered_map>
 
 extern "C" {
@@ -66,12 +68,6 @@ struct catalog_table_cache
         meta_table.reset();
     }
 };
-
-std::shared_ptr<deeplake_api::catalog_table>
-open_or_create_table(const std::string& path, deeplake_api::catalog_table_schema schema, icm::string_map<> creds)
-{
-    return deeplake_api::open_or_create_catalog_table(path, schema, std::move(creds)).get_future().get();
-}
 
 int64_t now_ms()
 {
@@ -137,63 +133,137 @@ void ensure_catalog(const std::string& root_path, icm::string_map<> creds)
     const auto indexes_path = join_path(root_path, k_indexes_name);
     const auto meta_path = join_path(root_path, k_meta_name);
 
-    // Build schemas for all catalog tables
-    deeplake_api::catalog_table_schema tables_schema;
-    tables_schema.add("table_id", deeplake_core::type::text(codecs::compression::null))
-        .add("schema_name", deeplake_core::type::text(codecs::compression::null))
-        .add("table_name", deeplake_core::type::text(codecs::compression::null))
-        .add("dataset_path", deeplake_core::type::text(codecs::compression::null))
-        .add("state", deeplake_core::type::text(codecs::compression::null))
-        .add("updated_at", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
-        .set_primary_key("table_id");
+    auto migrate_legacy_path_if_needed = [&](const std::string& path) {
+        const bool is_remote_path = path.find("://") != std::string::npos;
 
-    deeplake_api::catalog_table_schema columns_schema;
-    columns_schema.add("column_id", deeplake_core::type::text(codecs::compression::null))
-        .add("table_id", deeplake_core::type::text(codecs::compression::null))
-        .add("column_name", deeplake_core::type::text(codecs::compression::null))
-        .add("pg_type", deeplake_core::type::text(codecs::compression::null))
-        .add("dl_type_json", deeplake_core::type::text(codecs::compression::null))
-        .add("nullable", deeplake_core::type::generic(nd::type::scalar(nd::dtype::boolean)))
-        .add("position", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int32)))
-        .set_primary_key("column_id");
+        if (!is_remote_path) {
+            // Local path migration: only remove clear path collisions (e.g. file at table path).
+            std::error_code ec;
+            if (!std::filesystem::exists(path, ec)) {
+                return;
+            }
+            if (std::filesystem::is_directory(path, ec)) {
+                // Keep directories intact; open_or_create handles valid local catalog dirs.
+                return;
+            }
 
-    deeplake_api::catalog_table_schema indexes_schema;
-    indexes_schema.add("table_id", deeplake_core::type::text(codecs::compression::null))
-        .add("column_names", deeplake_core::type::text(codecs::compression::null))
-        .add("index_type", deeplake_core::type::text(codecs::compression::null))
-        .add("order_type", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int32)))
-        .set_primary_key("table_id");
-
-    deeplake_api::catalog_table_schema meta_schema;
-    meta_schema.add("catalog_version", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
-        .add("updated_at", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
-        .set_primary_key("catalog_version");
-
-    // Launch all 4 open_or_create operations in parallel
-    icm::vector<async::promise<std::shared_ptr<deeplake_api::catalog_table>>> promises;
-    promises.reserve(4);
-    promises.push_back(
-        deeplake_api::open_or_create_catalog_table(tables_path, std::move(tables_schema), icm::string_map<>(creds)));
-    promises.push_back(
-        deeplake_api::open_or_create_catalog_table(columns_path, std::move(columns_schema), icm::string_map<>(creds)));
-    promises.push_back(
-        deeplake_api::open_or_create_catalog_table(indexes_path, std::move(indexes_schema), icm::string_map<>(creds)));
-    promises.push_back(
-        deeplake_api::open_or_create_catalog_table(meta_path, std::move(meta_schema), icm::string_map<>(creds)));
-
-    // Wait for all to complete
-    auto results = async::combine(std::move(promises)).get_future().get();
-
-    // Initialize meta table if empty (index 3 is meta)
-    auto& meta_table = results[3];
-    if (meta_table) {
-        auto snapshot = meta_table->read().get_future().get();
-        if (snapshot.row_count() == 0) {
-            icm::string_map<nd::array> row;
-            row["catalog_version"] = nd::adapt(static_cast<int64_t>(1));
-            row["updated_at"] = nd::adapt(now_ms());
-            meta_table->insert(std::move(row)).get_future().get();
+            elog(WARNING,
+                 "Catalog path %s is a non-directory filesystem artifact. Removing it before catalog initialization.",
+                 path.c_str());
+            if (!std::filesystem::remove(path, ec) && ec) {
+                elog(ERROR, "Failed to migrate local catalog path %s: %s", path.c_str(), ec.message().c_str());
+            }
+            return;
         }
+
+        // Remote path migration for legacy non-catalog datasets.
+        bool exists = false;
+        try {
+            exists = deeplake_api::exists(path, icm::string_map<>(creds)).get_future().get();
+        } catch (...) {
+            exists = false;
+        }
+        if (!exists) {
+            return;
+        }
+
+        bool is_catalog = false;
+        try {
+            is_catalog = deeplake_api::is_catalog_table(path, icm::string_map<>(creds)).get_future().get();
+        } catch (...) {
+            is_catalog = false;
+        }
+        if (!is_catalog) {
+            elog(WARNING,
+                 "Existing remote catalog path %s is not a catalog table. Recreating catalog table.",
+                 path.c_str());
+            try {
+                deeplake_api::delete_dataset(path, icm::string_map<>(creds)).get_future().get();
+            } catch (const std::exception& e) {
+                elog(ERROR, "Failed to migrate remote catalog path %s: %s", path.c_str(), e.what());
+            } catch (...) {
+                elog(ERROR, "Failed to migrate remote catalog path %s: unknown error", path.c_str());
+            }
+        }
+    };
+
+    try {
+        // Handle legacy non-catalog artifacts before creating tables.
+        migrate_legacy_path_if_needed(tables_path);
+        migrate_legacy_path_if_needed(columns_path);
+        migrate_legacy_path_if_needed(indexes_path);
+        migrate_legacy_path_if_needed(meta_path);
+
+        // Build schemas for all catalog tables
+        deeplake_api::catalog_table_schema tables_schema;
+        tables_schema.add("table_id", deeplake_core::type::text(codecs::compression::null))
+            .add("schema_name", deeplake_core::type::text(codecs::compression::null))
+            .add("table_name", deeplake_core::type::text(codecs::compression::null))
+            .add("dataset_path", deeplake_core::type::text(codecs::compression::null))
+            .add("state", deeplake_core::type::text(codecs::compression::null))
+            .add("updated_at", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
+            .set_primary_key("table_id");
+
+        deeplake_api::catalog_table_schema columns_schema;
+        columns_schema.add("column_id", deeplake_core::type::text(codecs::compression::null))
+            .add("table_id", deeplake_core::type::text(codecs::compression::null))
+            .add("column_name", deeplake_core::type::text(codecs::compression::null))
+            .add("pg_type", deeplake_core::type::text(codecs::compression::null))
+            .add("dl_type_json", deeplake_core::type::text(codecs::compression::null))
+            .add("nullable", deeplake_core::type::generic(nd::type::scalar(nd::dtype::boolean)))
+            .add("position", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int32)))
+            .set_primary_key("column_id");
+
+        deeplake_api::catalog_table_schema indexes_schema;
+        indexes_schema.add("table_id", deeplake_core::type::text(codecs::compression::null))
+            .add("column_names", deeplake_core::type::text(codecs::compression::null))
+            .add("index_type", deeplake_core::type::text(codecs::compression::null))
+            .add("order_type", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int32)))
+            .set_primary_key("table_id");
+
+        deeplake_api::catalog_table_schema meta_schema;
+        meta_schema.add("catalog_version", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
+            .add("updated_at", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
+            .set_primary_key("catalog_version");
+
+        // Launch all 4 open_or_create operations in parallel
+        icm::vector<async::promise<std::shared_ptr<deeplake_api::catalog_table>>> promises;
+        promises.reserve(4);
+        promises.push_back(
+            deeplake_api::open_or_create_catalog_table(tables_path, std::move(tables_schema), icm::string_map<>(creds)));
+        promises.push_back(
+            deeplake_api::open_or_create_catalog_table(columns_path, std::move(columns_schema), icm::string_map<>(creds)));
+        promises.push_back(
+            deeplake_api::open_or_create_catalog_table(indexes_path, std::move(indexes_schema), icm::string_map<>(creds)));
+        promises.push_back(
+            deeplake_api::open_or_create_catalog_table(meta_path, std::move(meta_schema), icm::string_map<>(creds)));
+
+        // Wait for all to complete
+        auto results = async::combine(std::move(promises)).get_future().get();
+        if (results.size() != 4) {
+            elog(ERROR,
+                 "Failed to initialize catalog at %s: expected 4 catalog tables, got %zu",
+                 root_path.c_str(),
+                 static_cast<size_t>(results.size()));
+        }
+
+        // Initialize meta table if empty (index 3 is meta)
+        auto& meta_table = results[3];
+        if (meta_table) {
+            auto snapshot = meta_table->read().get_future().get();
+            if (snapshot.row_count() == 0) {
+                icm::string_map<nd::array> row;
+                row["catalog_version"] = nd::adapt(static_cast<int64_t>(1));
+                row["updated_at"] = nd::adapt(now_ms());
+                meta_table->insert(std::move(row)).get_future().get();
+            }
+        }
+    } catch (const std::exception& e) {
+        catalog_table_cache::instance().invalidate();
+        elog(ERROR, "Failed to ensure catalog at %s: %s", root_path.c_str(), e.what());
+    } catch (...) {
+        catalog_table_cache::instance().invalidate();
+        elog(ERROR, "Failed to ensure catalog at %s: unknown error", root_path.c_str());
     }
 }
 
