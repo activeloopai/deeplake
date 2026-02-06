@@ -9,6 +9,7 @@
 #include <nd/array.hpp>
 #include <nd/dtype.hpp>
 #include <nd/type.hpp>
+#include <icm/vector.hpp>
 
 #include <algorithm>
 #include <unordered_map>
@@ -169,7 +170,7 @@ void ensure_catalog(const std::string& root_path, icm::string_map<> creds)
         .set_primary_key("catalog_version");
 
     // Launch all 4 open_or_create operations in parallel
-    std::vector<async::promise<std::shared_ptr<deeplake_api::catalog_table>>> promises;
+    icm::vector<async::promise<std::shared_ptr<deeplake_api::catalog_table>>> promises;
     promises.reserve(4);
     promises.push_back(
         deeplake_api::open_or_create_catalog_table(tables_path, std::move(tables_schema), icm::string_map<>(creds)));
@@ -329,7 +330,7 @@ load_tables_and_columns(const std::string& root_path, icm::string_map<> creds)
         auto tables_promise = deeplake_api::open_catalog_table(join_path(root_path, k_tables_name), icm::string_map<>(creds));
         auto columns_promise = deeplake_api::open_catalog_table(join_path(root_path, k_columns_name), icm::string_map<>(creds));
 
-        std::vector<async::promise<std::shared_ptr<deeplake_api::catalog_table>>> open_promises;
+        icm::vector<async::promise<std::shared_ptr<deeplake_api::catalog_table>>> open_promises;
         open_promises.push_back(std::move(tables_promise));
         open_promises.push_back(std::move(columns_promise));
 
@@ -346,7 +347,7 @@ load_tables_and_columns(const std::string& root_path, icm::string_map<> creds)
         auto tables_read_promise = tables_table->read();
         auto columns_read_promise = columns_table->read();
 
-        std::vector<async::promise<deeplake_api::catalog_table_snapshot>> read_promises;
+        icm::vector<async::promise<deeplake_api::catalog_table_snapshot>> read_promises;
         read_promises.push_back(std::move(tables_read_promise));
         read_promises.push_back(std::move(columns_read_promise));
 
@@ -416,14 +417,16 @@ load_tables_and_columns(const std::string& root_path, icm::string_map<> creds)
                 }
                 if (nullable_it != row.end()) {
                     try {
-                        meta.nullable = nullable_it->second.value<bool>(0);
+                        auto nullable_vec = load_vector<uint8_t>(nullable_it->second);
+                        meta.nullable = !nullable_vec.empty() && nullable_vec.front() != 0;
                     } catch (...) {
                         meta.nullable = true;
                     }
                 }
                 if (position_it != row.end()) {
                     try {
-                        meta.position = position_it->second.value<int32_t>(0);
+                        auto pos_vec = load_vector<int32_t>(position_it->second);
+                        meta.position = pos_vec.empty() ? 0 : pos_vec.front();
                     } catch (...) {
                         auto pos_vec = load_int64_vector(position_it->second);
                         meta.position = pos_vec.empty() ? 0 : static_cast<int32_t>(pos_vec.front());
@@ -463,7 +466,7 @@ void upsert_columns(const std::string& root_path, icm::string_map<> creds, const
         return;
     }
     auto table = open_catalog_table(root_path, k_columns_name, std::move(creds));
-    std::vector<icm::string_map<nd::array>> rows;
+    icm::vector<icm::string_map<nd::array>> rows;
     rows.reserve(columns.size());
     for (const auto& col : columns) {
         icm::string_map<nd::array> row;

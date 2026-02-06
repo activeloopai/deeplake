@@ -499,7 +499,7 @@ inline bool table_data::flush_updates()
     // Flush the update rows to the dataset
     try {
         streamers_.reset();
-        std::vector<async::promise<void>> update_promises;
+        icm::vector<async::promise<void>> update_promises;
         update_promises.reserve(update_rows_.size());
         for (const auto& [row_number, column_name, new_value] : update_rows_) {
             update_promises.emplace_back(get_dataset()->update_row(row_number, column_name, new_value));

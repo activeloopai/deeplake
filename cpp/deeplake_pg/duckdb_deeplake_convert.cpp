@@ -4,6 +4,7 @@
 #include "utils.hpp"
 
 #include <codecs/compression.hpp>
+#include <icm/vector.hpp>
 #include <nd/adapt.hpp>
 #include <nd/none.hpp>
 
@@ -85,7 +86,7 @@ T to_cpp_value(const duckdb::Value& val)
 
 nd::array to_deeplake_value_as_array_list(const duckdb::vector<duckdb::Value>& values)
 {
-    std::vector<nd::array> arr;
+    icm::vector<nd::array> arr;
     arr.reserve(values.size());
     for (const auto& v : values) {
         arr.push_back(pg::to_deeplake_value(v));
@@ -105,7 +106,7 @@ nd::array to_deeplake_value(const duckdb::LogicalType& duckdb_type, const duckdb
     }
     return switch_duckdb_type(duckdb_type, [&values]<typename T>() {
         if constexpr (std::is_same_v<T, bytea_type>) {
-            std::vector<nd::array> arr;
+            icm::vector<nd::array> arr;
             arr.reserve(values.size());
             for (const auto& val : values) {
                 duckdb::string_t blob_data = duckdb::StringValue::Get(val);

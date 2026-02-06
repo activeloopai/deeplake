@@ -3,6 +3,7 @@
 #include "exceptions.hpp"
 
 #include <icm/shape.hpp>
+#include <icm/vector.hpp>
 #include <nd/adapt.hpp>
 #include <nd/array.hpp>
 #include <nd/none.hpp>
@@ -124,7 +125,7 @@ inline pg::array_type pg_to_nd_typed(ArrayType* array, bool copy_data = true)
         const auto nrows = dims[0];
         const auto ncols = dims[1];
         if (copy_data) {
-            std::vector<nd::array> data_vector;
+            icm::vector<nd::array> data_vector;
             data_vector.reserve(static_cast<size_t>(nrows));
             for (int i = 0; i < nrows; ++i) {
                 data_vector.emplace_back(nd::adapt(std::vector<T>(data + static_cast<size_t>(i) * static_cast<size_t>(ncols),
@@ -564,7 +565,7 @@ inline nd::array datum_to_nd(Datum value, Oid attr_typeid, int32_t typmod)
             return nd::none(nd::dtype::byte, 0);
         } else {
             int nelems = ArrayGetNItems(ARR_NDIM(arr), ARR_DIMS(arr));
-            std::vector<nd::array> elements;
+            icm::vector<nd::array> elements;
             elements.reserve(static_cast<size_t>(nelems));
 
             Datum* datums = nullptr;
@@ -590,7 +591,7 @@ inline nd::array datum_to_nd(Datum value, Oid attr_typeid, int32_t typmod)
             return nd::none(nd::dtype::string, 1);
         } else {
             int nelems = ArrayGetNItems(ARR_NDIM(arr), ARR_DIMS(arr));
-            std::vector<nd::array> elements;
+            icm::vector<nd::array> elements;
             elements.reserve(static_cast<size_t>(nelems));
             Datum* datums = nullptr;
             bool* nulls = nullptr;
@@ -903,7 +904,7 @@ nd::array eval_with_nones(nd::array arr)
         return nd::eval(arr);
     } catch (const nd::invalid_dynamic_eval&) {
     }
-    std::vector<nd::array> result_elements;
+    icm::vector<nd::array> result_elements;
     result_elements.reserve(arr.size());
     for (auto a : arr) {
         if (a.is_none()) {
