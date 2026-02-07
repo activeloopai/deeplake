@@ -34,6 +34,7 @@ __all__ = [
     "ColumnDefinitionView",
     "ColumnDoesNotExistError",
     "ColumnMissingAppendValueError",
+    "ColumnStatistics",
     "ColumnView",
     "CredsKeyAlreadyAssignedError",
     "Dataset",
@@ -57,6 +58,7 @@ __all__ = [
     "History",
     "IncorrectDeeplakePathError",
     "IndexAlreadyExistsError",
+    "IndexBuildConfig",
     "IndexingMode",
     "InvalidBinaryMaskCompression",
     "InvalidChunkStrategyType",
@@ -97,6 +99,7 @@ __all__ = [
     "RowView",
     "Schema",
     "SchemaView",
+    "SearchConfig",
     "ShapeIndexOutOfChunk",
     "StorageAccessDenied",
     "StorageInternalError",
@@ -310,19 +313,6 @@ class FutureVoid:
 
     Similar to Future but for operations that don't return values, like saving
     or committing changes. Useful for non-blocking data management operations.
-
-    Methods:
-        wait() -> None:
-            Blocks until operation completes.
-
-        __await__() -> typing.Any:
-            Enables using with async/await syntax.
-
-        is_completed() -> bool:
-            Checks completion status without blocking.
-
-        cancel() -> None:
-            Cancels the Future if still pending.
 
     <!-- test-context
     ```python
@@ -1290,6 +1280,68 @@ class ColumnDefinitionView:
         """
         ...
 
+class ColumnStatistics:
+    def __repr__(self) -> str:
+        ...
+    def has_mcv(self) -> bool:
+        """
+        Check if this column has most common values statistics
+        """
+    def has_numeric_stats(self) -> bool:
+        """
+        Check if this column has numeric min/max statistics
+        """
+    @property
+    def avg_width(self) -> int:
+        """
+        Average width in bytes per value
+        """
+    @property
+    def column_name(self) -> str:
+        """
+        Name of the column
+        """
+    @property
+    def has_statistics(self) -> bool:
+        """
+        Whether statistics are available for this column
+        """
+    @property
+    def max_value(self) -> typing.Any:
+        """
+        Maximum value (for numeric columns only)
+        """
+    @property
+    def min_value(self) -> typing.Any:
+        """
+        Minimum value (for numeric columns only)
+        """
+    @property
+    def most_common_freqs(self) -> list:
+        """
+        Frequencies of most common values (0.0 to 1.0)
+        """
+    @property
+    def most_common_vals(self) -> list:
+        """
+        List of most common values
+        """
+    @property
+    def n_distinct(self) -> float:
+        """
+        Number of distinct values (positive: count, negative: fraction)
+        """
+    @property
+    def null_frac(self) -> float:
+        """
+        Fraction of null values (0.0 to 1.0)
+        """
+    @property
+    def total_rows(self) -> int:
+        """
+        Total number of rows in the column
+        """
+
 class ColumnView:
     """
     Provides read-only access to a column in a dataset. ColumnView is designed for efficient
@@ -1518,6 +1570,12 @@ class ColumnView:
             str: The column name.
         """
         ...
+
+    @property
+    def statistics(self) -> ColumnStatistics:
+        """
+        Get aggregated statistics for this column.
+        """
 
 
 class Column(ColumnView):
@@ -1832,8 +1890,14 @@ class Column(ColumnView):
         ...
 
     @property
-    def metadata(self) -> Metadata: ...
+    def metadata(self) -> Metadata:
+        ...
 
+    @property
+    def statistics(self) -> ColumnStatistics:
+        """
+        Get aggregated statistics for this column.
+        """
 
 class Version:
     """
@@ -2553,6 +2617,271 @@ class DatasetView:
         ...
 
 
+class SearchConfig:
+    """
+    Configuration for vector search operations.
+
+    This class allows you to control the accuracy and performance trade-offs
+    during vector search operations on datasets.
+
+    Attributes:
+        accuracy_factor: Rerank multiplier for quantized/MMR searches.
+            Higher values increase accuracy at the cost of performance.
+            Range: 5-20, Default: 10
+        cluster_search_accuracy_factor: Cluster search accuracy factor.
+            Higher values increase search accuracy in clustered indices.
+            Range: 0.5-2.0, Default: 1.0
+
+    <!-- test-context
+    ```python
+    import deeplake
+    ```
+    -->
+
+    Examples:
+        Create with default values:
+        ```python
+        config = deeplake.SearchConfig()
+        print(config.accuracy_factor)  # 10
+        print(config.cluster_search_accuracy_factor)  # 1.0
+        ```
+
+        Create with custom values:
+        ```python
+        config = deeplake.SearchConfig(
+            accuracy_factor=15,
+            cluster_search_accuracy_factor=1.5
+        )
+        ```
+
+        Use presets:
+        ```python
+        # High accuracy preset
+        config = deeplake.SearchConfig.high_accuracy()
+        # accuracy_factor=20, cluster_search_accuracy_factor=2.0
+
+        # Fast preset
+        config = deeplake.SearchConfig.fast()
+        # accuracy_factor=5, cluster_search_accuracy_factor=0.5
+
+        # Balanced preset (same as default)
+        config = deeplake.SearchConfig.balanced()
+        ```
+
+        Apply to dataset:
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("col1", "int32")
+        ```
+        -->
+        ```python
+        ds.query_config.accuracy_factor = 20
+        ds.query_config.cluster_search_accuracy_factor = 1.5
+        ```
+    """
+
+    accuracy_factor: int
+    """
+    Rerank multiplier for quantized/MMR searches.
+    Higher values increase accuracy at the cost of performance.
+    Range: 5-20, Default: 10
+    """
+
+    cluster_search_accuracy_factor: float
+    """
+    Cluster search accuracy factor.
+    Higher values increase search accuracy in clustered indices.
+    Range: 0.5-2.0, Default: 1.0
+    """
+
+    def __init__(
+        self,
+        accuracy_factor: int = 10,
+        cluster_search_accuracy_factor: float = 1.0
+    ) -> None:
+        """
+        Initialize SearchConfig with specified parameters.
+
+        Args:
+            accuracy_factor: Rerank multiplier (default: 10)
+            cluster_search_accuracy_factor: Cluster search factor (default: 1.0)
+        """
+        ...
+
+    @staticmethod
+    def default_config() -> SearchConfig:
+        """
+        Returns default configuration (balanced).
+
+        Returns:
+            SearchConfig with accuracy_factor=10, cluster_search_accuracy_factor=1.0
+        """
+        ...
+
+    @staticmethod
+    def high_accuracy() -> SearchConfig:
+        """
+        Returns high accuracy configuration.
+
+        Returns:
+            SearchConfig with accuracy_factor=20, cluster_search_accuracy_factor=2.0
+        """
+        ...
+
+    @staticmethod
+    def balanced() -> SearchConfig:
+        """
+        Returns balanced configuration (same as default).
+
+        Returns:
+            SearchConfig with accuracy_factor=10, cluster_search_accuracy_factor=1.0
+        """
+        ...
+
+    @staticmethod
+    def fast() -> SearchConfig:
+        """
+        Returns fast configuration.
+
+        Returns:
+            SearchConfig with accuracy_factor=5, cluster_search_accuracy_factor=0.5
+        """
+        ...
+
+    def __repr__(self) -> str:
+        ...
+
+    def __eq__(self, other: SearchConfig) -> bool:
+        ...
+
+    def __ne__(self, other: SearchConfig) -> bool:
+        ...
+
+
+class IndexBuildConfig:
+    """
+    Configuration for index building operations.
+
+    This class controls parameters used during index construction,
+    particularly for clustered indices.
+
+    Attributes:
+        build_multiplier: K-means iteration multiplier for clustered index building.
+            Higher values produce better quality indices at the cost of build time.
+            Range: 2-10, Default: 4
+
+    <!-- test-context
+    ```python
+    import deeplake
+    ```
+    -->
+
+    Examples:
+        Create with default values:
+        ```python
+        config = deeplake.IndexBuildConfig()
+        print(config.build_multiplier)  # 4
+        ```
+
+        Create with custom value:
+        ```python
+        config = deeplake.IndexBuildConfig(build_multiplier=6)
+        ```
+
+        Use presets:
+        ```python
+        # High quality preset
+        config = deeplake.IndexBuildConfig.high_quality()
+        # build_multiplier=8
+
+        # Fast preset
+        config = deeplake.IndexBuildConfig.fast()
+        # build_multiplier=2
+        ```
+
+        Apply to dataset:
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("col1", "int32")
+        ```
+        -->
+        ```python
+        ds.indexing_config.build_multiplier = 6
+        ```
+    """
+
+    build_multiplier: int
+    """
+    K-means iteration multiplier for clustered index building.
+    Higher values produce better quality indices at the cost of build time.
+    Range: 2-10, Default: 4
+    """
+
+    @typing.overload
+    def __init__(self) -> None:
+        """
+        Initialize IndexBuildConfig with default values.
+        """
+        ...
+
+    @typing.overload
+    def __init__(self, build_multiplier: int = 4) -> None:
+        """
+        Initialize IndexBuildConfig with specified parameters.
+
+        Args:
+            build_multiplier: K-means iteration multiplier (default: 4)
+        """
+        ...
+
+    def __init__(self, build_multiplier: int = 4) -> None:
+        """Initialize IndexBuildConfig"""
+        ...
+
+    @staticmethod
+    def default_config() -> IndexBuildConfig:
+        """
+        Returns default configuration.
+
+        Returns:
+            IndexBuildConfig with build_multiplier=4
+        """
+        ...
+
+    @staticmethod
+    def high_quality() -> IndexBuildConfig:
+        """
+        Returns high quality configuration.
+
+        Returns:
+            IndexBuildConfig with build_multiplier=8
+        """
+        ...
+
+    @staticmethod
+    def fast() -> IndexBuildConfig:
+        """
+        Returns fast configuration.
+
+        Returns:
+            IndexBuildConfig with build_multiplier=2
+        """
+        ...
+
+    def __repr__(self) -> str:
+        ...
+
+    def __eq__(self, other: IndexBuildConfig) -> bool:
+        ...
+
+    def __ne__(self, other: IndexBuildConfig) -> bool:
+        ...
+
+
 class IndexingMode:
     """
     Enumeration of available indexing modes in deeplake.
@@ -2751,6 +3080,86 @@ class Dataset(DatasetView):
         ds.commit()
         ```
     """
+
+    @property
+    def query_config(self) -> SearchConfig:
+        """
+        Query configuration for vector searches on this dataset.
+
+        This configuration applies to all queries executed on this dataset.
+        Each dataset instance has its own independent configuration.
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("mem://query_config_ds")
+        ```
+        -->
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("col1", "int32")
+        ```
+        -->
+
+        Examples:
+            ```python
+            # View current configuration
+            print(ds.query_config)
+
+            # Modify individual parameters
+            ds.query_config.accuracy_factor = 20
+            ds.query_config.cluster_search_accuracy_factor = 1.5
+
+            # Or copy from a preset
+            preset = deeplake.SearchConfig.high_accuracy()
+            ds.query_config.accuracy_factor = preset.accuracy_factor
+            ds.query_config.cluster_search_accuracy_factor = preset.cluster_search_accuracy_factor
+
+            # All subsequent queries will use these settings
+            ```
+        """
+
+    @property
+    def indexing_config(self) -> IndexBuildConfig:
+        """
+        Index build configuration for this dataset.
+
+        This configuration controls parameters used during index construction.
+        Each dataset instance has its own independent configuration.
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("mem://indexing_config_ds")
+        ```
+        -->
+
+        <!-- test-context
+        ```python
+        import deeplake
+        ds = deeplake.create("tmp://")
+        ds.add_column("col1", "int32")
+        ```
+        -->
+
+        Examples:
+            ```python
+            # View current configuration
+            print(ds.indexing_config)
+
+            # Modify build multiplier
+            ds.indexing_config.build_multiplier = 6
+
+            # Or copy from a preset
+            preset = deeplake.IndexBuildConfig.high_quality()
+            ds.indexing_config.build_multiplier = preset.build_multiplier
+
+            # Index building operations now use these settings
+            ```
+        """
 
     @property
     def version(self) -> str:
@@ -3289,6 +3698,19 @@ class ReadOnlyDataset(DatasetView):
     def schema(self) -> SchemaView:
         """
         The schema of the dataset.
+        """
+        ...
+
+    @property
+    def query_config(self) -> SearchConfig:
+        """
+        Query configuration for this dataset.
+
+        This configuration controls the accuracy/performance trade-off during vector similarity searches.
+
+        Examples:
+            >>> ds.query_config.accuracy_factor = 20
+            >>> ds.query_config.cluster_search_accuracy_factor = 1.5
         """
         ...
 

@@ -17,7 +17,7 @@ from ._deeplake import *
 from deeplake.ingestion import from_coco
 
 
-__version__ = "4.4.3"
+__version__ = "4.5.0"
 
 __all__ = [
     "__version__",
@@ -44,6 +44,7 @@ __all__ = [
     "ColumnDefinitionView",
     "ColumnDoesNotExistError",
     "ColumnMissingAppendValueError",
+    "ColumnStatistics",
     "ColumnView",
     "CredsKeyAlreadyAssignedError",
     "Dataset",
@@ -67,6 +68,7 @@ __all__ = [
     "History",
     "IncorrectDeeplakePathError",
     "IndexAlreadyExistsError",
+    "IndexBuildConfig",
     "IndexingMode",
     "InvalidBinaryMaskCompression",
     "InvalidChunkStrategyType",
@@ -107,6 +109,7 @@ __all__ = [
     "RowView",
     "Schema",
     "SchemaView",
+    "SearchConfig",
     "ShapeIndexOutOfChunk",
     "StorageAccessDenied",
     "StorageInternalError",

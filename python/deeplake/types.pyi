@@ -36,6 +36,7 @@ __all__ = ["Array",
     "Link",
     "Medical",
     "Mesh",
+    "Nullable",
     "NumericIndex",
     "Point",
     "Polygon",
@@ -315,6 +316,13 @@ class Type:
             bool: True if this type is a segment mask, False otherwise.
         """
         ...
+    @property
+    def is_nullable(self) -> bool:
+        """
+        Returns:
+            bool: True if this type allows null values, False otherwise.
+        """
+        ...
 
     @property
     def kind(self) -> TypeKind:
@@ -354,6 +362,7 @@ class TypeKind:
         Audio: Audio data type
         Video: Video data type
         Link: Link data type
+        Nullable: Nullable wrapper type
     """
     Audio: typing.ClassVar[TypeKind]
     BinaryMask: typing.ClassVar[TypeKind]
@@ -372,6 +381,7 @@ class TypeKind:
     Medical: typing.ClassVar[TypeKind]
     Mesh: typing.ClassVar[TypeKind]
     Video: typing.ClassVar[TypeKind]
+    Nullable: typing.ClassVar[TypeKind]
     __members__: typing.ClassVar[dict[str, TypeKind]]
 
     def __eq__(self, other: typing.Any) -> bool: ...
@@ -1349,6 +1359,12 @@ def Video(compression: str = "mp4") -> Type:
             ds.append([{"video": bytes_data}])
         ```
     """
+
+def Nullable(type: DataType | str | Type) -> Type:
+    """
+    Nullable wrapper allowing null (None) values for the given inner type.
+    """
+    ...
 
 def Medical(compression: str) -> Type:
     """

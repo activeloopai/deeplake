@@ -35,6 +35,7 @@ __all__ = [
     "Link",
     "Medical",
     "Mesh",
+    "Nullable",
     "NumericIndex",
     "Point",
     "Polygon",
