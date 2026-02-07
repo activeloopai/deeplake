@@ -8,6 +8,7 @@ Run with:
 
 from pathlib import Path
 import os
+import shutil
 
 import asyncpg
 import pytest
@@ -34,6 +35,13 @@ async def test_stateless_catalog_recovers_from_legacy_non_catalog_path(db_conn: 
     poisoned_path = root_path / "__deeplake_catalog" / "tables"
     poisoned_path.parent.mkdir(parents=True, exist_ok=True)
     poisoned_path.write_text("not a deeplake catalog table", encoding="utf-8")
+
+    # When running as root (CI), ensure postgres user can delete the file
+    if os.geteuid() == 0:
+        user = os.environ.get("USER", "postgres")
+        for p in [root_path, root_path / "__deeplake_catalog"]:
+            shutil.chown(p, user=user, group=user)
+        shutil.chown(poisoned_path, user=user, group=user)
 
     await db_conn.execute(f"SET deeplake.root_path = {_sql_literal(str(root_path))}")
 
