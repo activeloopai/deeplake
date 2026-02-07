@@ -126,7 +126,7 @@ inline query_core::query_result merge_query_results(
     // Take top_k results
     size_t result_size = std::min(top_k, final_scores.size());
     std::vector<float> top_scores;
-    std::vector<int64_t> top_indices;
+    icm::vector<int64_t> top_indices;
     top_scores.reserve(result_size);
     top_indices.reserve(result_size);
 

@@ -108,7 +108,7 @@ struct scan_opaque
 
 query_core::query_result run_index_search(nd::array input_array, std::string func_name, const std::string& column_name, pg::index_info& idx_info)
 {
-    std::vector<query_core::expr> args;
+    icm::vector<query_core::expr> args;
     args.emplace_back(query_core::expr::make_column_ref(column_name, std::string{}));
     args.emplace_back(query_core::expr::make_literal_array(std::move(input_array)));
     const bool is_cosine_similarity = (func_name == "COSINE_SIMILARITY");
@@ -194,7 +194,7 @@ icm::roaring run_exact_text_search(std::string text_value, StrategyNumber strate
         return {};
     }
     info.column_name = idx_info.column_name();
-    info.search_values.emplace_back(std::vector<std::string>{std::move(text_value)});
+    info.search_values.emplace_back(icm::vector<std::string>{std::move(text_value)});
     return idx_info.run_query(std::move(info));
 }
 
@@ -563,7 +563,7 @@ void collect_index_data(IndexScanDesc scan, ScanKey keys, int32_t nkeys, ScanKey
             }
         }
         if (nkeys > 0) {
-            std::vector<int64_t> row_numbers;
+            icm::vector<int64_t> row_numbers;
             row_numbers.reserve(result.cardinality());
             std::transform(result.begin(), result.end(), std::back_inserter(row_numbers), [](auto v) {
                 return static_cast<int64_t>(v);

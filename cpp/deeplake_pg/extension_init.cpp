@@ -1197,10 +1197,18 @@ static void process_utility(PlannedStmt* pstmt,
         }
         // When root_path is set, auto-discover tables from the deeplake catalog
         if (vstmt->name != nullptr && pg_strcasecmp(vstmt->name, "deeplake.root_path") == 0) {
-            // Reload table metadata from the catalog at the new root_path
-            // This enables stateless multi-instance support where tables are
-            // auto-discovered when pointing to a shared root_path
-            pg::table_storage::instance().force_load_table_metadata();
+            // Track the previous root_path to detect actual changes
+            static thread_local std::string last_root_path;
+            auto current_root_path = pg::session_credentials::get_root_path();
+
+            if (current_root_path != last_root_path) {
+                // Path changed - force full reload
+                last_root_path = current_root_path;
+                pg::table_storage::instance().force_load_table_metadata();
+            } else {
+                // Same path - just check for catalog updates (fast path)
+                pg::table_storage::instance().load_table_metadata();
+            }
         }
     }
 }

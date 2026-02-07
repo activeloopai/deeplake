@@ -14,8 +14,6 @@ This caused syntax errors because "default" is a SQL reserved word.
 """
 import pytest
 
-# Skip all tests in this module - stateless is disabled by default (deeplake.stateless_enabled=false)
-pytestmark = pytest.mark.skip(reason="Stateless mode disabled by default")
 import asyncpg
 import os
 import shutil
@@ -77,6 +75,7 @@ async def primary_conn(pg_server):
     try:
         await conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
         await conn.execute("CREATE EXTENSION pg_deeplake")
+        await conn.execute("SET deeplake.stateless_enabled = true")
         yield conn
     finally:
         await conn.close()
@@ -145,6 +144,7 @@ async def test_catalog_sync_default_schema(
 
     try:
         await conn_b.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
+        await conn_b.execute("SET deeplake.stateless_enabled = true")
 
         # This is the critical part - setting root_path triggers catalog sync
         # which should properly quote "default" schema name in generated DDL
@@ -236,6 +236,7 @@ async def test_catalog_sync_multiple_reserved_schemas(
 
     try:
         await conn_b.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
+        await conn_b.execute("SET deeplake.stateless_enabled = true")
         await conn_b.execute(f"SET deeplake.root_path = '{shared_root_path}'")
 
         # Verify all tables discovered
@@ -321,6 +322,7 @@ async def test_catalog_sync_default_schema_with_indexes(
 
     try:
         await conn_b.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
+        await conn_b.execute("SET deeplake.stateless_enabled = true")
         await conn_b.execute(f"SET deeplake.root_path = '{shared_root_path}'")
 
         # Verify table discovered
@@ -376,6 +378,7 @@ async def test_catalog_sync_default_schema_write_from_secondary(
 
     try:
         await conn_b.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
+        await conn_b.execute("SET deeplake.stateless_enabled = true")
         await conn_b.execute(f"SET deeplake.root_path = '{shared_root_path}'")
 
         # Insert from Instance B

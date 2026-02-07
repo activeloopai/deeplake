@@ -183,6 +183,7 @@ public:
     void force_load_table_metadata()
     {
         tables_loaded_ = false;
+        catalog_version_ = 0;  // Reset so version gets re-fetched for new root_path
         load_table_metadata();
     }
     void mark_metadata_stale() noexcept

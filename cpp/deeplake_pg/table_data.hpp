@@ -6,6 +6,7 @@
 #include <base/spin_lock.hpp>
 #include <bifrost/column_streamer.hpp>
 #include <deeplake_api/dataset.hpp>
+#include <icm/vector.hpp>
 #include <nd/array.hpp>
 #include <nd/string_array_holder.hpp>
 
@@ -165,16 +166,16 @@ private:
     constexpr static int64_t batch_mask_ = batch_size_ - 1;
 
     streamer_info streamers_;
-    icm::string_map<std::vector<nd::array>> insert_rows_;
+    icm::string_map<icm::vector<nd::array>> insert_rows_;
     std::deque<async::promise<void>> insert_promises_;
-    std::vector<int64_t> delete_rows_;
-    std::vector<std::tuple<int64_t, std::string, nd::array>> update_rows_;
+    icm::vector<int64_t> delete_rows_;
+    icm::vector<std::tuple<int64_t, std::string, nd::array>> update_rows_;
     std::shared_ptr<deeplake_api::dataset> dataset_;
     std::shared_ptr<deeplake_api::dataset> refreshing_dataset_;
     async::promise<void> refresh_promise_;
-    std::vector<bool> requested_columns_;
-    std::vector<Oid> base_typeids_;              // Cached base type OIDs for performance
-    std::vector<int32_t> active_column_indices_; // Maps logical index to TupleDesc index (excludes dropped)
+    icm::vector<bool> requested_columns_;
+    icm::vector<Oid> base_typeids_;              // Cached base type OIDs for performance
+    icm::vector<int32_t> active_column_indices_; // Maps logical index to TupleDesc index (excludes dropped)
     icm::string_map<> creds_;
     TupleDesc tuple_descriptor_;
     http::uri dataset_path_ = http::uri(std::string());
