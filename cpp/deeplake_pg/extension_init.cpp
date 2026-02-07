@@ -64,6 +64,8 @@ bool use_shared_mem_for_refresh = false;
 bool enable_dataset_logging = false; // Enable dataset operation logging for debugging
 bool allow_custom_paths = true;      // Allow dataset_path in CREATE TABLE options
 bool stateless_enabled = false;      // Enable stateless catalog sync across instances
+int32_t duckdb_memory_limit_mb = 0;  // DuckDB memory limit in MB (0 = auto-detect)
+char* duckdb_temp_directory = nullptr; // DuckDB temp directory for disk spilling (empty = default)
 
 } // namespace pg
 
@@ -276,6 +278,37 @@ void initialize_guc_parameters()
                             nullptr // check_hook, assign_hook, show_hook
     );
 
+
+    // DuckDB memory configuration
+    DefineCustomIntVariable("pg_deeplake.duckdb_memory_limit_mb",
+                            "Memory limit for DuckDB operations in MB (0 = auto-detect).",
+                            "This parameter controls DuckDB's internal memory budget for large operations like JOINs. "
+                            "When set to 0, the limit is auto-detected as 80% of system memory. "
+                            "DuckDB will spill to disk when this limit is exceeded, preventing out-of-memory crashes.",
+                            &pg::duckdb_memory_limit_mb, // linked C variable
+                            0,                           // default value (auto-detect)
+                            0,                           // min value (0 = auto)
+                            INT_MAX,                     // max value
+                            PGC_USERSET,                 // context (USERSET, SUSET, etc.)
+                            GUC_UNIT_MB,                 // flags - treat as MB
+                            nullptr,
+                            nullptr,
+                            nullptr // check_hook, assign_hook, show_hook
+    );
+
+    DefineCustomStringVariable("pg_deeplake.duckdb_temp_directory",
+                               "Temporary directory for DuckDB disk spilling during large operations.",
+                               "Specifies where DuckDB writes temporary files when memory_limit is exceeded. "
+                               "Empty string (default) uses DuckDB's default temp location. "
+                               "DuckDB will validate the path at runtime and fail gracefully if invalid.",
+                               &pg::duckdb_temp_directory, // linked C variable
+                               "",                         // default value (empty = DuckDB default)
+                               PGC_USERSET,                // context - can be set by any user
+                               0,                          // flags
+                               nullptr,                    // check_hook
+                               nullptr,                    // assign_hook
+                               nullptr                     // show_hook
+    );
 
     // Initialize PostgreSQL memory tracking
     pg::memory_tracker::initialize_guc_parameters();

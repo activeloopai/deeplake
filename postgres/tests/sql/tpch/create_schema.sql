@@ -1,3 +1,7 @@
+-- TPC-H Schema for pg_deeplake (v2: BIGINT keys for SF1000+ support, 2026-02)
+-- This schema uses BIGINT for o_orderkey and l_orderkey to prevent integer overflow at SF1000+
+-- where these values exceed INT4_MAX (2.1B). All other keys remain INT as they fit within INT4 limits.
+
 DROP TABLE IF EXISTS customer;
 DROP TABLE IF EXISTS lineitem;
 DROP TABLE IF EXISTS nation;
@@ -18,8 +22,9 @@ CREATE TABLE customer (
     c_comment VARCHAR(117) NOT NULL
 ) USING deeplake;
 
+-- Note: l_orderkey uses BIGINT to support SF1000+ (values exceed 2.1B INT4 limit)
 CREATE TABLE lineitem (
-    l_orderkey int NOT NULL,
+    l_orderkey bigint NOT NULL,
     l_partkey int NOT NULL,
     l_suppkey int not null,
     l_linenumber int not null,
@@ -44,8 +49,9 @@ CREATE TABLE nation (
   n_comment varchar(152) NULL
 ) USING deeplake;
 
+-- Note: o_orderkey uses BIGINT to support SF1000+ (values exceed 2.1B INT4 limit)
 CREATE TABLE orders (
-    o_orderkey int NOT NULL,
+    o_orderkey bigint NOT NULL,
     o_custkey int NOT NULL,
     o_orderstatus VARCHAR(1) NOT NULL,
     o_totalprice decimal(15, 2) NOT NULL,
@@ -103,3 +109,7 @@ where
     and l_shipdate < date '1996-01-01' + interval '3' month
 group by
     l_suppkey;
+
+-- MIGRATION: Existing SF1000 data with INT overflow issues is already corrupted.
+-- Re-ingestion with this schema is required to recover from overflow errors.
+-- SF10 and SF100 data will continue to work since o_orderkey maxes at ~600M for SF100.
