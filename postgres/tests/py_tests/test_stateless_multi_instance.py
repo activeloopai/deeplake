@@ -638,3 +638,97 @@ async def test_stateless_root_path_idempotent(
     await primary_conn.execute("DROP TABLE IF EXISTS idempotent_test CASCADE")
     await primary_conn.execute("RESET deeplake.root_path")
     print("\n=== Test Passed: Root path setting is idempotent ===")
+
+
+@pytest.mark.asyncio
+async def test_stateless_varchar1_catalog_sync(
+    primary_conn: asyncpg.Connection,
+    second_instance: PostgresInstance,
+    temp_dir_for_postgres: str,
+):
+    """
+    Test that VARCHAR(1) and CHAR(1) columns are preserved through catalog sync.
+
+    Regression test for a bug where format_type_be() was used to store column
+    types in the shared catalog, which drops type modifiers. This caused
+    VARCHAR(1) to be stored as just "character varying" in the catalog.
+
+    When a second instance recreated the table from the catalog, the column
+    was created as plain VARCHAR (no length), which mapped to deeplake's text
+    type internally instead of int8. This caused a type mismatch when
+    Instance B tried to INSERT data — datum_to_nd() would convert char values
+    to strings (because typmod == -1) but the deeplake column expected int8.
+    """
+    shared_root_path = temp_dir_for_postgres
+    print(f"\n=== Test: VARCHAR(1) Catalog Sync ===")
+    print(f"Shared root path: {shared_root_path}")
+
+    # Instance A (primary): Create table with VARCHAR(1) and CHAR(1) columns
+    await primary_conn.execute(f"SET deeplake.root_path = '{shared_root_path}'")
+
+    await primary_conn.execute("""
+        CREATE TABLE varchar1_test (
+            id INT,
+            status VARCHAR(1),
+            flag CHAR(1),
+            name TEXT
+        ) USING deeplake
+    """)
+    print("Created table with VARCHAR(1) and CHAR(1) columns")
+
+    # Instance B: Discover the table and INSERT data with VARCHAR(1) columns.
+    # This is the critical test path — the bug causes Instance B to create the
+    # table with plain VARCHAR (no length modifier), so datum_to_nd() converts
+    # char values to strings instead of int8, causing a type mismatch on write.
+    conn_b = await second_instance.connect()
+    try:
+        await conn_b.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
+        await conn_b.execute("SET deeplake.stateless_enabled = true")
+        await conn_b.execute(f"SET deeplake.root_path = '{shared_root_path}'")
+
+        # Verify table was auto-discovered
+        catalog_tables = await conn_b.fetch(
+            "SELECT table_name FROM pg_deeplake_tables"
+        )
+        table_names = [t['table_name'] for t in catalog_tables]
+        assert 'public.varchar1_test' in table_names, \
+            f"varchar1_test should be auto-discovered, found: {table_names}"
+        print("Instance B: Table auto-discovered from catalog")
+
+        # Instance B inserts data into the table it discovered from the catalog.
+        # Without the fix, this fails because the local PG table has VARCHAR
+        # (typmod=-1) so datum_to_nd converts 'A' to string "A", but the
+        # deeplake dataset column expects int8 (ASCII value 65).
+        await conn_b.execute("""
+            INSERT INTO varchar1_test VALUES
+            (1, 'A', 'Y', 'alice'),
+            (2, 'B', 'N', 'bob'),
+            (3, 'C', 'Y', 'charlie')
+        """)
+        print("Instance B: Inserted 3 rows with VARCHAR(1) data")
+
+        # Read back data from Instance B to verify it was written correctly
+        rows_b = await conn_b.fetch(
+            "SELECT id, status, flag, name FROM varchar1_test ORDER BY id"
+        )
+        assert len(rows_b) == 3, f"Instance B should see 3 rows, got {len(rows_b)}"
+        assert rows_b[0]['status'] == 'A', \
+            f"Expected status='A', got '{rows_b[0]['status']}'"
+        assert rows_b[0]['flag'] == 'Y', \
+            f"Expected flag='Y', got '{rows_b[0]['flag']}'"
+        assert rows_b[1]['status'] == 'B'
+        assert rows_b[1]['flag'] == 'N'
+        assert rows_b[2]['status'] == 'C'
+        assert rows_b[2]['flag'] == 'Y'
+        print("Instance B: VARCHAR(1) and CHAR(1) data read back correctly!")
+
+        print("Instance B: All VARCHAR(1) write and read operations succeeded")
+
+    finally:
+        await conn_b.execute("RESET deeplake.root_path")
+        await conn_b.close()
+
+    # Cleanup
+    await primary_conn.execute("DROP TABLE IF EXISTS varchar1_test CASCADE")
+    await primary_conn.execute("RESET deeplake.root_path")
+    print("\n=== Test Passed: VARCHAR(1) catalog sync works ===")
