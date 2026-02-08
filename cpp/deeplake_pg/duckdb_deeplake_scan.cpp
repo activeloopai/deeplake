@@ -988,10 +988,47 @@ void deeplake_scan_function(duckdb::ClientContext& context, duckdb::TableFunctio
     deeplake_scan_function_helper helper(context, data, output);
     try {
         helper.scan();
+    } catch (const duckdb::OutOfMemoryException& e) {
+        // Provide helpful error message with configuration hints for OOM
+        elog(ERROR,
+             "DuckDB out of memory during Deeplake scan: %s. "
+             "Consider increasing pg_deeplake.duckdb_memory_limit_mb or "
+             "setting pg_deeplake.duckdb_temp_directory for disk spilling.",
+             e.what());
     } catch (const duckdb::Exception& e) {
-        elog(ERROR, "DuckDB exception during Deeplake scan: %s", e.what());
+        // Check if the error message indicates memory issues
+        std::string msg = e.what();
+        std::string msg_lower;
+        msg_lower.reserve(msg.size());
+        for (char c : msg) {
+            msg_lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+        }
+        if (msg_lower.find("memory") != std::string::npos || msg_lower.find("oom") != std::string::npos) {
+            elog(ERROR,
+                 "DuckDB memory error during Deeplake scan: %s. "
+                 "Consider increasing pg_deeplake.duckdb_memory_limit_mb or "
+                 "setting pg_deeplake.duckdb_temp_directory for disk spilling.",
+                 e.what());
+        } else {
+            elog(ERROR, "DuckDB exception during Deeplake scan: %s", e.what());
+        }
     } catch (const std::exception& e) {
-        elog(ERROR, "STD exception during Deeplake scan: %s", e.what());
+        // Check if the error message indicates memory issues
+        std::string msg = e.what();
+        std::string msg_lower;
+        msg_lower.reserve(msg.size());
+        for (char c : msg) {
+            msg_lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+        }
+        if (msg_lower.find("memory") != std::string::npos || msg_lower.find("oom") != std::string::npos) {
+            elog(ERROR,
+                 "Memory error during Deeplake scan: %s. "
+                 "Consider increasing pg_deeplake.duckdb_memory_limit_mb or "
+                 "setting pg_deeplake.duckdb_temp_directory for disk spilling.",
+                 e.what());
+        } else {
+            elog(ERROR, "STD exception during Deeplake scan: %s", e.what());
+        }
     } catch (...) {
         elog(ERROR, "Unknown exception during Deeplake scan");
     }

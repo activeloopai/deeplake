@@ -57,6 +57,12 @@ extern bool use_shared_mem_for_refresh;
 extern bool enable_dataset_logging;
 extern bool allow_custom_paths;
 extern bool stateless_enabled;
+extern bool eager_batch_prefetch;
+
+// DuckDB memory management GUC variables - defined in extension_init.cpp
+// These control DuckDB's internal memory limit and temp directory for disk spilling
+extern int32_t duckdb_memory_limit_mb;
+extern char* duckdb_temp_directory;
 
 namespace utils {
 

@@ -373,6 +373,12 @@ double deeplake_index_build_range_scan(Relation heap_rel,
             td.create_streamer(attnum, -1);
         }
     }
+
+    // Warm all streamers in parallel for cold run optimization
+    if (pg::eager_batch_prefetch) {
+        td.get_streamers().warm_all_streamers();
+    }
+
     std::vector<Datum> values(nkeys, 0);
     std::vector<uint8_t> nulls(nkeys, 0);
     pg::table_scan tscan(table_id, false, false);
@@ -726,6 +732,11 @@ TableScanDesc deeplake_table_am_routine::scan_begin(Relation relation,
                 }
             }
         }
+    }
+
+    // Warm all streamers in parallel for cold run optimization
+    if (pg::eager_batch_prefetch) {
+        td.get_streamers().warm_all_streamers();
     }
 
     if (nkeys > 0) {

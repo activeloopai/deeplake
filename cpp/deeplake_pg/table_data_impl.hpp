@@ -9,6 +9,8 @@
 
 #include <heimdall_common/filtered_column.hpp>
 
+#include <thread>
+
 // Inline implementation functions for table_data
 // This file should be included at the end of table_data.hpp
 
@@ -111,6 +113,20 @@ inline void table_data::open_dataset(bool create)
         }
         ASSERT(dataset_ != nullptr);
         num_total_rows_ = dataset_->num_rows();
+
+        // Validate row count against TID conversion limits
+        // With TUPLES_PER_BLOCK=256 and BlockNumber=uint32_t, max is ~1.1 trillion rows
+        // which is safe for foreseeable scale factors, but provide early warning
+        constexpr int64_t MAX_SUPPORTED_ROWS =
+            static_cast<int64_t>(UINT32_MAX) * static_cast<int64_t>(pg::DEEPLAKE_TUPLES_PER_BLOCK);
+        if (num_total_rows_ > MAX_SUPPORTED_ROWS) {
+            elog(WARNING,
+                 "Table '%s' has %ld rows, exceeding max supported %ld for TID conversion. "
+                 "Consider partitioning or sharding.",
+                 table_name_.c_str(),
+                 num_total_rows_,
+                 MAX_SUPPORTED_ROWS);
+        }
 
         // Enable logging if GUC parameter is set
         if (pg::enable_dataset_logging && dataset_ && !dataset_->is_logging_enabled()) {
@@ -562,6 +578,42 @@ inline void table_data::create_streamer(int32_t idx, int32_t worker_id)
     streamers_.column_to_batches[idx].batches.resize(batch_count);
 }
 
+inline void table_data::streamer_info::warm_all_streamers()
+{
+    // Pre-warm all streamers in parallel by triggering first batch downloads.
+    // Uses next_batch_async() + async::combine() to fetch all first batches in parallel.
+    // Results are stored in first_batch_cache_ for use by get_sample/value_ptr.
+
+    first_batch_cache_.resize(streamers.size());
+
+    icm::vector<size_t> indices;
+    icm::vector<async::promise<nd::array>> promises;
+    indices.reserve(streamers.size());
+    promises.reserve(streamers.size());
+
+    for (size_t i = 0; i < streamers.size(); ++i) {
+        if (streamers[i] && !streamers[i]->empty()) {
+            promises.push_back(streamers[i]->next_batch_async());
+            indices.push_back(i);
+        }
+    }
+
+    if (promises.empty()) {
+        return;
+    }
+
+    try {
+        auto results = async::combine(std::move(promises)).get_future().get();
+        for (size_t j = 0; j < indices.size(); ++j) {
+            first_batch_cache_[indices[j]] = std::move(results[j]);
+        }
+    } catch (const std::exception& e) {
+        base::log_warning(base::log_channel::async, "warm_all_streamers failed: {}", e.what());
+        // Non-fatal - subsequent batch fetches will retry via normal path
+        first_batch_cache_.clear();
+    }
+}
+
 inline nd::array table_data::streamer_info::get_sample(int32_t column_number, int64_t row_number)
 {
     const int64_t batch_index = row_number >> batch_size_log2_;
@@ -569,6 +621,19 @@ inline nd::array table_data::streamer_info::get_sample(int32_t column_number, in
 
     auto& col_data = column_to_batches[column_number];
     auto& batch = col_data.batches[batch_index];
+
+    // Check first_batch_cache_ for batch 0 (from warm_all_streamers)
+    if (batch_index == 0 && !first_batch_cache_.empty() &&
+        static_cast<size_t>(column_number) < first_batch_cache_.size() &&
+        first_batch_cache_[column_number].has_value()) {
+        std::lock_guard lock(col_data.mutex_);
+        if (!batch.initialized_.load(std::memory_order_relaxed)) {
+            batch.owner_ = std::move(*first_batch_cache_[column_number]);
+            first_batch_cache_[column_number].reset();
+            batch.initialized_.store(true, std::memory_order_release);
+        }
+    }
+
     if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
         std::lock_guard lock(col_data.mutex_);
         for (int64_t i = 0; i <= batch_index; ++i) {
@@ -595,6 +660,20 @@ inline const T* table_data::streamer_info::value_ptr(int32_t column_number, int6
 
     auto& col_data = column_to_batches[column_number];
     auto& batch = col_data.batches[batch_index];
+
+    // Check first_batch_cache_ for batch 0 (from warm_all_streamers)
+    if (batch_index == 0 && !first_batch_cache_.empty() &&
+        static_cast<size_t>(column_number) < first_batch_cache_.size() &&
+        first_batch_cache_[column_number].has_value()) {
+        std::lock_guard lock(col_data.mutex_);
+        if (!batch.initialized_.load(std::memory_order_relaxed)) {
+            batch.owner_ = utils::eval_with_nones<T>(std::move(*first_batch_cache_[column_number]));
+            batch.data_ = batch.owner_.data().data();
+            first_batch_cache_[column_number].reset();
+            batch.initialized_.store(true, std::memory_order_release);
+        }
+    }
+
     if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
         std::lock_guard lock(col_data.mutex_);
         for (int64_t i = 0; i <= batch_index; ++i) {
@@ -617,6 +696,20 @@ inline std::string_view table_data::streamer_info::value(int32_t column_number, 
 
     auto& col_data = column_to_batches[column_number];
     auto& batch = col_data.batches[batch_index];
+
+    // Check first_batch_cache_ for batch 0 (from warm_all_streamers)
+    if (batch_index == 0 && !first_batch_cache_.empty() &&
+        static_cast<size_t>(column_number) < first_batch_cache_.size() &&
+        first_batch_cache_[column_number].has_value()) {
+        std::lock_guard lock(col_data.mutex_);
+        if (!batch.initialized_.load(std::memory_order_relaxed)) {
+            batch.owner_ = std::move(*first_batch_cache_[column_number]);
+            batch.holder_ = impl::string_stream_array_holder(batch.owner_);
+            first_batch_cache_[column_number].reset();
+            batch.initialized_.store(true, std::memory_order_release);
+        }
+    }
+
     if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
         std::lock_guard lock(col_data.mutex_);
         for (int64_t i = 0; i <= batch_index; ++i) {

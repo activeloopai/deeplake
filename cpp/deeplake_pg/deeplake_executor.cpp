@@ -85,6 +85,11 @@ void analyze_plan(PlannedStmt* plan)
                 }
             }
         }
+
+        // Warm all streamers in parallel for cold run optimization
+        if (pg::eager_batch_prefetch) {
+            table_data->get_streamers().warm_all_streamers();
+        }
     }
     pg::query_info::current().set_all_tables_are_deeplake(all_tables_are_deeplake);
 }
