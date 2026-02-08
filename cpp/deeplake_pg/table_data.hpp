@@ -130,13 +130,11 @@ public:
 
         std::vector<column_data> column_to_batches;
         std::vector<std::unique_ptr<bifrost::column_streamer>> streamers;
-        std::vector<std::optional<nd::array>> first_batch_cache_;
 
         inline void reset() noexcept
         {
             column_to_batches.clear();
             streamers.clear();
-            first_batch_cache_.clear();
         }
 
         /**

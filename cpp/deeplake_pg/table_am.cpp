@@ -294,8 +294,20 @@ bool deeplake_scan_analyze_next_tuple(
         return false;
     }
 
-    if (!scan_data->scan_state.get_next_tuple(slot)) {
-        return false; // no more tuples
+    try {
+        if (!scan_data->scan_state.get_next_tuple(slot)) {
+            return false; // no more tuples
+        }
+    } catch (const std::exception& e) {
+        ereport(ERROR,
+                (errcode(ERRCODE_INTERNAL_ERROR),
+                 errmsg("Deeplake ANALYZE scan failed: %s", e.what())));
+        return false;
+    } catch (...) {
+        ereport(ERROR,
+                (errcode(ERRCODE_INTERNAL_ERROR),
+                 errmsg("Deeplake ANALYZE scan failed: unknown exception")));
+        return false;
     }
 
     /*
@@ -797,7 +809,18 @@ bool deeplake_table_am_routine::scan_getnextslot(TableScanDesc scan, ScanDirecti
         ++scan_data->progress_bar;
     }
 
-    return scan_data->scan_state.get_next_tuple(slot);
+    try {
+        return scan_data->scan_state.get_next_tuple(slot);
+    } catch (const std::exception& e) {
+        ereport(ERROR,
+                (errcode(ERRCODE_INTERNAL_ERROR),
+                 errmsg("Deeplake scan failed: %s", e.what())));
+    } catch (...) {
+        ereport(ERROR,
+                (errcode(ERRCODE_INTERNAL_ERROR),
+                 errmsg("Deeplake scan failed: unknown exception")));
+    }
+    return false;
 }
 
 void deeplake_table_am_routine::scan_set_tidrange(TableScanDesc scan, ItemPointer mintid, ItemPointer maxtid)
@@ -844,7 +867,18 @@ bool deeplake_table_am_routine::scan_getnextslot_tidrange(TableScanDesc scan,
     // Switch to the dedicated memory context for this scan
     pg::utils::memory_context_switcher context_switcher(scan_data->memory_context);
 
-    return scan_data->scan_state.get_next_tuple(slot);
+    try {
+        return scan_data->scan_state.get_next_tuple(slot);
+    } catch (const std::exception& e) {
+        ereport(ERROR,
+                (errcode(ERRCODE_INTERNAL_ERROR),
+                 errmsg("Deeplake TID range scan failed: %s", e.what())));
+    } catch (...) {
+        ereport(ERROR,
+                (errcode(ERRCODE_INTERNAL_ERROR),
+                 errmsg("Deeplake TID range scan failed: unknown exception")));
+    }
+    return false;
 }
 
 #if PG_VERSION_NUM >= PG_VERSION_NUM_18
@@ -897,7 +931,18 @@ bool deeplake_table_am_routine::scan_bitmap_next_tuple(
     // Get next row number
     int64_t row_num = scan_data->bitmap_row_numbers[scan_data->current_offset++];
     scan_data->scan_state.set_current_position(row_num);
-    return scan_data->scan_state.get_next_tuple(slot);
+    try {
+        return scan_data->scan_state.get_next_tuple(slot);
+    } catch (const std::exception& e) {
+        ereport(ERROR,
+                (errcode(ERRCODE_INTERNAL_ERROR),
+                 errmsg("Deeplake bitmap scan failed: %s", e.what())));
+    } catch (...) {
+        ereport(ERROR,
+                (errcode(ERRCODE_INTERNAL_ERROR),
+                 errmsg("Deeplake bitmap scan failed: unknown exception")));
+    }
+    return false;
 }
 #endif
 
@@ -945,13 +990,23 @@ bool deeplake_table_am_routine::scan_sample_next_tuple(TableScanDesc scan,
         sample_fraction = sampler->fraction;
     }
 
-    while (scan_data->scan_state.get_next_tuple(slot)) {
-        // random fraction, should come from scanstate->tsm_state
-        const double random_value = (double)random() / RAND_MAX;
+    try {
+        while (scan_data->scan_state.get_next_tuple(slot)) {
+            // random fraction, should come from scanstate->tsm_state
+            const double random_value = (double)random() / RAND_MAX;
 
-        if (random_value <= sample_fraction) {
-            return true;
+            if (random_value <= sample_fraction) {
+                return true;
+            }
         }
+    } catch (const std::exception& e) {
+        ereport(ERROR,
+                (errcode(ERRCODE_INTERNAL_ERROR),
+                 errmsg("Deeplake sample scan failed: %s", e.what())));
+    } catch (...) {
+        ereport(ERROR,
+                (errcode(ERRCODE_INTERNAL_ERROR),
+                 errmsg("Deeplake sample scan failed: unknown exception")));
     }
 
     return false;
@@ -997,10 +1052,22 @@ bool deeplake_table_am_routine::index_fetch_tuple(struct IndexFetchTableData* sc
     pg::utils::memory_context_switcher context_switcher(idx_scan->memory_context);
     idx_scan->scan_state.set_current_position(utils::tid_to_row_number(tid));
 
-    if (!idx_scan->scan_state.get_next_tuple(slot)) {
-        if (all_dead != nullptr) {
-            *all_dead = true;
+    try {
+        if (!idx_scan->scan_state.get_next_tuple(slot)) {
+            if (all_dead != nullptr) {
+                *all_dead = true;
+            }
+            return false;
         }
+    } catch (const std::exception& e) {
+        ereport(ERROR,
+                (errcode(ERRCODE_INTERNAL_ERROR),
+                 errmsg("Deeplake index fetch failed: %s", e.what())));
+        return false;
+    } catch (...) {
+        ereport(ERROR,
+                (errcode(ERRCODE_INTERNAL_ERROR),
+                 errmsg("Deeplake index fetch failed: unknown exception")));
         return false;
     }
 

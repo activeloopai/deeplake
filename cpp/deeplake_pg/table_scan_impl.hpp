@@ -57,7 +57,7 @@ inline table_scan::table_scan(Oid table_id, bool is_parallel, bool streamer_only
     }
 }
 
-inline std::pair<Datum, bool> table_scan::get_datum(int32_t column_number, int64_t row_number) const noexcept
+inline std::pair<Datum, bool> table_scan::get_datum(int32_t column_number, int64_t row_number) const
 {
     const auto base_typeid = table_data_.get_base_atttypid(column_number);
     const auto column_typmod = table_data_.get_atttypmod(column_number);
@@ -155,7 +155,7 @@ inline std::pair<Datum, bool> table_scan::get_datum(int32_t column_number, int64
     return {(Datum)0, true};
 }
 
-inline void table_scan::convert_nd_to_pg(int64_t row_number, Datum* values, bool* nulls) const noexcept
+inline void table_scan::convert_nd_to_pg(int64_t row_number, Datum* values, bool* nulls) const
 {
     for (auto col : null_columns_) {
         nulls[col] = true;

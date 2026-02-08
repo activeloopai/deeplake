@@ -32,8 +32,8 @@ public:
     inline table_scan& operator=(table_scan&&) = delete;
     inline ~table_scan() = default;
 
-    inline std::pair<Datum, bool> get_datum(int32_t column_number, int64_t row_number) const noexcept;
-    inline void convert_nd_to_pg(int64_t row_number, Datum* values, bool* nulls) const noexcept;
+    inline std::pair<Datum, bool> get_datum(int32_t column_number, int64_t row_number) const;
+    inline void convert_nd_to_pg(int64_t row_number, Datum* values, bool* nulls) const;
 
     inline bool get_next_tuple(TupleTableSlot* slot);
 

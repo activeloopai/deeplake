@@ -107,8 +107,14 @@ std::unique_ptr<duckdb_connections> create_connections()
 
         // Configure temp directory for disk spilling (if specified)
         if (pg::duckdb_temp_directory != nullptr && std::strlen(pg::duckdb_temp_directory) > 0) {
+            // Sanitize the directory path to prevent SQL injection
+            std::string safe_dir(pg::duckdb_temp_directory);
+            // Escape single quotes by doubling them (standard SQL escaping)
+            for (size_t pos = 0; (pos = safe_dir.find('\'', pos)) != std::string::npos; pos += 2) {
+                safe_dir.insert(pos, 1, '\'');
+            }
             auto temp_result = conns->con_cpp->Query(
-                fmt::format("SET temp_directory='{}'", pg::duckdb_temp_directory));
+                fmt::format("SET temp_directory='{}'", safe_dir));
             if (!temp_result || temp_result->HasError()) {
                 elog(WARNING, "Failed to set DuckDB temp_directory: %s",
                      temp_result ? temp_result->GetError().c_str() : "null result");
