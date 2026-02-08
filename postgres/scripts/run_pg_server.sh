@@ -95,8 +95,8 @@ else
     sed -i 's/^\(host.*all.*all.*::1\/128\s*\)trust/\1scram-sha-256/' "$POSTGRES_DATA/pg_hba.conf"
 fi
 
-# Start PostgreSQL
-"$POSTGRES_INSTALL/bin/pg_ctl" -D "$POSTGRES_DATA" -l "$TEST_LOGFILE" start
+# Start PostgreSQL (extended timeout for shared_preload_libraries loading)
+"$POSTGRES_INSTALL/bin/pg_ctl" -D "$POSTGRES_DATA" -l "$TEST_LOGFILE" -t 120 start
 
 # Set postgres password (matches Docker POSTGRES_PASSWORD=password)
 "$POSTGRES_INSTALL/bin/psql" -U postgres -c "ALTER USER postgres PASSWORD 'password';"

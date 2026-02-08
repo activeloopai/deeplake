@@ -11,6 +11,7 @@
 #include <heimdall_common/filtered_column.hpp>
 
 #include <thread>
+#include <type_traits>
 
 // Inline implementation functions for table_data
 // This file should be included at the end of table_data.hpp
@@ -579,29 +580,54 @@ inline void table_data::create_streamer(int32_t idx, int32_t worker_id)
     streamers_.column_to_batches[idx].batches.resize(batch_count);
 }
 
+namespace detail {
+
+// SFINAE check: does column_streamer have ensure_first_batch_ready()?
+// This allows warm_all_streamers to compile against both the released API
+// (which lacks the method) and the local dev API (which has it).
+template <typename T, typename = void>
+struct has_ensure_first_batch_ready : std::false_type {};
+
+template <typename T>
+struct has_ensure_first_batch_ready<T,
+    std::void_t<decltype(std::declval<T>().ensure_first_batch_ready())>> : std::true_type {};
+
+template <typename Streamer>
+inline void try_warm_streamer([[maybe_unused]] Streamer& s, [[maybe_unused]] size_t idx)
+{
+    if constexpr (has_ensure_first_batch_ready<Streamer>::value) {
+        try {
+            s.ensure_first_batch_ready();
+        } catch (const bifrost::stop_iteration&) {
+            // Expected when there are no batches
+        } catch (const std::exception& e) {
+            base::log_warning(base::log_channel::async,
+                "warm_all_streamers: streamer {} failed: {}", idx, e.what());
+        } catch (...) {
+            base::log_warning(base::log_channel::async,
+                "warm_all_streamers: streamer {} failed with unknown exception", idx);
+        }
+    }
+    // If the method doesn't exist, this is a no-op.
+    // The async_prefetcher background prefetch is still active.
+}
+
+} // namespace detail
+
 inline void table_data::streamer_info::warm_all_streamers()
 {
-    // Pre-warm all streamers by calling ensure_first_batch_ready() on each.
-    // This uses the async_prefetcher's internal caching mechanism which is
-    // properly coordinated with next_batch() to avoid race conditions.
+    // Pre-warm all streamers by calling ensure_first_batch_ready() on each
+    // (when available). This uses the async_prefetcher's internal caching
+    // mechanism which is properly coordinated with next_batch() to avoid
+    // race conditions.
     //
-    // Note: This is sequential, not parallel. The async_prefetcher already
-    // does background prefetching, so calling ensure_first_batch_ready()
-    // just waits for the already-in-progress first batch to complete.
+    // When ensure_first_batch_ready() is not available (released API < 4.6),
+    // this is a no-op -- the async_prefetcher already starts background
+    // prefetching in the column_streamer constructor.
 
     for (size_t i = 0; i < streamers.size(); ++i) {
         if (streamers[i] && !streamers[i]->empty()) {
-            try {
-                streamers[i]->ensure_first_batch_ready();
-            } catch (const bifrost::stop_iteration&) {
-                // Expected when there are no batches - continue with next streamer
-            } catch (const std::exception& e) {
-                base::log_warning(base::log_channel::async,
-                    "warm_all_streamers: streamer {} failed: {}", i, e.what());
-            } catch (...) {
-                base::log_warning(base::log_channel::async,
-                    "warm_all_streamers: streamer {} failed with unknown exception", i);
-            }
+            detail::try_warm_streamer(*streamers[i], i);
         }
     }
 }
