@@ -1,0 +1,8 @@
+// Auto-generated at CMake configure time — do not edit manually.
+// Isolated so that build-hash changes only recompile this single file
+// instead of all pg_deeplake source files (18+).
+// configure_file() only rewrites when the content actually changes,
+// so an unchanged hash means zero recompilation.
+
+__attribute__((visibility("default"), used))
+const char pg_deeplake_build_hash[] = "PG_DEEPLAKE_BUILD:@PG_DEEPLAKE_BUILD_HASH@";
