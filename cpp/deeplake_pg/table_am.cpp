@@ -389,6 +389,7 @@ double deeplake_index_build_range_scan(Relation heap_rel,
     // Warm all streamers in parallel for cold run optimization
     if (pg::eager_batch_prefetch) {
         td.get_streamers().warm_all_streamers();
+        base::log_info(base::log_channel::generic, "Eager batch prefetch completed for index_build_range_scan");
     }
 
     std::vector<Datum> values(nkeys, 0);
@@ -749,6 +750,7 @@ TableScanDesc deeplake_table_am_routine::scan_begin(Relation relation,
     // Warm all streamers in parallel for cold run optimization
     if (pg::eager_batch_prefetch) {
         td.get_streamers().warm_all_streamers();
+        base::log_info(base::log_channel::generic, "Eager batch prefetch completed for scan_begin");
     }
 
     if (nkeys > 0) {
