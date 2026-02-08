@@ -7,6 +7,7 @@
 #include "table_version.hpp"
 #include "utils.hpp"
 
+#include <bifrost/exceptions.hpp>
 #include <heimdall_common/filtered_column.hpp>
 
 #include <thread>
@@ -584,6 +585,11 @@ inline void table_data::streamer_info::warm_all_streamers()
     // This triggers concurrent downloads for all first batches, significantly reducing
     // cold run latency compared to sequential warming.
 
+    // Early exit if no streamers
+    if (streamers.empty()) {
+        return;
+    }
+
     first_batch_cache_.resize(streamers.size());
 
     icm::vector<size_t> indices;
@@ -592,11 +598,16 @@ inline void table_data::streamer_info::warm_all_streamers()
     for (size_t i = 0; i < streamers.size(); ++i) {
         if (streamers[i] && !streamers[i]->empty()) {
             try {
-                promises.push_back(streamers[i]->next_batch_async());
+                auto promise = streamers[i]->next_batch_async();
+                // Only add promises that are valid (not error promises)
+                promises.push_back(std::move(promise));
                 indices.push_back(i);
             } catch (const std::exception& e) {
-                base::log_error(base::log_channel::async,
+                base::log_warning(base::log_channel::async,
                     "warm_all_streamers: streamer {} failed to start async: {}", i, e.what());
+            } catch (...) {
+                base::log_warning(base::log_channel::async,
+                    "warm_all_streamers: streamer {} failed with unknown exception", i);
             }
         }
     }
@@ -613,10 +624,18 @@ inline void table_data::streamer_info::warm_all_streamers()
         for (size_t j = 0; j < indices.size(); ++j) {
             first_batch_cache_[indices[j]] = std::move(results[j]);
         }
+    } catch (const bifrost::stop_iteration&) {
+        // Expected when there are no more batches - silently ignore
+        base::log_debug(base::log_channel::async, "warm_all_streamers: no batches to warm (stop_iteration)");
+        first_batch_cache_.clear();
     } catch (const std::exception& e) {
-        base::log_error(base::log_channel::async,
+        base::log_warning(base::log_channel::async,
             "warm_all_streamers: async::combine failed: {}", e.what());
         // Clear cache on failure - subsequent next_batch() will retry normally
+        first_batch_cache_.clear();
+    } catch (...) {
+        base::log_warning(base::log_channel::async,
+            "warm_all_streamers: async::combine failed with unknown exception");
         first_batch_cache_.clear();
     }
 }
