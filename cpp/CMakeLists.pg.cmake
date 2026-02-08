@@ -48,6 +48,58 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/FindDuckDB.cmake)
 set(CMAKE_PREFIX_PATH ${CMAKE_CURRENT_SOURCE_DIR}/.ext/deeplake_api ${CMAKE_PREFIX_PATH})
 find_package(DeepLakeAPI REQUIRED PATHS ${CMAKE_CURRENT_SOURCE_DIR}/.ext/deeplake_api/lib/cmake/deeplake_api NO_DEFAULT_PATH)
 
+# AWS SDK - required by deeplake_api (symbols not bundled in the prebuilt library)
+find_package(AWSSDK COMPONENTS core s3 identity-management)
+if(AWSSDK_FOUND)
+    message(STATUS "Found AWS SDK: ${AWSSDK_LIBRARIES}")
+    list(APPEND DEEPLAKE_STATIC_LINK_LIBS ${AWSSDK_LIBRARIES})
+else()
+    message(STATUS "AWS SDK not found via find_package, trying manual discovery...")
+    # Try to find AWS SDK libraries in common vcpkg locations
+    set(_AWS_SEARCH_PATHS
+        "$ENV{VCPKG_ROOT}/installed/arm64-linux/lib"
+        "$ENV{VCPKG_ROOT}/packages/aws-sdk-cpp_arm64-linux/lib"
+    )
+    # Also check for AWS libs in the build's vcpkg_installed
+    file(GLOB _VCPKG_INSTALLED_DIRS "${CMAKE_BINARY_DIR}/vcpkg_installed/*/lib")
+    list(APPEND _AWS_SEARCH_PATHS ${_VCPKG_INSTALLED_DIRS})
+
+    set(_AWS_LIBS
+        aws-cpp-sdk-s3
+        aws-cpp-sdk-core
+        aws-cpp-sdk-identity-management
+        aws-cpp-sdk-cognito-identity
+        aws-cpp-sdk-sts
+        aws-crt-cpp
+        aws-c-s3
+        aws-c-auth
+        aws-c-http
+        aws-c-mqtt
+        aws-c-event-stream
+        aws-c-io
+        aws-c-cal
+        aws-c-compression
+        aws-c-sdkutils
+        aws-c-common
+        aws-checksums
+        s2n
+    )
+    set(_FOUND_AWS_LIBS)
+    foreach(_lib ${_AWS_LIBS})
+        find_library(_LIB_${_lib} NAMES ${_lib} PATHS ${_AWS_SEARCH_PATHS} NO_DEFAULT_PATH)
+        if(_LIB_${_lib})
+            list(APPEND _FOUND_AWS_LIBS ${_LIB_${_lib}})
+            message(STATUS "  Found: ${_LIB_${_lib}}")
+        endif()
+    endforeach()
+    if(_FOUND_AWS_LIBS)
+        list(APPEND DEEPLAKE_STATIC_LINK_LIBS ${_FOUND_AWS_LIBS})
+        message(STATUS "Linked ${CMAKE_LIST_LENGTH(_FOUND_AWS_LIBS)} AWS SDK libraries manually")
+    else()
+        message(WARNING "AWS SDK libraries not found. pg_deeplake may fail to load at runtime.")
+    endif()
+endif()
+
 # }
 
 include_directories(${DEFAULT_PARENT_DIR}/.ext/duckdb/src/include)
