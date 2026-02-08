@@ -581,62 +581,28 @@ inline void table_data::create_streamer(int32_t idx, int32_t worker_id)
 
 inline void table_data::streamer_info::warm_all_streamers()
 {
-    // Pre-warm all streamers in parallel using async::combine() for maximum parallelism.
-    // This triggers concurrent downloads for all first batches, significantly reducing
-    // cold run latency compared to sequential warming.
-
-    // Early exit if no streamers
-    if (streamers.empty()) {
-        return;
-    }
-
-    first_batch_cache_.resize(streamers.size());
-
-    icm::vector<size_t> indices;
-    icm::vector<async::promise<nd::array>> promises;
+    // Pre-warm all streamers by calling ensure_first_batch_ready() on each.
+    // This uses the async_prefetcher's internal caching mechanism which is
+    // properly coordinated with next_batch() to avoid race conditions.
+    //
+    // Note: This is sequential, not parallel. The async_prefetcher already
+    // does background prefetching, so calling ensure_first_batch_ready()
+    // just waits for the already-in-progress first batch to complete.
 
     for (size_t i = 0; i < streamers.size(); ++i) {
         if (streamers[i] && !streamers[i]->empty()) {
             try {
-                auto promise = streamers[i]->next_batch_async();
-                // Only add promises that are valid (not error promises)
-                promises.push_back(std::move(promise));
-                indices.push_back(i);
+                streamers[i]->ensure_first_batch_ready();
+            } catch (const bifrost::stop_iteration&) {
+                // Expected when there are no batches - continue with next streamer
             } catch (const std::exception& e) {
                 base::log_warning(base::log_channel::async,
-                    "warm_all_streamers: streamer {} failed to start async: {}", i, e.what());
+                    "warm_all_streamers: streamer {} failed: {}", i, e.what());
             } catch (...) {
                 base::log_warning(base::log_channel::async,
                     "warm_all_streamers: streamer {} failed with unknown exception", i);
             }
         }
-    }
-
-    if (promises.empty()) {
-        return;
-    }
-
-    try {
-        // Wait for all promises in parallel
-        auto results = async::combine(std::move(promises)).get_future().get();
-
-        // Store results in first_batch_cache_
-        for (size_t j = 0; j < indices.size(); ++j) {
-            first_batch_cache_[indices[j]] = std::move(results[j]);
-        }
-    } catch (const bifrost::stop_iteration&) {
-        // Expected when there are no more batches - silently ignore
-        base::log_debug(base::log_channel::async, "warm_all_streamers: no batches to warm (stop_iteration)");
-        first_batch_cache_.clear();
-    } catch (const std::exception& e) {
-        base::log_warning(base::log_channel::async,
-            "warm_all_streamers: async::combine failed: {}", e.what());
-        // Clear cache on failure - subsequent next_batch() will retry normally
-        first_batch_cache_.clear();
-    } catch (...) {
-        base::log_warning(base::log_channel::async,
-            "warm_all_streamers: async::combine failed with unknown exception");
-        first_batch_cache_.clear();
     }
 }
 
@@ -647,18 +613,6 @@ inline nd::array table_data::streamer_info::get_sample(int32_t column_number, in
 
     auto& col_data = column_to_batches[column_number];
     auto& batch = col_data.batches[batch_index];
-
-    // Check first_batch_cache_ for batch_index 0
-    if (batch_index == 0 && !first_batch_cache_.empty() &&
-        static_cast<size_t>(column_number) < first_batch_cache_.size() &&
-        first_batch_cache_[column_number].has_value()) {
-        std::lock_guard lock(col_data.mutex_);
-        if (!batch.initialized_.load(std::memory_order_relaxed)) {
-            batch.owner_ = std::move(*first_batch_cache_[column_number]);
-            first_batch_cache_[column_number].reset();
-            batch.initialized_.store(true, std::memory_order_release);
-        }
-    }
 
     if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
         std::lock_guard lock(col_data.mutex_);
@@ -687,19 +641,6 @@ inline const T* table_data::streamer_info::value_ptr(int32_t column_number, int6
     auto& col_data = column_to_batches[column_number];
     auto& batch = col_data.batches[batch_index];
 
-    // Check first_batch_cache_ for batch_index 0
-    if (batch_index == 0 && !first_batch_cache_.empty() &&
-        static_cast<size_t>(column_number) < first_batch_cache_.size() &&
-        first_batch_cache_[column_number].has_value()) {
-        std::lock_guard lock(col_data.mutex_);
-        if (!batch.initialized_.load(std::memory_order_relaxed)) {
-            batch.owner_ = utils::eval_with_nones<T>(std::move(*first_batch_cache_[column_number]));
-            batch.data_ = batch.owner_.data().data();
-            first_batch_cache_[column_number].reset();
-            batch.initialized_.store(true, std::memory_order_release);
-        }
-    }
-
     if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
         std::lock_guard lock(col_data.mutex_);
         for (int64_t i = 0; i <= batch_index; ++i) {
@@ -722,19 +663,6 @@ inline std::string_view table_data::streamer_info::value(int32_t column_number, 
 
     auto& col_data = column_to_batches[column_number];
     auto& batch = col_data.batches[batch_index];
-
-    // Check first_batch_cache_ for batch_index 0
-    if (batch_index == 0 && !first_batch_cache_.empty() &&
-        static_cast<size_t>(column_number) < first_batch_cache_.size() &&
-        first_batch_cache_[column_number].has_value()) {
-        std::lock_guard lock(col_data.mutex_);
-        if (!batch.initialized_.load(std::memory_order_relaxed)) {
-            batch.owner_ = std::move(*first_batch_cache_[column_number]);
-            batch.holder_ = impl::string_stream_array_holder(batch.owner_);
-            first_batch_cache_[column_number].reset();
-            batch.initialized_.store(true, std::memory_order_release);
-        }
-    }
 
     if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
         std::lock_guard lock(col_data.mutex_);

@@ -8,6 +8,11 @@ extern "C" {
 
 #include <postgres.h>
 
+// Build fingerprint for hot-reload verification.
+// Defined in the generated build_info_<version>.cpp (see build_info.cpp.in).
+// Isolated there so that hash changes only recompile one file.
+// Extract with: strings pg_deeplake_18.so | grep PG_DEEPLAKE_BUILD:
+
 #include <catalog/namespace.h>
 #include <commands/defrem.h>
 #include <commands/vacuum.h>
