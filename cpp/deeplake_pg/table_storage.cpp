@@ -258,7 +258,7 @@ void table_storage::save_table_metadata(const pg::table_data& table_data)
             pg::dl_catalog::column_meta col;
             col.table_id = table_id;
             col.column_name = NameStr(attr->attname);
-            col.pg_type = format_type_be(attr->atttypid);
+            col.pg_type = format_type_with_typemod(attr->atttypid, attr->atttypmod);
             col.nullable = !attr->attnotnull;
             col.position = i;
             columns.push_back(std::move(col));
