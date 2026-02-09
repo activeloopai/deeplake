@@ -951,10 +951,15 @@ void table_storage::create_table(const std::string& table_name, Oid table_id, Tu
 
 void table_storage::drop_table(const std::string& table_name)
 {
-    pg::table_ddl_lock_guard ddl_lock;
+    // Load metadata BEFORE acquiring the DDL lock.
+    // force_load_table_metadata() may trigger CREATE TABLE (via SPI) for tables
+    // in the S3 catalog that don't exist in pg_class yet.  CREATE TABLE goes
+    // through the table AM which also acquires the DDL lock — doing that while
+    // we already hold it would self-deadlock (LWLocks are not recursive).
     if (!table_exists(table_name)) {
         force_load_table_metadata();
     }
+    pg::table_ddl_lock_guard ddl_lock;
     if (table_exists(table_name)) {
         auto& table_data = get_table_data(table_name);
         auto creds = session_credentials::get_credentials();

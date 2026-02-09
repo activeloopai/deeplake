@@ -218,20 +218,10 @@ bool inject_column_statistics(Relation rel, int16_t attnum)
         return false;
     }
 
-    // Get DeepLake column view - attnum is 1-based, column index is 0-based
-    int32_t col_idx = attnum - 1;
-
-    // Skip dropped columns by finding the actual column index
-    int32_t logical_idx = 0;
-    for (int32_t i = 0; i < tupdesc->natts && logical_idx <= col_idx; ++i) {
-        Form_pg_attribute a = TupleDescAttr(tupdesc, i);
-        if (!a->attisdropped) {
-            if (logical_idx == col_idx) {
-                col_idx = i;
-                break;
-            }
-            logical_idx++;
-        }
+    // Map PG attnum to logical column index (handles dropped columns correctly)
+    const auto col_idx = table_data.logical_index_for_attnum(attnum);
+    if (col_idx < 0) {
+        return false;
     }
 
     heimdall::column_view_ptr column_view;
