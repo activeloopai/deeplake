@@ -225,7 +225,9 @@ void table_storage::save_table_metadata(const pg::table_data& table_data)
     });
 
     // Also write into Deep Lake catalog for stateless multi-instance support.
-    if (pg::stateless_enabled) {
+    // Skip when in catalog-only mode — the data was synced FROM the S3 catalog,
+    // so writing back would be redundant and add unnecessary S3 latency.
+    if (pg::stateless_enabled && !is_catalog_only_create()) {
         const auto root_dir = []() {
             auto root = session_credentials::get_root_path();
             if (root.empty()) {
@@ -301,19 +303,19 @@ void table_storage::load_table_metadata()
             tables_.clear();
             views_.clear();
             tables_loaded_ = false;
-            catalog_version_ = current_version; // Reuse the version we just fetched
+            catalog_version_ = current_version;
         }
 
-        // Only ensure catalog exists when we need to load/reload
-        pg::dl_catalog::ensure_catalog(root_dir, creds);
-        tables_loaded_ = true;
-        // Only fetch version if we don't already have it from the check above
+        // Ensure catalog exists and get version in one call
+        const auto version = pg::dl_catalog::ensure_catalog(root_dir, creds);
         if (catalog_version_ == 0) {
-            catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, creds);
+            catalog_version_ = version;
         }
+        tables_loaded_ = true;
 
-        // Load tables and columns in parallel for better performance
+        // Load tables and columns in parallel
         auto [catalog_tables, catalog_columns] = pg::dl_catalog::load_tables_and_columns(root_dir, creds);
+
         if (!catalog_tables.empty()) {
             for (const auto& meta : catalog_tables) {
                 const std::string qualified_name = meta.schema_name + "." + meta.table_name;
@@ -343,6 +345,9 @@ void table_storage::load_table_metadata()
                     }
 
                     // Not in DDL context (e.g., SET root_path) - safe to auto-create.
+                    // Use catalog_only_guard to skip S3 dataset operations in create_table() —
+                    // the dataset already exists on S3, we just need the pg_class entry.
+                    catalog_only_guard co_guard;
                     pg::utils::memory_context_switcher context_switcher;
                     pg::utils::spi_connector connector;
                     bool pushed_snapshot = false;
@@ -384,6 +389,7 @@ void table_storage::load_table_metadata()
                     if (pushed_snapshot) {
                         PopActiveSnapshot();
                     }
+
                     relid = RangeVarGetRelid(rel, NoLock, true);
                 }
                 if (!OidIsValid(relid)) {
@@ -405,6 +411,7 @@ void table_storage::load_table_metadata()
                 }
                 relation_close(relation, NoLock);
             }
+
             load_schema_name();
             return;
         }
@@ -683,6 +690,16 @@ void table_storage::create_table(const std::string& table_name, Oid table_id, Tu
 
     table_data td(table_id, table_name, CreateTupleDescCopy(tupdesc), dataset_path, creds);
     PinTupleDesc(td.get_tuple_descriptor());
+
+    // Catalog-only mode: the dataset already exists on S3 (known from the catalog).
+    // Skip all S3 operations — just register in pg_class (done by DDL) and our tables_ map.
+    // Still write to pg_deeplake_tables so other code paths can discover the table locally.
+    if (is_catalog_only_create()) {
+        save_table_metadata(td);
+        tables_.emplace(table_id, std::move(td));
+        up_to_date_ = false;
+        return;
+    }
 
     bool ds_exists = false;
     try {

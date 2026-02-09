@@ -36,7 +36,7 @@ struct index_meta
     int32_t order_type = 0;
 };
 
-void ensure_catalog(const std::string& root_path, icm::string_map<> creds);
+int64_t ensure_catalog(const std::string& root_path, icm::string_map<> creds);
 
 std::vector<table_meta> load_tables(const std::string& root_path, icm::string_map<> creds);
 std::vector<column_meta> load_columns(const std::string& root_path, icm::string_map<> creds);

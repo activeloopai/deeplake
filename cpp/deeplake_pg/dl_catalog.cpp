@@ -13,7 +13,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <filesystem>
 #include <unordered_map>
 
 extern "C" {
@@ -126,74 +125,14 @@ std::vector<int64_t> load_int64_vector(const nd::array& arr)
 
 } // namespace
 
-void ensure_catalog(const std::string& root_path, icm::string_map<> creds)
+int64_t ensure_catalog(const std::string& root_path, icm::string_map<> creds)
 {
     const auto tables_path = join_path(root_path, k_tables_name);
     const auto columns_path = join_path(root_path, k_columns_name);
     const auto indexes_path = join_path(root_path, k_indexes_name);
     const auto meta_path = join_path(root_path, k_meta_name);
 
-    auto migrate_legacy_path_if_needed = [&](const std::string& path) {
-        const bool is_remote_path = path.find("://") != std::string::npos;
-
-        if (!is_remote_path) {
-            // Local path migration: only remove clear path collisions (e.g. file at table path).
-            std::error_code ec;
-            if (!std::filesystem::exists(path, ec)) {
-                return;
-            }
-            if (std::filesystem::is_directory(path, ec)) {
-                // Keep directories intact; open_or_create handles valid local catalog dirs.
-                return;
-            }
-
-            elog(WARNING,
-                 "Catalog path %s is a non-directory filesystem artifact. Removing it before catalog initialization.",
-                 path.c_str());
-            if (!std::filesystem::remove(path, ec) && ec) {
-                elog(ERROR, "Failed to migrate local catalog path %s: %s", path.c_str(), ec.message().c_str());
-            }
-            return;
-        }
-
-        // Remote path migration for legacy non-catalog datasets.
-        bool exists = false;
-        try {
-            exists = deeplake_api::exists(path, icm::string_map<>(creds)).get_future().get();
-        } catch (...) {
-            exists = false;
-        }
-        if (!exists) {
-            return;
-        }
-
-        bool is_catalog = false;
-        try {
-            is_catalog = deeplake_api::is_catalog_table(path, icm::string_map<>(creds)).get_future().get();
-        } catch (...) {
-            is_catalog = false;
-        }
-        if (!is_catalog) {
-            elog(WARNING,
-                 "Existing remote catalog path %s is not a catalog table. Recreating catalog table.",
-                 path.c_str());
-            try {
-                deeplake_api::delete_dataset(path, icm::string_map<>(creds)).get_future().get();
-            } catch (const std::exception& e) {
-                elog(ERROR, "Failed to migrate remote catalog path %s: %s", path.c_str(), e.what());
-            } catch (...) {
-                elog(ERROR, "Failed to migrate remote catalog path %s: unknown error", path.c_str());
-            }
-        }
-    };
-
     try {
-        // Handle legacy non-catalog artifacts before creating tables.
-        migrate_legacy_path_if_needed(tables_path);
-        migrate_legacy_path_if_needed(columns_path);
-        migrate_legacy_path_if_needed(indexes_path);
-        migrate_legacy_path_if_needed(meta_path);
-
         // Build schemas for all catalog tables
         deeplake_api::catalog_table_schema tables_schema;
         tables_schema.add("table_id", deeplake_core::type::text(codecs::compression::null))
@@ -258,12 +197,19 @@ void ensure_catalog(const std::string& root_path, icm::string_map<> creds)
                 meta_table->insert(std::move(row)).get_future().get();
             }
         }
+        // Get version from the meta table we already have open (avoids a second open_catalog_table)
+        if (meta_table) {
+            return static_cast<int64_t>(meta_table->version().get_future().get());
+        }
+        return 0;
     } catch (const std::exception& e) {
         catalog_table_cache::instance().invalidate();
         elog(ERROR, "Failed to ensure catalog at %s: %s", root_path.c_str(), e.what());
+        return 0;
     } catch (...) {
         catalog_table_cache::instance().invalidate();
         elog(ERROR, "Failed to ensure catalog at %s: unknown error", root_path.c_str());
+        return 0;
     }
 }
 
