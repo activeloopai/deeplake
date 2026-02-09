@@ -1204,7 +1204,7 @@ static void process_utility(PlannedStmt* pstmt,
             if (current_root_path != last_root_path) {
                 // Path changed - force full reload
                 last_root_path = current_root_path;
-                pg::table_storage::instance().force_load_table_metadata();
+                pg::table_storage::instance().reset_and_load_table_metadata();
             } else {
                 // Same path - just check for catalog updates (fast path)
                 pg::table_storage::instance().load_table_metadata();

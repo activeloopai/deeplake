@@ -180,12 +180,22 @@ public:
 
     /// Called from indexer loading
     void load_table_metadata();
+    /// Re-read metadata to discover newly created tables.
+    /// Keeps existing table_data objects (with open dataset connections) intact.
     void force_load_table_metadata()
+    {
+        tables_loaded_ = false;
+        load_table_metadata();
+    }
+
+    /// Clear all state and reload from scratch. Use when the root_path changes
+    /// and all existing table_data entries are stale.
+    void reset_and_load_table_metadata()
     {
         tables_.clear();
         views_.clear();
         tables_loaded_ = false;
-        catalog_version_ = 0;  // Reset so version gets re-fetched for new root_path
+        catalog_version_ = 0;
         load_table_metadata();
     }
     void mark_metadata_stale() noexcept

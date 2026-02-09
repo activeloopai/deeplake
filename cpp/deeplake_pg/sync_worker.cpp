@@ -204,7 +204,7 @@ PGDLLEXPORT void deeplake_sync_worker_main(Datum main_arg)
                 // When root_path changes after initial setup, force a full reload
                 if (root_path != last_root_path) {
                     if (!last_root_path.empty()) {
-                        pg::table_storage::instance().force_load_table_metadata();
+                        pg::table_storage::instance().reset_and_load_table_metadata();
                         last_catalog_version = 0;
                     }
                     last_root_path = root_path;
