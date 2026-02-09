@@ -1,3 +1,11 @@
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "requests>=2.28",
+# ]
+# ///
+
 import json
 import os
 import sys
@@ -6,7 +14,7 @@ import platform
 try:
     import requests
 except ImportError:
-    os.system("pip install requests --user")
+    os.system("pip install requests --user --break-system-packages")
     import requests
 
 """
@@ -20,6 +28,7 @@ Usage: python3 scripts/build_pg_ext.py dev --pg-versions 16                #Buil
 Usage: python3 scripts/build_pg_ext.py prod --pg-versions all              #Build for all supported PostgreSQL versions
 Usage: python3 scripts/build_pg_ext.py dev --local-api /path/to/package    #Use local deeplake API package instead of downloading
 """
+
 
 
 

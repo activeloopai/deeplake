@@ -580,121 +580,45 @@ inline void table_data::create_streamer(int32_t idx, int32_t worker_id)
     streamers_.column_to_batches[idx].batches.resize(batch_count);
 }
 
-namespace detail {
-
-// SFINAE check: does column_streamer have ensure_first_batch_ready()?
-// This allows warm_all_streamers to compile against both the released API
-// (which lacks the method) and the local dev API (which has it).
-template <typename T, typename = void>
-struct has_ensure_first_batch_ready : std::false_type {};
-
-template <typename T>
-struct has_ensure_first_batch_ready<T,
-    std::void_t<decltype(std::declval<T>().ensure_first_batch_ready())>> : std::true_type {};
-
-template <typename Streamer>
-inline void try_warm_streamer([[maybe_unused]] Streamer& s, [[maybe_unused]] size_t idx)
-{
-    if constexpr (has_ensure_first_batch_ready<Streamer>::value) {
-        try {
-            s.ensure_first_batch_ready();
-        } catch (const bifrost::stop_iteration&) {
-            // Expected when there are no batches
-        } catch (const std::exception& e) {
-            base::log_warning(base::log_channel::async,
-                "warm_all_streamers: streamer {} failed: {}", idx, e.what());
-        } catch (...) {
-            base::log_warning(base::log_channel::async,
-                "warm_all_streamers: streamer {} failed with unknown exception", idx);
-        }
-    }
-    // If the method doesn't exist, this is a no-op.
-    // The async_prefetcher background prefetch is still active.
-}
-
-} // namespace detail
-
 inline void table_data::streamer_info::warm_all_streamers()
 {
-    // Full pre-warming: download ALL batches for ALL columns in parallel.
-    // This eliminates cold-run latency by pre-populating the raw batch cache
-    // before query execution starts.
-    //
-    // Each column's async_prefetcher has already queued all batch downloads
-    // in its start() method. Here we drain those queues in parallel across
-    // columns, storing the raw nd::array results in prefetched_raw_batches_.
-    // The type-specific initialization (eval_with_nones, string_stream_array_holder)
-    // happens lazily when the batch is first accessed by value_ptr/get_sample/value.
+    // Warm the first batch of every streamer in parallel by calling
+    // ensure_first_batch_ready() on each one. This caches the first batch
+    // INSIDE the async_prefetcher, so the normal next_batch() flow works
+    // unchanged - it just returns the cached batch immediately instead of
+    // blocking on I/O. This is safe to call multiple times (idempotent).
 
-    // Collect indices of valid streamers to warm
-    std::vector<size_t> indices;
+    std::vector<size_t> active;
     for (size_t i = 0; i < streamers.size(); ++i) {
         if (streamers[i] && !streamers[i]->empty()) {
-            indices.push_back(i);
+            active.push_back(i);
         }
     }
 
-    if (indices.empty()) {
+    if (active.size() <= 1) {
+        // 0 or 1 streamers: warm inline, no benefit from parallelism
+        for (size_t i : active) {
+            streamers[i]->ensure_first_batch_ready();
+        }
         return;
     }
 
-    // Spawn threads to pre-download ALL batches for each column in parallel.
-    // Each thread drains the column's async_prefetcher, storing raw batches
-    // in prefetched_raw_batches_ for later consumption by value_ptr/get_sample/value.
+    // Warm all streamers in parallel using threads
     std::vector<std::thread> threads;
-    threads.reserve(indices.size());
-
-    for (size_t idx : indices) {
-        threads.emplace_back([this, idx]() {
+    threads.reserve(active.size());
+    for (size_t i : active) {
+        threads.emplace_back([this, i]() {
             try {
-                auto& col_data = column_to_batches[idx];
-                const size_t num_batches = col_data.batches.size();
-                // Count how many batches are already initialized
-                size_t batches_to_fetch = 0;
-                for (size_t i = 0; i < num_batches; ++i) {
-                    if (!col_data.batches[i].initialized_.load(std::memory_order_relaxed)) {
-                        ++batches_to_fetch;
-                    }
-                }
-                if (batches_to_fetch == 0) {
-                    return;
-                }
-                // Drain all pending batches from the streamer into the prefetch queue
-                std::lock_guard lock(col_data.mutex_);
-                for (size_t i = 0; i < batches_to_fetch; ++i) {
-                    try {
-                        col_data.prefetched_raw_batches_.push_back(streamers[idx]->next_batch());
-                    } catch (const bifrost::stop_iteration&) {
-                        break; // No more batches
-                    }
-                }
+                streamers[i]->ensure_first_batch_ready();
             } catch (const std::exception& e) {
                 base::log_warning(base::log_channel::async,
-                    "warm_all_streamers: column {} failed: {}", idx, e.what());
-            } catch (...) {
-                base::log_warning(base::log_channel::async,
-                    "warm_all_streamers: column {} failed with unknown exception", idx);
+                    "warm_all_streamers: streamer {} failed: {}", i, e.what());
             }
         });
     }
-
-    // Wait for all columns to finish downloading
     for (auto& t : threads) {
-        if (t.joinable()) {
-            t.join();
-        }
+        t.join();
     }
-}
-
-inline void table_data::streamer_info::warm_all_streamers_async()
-{
-    // Launch warm_all_streamers() in a detached background thread.
-    // This allows the DuckDB executor to start query processing immediately
-    // while batch data is being prefetched in the background.
-    // The prefetched data is consumed via prefetched_raw_batches_ in value_ptr/get_sample.
-    std::thread([this]() {
-        warm_all_streamers();
-    }).detach();
 }
 
 inline void table_data::streamer_info::prefetch_batches_for_row(
