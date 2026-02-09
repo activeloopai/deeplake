@@ -432,7 +432,7 @@ void* duckdb_result_holder::get_chunk_ptr(size_t chunk_idx) const
 // Execute SQL query and return DuckDB results using C API
 // Note: Currently we still use C++ API for execution due to table function requirements
 // This function converts C++ results to C API format for processing
-duckdb_result_holder execute_sql_query_direct(const std::string& query_string)
+static std::unique_ptr<duckdb_connections>& get_duckdb_conns()
 {
     static std::unique_ptr<duckdb_connections> conns;
     if (conns == nullptr || !pg::table_storage::instance().is_up_to_date()) {
@@ -444,6 +444,25 @@ duckdb_result_holder execute_sql_query_direct(const std::string& query_string)
         register_views(conns.get());
         pg::table_storage::instance().set_up_to_date(true);
     }
+    return conns;
+}
+
+} // unnamed namespace
+
+namespace pg {
+
+void ensure_duckdb_initialized()
+{
+    get_duckdb_conns();
+}
+
+} // namespace pg
+
+namespace pg {
+
+duckdb_result_holder execute_sql_query_direct(const std::string& query_string)
+{
+    auto& conns = get_duckdb_conns();
 
     std::string duckdb_query = pg_to_duckdb_translator::translate(query_string);
 

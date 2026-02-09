@@ -54,6 +54,10 @@ struct duckdb_result_holder
     void* get_chunk_ptr(size_t chunk_idx) const;
 };
 
+// Pre-initialize DuckDB connection (for cold run optimization).
+// Can be called early (e.g., during analyze_plan) to overlap DuckDB init with batch prefetching.
+void ensure_duckdb_initialized();
+
 // Execute SQL query using DuckDB and return results directly without conversion
 duckdb_result_holder execute_sql_query_direct(const std::string& query_string);
 

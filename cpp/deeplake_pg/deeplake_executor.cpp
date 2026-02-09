@@ -86,13 +86,20 @@ void analyze_plan(PlannedStmt* plan)
             }
         }
 
-        // Warm all streamers in parallel for cold run optimization
+        // Start async warming of streamers for cold run optimization.
+        // Non-blocking: DuckDB query starts immediately while batches prefetch in background.
         if (pg::eager_batch_prefetch) {
-            table_data->get_streamers().warm_all_streamers();
-            base::log_info(base::log_channel::generic, "Eager batch prefetch completed for deeplake_executor");
+            table_data->get_streamers().warm_all_streamers_async();
         }
     }
     pg::query_info::current().set_all_tables_are_deeplake(all_tables_are_deeplake);
+
+    // Pre-initialize DuckDB connection while batch prefetching runs in the background.
+    // This overlaps DuckDB init (DB creation, table registration) with I/O,
+    // reducing cold run latency.
+    if (pg::eager_batch_prefetch && pg::query_info::current().is_deeplake_table_referenced()) {
+        pg::ensure_duckdb_initialized();
+    }
 }
 
 } // namespace pg

@@ -686,6 +686,17 @@ inline void table_data::streamer_info::warm_all_streamers()
     }
 }
 
+inline void table_data::streamer_info::warm_all_streamers_async()
+{
+    // Launch warm_all_streamers() in a detached background thread.
+    // This allows the DuckDB executor to start query processing immediately
+    // while batch data is being prefetched in the background.
+    // The prefetched data is consumed via prefetched_raw_batches_ in value_ptr/get_sample.
+    std::thread([this]() {
+        warm_all_streamers();
+    }).detach();
+}
+
 inline void table_data::streamer_info::prefetch_batches_for_row(
     const std::vector<int32_t>& column_indices, int64_t row_number)
 {

@@ -153,6 +153,16 @@ public:
         inline void warm_all_streamers();
 
         /**
+         * @brief Start warming all streamers in the background (non-blocking).
+         *
+         * Launches warm_all_streamers() in a detached background thread.
+         * The DuckDB executor can begin query processing immediately while
+         * batch data is being prefetched. The prefetched batches are stored
+         * in prefetched_raw_batches_ and consumed by value_ptr/get_sample.
+         */
+        inline void warm_all_streamers_async();
+
+        /**
          * @brief Pre-initialize batches for all given columns at the specified row in parallel.
          *
          * For a cold run, batch initialization blocks on I/O. Without this method,
