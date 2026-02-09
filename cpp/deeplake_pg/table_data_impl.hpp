@@ -661,6 +661,66 @@ inline void table_data::streamer_info::warm_all_streamers()
     }
 }
 
+inline void table_data::streamer_info::prefetch_batches_for_row(
+    const std::vector<int32_t>& column_indices, int64_t row_number)
+{
+    const int64_t batch_index = row_number >> batch_size_log2_;
+
+    // Fast check: find columns that need batch initialization
+    std::vector<int32_t> need_init;
+    for (int32_t col : column_indices) {
+        if (col < 0 || static_cast<size_t>(col) >= column_to_batches.size()) continue;
+        auto& col_data = column_to_batches[col];
+        if (static_cast<size_t>(batch_index) < col_data.batches.size() &&
+            !col_data.batches[batch_index].initialized_.load(std::memory_order_acquire)) {
+            need_init.push_back(col);
+        }
+    }
+
+    if (need_init.size() <= 1) {
+        // 0 or 1 columns need init - no benefit from parallelism
+        return;
+    }
+
+    // Multiple columns need batch initialization: call next_batch() for each in parallel.
+    // This overlaps the I/O waits across all columns. The raw batch results are stored
+    // in prefetched_raw_batch_ and consumed by the type-specific value_ptr/value/get_sample
+    // methods during the subsequent sequential column processing.
+    std::vector<std::thread> threads;
+    threads.reserve(need_init.size());
+
+    for (int32_t col : need_init) {
+        threads.emplace_back([this, col, batch_index]() {
+            try {
+                auto& col_data = column_to_batches[col];
+                // Fetch all uninitialized batches up to batch_index for this column
+                std::lock_guard lock(col_data.mutex_);
+                for (int64_t i = 0; i <= batch_index; ++i) {
+                    if (!col_data.batches[i].initialized_.load(std::memory_order_relaxed)) {
+                        // Only pre-fetch one batch (the next one from the streamer).
+                        // Store it as a raw batch for the type-specific code to consume.
+                        if (!col_data.prefetched_raw_batch_.has_value()) {
+                            col_data.prefetched_raw_batch_ = streamers[col]->next_batch();
+                        }
+                        break; // Only need to pre-fetch the next pending batch
+                    }
+                }
+            } catch (const bifrost::stop_iteration&) {
+                // Expected when streamer is exhausted
+            } catch (const std::exception& e) {
+                base::log_warning(base::log_channel::async,
+                    "prefetch_batches_for_row: column {} failed: {}", col, e.what());
+            }
+        });
+    }
+
+    for (auto& t : threads) {
+        if (t.joinable()) {
+            t.join();
+        }
+    }
+}
+
 inline nd::array table_data::streamer_info::get_sample(int32_t column_number, int64_t row_number)
 {
     const int64_t batch_index = row_number >> batch_size_log2_;
@@ -673,7 +733,13 @@ inline nd::array table_data::streamer_info::get_sample(int32_t column_number, in
         std::lock_guard lock(col_data.mutex_);
         for (int64_t i = 0; i <= batch_index; ++i) {
             if (!col_data.batches[i].initialized_.load(std::memory_order_relaxed)) {
-                col_data.batches[i].owner_ = streamers[column_number]->next_batch();
+                // Use pre-fetched batch if available, otherwise fetch synchronously
+                if (col_data.prefetched_raw_batch_.has_value()) {
+                    col_data.batches[i].owner_ = std::move(*col_data.prefetched_raw_batch_);
+                    col_data.prefetched_raw_batch_.reset();
+                } else {
+                    col_data.batches[i].owner_ = streamers[column_number]->next_batch();
+                }
                 col_data.batches[i].initialized_.store(true, std::memory_order_release);
             }
         }
@@ -700,7 +766,15 @@ inline const T* table_data::streamer_info::value_ptr(int32_t column_number, int6
         std::lock_guard lock(col_data.mutex_);
         for (int64_t i = 0; i <= batch_index; ++i) {
             if (!col_data.batches[i].initialized_.load(std::memory_order_relaxed)) {
-                col_data.batches[i].owner_ = utils::eval_with_nones<T>(streamers[column_number]->next_batch());
+                // Use pre-fetched batch if available, otherwise fetch synchronously
+                nd::array raw_batch;
+                if (col_data.prefetched_raw_batch_.has_value()) {
+                    raw_batch = std::move(*col_data.prefetched_raw_batch_);
+                    col_data.prefetched_raw_batch_.reset();
+                } else {
+                    raw_batch = streamers[column_number]->next_batch();
+                }
+                col_data.batches[i].owner_ = utils::eval_with_nones<T>(std::move(raw_batch));
                 col_data.batches[i].data_ = col_data.batches[i].owner_.data().data();
                 col_data.batches[i].initialized_.store(true, std::memory_order_release);
             }
@@ -723,7 +797,13 @@ inline std::string_view table_data::streamer_info::value(int32_t column_number, 
         std::lock_guard lock(col_data.mutex_);
         for (int64_t i = 0; i <= batch_index; ++i) {
             if (!col_data.batches[i].initialized_.load(std::memory_order_relaxed)) {
-                col_data.batches[i].owner_ = streamers[column_number]->next_batch();
+                // Use pre-fetched batch if available, otherwise fetch synchronously
+                if (col_data.prefetched_raw_batch_.has_value()) {
+                    col_data.batches[i].owner_ = std::move(*col_data.prefetched_raw_batch_);
+                    col_data.prefetched_raw_batch_.reset();
+                } else {
+                    col_data.batches[i].owner_ = streamers[column_number]->next_batch();
+                }
                 col_data.batches[i].holder_ = impl::string_stream_array_holder(col_data.batches[i].owner_);
                 col_data.batches[i].initialized_.store(true, std::memory_order_release);
             }

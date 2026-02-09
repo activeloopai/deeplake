@@ -117,11 +117,14 @@ public:
         {
             std::mutex mutex_;
             std::vector<batch_data> batches;
+            /// Pre-fetched raw batch from parallel prefetch. Protected by mutex_.
+            std::optional<nd::array> prefetched_raw_batch_;
 
             column_data() = default;
             column_data(const column_data&) = delete;
             column_data(column_data&& other) noexcept
                 : batches(std::move(other.batches))
+                , prefetched_raw_batch_(std::move(other.prefetched_raw_batch_))
             {
             }
             column_data& operator=(const column_data&) = delete;
@@ -146,6 +149,17 @@ public:
          * initial data fetches.
          */
         inline void warm_all_streamers();
+
+        /**
+         * @brief Pre-initialize batches for all given columns at the specified row in parallel.
+         *
+         * For a cold run, batch initialization blocks on I/O. Without this method,
+         * the scan processes columns sequentially, serializing I/O waits.
+         * This method triggers batch downloads for all columns that need it concurrently,
+         * then waits for all to complete, so the subsequent sequential column processing
+         * finds all batches already initialized.
+         */
+        inline void prefetch_batches_for_row(const std::vector<int32_t>& column_indices, int64_t row_number);
 
         inline nd::array get_sample(int32_t column_number, int64_t row_number);
 
