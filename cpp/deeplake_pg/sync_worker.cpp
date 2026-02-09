@@ -169,7 +169,7 @@ PGDLLEXPORT void deeplake_sync_worker_main(Datum main_arg)
 
     int64_t last_catalog_version = 0;
     std::string last_root_path;  // Track root_path to detect changes
-    bool catalog_ensured = false;
+
 
     while (!got_sigterm) {
         // Handle SIGHUP - reload configuration
@@ -201,12 +201,13 @@ PGDLLEXPORT void deeplake_sync_worker_main(Datum main_arg)
             if (!root_path.empty()) {
                 auto creds = pg::session_credentials::get_credentials();
 
-                // Only ensure catalog on first call or when root_path changes
-                if (!catalog_ensured || root_path != last_root_path) {
-                    pg::dl_catalog::ensure_catalog(root_path, creds);
-                    catalog_ensured = true;
+                // When root_path changes after initial setup, force a full reload
+                if (root_path != last_root_path) {
+                    if (!last_root_path.empty()) {
+                        pg::table_storage::instance().force_load_table_metadata();
+                        last_catalog_version = 0;
+                    }
                     last_root_path = root_path;
-                    last_catalog_version = 0;  // Reset version when path changes
                 }
 
                 // Use existing catalog version API to check for changes (now fast with cache)
