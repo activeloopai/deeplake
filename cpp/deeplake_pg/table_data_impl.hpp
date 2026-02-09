@@ -624,10 +624,39 @@ inline void table_data::streamer_info::warm_all_streamers()
     // When ensure_first_batch_ready() is not available (released API < 4.6),
     // this is a no-op -- the async_prefetcher already starts background
     // prefetching in the column_streamer constructor.
+    //
+    // CRITICAL: We run all warmings in PARALLEL to overlap network I/O
+    // for the first batch of each column. This is essential for cold run
+    // performance optimization.
 
+    // Collect indices of valid streamers to warm
+    std::vector<size_t> indices;
     for (size_t i = 0; i < streamers.size(); ++i) {
         if (streamers[i] && !streamers[i]->empty()) {
-            detail::try_warm_streamer(*streamers[i], i);
+            indices.push_back(i);
+        }
+    }
+
+    if (indices.empty()) {
+        return;
+    }
+
+    // Spawn threads to warm all streamers in parallel
+    // Each thread waits for its first batch to be ready (blocking until download complete)
+    std::vector<std::thread> threads;
+    threads.reserve(indices.size());
+
+    for (size_t idx : indices) {
+        threads.emplace_back([this, idx]() {
+            detail::try_warm_streamer(*streamers[idx], idx);
+        });
+    }
+
+    // Wait for all warming threads to complete
+    // This ensures all first batches are downloaded before query execution starts
+    for (auto& t : threads) {
+        if (t.joinable()) {
+            t.join();
         }
     }
 }
