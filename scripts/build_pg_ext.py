@@ -2,7 +2,12 @@ import json
 import os
 import sys
 import platform
-import requests
+
+try:
+    import requests
+except ImportError:
+    os.system("pip install requests --user")
+    import requests
 
 """
 Usage: python3 scripts/build_pg_ext.py debug                               #Debug build
@@ -15,6 +20,8 @@ Usage: python3 scripts/build_pg_ext.py dev --pg-versions 16                #Buil
 Usage: python3 scripts/build_pg_ext.py prod --pg-versions all              #Build for all supported PostgreSQL versions
 Usage: python3 scripts/build_pg_ext.py dev --local-api /path/to/package    #Use local deeplake API package instead of downloading
 """
+
+
 
 def get_pinned_version():
     """
@@ -77,6 +84,7 @@ def download_api_lib(api_root_dir, overwrite=True):
 
     print(f"Downloading prebuilt api libraries from {asset_url} ...")
 
+    
     response = requests.get(asset_url)
     if response.status_code != 200:
         raise Exception(f"Failed to download api libraries from {asset_url}. Status code: {response.status_code}")

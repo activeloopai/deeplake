@@ -117,14 +117,16 @@ public:
         {
             std::mutex mutex_;
             std::vector<batch_data> batches;
-            /// Pre-fetched raw batch from parallel prefetch. Protected by mutex_.
-            std::optional<nd::array> prefetched_raw_batch_;
+            /// Pre-fetched raw batches from parallel prefetch. Protected by mutex_.
+            /// warm_all_streamers() drains the streamer into this deque;
+            /// value_ptr/get_sample/value consume from the front.
+            std::deque<nd::array> prefetched_raw_batches_;
 
             column_data() = default;
             column_data(const column_data&) = delete;
             column_data(column_data&& other) noexcept
                 : batches(std::move(other.batches))
-                , prefetched_raw_batch_(std::move(other.prefetched_raw_batch_))
+                , prefetched_raw_batches_(std::move(other.prefetched_raw_batches_))
             {
             }
             column_data& operator=(const column_data&) = delete;
