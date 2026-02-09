@@ -366,7 +366,7 @@ void table_storage::load_table_metadata()
                     // This avoids calling the SQL function create_deeplake_table which may not exist
                     resetStringInfo(&buf);
                     const char* qtable = quote_identifier(meta.table_name.c_str());
-                    appendStringInfo(&buf, "CREATE TABLE %s.%s (", qschema, qtable);
+                    appendStringInfo(&buf, "CREATE TABLE IF NOT EXISTS %s.%s (", qschema, qtable);
 
                     bool first = true;
                     for (const auto& col : table_columns) {
