@@ -367,10 +367,13 @@ double deeplake_index_build_range_scan(Relation heap_rel,
     AttrNumber* indexkeys = index_info->ii_IndexAttrNumbers;
     const auto table_id = RelationGetRelid(heap_rel);
     auto& td = pg::table_storage::instance().get_table_data(table_id);
+    // Map index key attnums to logical column indices
+    std::vector<int32_t> key_logical_indices(nkeys, -1);
     for (int32_t i = 0; i < nkeys; ++i) {
-        int32_t attnum = indexkeys[i] - 1;
-        if (attnum >= 0 && !td.column_has_streamer(attnum) && td.can_stream_column(attnum)) {
-            td.create_streamer(attnum, -1);
+        auto logical = td.logical_index_for_attnum(indexkeys[i]);
+        key_logical_indices[i] = logical;
+        if (logical >= 0 && !td.column_has_streamer(logical) && td.can_stream_column(logical)) {
+            td.create_streamer(logical, -1);
         }
     }
     std::vector<Datum> values(nkeys, 0);
@@ -382,12 +385,12 @@ double deeplake_index_build_range_scan(Relation heap_rel,
         auto [block_number, offset_number] = pg::utils::row_number_to_tid(row);
         ItemPointerSet(&tid, block_number, offset_number);
         for (int32_t i = 0; i < nkeys; ++i) {
-            int32_t attnum = indexkeys[i] - 1;
-            if (attnum < 0) [[unlikely]] {
+            auto logical = key_logical_indices[i];
+            if (logical < 0) [[unlikely]] {
                 nulls[i] = true;
                 values[i] = 0;
             } else [[likely]] {
-                auto [value, null] = tscan.get_datum(attnum, row);
+                auto [value, null] = tscan.get_datum(logical, row);
                 values[i] = value;
                 nulls[i] = null;
             }

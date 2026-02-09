@@ -67,6 +67,7 @@ struct table_data
     inline std::string get_atttypename(AttrNumber attr_num) const noexcept;
     inline bool is_column_dropped(AttrNumber attr_num) const noexcept;
     inline int32_t get_tupdesc_index(AttrNumber attr_num) const noexcept;
+    inline int32_t logical_index_for_attnum(int32_t attnum) const noexcept;
     inline bool is_column_nullable(AttrNumber attr_num) const noexcept;
     inline bool is_column_indexed(AttrNumber attr_num) const noexcept;
     inline int32_t num_columns() const noexcept;
@@ -176,6 +177,7 @@ private:
     icm::vector<bool> requested_columns_;
     icm::vector<Oid> base_typeids_;              // Cached base type OIDs for performance
     icm::vector<int32_t> active_column_indices_; // Maps logical index to TupleDesc index (excludes dropped)
+    icm::vector<int32_t> tupdesc_to_logical_;    // Maps TupleDesc index to logical index (-1 if dropped)
     icm::string_map<> creds_;
     TupleDesc tuple_descriptor_;
     http::uri dataset_path_ = http::uri(std::string());

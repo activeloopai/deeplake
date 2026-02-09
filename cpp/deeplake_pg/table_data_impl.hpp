@@ -64,6 +64,12 @@ inline table_data::table_data(
         }
     }
 
+    // Build reverse mapping: TupleDesc index → logical index (-1 for dropped)
+    tupdesc_to_logical_.resize(tuple_descriptor_->natts, -1);
+    for (int32_t logical = 0; logical < static_cast<int32_t>(active_column_indices_.size()); ++logical) {
+        tupdesc_to_logical_[active_column_indices_[logical]] = logical;
+    }
+
     const auto num_active = active_column_indices_.size();
     requested_columns_.resize(num_active, false);
     base_typeids_.resize(num_active);
@@ -272,6 +278,15 @@ inline int32_t table_data::get_tupdesc_index(AttrNumber attr_num) const noexcept
     return active_column_indices_[attr_num];
 }
 
+inline int32_t table_data::logical_index_for_attnum(int32_t attnum) const noexcept
+{
+    const auto tupdesc_idx = attnum - 1;
+    if (tupdesc_idx < 0 || tupdesc_idx >= static_cast<int32_t>(tupdesc_to_logical_.size())) {
+        return -1;
+    }
+    return tupdesc_to_logical_[tupdesc_idx];
+}
+
 inline bool table_data::is_column_indexed(AttrNumber attr_num) const noexcept
 {
     return pg::pg_index::get_oid(table_name_, get_atttypename(attr_num)) != InvalidOid;
@@ -318,13 +333,14 @@ inline void table_data::add_insert_slots(int32_t nslots, TupleTableSlot** slots)
     for (int32_t i = 0; i < num_columns(); ++i) {
         auto& column_values = insert_rows_[get_atttypename(i)];
         const auto dt = get_column_view(i)->dtype();
+        const auto slot_pos = get_tupdesc_index(i);
         for (int32_t k = 0; k < nslots; ++k) {
             auto slot = slots[k];
             nd::array val;
-            if (slot->tts_isnull[i]) {
+            if (slot->tts_isnull[slot_pos]) {
                 val = (nd::dtype_is_numeric(dt) ? nd::adapt(0) : nd::none(dt, 0));
             } else {
-                val = pg::utils::datum_to_nd(slot->tts_values[i], get_base_atttypid(i), get_atttypmod(i));
+                val = pg::utils::datum_to_nd(slot->tts_values[slot_pos], get_base_atttypid(i), get_atttypmod(i));
             }
             column_values.push_back(std::move(val));
         }

@@ -77,7 +77,10 @@ void analyze_plan(PlannedStmt* plan)
             if (attnum <= 0) { // Only positive attribute numbers are real columns
                 continue;
             }
-            auto col_idx = static_cast<int32_t>(attnum - 1);
+            auto col_idx = table_data->logical_index_for_attnum(attnum);
+            if (col_idx < 0) {
+                continue; // Dropped column or out of range
+            }
             if (!table_data->is_column_requested(col_idx)) {
                 table_data->set_column_requested(col_idx, true);
                 if (!table_data->column_has_streamer(col_idx) && table_data->can_stream_column(col_idx)) {

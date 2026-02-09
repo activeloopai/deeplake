@@ -158,19 +158,23 @@ inline std::pair<Datum, bool> table_scan::get_datum(int32_t column_number, int64
 inline void table_scan::convert_nd_to_pg(int64_t row_number, Datum* values, bool* nulls) const noexcept
 {
     for (auto col : null_columns_) {
-        nulls[col] = true;
+        const auto slot_pos = table_data_.get_tupdesc_index(col);
+        nulls[slot_pos] = true;
     }
     for (auto col : scored_columns_) {
-        nulls[col] = false;
+        const auto slot_pos = table_data_.get_tupdesc_index(col);
+        nulls[slot_pos] = false;
     }
     for (auto col : special_columns_) {
-        values[col] = pg::utils::make_special_datum(table_id_, row_number, col, table_data_.get_base_atttypid(col));
-        nulls[col] = false;
+        const auto slot_pos = table_data_.get_tupdesc_index(col);
+        values[slot_pos] = pg::utils::make_special_datum(table_id_, row_number, col, table_data_.get_base_atttypid(col));
+        nulls[slot_pos] = false;
     }
     for (auto col : process_columns_) {
+        const auto slot_pos = table_data_.get_tupdesc_index(col);
         auto [datum, is_null] = get_datum(col, row_number);
-        values[col] = datum;
-        nulls[col] = is_null;
+        values[slot_pos] = datum;
+        nulls[slot_pos] = is_null;
     }
 }
 
