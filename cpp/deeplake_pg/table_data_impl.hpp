@@ -590,7 +590,7 @@ inline void table_data::streamer_info::warm_all_streamers()
     first_batch_cache_.resize(streamers.size());
 
     icm::vector<size_t> indices;
-    icm::vector<async::promise<deeplake_core::batch>> promises;
+    icm::vector<async::promise<nd::array>> promises;
 
     for (size_t i = 0; i < streamers.size(); ++i) {
         if (streamers[i]) {
@@ -607,8 +607,7 @@ inline void table_data::streamer_info::warm_all_streamers()
         auto results = async::combine(std::move(promises)).get_future().get();
 
         for (size_t j = 0; j < indices.size(); ++j) {
-            auto& batch = results[j];
-            first_batch_cache_[indices[j]] = batch.columns()[0].array();
+            first_batch_cache_[indices[j]] = std::move(results[j]);
         }
     } catch (const std::exception& e) {
         elog(WARNING, "warm_all_streamers failed: %s", e.what());

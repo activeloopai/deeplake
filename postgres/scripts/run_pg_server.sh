@@ -8,13 +8,14 @@ SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 POSTGRES_SOURCE="$SCRIPT_PATH/../../cpp/.ext/postgres-REL_${MAJOR_VERSION}_${MINOR_VERSION}"
 POSTGRES_INSTALL="$POSTGRES_SOURCE/install"
 POSTGRES_DATA="$POSTGRES_SOURCE/data"
+RUN_DIR="$SCRIPT_PATH/../run"
 if [[ "$(uname)" == "Darwin" ]]; then
     DYNAMIC_LIB_SUFFIX=".dylib"
 else
     DYNAMIC_LIB_SUFFIX=".so"
 fi
-LOG_DIR="logs"
-RES_DIR="results"
+LOG_DIR="$RUN_DIR/logs"
+RES_DIR="$RUN_DIR/results"
 TEST_LOGFILE="$LOG_DIR/test_$(date +%Y%m%d_%H%M%S).log"
 
 if [ -d "$LOG_DIR" ]; then
@@ -104,5 +105,6 @@ fi
 # Stop PostgreSQL and restart in foreground
 stop_postgres
 
-echo "Starting PostgreSQL in foreground..."
-exec "$POSTGRES_INSTALL/bin/postgres" -D "$POSTGRES_DATA"
+echo "Starting PostgreSQL in daemon mode..."
+"$POSTGRES_INSTALL/bin/pg_ctl" -D "$POSTGRES_DATA" -l "$TEST_LOGFILE" -t 120 -w start
+echo "PostgreSQL started. Log file: $TEST_LOGFILE"
