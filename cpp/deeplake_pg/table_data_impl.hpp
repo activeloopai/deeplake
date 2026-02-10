@@ -471,7 +471,7 @@ inline bool table_data::flush_inserts(bool full_flush)
                 p.get_future().get();
             }
         }
-    } catch (const base::exception& e) {
+    } catch (const std::exception& e) {
         elog(WARNING, "Failed to flush inserts: %s", e.what());
         reset_insert_rows();
         return false;
@@ -492,7 +492,7 @@ inline bool table_data::flush_deletes()
     try {
         streamers_.reset();
         get_dataset()->delete_rows(delete_rows_);
-    } catch (const base::exception& e) {
+    } catch (const std::exception& e) {
         elog(WARNING, "Failed to flush deletes: %s", e.what());
         delete_rows_.clear();
         return false;
@@ -521,7 +521,7 @@ inline bool table_data::flush_updates()
             update_promises.emplace_back(get_dataset()->update_row(row_number, column_name, new_value));
         }
         async::combine(std::move(update_promises)).get_future().get();
-    } catch (const base::exception& e) {
+    } catch (const std::exception& e) {
         elog(WARNING, "Failed to flush updates: %s", e.what());
         update_rows_.clear();
         return false;
