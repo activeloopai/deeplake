@@ -118,6 +118,19 @@ inline void table_data::open_dataset(bool create)
         ASSERT(dataset_ != nullptr);
         num_total_rows_ = dataset_->num_rows();
 
+        // Validate row count doesn't exceed BlockNumber limits for TID conversion
+        // With TUPLES_PER_BLOCK=256 and BlockNumber=uint32_t, max is ~1.1 trillion rows
+        constexpr int64_t MAX_SUPPORTED_ROWS =
+            static_cast<int64_t>(UINT32_MAX) * static_cast<int64_t>(pg::DEEPLAKE_TUPLES_PER_BLOCK);
+        if (num_total_rows_ > MAX_SUPPORTED_ROWS) {
+            elog(WARNING,
+                 "Table '%s' has %ld rows, exceeding max supported %ld for TID conversion. "
+                 "Consider partitioning or sharding.",
+                 table_name_.c_str(),
+                 num_total_rows_,
+                 MAX_SUPPORTED_ROWS);
+        }
+
         // Enable logging if GUC parameter is set
         if (pg::enable_dataset_logging && dataset_ && !dataset_->is_logging_enabled()) {
             dataset_->start_logging();
@@ -645,6 +658,48 @@ inline std::string_view table_data::streamer_info::value(int32_t column_number, 
     }
 
     return batch.holder_.data(static_cast<size_t>(row_in_batch));
+}
+
+inline std::pair<impl::string_stream_array_holder*, int64_t>
+table_data::streamer_info::get_string_batch(int32_t column_number, int64_t row_number)
+{
+    const int64_t batch_index = row_number >> batch_size_log2_;
+    const int64_t row_in_batch = row_number & batch_mask_;
+
+    auto& col_data = column_to_batches[column_number];
+    auto& batch = col_data.batches[batch_index];
+    if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
+        std::lock_guard lock(col_data.mutex_);
+        for (int64_t i = 0; i <= batch_index; ++i) {
+            if (!col_data.batches[i].initialized_.load(std::memory_order_relaxed)) {
+                col_data.batches[i].owner_ = streamers[column_number]->next_batch();
+                col_data.batches[i].holder_ = impl::string_stream_array_holder(col_data.batches[i].owner_);
+                col_data.batches[i].initialized_.store(true, std::memory_order_release);
+            }
+        }
+    }
+
+    return {&batch.holder_, row_in_batch};
+}
+
+inline nd::array* table_data::streamer_info::get_batch_owner(int32_t column_number, int64_t row_number)
+{
+    const int64_t batch_index = row_number >> batch_size_log2_;
+
+    auto& col_data = column_to_batches[column_number];
+    auto& batch = col_data.batches[batch_index];
+    if (!batch.initialized_.load(std::memory_order_acquire)) [[unlikely]] {
+        std::lock_guard lock(col_data.mutex_);
+        for (int64_t i = 0; i <= batch_index; ++i) {
+            if (!col_data.batches[i].initialized_.load(std::memory_order_relaxed)) {
+                col_data.batches[i].owner_ = streamers[column_number]->next_batch();
+                col_data.batches[i].holder_ = impl::string_stream_array_holder(col_data.batches[i].owner_);
+                col_data.batches[i].initialized_.store(true, std::memory_order_release);
+            }
+        }
+    }
+
+    return &batch.owner_;
 }
 
 inline bool table_data::flush()

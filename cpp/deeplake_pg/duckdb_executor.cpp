@@ -17,6 +17,8 @@
 #include "table_storage.hpp"
 #include "utils.hpp"
 
+#include <base/system_report.hpp>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -60,6 +62,41 @@ struct duckdb_connections {
     }
 };
 
+/**
+ * @brief Creates DuckDB database and connection with memory management configuration
+ *
+ * DuckDB Memory Management:
+ * -------------------------
+ * This function configures DuckDB's memory_limit and temp_directory settings to prevent
+ * out-of-memory crashes during large operations such as hash joins (e.g., TPC-H Q13 at SF100+).
+ *
+ * Memory Limit Configuration:
+ * - Controlled by pg_deeplake.duckdb_memory_limit_mb GUC parameter (default: 0 = auto-detect)
+ * - Auto-detection uses 80% of system memory with 256MB minimum floor
+ * - When memory limit is exceeded, DuckDB spills intermediate results to disk
+ * - Memory values use MB units consistently throughout the codebase
+ *
+ * Disk Spilling:
+ * - Controlled by pg_deeplake.duckdb_temp_directory GUC parameter (default: empty = DuckDB default)
+ * - temp_directory enables disk spilling when memory_limit is exceeded
+ * - Requires sufficient disk space for large operations (recommend SSD with adequate capacity)
+ * - Temporary files are automatically cleaned up after query completion
+ *
+ * Container Considerations:
+ * - IMPORTANT: For containerized environments with cgroup limits, base::system_report::total_memory()
+ *   may return host memory instead of container limits
+ * - Set pg_deeplake.duckdb_memory_limit_mb explicitly in such environments to avoid OOM
+ * - Example: SET pg_deeplake.duckdb_memory_limit_mb = 4096; -- 4GB limit for container
+ *
+ * Tuning Guidelines:
+ * - For dedicated database servers: auto-detection (80% system memory) is safe
+ * - For shared/containerized environments: set explicit limit based on available memory
+ * - For OLTP workloads: smaller limit with faster spilling (e.g., 25% of memory)
+ * - For OLAP workloads: larger limit for better performance (e.g., 80% of memory)
+ *
+ * @return Unique pointer to duckdb_connections structure containing both C++ and C API connections
+ * @throws std::exception if DuckDB connection creation or configuration fails
+ */
 std::unique_ptr<duckdb_connections> create_connections()
 {
     try {
@@ -70,6 +107,49 @@ std::unique_ptr<duckdb_connections> create_connections()
         config.options.allow_unsigned_extensions = true;
         conns->db_cpp = std::make_unique<duckdb::DuckDB>(":memory:", &config);
         conns->con_cpp = std::make_unique<duckdb::Connection>(*(conns->db_cpp));
+
+        // Configure DuckDB memory limit and temp directory for disk spilling
+        // This prevents OOM crashes during large operations like JOINs (e.g., TPC-H Q13 at SF100+)
+        uint64_t mem_limit_mb = 0;
+        if (pg::duckdb_memory_limit_mb > 0) {
+            // Use explicit configuration
+            mem_limit_mb = static_cast<uint64_t>(pg::duckdb_memory_limit_mb);
+        } else {
+            // Auto-detect: use 80% of system memory with 256MB minimum
+            // Note: For containerized environments with cgroup limits, base::system_report::total_memory()
+            // may return host memory. Set pg_deeplake.duckdb_memory_limit_mb explicitly in containers.
+            mem_limit_mb = static_cast<uint64_t>(base::system_report::total_memory() * 0.8 / (1024ULL * 1024ULL));
+            if (mem_limit_mb < 256) {
+                mem_limit_mb = 256;
+            }
+        }
+
+        // Set memory_limit (DuckDB uses MB units)
+        auto mem_result = conns->con_cpp->Query(fmt::format("SET memory_limit='{}MB'", mem_limit_mb));
+        if (!mem_result || mem_result->HasError()) {
+            elog(WARNING, "Failed to set DuckDB memory_limit: %s",
+                 mem_result ? mem_result->GetError().c_str() : "null result");
+        }
+
+        // Set temp_directory if configured (enables disk spilling)
+        if (pg::duckdb_temp_directory != nullptr && std::strlen(pg::duckdb_temp_directory) > 0) {
+            auto temp_result = conns->con_cpp->Query(fmt::format("SET temp_directory='{}'", pg::duckdb_temp_directory));
+            if (!temp_result || temp_result->HasError()) {
+                elog(WARNING, "Failed to set DuckDB temp_directory: %s",
+                     temp_result ? temp_result->GetError().c_str() : "null result");
+            }
+        }
+
+        // Verify and log the applied settings at INFO level for operational visibility
+        auto verify_mem = conns->con_cpp->Query("SELECT current_setting('memory_limit')");
+        if (verify_mem && !verify_mem->HasError() && verify_mem->RowCount() > 0) {
+            elog(INFO, "DuckDB memory_limit: %s", verify_mem->GetValue(0, 0).ToString().c_str());
+        }
+
+        auto verify_temp = conns->con_cpp->Query("SELECT current_setting('temp_directory')");
+        if (verify_temp && !verify_temp->HasError() && verify_temp->RowCount() > 0) {
+            elog(INFO, "DuckDB temp_directory: %s", verify_temp->GetValue(0, 0).ToString().c_str());
+        }
 
         // Register the deeplake_scan table function for zero-copy access
         pg::register_deeplake_scan_function(*(conns->con_cpp));
