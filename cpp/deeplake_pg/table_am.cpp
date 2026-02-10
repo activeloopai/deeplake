@@ -388,8 +388,13 @@ double deeplake_index_build_range_scan(Relation heap_rel,
 
     // Warm all streamers in parallel for cold run optimization
     if (pg::eager_batch_prefetch) {
-        td.get_streamers().warm_all_streamers();
-        base::log_info(base::log_channel::generic, "Eager batch prefetch completed for index_build_range_scan");
+        try {
+            td.get_streamers().warm_all_streamers();
+        } catch (const std::exception& e) {
+            elog(WARNING, "Eager batch prefetch failed during index_build_range_scan: %s", e.what());
+        } catch (...) {
+            elog(WARNING, "Eager batch prefetch failed during index_build_range_scan with unknown exception");
+        }
     }
 
     std::vector<Datum> values(nkeys, 0);
@@ -749,8 +754,13 @@ TableScanDesc deeplake_table_am_routine::scan_begin(Relation relation,
 
     // Warm all streamers in parallel for cold run optimization
     if (pg::eager_batch_prefetch) {
-        td.get_streamers().warm_all_streamers();
-        base::log_info(base::log_channel::generic, "Eager batch prefetch completed for scan_begin");
+        try {
+            td.get_streamers().warm_all_streamers();
+        } catch (const std::exception& e) {
+            elog(WARNING, "Eager batch prefetch failed during scan_begin: %s", e.what());
+        } catch (...) {
+            elog(WARNING, "Eager batch prefetch failed during scan_begin with unknown exception");
+        }
     }
 
     if (nkeys > 0) {

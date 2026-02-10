@@ -89,7 +89,13 @@ void analyze_plan(PlannedStmt* plan)
         // Warm first batches for all streamers in parallel for cold run optimization.
         // This blocks until all first batches are downloaded but overlaps I/O across columns.
         if (pg::eager_batch_prefetch) {
-            table_data->get_streamers().warm_all_streamers();
+            try {
+                table_data->get_streamers().warm_all_streamers();
+            } catch (const std::exception& e) {
+                elog(WARNING, "Eager batch prefetch failed during analyze_plan: %s", e.what());
+            } catch (...) {
+                elog(WARNING, "Eager batch prefetch failed during analyze_plan with unknown exception");
+            }
         }
     }
     pg::query_info::current().set_all_tables_are_deeplake(all_tables_are_deeplake);

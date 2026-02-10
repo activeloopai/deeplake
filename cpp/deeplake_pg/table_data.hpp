@@ -118,16 +118,11 @@ public:
         {
             std::mutex mutex_;
             std::vector<batch_data> batches;
-            /// Pre-fetched raw batches from parallel prefetch. Protected by mutex_.
-            /// warm_all_streamers() drains the streamer into this deque;
-            /// value_ptr/get_sample/value consume from the front.
-            std::deque<nd::array> prefetched_raw_batches_;
 
             column_data() = default;
             column_data(const column_data&) = delete;
             column_data(column_data&& other) noexcept
                 : batches(std::move(other.batches))
-                , prefetched_raw_batches_(std::move(other.prefetched_raw_batches_))
             {
             }
             column_data& operator=(const column_data&) = delete;
@@ -136,11 +131,15 @@ public:
 
         std::vector<column_data> column_to_batches;
         std::vector<std::unique_ptr<bifrost::column_streamer>> streamers;
+        std::vector<std::optional<nd::array>> first_batch_cache_;
+        bool warmed_ = false;
 
         inline void reset() noexcept
         {
             column_to_batches.clear();
             streamers.clear();
+            first_batch_cache_.clear();
+            warmed_ = false;
         }
 
         /**

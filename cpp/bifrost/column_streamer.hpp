@@ -35,11 +35,9 @@ public:
         return b.columns()[0].array();
     }
 
-    async::promise<nd::array> next_batch_async()
+    async::promise<deeplake_core::batch> next_batch_async()
     {
-        return prefetcher_.next_batch_async().then([](deeplake_core::batch b) {
-            return b.columns()[0].array();
-        });
+        return prefetcher_.next_batch_async();
     }
 
     /**

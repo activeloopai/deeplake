@@ -95,8 +95,14 @@ else
     sed -i 's/^\(host.*all.*all.*::1\/128\s*\)trust/\1scram-sha-256/' "$POSTGRES_DATA/pg_hba.conf"
 fi
 
-# Start PostgreSQL (extended timeout for shared_preload_libraries loading)
+# Start PostgreSQL temporarily to set password
 "$POSTGRES_INSTALL/bin/pg_ctl" -D "$POSTGRES_DATA" -l "$TEST_LOGFILE" -t 120 start
 
 # Set postgres password (matches Docker POSTGRES_PASSWORD=password)
 "$POSTGRES_INSTALL/bin/psql" -U postgres -c "ALTER USER postgres PASSWORD 'password';"
+
+# Stop PostgreSQL and restart in foreground
+stop_postgres
+
+echo "Starting PostgreSQL in foreground..."
+exec "$POSTGRES_INSTALL/bin/postgres" -D "$POSTGRES_DATA"
