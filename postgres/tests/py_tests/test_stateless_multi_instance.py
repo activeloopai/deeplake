@@ -213,7 +213,6 @@ async def primary_conn(pg_server):
         # Setup: Clean extension state
         await conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
         await conn.execute("CREATE EXTENSION pg_deeplake")
-        await conn.execute("SET deeplake.stateless_enabled = true")
         yield conn
     finally:
         await conn.close()
@@ -323,7 +322,7 @@ async def test_stateless_data_sync_between_instances(
     try:
         # Setup extension (create if not exists for session-scoped instance reuse)
         await conn_b.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
-        await conn_b.execute("SET deeplake.stateless_enabled = true")
+
 
         # Setting root_path should automatically discover and register tables from catalog
         await conn_b.execute(f"SET deeplake.root_path = '{shared_root_path}'")
@@ -412,7 +411,7 @@ async def test_stateless_concurrent_writes(
     conn_b = await second_instance.connect()
     try:
         await conn_b.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
-        await conn_b.execute("SET deeplake.stateless_enabled = true")
+
 
         # Setting root_path should auto-discover tables from deeplake catalog
         await conn_b.execute(f"SET deeplake.root_path = '{shared_root_path}'")
@@ -515,7 +514,7 @@ async def test_stateless_multiple_tables_discovery(
     conn_b = await second_instance.connect()
     try:
         await conn_b.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
-        await conn_b.execute("SET deeplake.stateless_enabled = true")
+
 
         # Setting root_path should auto-discover ALL tables from deeplake catalog
         await conn_b.execute(f"SET deeplake.root_path = '{shared_root_path}'")
@@ -683,7 +682,7 @@ async def test_stateless_varchar1_catalog_sync(
     conn_b = await second_instance.connect()
     try:
         await conn_b.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
-        await conn_b.execute("SET deeplake.stateless_enabled = true")
+
         await conn_b.execute(f"SET deeplake.root_path = '{shared_root_path}'")
 
         # Verify table was auto-discovered
