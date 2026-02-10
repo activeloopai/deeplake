@@ -9,6 +9,7 @@ extern "C" {
 #include <access/heapam.h>
 #include <access/htup_details.h>
 #include <access/parallel.h>
+#include <access/xact.h>
 #include <catalog/namespace.h>
 #include <catalog/pg_type.h>
 #include <executor/spi.h>
@@ -344,28 +345,15 @@ void table_storage::load_table_metadata()
                         continue;
                     }
 
-                    // Not in DDL context (e.g., SET root_path) - safe to auto-create.
-                    // Use catalog_only_guard to skip S3 dataset operations in create_table() —
-                    // the dataset already exists on S3, we just need the pg_class entry.
-                    catalog_only_guard co_guard;
-                    pg::utils::memory_context_switcher context_switcher;
-                    pg::utils::spi_connector connector;
-                    bool pushed_snapshot = false;
-                    if (!ActiveSnapshotSet()) {
-                        PushActiveSnapshot(GetTransactionSnapshot());
-                        pushed_snapshot = true;
-                    }
+                    // Build CREATE TABLE IF NOT EXISTS from catalog metadata.
+                    // Wrap in a subtransaction so that if another backend concurrently
+                    // creates the same table (race on composite type), the error is
+                    // caught and we continue instead of aborting the session.
                     const char* qschema = quote_identifier(meta.schema_name.c_str());
+                    const char* qtable = quote_identifier(meta.table_name.c_str());
 
                     StringInfoData buf;
                     initStringInfo(&buf);
-                    appendStringInfo(&buf, "CREATE SCHEMA IF NOT EXISTS %s", qschema);
-                    SPI_execute(buf.data, false, 0);
-
-                    // Build CREATE TABLE statement directly from catalog metadata
-                    // This avoids calling the SQL function create_deeplake_table which may not exist
-                    resetStringInfo(&buf);
-                    const char* qtable = quote_identifier(meta.table_name.c_str());
                     appendStringInfo(&buf, "CREATE TABLE IF NOT EXISTS %s.%s (", qschema, qtable);
 
                     bool first = true;
@@ -376,19 +364,49 @@ void table_storage::load_table_metadata()
                         first = false;
                         appendStringInfo(&buf, "%s %s", quote_identifier(col.column_name.c_str()), col.pg_type.c_str());
                     }
-
-                    // Table path is now derived from deeplake.root_path GUC set at database level
-                    // Path: {root_path}/{schema}/{table_name}
                     appendStringInfo(&buf, ") USING deeplake");
 
-                    if (SPI_execute(buf.data, false, 0) != SPI_OK_UTILITY) {
-                        elog(WARNING, "Failed to auto-create deeplake table %s from catalog", qualified_name.c_str());
-                    }
-                    pfree(buf.data);
+                    MemoryContext saved_context = CurrentMemoryContext;
+                    ResourceOwner saved_owner = CurrentResourceOwner;
 
-                    if (pushed_snapshot) {
-                        PopActiveSnapshot();
+                    BeginInternalSubTransaction(NULL);
+                    PG_TRY();
+                    {
+                        catalog_only_guard co_guard;
+                        pg::utils::spi_connector connector;
+                        bool pushed_snapshot = false;
+                        if (!ActiveSnapshotSet()) {
+                            PushActiveSnapshot(GetTransactionSnapshot());
+                            pushed_snapshot = true;
+                        }
+
+                        // Create schema if needed
+                        StringInfoData schema_buf;
+                        initStringInfo(&schema_buf);
+                        appendStringInfo(&schema_buf, "CREATE SCHEMA IF NOT EXISTS %s", qschema);
+                        SPI_execute(schema_buf.data, false, 0);
+                        pfree(schema_buf.data);
+
+                        SPI_execute(buf.data, false, 0);
+
+                        if (pushed_snapshot) {
+                            PopActiveSnapshot();
+                        }
+
+                        ReleaseCurrentSubTransaction();
                     }
+                    PG_CATCH();
+                    {
+                        // Another backend created this table concurrently — not an error.
+                        MemoryContextSwitchTo(saved_context);
+                        CurrentResourceOwner = saved_owner;
+                        RollbackAndReleaseCurrentSubTransaction();
+                        FlushErrorState();
+                        elog(DEBUG1, "Concurrent table creation for %s, skipping", qualified_name.c_str());
+                    }
+                    PG_END_TRY();
+
+                    pfree(buf.data);
 
                     relid = RangeVarGetRelid(rel, NoLock, true);
                 }
