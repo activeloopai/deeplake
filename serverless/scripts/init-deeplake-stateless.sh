@@ -5,23 +5,20 @@
 #
 # Configures pg_deeplake for stateless S3 mode via ALTER SYSTEM so the
 # settings persist across restarts without needing SET on every connection.
+#
+# NOTE: Credentials (deeplake.creds) are NOT set here. They are written to
+# /dev/shm/deeplake-creds.conf by deeplake-entrypoint.sh on every container
+# start, and included via include_if_exists in postgresql-overrides.conf.
+# This ensures credentials never touch persistent storage.
 
 set -euo pipefail
 
 echo "=== pg_deeplake stateless init ==="
 
-# Build credentials JSON from environment
-CREDS_JSON=$(cat <<ENDJSON
-{"aws_access_key_id":"${AWS_ACCESS_KEY_ID}","aws_secret_access_key":"${AWS_SECRET_ACCESS_KEY}","session_token":"${AWS_SESSION_TOKEN:-}"}
-ENDJSON
-)
-CREDS_JSON_ESCAPED=${CREDS_JSON//\'/\'\'}
-
-# ALTER SYSTEM writes to postgresql.auto.conf — survives restarts
+# Non-sensitive settings only — persist across restarts via postgresql.auto.conf
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
     ALTER SYSTEM SET deeplake.stateless_enabled = true;
     ALTER SYSTEM SET deeplake.root_path = '${DEEPLAKE_ROOT_PATH}';
-    ALTER SYSTEM SET deeplake.creds = '${CREDS_JSON_ESCAPED}';
     ALTER SYSTEM SET deeplake.sync_interval_ms = ${DEEPLAKE_SYNC_INTERVAL_MS:-1000};
     ALTER SYSTEM SET pg_deeplake.memory_limit_mb = ${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0};
 EOSQL
@@ -45,3 +42,4 @@ echo "  stateless_enabled = true"
 echo "  root_path = ${DEEPLAKE_ROOT_PATH}"
 echo "  sync_interval_ms = ${DEEPLAKE_SYNC_INTERVAL_MS:-1000}"
 echo "  memory_limit_mb = ${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0}"
+echo "  credentials = /dev/shm/deeplake-creds.conf (tmpfs, written by entrypoint)"

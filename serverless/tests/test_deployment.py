@@ -22,6 +22,7 @@ Upstream pg_deeplake bugs affecting tests (tracked for fix):
 
 import os
 import subprocess
+import sys
 import time
 import urllib.error
 import uuid
@@ -225,14 +226,14 @@ class Test02StatelessMode:
             )
 
     def test_root_path_configured(self):
-        """deeplake.root_path should be set to an S3 path on all instances."""
+        """deeplake.root_path should be set (S3 or local path) on all instances."""
         for inst in INSTANCES:
             rows = query_with_retry(
                 inst["host"], inst["port"], "SHOW deeplake.root_path"
             )
             val = rows[0][0]
-            assert val.startswith("s3://"), (
-                f"{inst['name']}: root_path = {val}, expected s3:// prefix"
+            assert val.startswith("s3://") or val.startswith("/"), (
+                f"{inst['name']}: root_path = {val}, expected s3:// or absolute path"
             )
 
     def test_same_root_path_all_instances(self):
@@ -388,6 +389,11 @@ class Test05DataVisibility:
             )
 
 
+MANAGE_PY = str(_SERVERLESS_DIR / "scripts" / "manage.py")
+
+SCALE_ZERO_TIMEOUT = _int_env("SCALE_ZERO_TIMEOUT_SECONDS", 60 if FAST_TESTS else 120)
+
+
 class Test06Failover:
     """Test HAProxy failover behavior when an instance goes down.
 
@@ -440,3 +446,134 @@ class Test06Failover:
             assert wait_for_instance(
                 last["host"], last["port"], timeout=90
             ), f"{last['name']} did not recover after restart"
+
+
+class Test07ScaleToZero:
+    """Test scale-to-zero and scale-back-up via manage.py."""
+
+    @pytest.mark.skipif(
+        os.environ.get("SKIP_SCALE_ZERO") == "1",
+        reason="Scale-to-zero test disabled",
+    )
+    def test_scale_to_zero_and_back(self):
+        """Scale to 0, verify HAProxy stays up, scale to 1, verify query works."""
+        original_n = _read_instance_count()
+
+        # Scale to 0
+        result = subprocess.run(
+            [sys.executable, MANAGE_PY, "scale", "0"],
+            capture_output=True, text=True, timeout=120,
+        )
+        assert result.returncode == 0, f"scale 0 failed: {result.stderr}"
+
+        try:
+            # HAProxy should still be listening (connections queue)
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)
+            err = sock.connect_ex((HAPROXY_HOST, HAPROXY_PORT))
+            sock.close()
+            assert err == 0, "HAProxy not accepting connections after scale-to-zero"
+
+            # Scale back to 1
+            result = subprocess.run(
+                [sys.executable, MANAGE_PY, "scale", "1"],
+                capture_output=True, text=True, timeout=SCALE_ZERO_TIMEOUT,
+            )
+            assert result.returncode == 0, f"scale 1 failed: {result.stderr}"
+
+            # Wait for instance to be ready
+            assert wait_for_instance(
+                "localhost", 5433, timeout=SCALE_ZERO_TIMEOUT
+            ), "pg-deeplake-1 did not become healthy after scale-up"
+
+            # Query through HAProxy should succeed
+            rows = query_with_retry(HAPROXY_HOST, HAPROXY_PORT, "SELECT 1")
+            assert rows[0][0] == 1
+        finally:
+            # Restore original instance count
+            if _read_instance_count() != original_n:
+                subprocess.run(
+                    [sys.executable, MANAGE_PY, "scale", str(original_n)],
+                    capture_output=True, text=True, timeout=SCALE_ZERO_TIMEOUT,
+                )
+                for inst in get_instances():
+                    wait_for_instance(inst["host"], inst["port"], timeout=90)
+
+
+class Test08IdleWatch:
+    """Smoke test for the idle-watch auto-scaling monitor."""
+
+    @pytest.mark.skipif(
+        os.environ.get("SKIP_IDLE_WATCH") == "1",
+        reason="Idle-watch test disabled",
+    )
+    def test_idle_watch_scales_down_and_wakes(self):
+        """Start idle-watch with short timeout, verify scale-down then wake."""
+        original_n = _read_instance_count()
+        if original_n == 0:
+            # Need at least 1 instance running to test idle scale-down
+            subprocess.run(
+                [sys.executable, MANAGE_PY, "scale", "1"],
+                capture_output=True, text=True, timeout=120,
+            )
+            wait_for_instance("localhost", 5433, timeout=90)
+
+        env = os.environ.copy()
+        env["IDLE_TIMEOUT_SECONDS"] = "10"
+        env["IDLE_POLL_INTERVAL"] = "2"
+
+        # Start idle-watch in background
+        proc = subprocess.Popen(
+            [sys.executable, MANAGE_PY, "idle-watch"],
+            env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        )
+
+        try:
+            # Wait for idle timeout + poll cycles + scale-down time
+            time.sleep(25)
+
+            # Instances should have scaled to 0
+            assert _read_instance_count() == 0, (
+                "Expected 0 instances after idle timeout"
+            )
+
+            # Now make a connection to trigger wake-on-connect.
+            # HAProxy will queue it; idle-watch should detect and scale up.
+            # We try connecting in a subprocess so it doesn't block the test.
+            connect_proc = subprocess.Popen(
+                ["psql", "-h", HAPROXY_HOST, "-p", str(HAPROXY_PORT),
+                 "-U", PG_USER, "-d", PG_DB, "-c", "SELECT 1"],
+                env={**env, "PGPASSWORD": PG_PASSWORD},
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            )
+
+            # Wait for idle-watch to detect the queued connection and scale up
+            deadline = time.time() + SCALE_ZERO_TIMEOUT
+            scaled_up = False
+            while time.time() < deadline:
+                if _read_instance_count() > 0:
+                    scaled_up = True
+                    break
+                time.sleep(2)
+
+            assert scaled_up, "idle-watch did not scale up after queued connection"
+
+            # Wait for instance health, then verify query
+            wait_for_instance("localhost", 5433, timeout=SCALE_ZERO_TIMEOUT)
+            connect_proc.wait(timeout=SCALE_ZERO_TIMEOUT)
+
+            rows = query_with_retry(HAPROXY_HOST, HAPROXY_PORT, "SELECT 1")
+            assert rows[0][0] == 1
+        finally:
+            proc.terminate()
+            proc.wait(timeout=10)
+
+            # Restore original instance count
+            if _read_instance_count() != original_n:
+                subprocess.run(
+                    [sys.executable, MANAGE_PY, "scale", str(max(original_n, 1))],
+                    capture_output=True, text=True, timeout=SCALE_ZERO_TIMEOUT,
+                )
+                for inst in get_instances():
+                    wait_for_instance(inst["host"], inst["port"], timeout=90)

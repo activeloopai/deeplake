@@ -1,0 +1,15 @@
+{{- $replicas := int (ternary .Values.autoscaling.maxReplicas .Values.replicaCount .Values.autoscaling.enabled) -}}
+{{- if gt $replicas 1 }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "pg-deeplake.fullname" . }}
+  labels:
+    {{- include "pg-deeplake.labels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      {{- include "pg-deeplake.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: database
+{{- end }}

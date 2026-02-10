@@ -1,0 +1,33 @@
+{{- if .Values.haproxy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "pg-deeplake.fullname" . }}-haproxy-metrics
+  labels:
+    {{- include "pg-deeplake.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "pg-deeplake.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: load-balancer
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow PostgreSQL traffic from anywhere
+    - ports:
+        - port: 5432
+          protocol: TCP
+    # Restrict metrics/stats port to monitoring namespace only
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-prometheus-stack
+        # Also allow same-namespace access (for KEDA)
+        - podSelector: {}
+      ports:
+        - port: 8404
+          protocol: TCP
+{{- end }}

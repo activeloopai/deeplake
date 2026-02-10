@@ -1,0 +1,98 @@
+{{- if .Values.monitoring.alerts.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "pg-deeplake.fullname" . }}
+  labels:
+    {{- include "pg-deeplake.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.alerts.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: pg-deeplake.rules
+      rules:
+        # HAProxy: connections queued for too long (backends may be stuck)
+        - alert: PgDeeplakeHighQueueDepth
+          expr: >-
+            sum(haproxy_backend_current_queue{proxy="pg_backends"}) > {{ .Values.monitoring.alerts.queueDepthThreshold | default 10 }}
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "HAProxy connection queue depth is high"
+            description: >-
+              {{ "{{" }} $value {{ "}}" }} connections are queued at HAProxy
+              waiting for pg-deeplake backends. This may indicate slow queries,
+              insufficient replicas, or backends failing health checks.
+
+        # HAProxy: all backends down (complete outage)
+        - alert: PgDeeplakeAllBackendsDown
+          expr: >-
+            haproxy_backend_active_servers{proxy="pg_backends"} == 0
+            and haproxy_backend_current_queue{proxy="pg_backends"} > 0
+          for: 30s
+          labels:
+            severity: critical
+          annotations:
+            summary: "All pg-deeplake backends are down"
+            description: >-
+              No healthy pg-deeplake instances available and connections are
+              queuing. If KEDA/idle-watch is active, scale-up should trigger
+              automatically. If this alert persists, investigate pod health.
+
+        # Pod: OOM killed
+        - alert: PgDeeplakeOOMKilled
+          expr: >-
+            increase(kube_pod_container_status_restarts_total{container="pg-deeplake"}[5m]) > 0
+            and kube_pod_container_status_last_terminated_reason{container="pg-deeplake",reason="OOMKilled"} == 1
+          for: 0s
+          labels:
+            severity: critical
+          annotations:
+            summary: "pg-deeplake container was OOM killed"
+            description: >-
+              Container {{ "{{" }} $labels.pod {{ "}}" }} was killed due to
+              out-of-memory. Increase resources.limits.memory or
+              PG_DEEPLAKE_MEMORY_LIMIT_MB.
+
+        # Pod: not ready for extended period
+        - alert: PgDeeplakePodNotReady
+          expr: >-
+            kube_pod_status_ready{condition="true",pod=~".*pg-deeplake.*"} == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "pg-deeplake pod not ready"
+            description: >-
+              Pod {{ "{{" }} $labels.pod {{ "}}" }} has been not-ready for 5
+              minutes. Check health-check.sh output and pod logs.
+
+        # HAProxy: high connection count approaching limit
+        - alert: PgDeeplakeHighConnections
+          expr: >-
+            sum(haproxy_backend_current_sessions{proxy="pg_backends"}) > {{ .Values.monitoring.alerts.highConnectionsThreshold | default 150 }}
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High connection count on pg-deeplake"
+            description: >-
+              {{ "{{" }} $value {{ "}}" }} active connections across pg-deeplake
+              backends (threshold: {{ .Values.monitoring.alerts.highConnectionsThreshold | default 150 }}).
+              Consider scaling up or reviewing connection pooling.
+
+        # HAProxy: backend response time too high
+        - alert: PgDeeplakeSlowBackend
+          expr: >-
+            haproxy_backend_response_time_average_seconds{proxy="pg_backends"} > {{ .Values.monitoring.alerts.slowBackendThresholdSeconds | default 5 }}
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "pg-deeplake backend response time is high"
+            description: >-
+              Average backend response time is {{ "{{" }} $value {{ "}}" }}s.
+              Investigate slow queries or resource contention.
+{{- end }}

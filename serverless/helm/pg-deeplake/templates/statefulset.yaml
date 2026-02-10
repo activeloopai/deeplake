@@ -4,10 +4,17 @@ metadata:
   name: {{ include "pg-deeplake.fullname" . }}
   labels:
     {{- include "pg-deeplake.labels" . | nindent 4 }}
+    {{- with .Values.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   serviceName: {{ include "pg-deeplake.fullname" . }}-headless
   replicas: {{ if .Values.autoscaling.enabled }}{{ .Values.autoscaling.minReplicas }}{{ else }}{{ .Values.replicaCount }}{{ end }}
   podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
   selector:
     matchLabels:
       {{- include "pg-deeplake.selectorLabels" . | nindent 6 }}
@@ -17,7 +24,25 @@ spec:
       labels:
         {{- include "pg-deeplake.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: database
+        {{- with .Values.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.annotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default (include "pg-deeplake.fullname" .) }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -34,6 +59,12 @@ spec:
         - name: pg-deeplake
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          command: ["/usr/local/bin/deeplake-entrypoint.sh"]
+          args: ["postgres"]
           ports:
             - name: postgres
               containerPort: 5432
@@ -41,17 +72,20 @@ spec:
           env:
             - name: POSTGRES_USER
               value: {{ .Values.postgres.user | quote }}
+            {{- if not .Values.envFromSecret }}
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "pg-deeplake.fullname" . }}-aws
                   key: POSTGRES_PASSWORD
+            {{- end }}
             - name: POSTGRES_HOST_AUTH_METHOD
               value: {{ .Values.postgres.hostAuthMethod | quote }}
             - name: POSTGRES_INITDB_ARGS
               value: "--auth-host={{ .Values.postgres.hostAuthMethod }}"
             - name: POSTGRES_DB
               value: {{ .Values.postgres.database | quote }}
+            {{- if not .Values.envFromSecret }}
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
@@ -67,6 +101,7 @@ spec:
                 secretKeyRef:
                   name: {{ include "pg-deeplake.fullname" . }}-aws
                   key: AWS_SESSION_TOKEN
+            {{- end }}
             - name: DEEPLAKE_ROOT_PATH
               value: {{ .Values.deeplake.rootPath | quote }}
             - name: DEEPLAKE_SYNC_INTERVAL_MS
@@ -75,7 +110,16 @@ spec:
               value: {{ .Values.deeplake.memoryLimitMb | quote }}
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
+          {{- if .Values.envFromSecret }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.envFromSecret }}
+          {{- end }}
           volumeMounts:
+            - name: config
+              mountPath: /usr/local/bin/deeplake-entrypoint.sh
+              subPath: deeplake-entrypoint.sh
+              readOnly: true
             - name: config
               mountPath: /docker-entrypoint-initdb.d/3-stateless-init.sh
               subPath: init-deeplake-stateless.sh

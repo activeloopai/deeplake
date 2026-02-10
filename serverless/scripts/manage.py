@@ -8,7 +8,8 @@ Commands:
     provision-db  CREATE DATABASE on all instances
     run-ddl       Execute DDL on instance 1 only
     rotate-creds  Update AWS creds via ALTER SYSTEM on all instances
-    scale         Scale to N pg-deeplake instances
+    scale         Scale to N pg-deeplake instances (0 = scale-to-zero)
+    idle-watch    Monitor HAProxy; auto scale-to-zero on idle, wake on connect
     cache-stats   Show Redis cache statistics
     cache-flush   Flush Redis cache
 
@@ -19,17 +20,24 @@ Usage:
     python manage.py rotate-creds
     python manage.py health
     python manage.py scale 4
+    python manage.py scale 0
+    python manage.py idle-watch
     python manage.py cache-stats
     python manage.py cache-flush
 """
 
 import argparse
+import csv
+import io
 import json
+import logging
 import os
 from pathlib import Path
 import subprocess
 import sys
 import time
+import urllib.request
+import urllib.error
 
 import psycopg2
 from psycopg2 import sql
@@ -76,9 +84,17 @@ _load_dotenv()
 
 HAPROXY = {"host": "localhost", "port": 5432}
 
-DEFAULT_USER = "postgres"
-DEFAULT_PASSWORD = "postgres"
-DEFAULT_DB = "postgres"
+DEFAULT_USER = os.environ.get("POSTGRES_USER", "postgres")
+DEFAULT_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "")
+DEFAULT_DB = os.environ.get("POSTGRES_DB", "postgres")
+
+
+def _require_password():
+    """Fail early if no password is configured."""
+    if not DEFAULT_PASSWORD:
+        print("ERROR: POSTGRES_PASSWORD is not set.")
+        print("  Set it in .env or export POSTGRES_PASSWORD=<password>")
+        sys.exit(1)
 
 
 def _read_instance_count():
@@ -202,9 +218,11 @@ def generate_compose(n, profile="haproxy"):
         lines.append("    restart: unless-stopped")
         lines.append("    shm_size: 1g")
         lines.append("    stop_grace_period: 30s")
+        lines.append("    mem_limit: ${PG_DEEPLAKE_MEM_LIMIT:-8g}")
+        lines.append("    cpus: ${PG_DEEPLAKE_CPUS:-4}")
         lines.append("    environment:")
         lines.append("      POSTGRES_USER: ${POSTGRES_USER:-postgres}")
-        lines.append("      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}")
+        lines.append("      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}")
         lines.append("      POSTGRES_HOST_AUTH_METHOD: scram-sha-256")
         lines.append("      POSTGRES_DB: ${POSTGRES_DB:-postgres}")
         lines.append("      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256")
@@ -217,19 +235,19 @@ def generate_compose(n, profile="haproxy"):
             lines.append("      DEEPLAKE_ROOT_PATH: ${DEEPLAKE_ROOT_PATH}")
         lines.append("      DEEPLAKE_SYNC_INTERVAL_MS: ${DEEPLAKE_SYNC_INTERVAL_MS:-1000}")
         lines.append("      PG_DEEPLAKE_MEMORY_LIMIT_MB: ${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0}")
+        lines.append("    entrypoint: ['/usr/local/bin/deeplake-entrypoint.sh']")
+        lines.append("    command: ['postgres']")
         lines.append("    volumes:")
+        lines.append("      - ./scripts/deeplake-entrypoint.sh:/usr/local/bin/deeplake-entrypoint.sh:ro")
         lines.append("      - ./scripts/init-deeplake-stateless.sh:/docker-entrypoint-initdb.d/3-stateless-init.sh:ro")
         lines.append("      - ./config/postgresql-overrides.conf:/etc/postgresql-overrides.conf:ro")
         lines.append("      - ./scripts/health-check.sh:/usr/local/bin/health-check.sh:ro")
         if local_storage:
             lines.append(f"      - {root_path}:/deeplake-data")
-            # Fix volume permissions: container starts as root, so chown before
-            # docker-entrypoint.sh drops to postgres
-            lines.append('    entrypoint: ["sh", "-c", "chown postgres:postgres /deeplake-data && exec docker-entrypoint.sh postgres -c listen_addresses=*"]')
         lines.append("    ports:")
         lines.append(f'      - "{5432 + i}:5432"')
         lines.append("    healthcheck:")
-        lines.append("      test: [\"CMD-SHELL\", \"pg_isready -U postgres && psql -U postgres -tAc 'SELECT deeplake_sync_ready()' | grep -q t\"]")
+        lines.append('      test: ["CMD-SHELL", "bash /usr/local/bin/health-check.sh"]')
         lines.append("      interval: 5s")
         lines.append("      timeout: 5s")
         lines.append("      retries: 30")
@@ -255,10 +273,11 @@ def generate_compose(n, profile="haproxy"):
     lines.append("    ports:")
     lines.append('      - "5432:5432"')
     lines.append('      - "127.0.0.1:8404:8404"')
-    lines.append("    depends_on:")
-    for i in range(1, n + 1):
-        lines.append(f"      pg-deeplake-{i}:")
-        lines.append("        condition: service_healthy")
+    if n > 0:
+        lines.append("    depends_on:")
+        for i in range(1, n + 1):
+            lines.append(f"      pg-deeplake-{i}:")
+            lines.append("        condition: service_healthy")
     lines.append("    logging:")
     lines.append("      driver: json-file")
     lines.append("      options:")
@@ -279,10 +298,11 @@ def generate_compose(n, profile="haproxy"):
     lines.append('      - "4000:4000"')
     lines.append("    volumes:")
     lines.append("      - ./config/supavisor.toml:/etc/supavisor/config.toml:ro")
-    lines.append("    depends_on:")
-    for i in range(1, n + 1):
-        lines.append(f"      pg-deeplake-{i}:")
-        lines.append("        condition: service_healthy")
+    if n > 0:
+        lines.append("    depends_on:")
+        for i in range(1, n + 1):
+            lines.append(f"      pg-deeplake-{i}:")
+            lines.append("        condition: service_healthy")
     lines.append("    logging:")
     lines.append("      driver: json-file")
     lines.append("      options:")
@@ -331,11 +351,15 @@ def generate_compose(n, profile="haproxy"):
 def generate_haproxy_cfg(n):
     """Generate haproxy.cfg for N backend instances.
 
+    When n=0, generates a valid config with an empty backend section.
+    HAProxy will queue incoming connections (up to timeout queue) until
+    backends are added back via scale-up.
+
     TLS: If config/certs/server.pem exists, the frontend binds with SSL.
     Place a combined cert+key PEM at config/certs/server.pem to enable.
     """
     server_lines = "\n".join(
-        f"    server pg-deeplake-{i} pg-deeplake-{i}:5432 check inter 3s fall 3 rise 2"
+        f"    server pg-deeplake-{i} pg-deeplake-{i}:5432 check inter 2s fall 2 rise 1"
         for i in range(1, n + 1)
     )
 
@@ -351,9 +375,6 @@ def generate_haproxy_cfg(n):
     stats_ui_block = ""
     if stats_user and stats_password:
         stats_ui_block = (
-            "    stats enable\n"
-            "    stats uri /stats\n"
-            "    stats refresh 10s\n"
             f"    stats auth {stats_user}:{stats_password}\n"
             "    stats admin if TRUE\n"
         )
@@ -388,9 +409,12 @@ backend pg_backends
 {server_lines}
 
 frontend stats
-    bind 127.0.0.1:8404
+    bind *:8404
     mode http
     http-request use-service prometheus-exporter if {{ path /metrics }}
+    stats enable
+    stats uri /stats
+    stats refresh 10s
 {stats_ui_block}"""
 
 
@@ -629,10 +653,11 @@ def cmd_run_ddl(args):
 
 
 def cmd_rotate_creds(args):
-    """Update AWS credentials on all instances via ALTER SYSTEM + pg_reload_conf.
+    """Rotate AWS credentials on all instances.
 
-    Note: ALTER SYSTEM is the only mechanism to set deeplake.creds persistently.
-    The creds value is written to postgresql.auto.conf on each instance.
+    Writes new creds to /dev/shm/deeplake-creds.conf (tmpfs) inside each
+    container via docker exec, then reloads PostgreSQL config. Credentials
+    are never written to persistent storage.
     """
     aws_key = args.aws_access_key_id or os.environ.get("AWS_ACCESS_KEY_ID")
     aws_secret = args.aws_secret_access_key or os.environ.get("AWS_SECRET_ACCESS_KEY")
@@ -652,22 +677,38 @@ def cmd_rotate_creds(args):
         creds["session_token"] = aws_token
 
     creds_json = json.dumps(creds)
+    # Escape single quotes for PostgreSQL GUC
+    creds_escaped = creds_json.replace("'", "''")
+
     instances = get_instances()
 
-    print("Rotating credentials on all instances...")
+    print("Rotating credentials on all instances (tmpfs)...")
     failures = []
     for inst in instances:
+        container = inst["name"]
+        # Write creds to tmpfs inside the container
+        conf_content = f"deeplake.creds = '{creds_escaped}'"
+        result = subprocess.run(
+            ["docker", "exec", container, "sh", "-c",
+             f"echo \"{conf_content}\" > /dev/shm/deeplake-creds.conf && chmod 600 /dev/shm/deeplake-creds.conf"],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            print(f"  {container}: FAILED to write tmpfs - {result.stderr.strip()}")
+            failures.append(container)
+            continue
+
+        # Reload PostgreSQL to pick up new creds
         try:
             conn = connect(inst["host"], inst["port"])
             conn.autocommit = True
             with conn.cursor() as cur:
-                cur.execute("ALTER SYSTEM SET deeplake.creds = %s", (creds_json,))
                 cur.execute("SELECT pg_reload_conf()")
             conn.close()
-            print(f"  {inst['name']}: OK")
+            print(f"  {container}: OK")
         except Exception as e:
-            print(f"  {inst['name']}: FAILED - {e}")
-            failures.append(inst["name"])
+            print(f"  {container}: FAILED reload - {e}")
+            failures.append(container)
 
     # Flush deployment-prefixed Redis keys after cred rotation
     _try_flush_redis("credential rotation")
@@ -677,14 +718,19 @@ def cmd_rotate_creds(args):
         print("WARNING: Instances may have inconsistent credentials.")
         sys.exit(1)
 
-    print("\nCredentials rotated. New connections will use updated credentials.")
+    print("\nCredentials rotated (tmpfs). No credentials on persistent storage.")
+
+
+def get_instance_count():
+    """Return the current number of pg-deeplake instances."""
+    return _read_instance_count()
 
 
 def cmd_scale(args):
-    """Scale to N pg-deeplake instances."""
+    """Scale to N pg-deeplake instances (0 = scale-to-zero, keeps HAProxy + Redis)."""
     n = args.count
-    if n < 1:
-        print("ERROR: Instance count must be >= 1")
+    if n < 0:
+        print("ERROR: Instance count must be >= 0")
         sys.exit(1)
 
     if args.image:
@@ -698,11 +744,16 @@ def cmd_scale(args):
     INSTANCE_COUNT_FILE.write_text(f"{n}\n")
 
     # 2. Generate configs
+    # When scaling to 0, keep the HAProxy config with server entries from
+    # the previous count so HAProxy can queue connections to the (down)
+    # backends. This enables wake-on-connect: connections queue instead of
+    # getting an immediate 503.
     compose_content = generate_compose(n)
     COMPOSE_FILE.write_text(compose_content)
     print(f"  Generated {COMPOSE_FILE}")
 
-    haproxy_content = generate_haproxy_cfg(n)
+    haproxy_server_count = max(n, old_n) if n == 0 else n
+    haproxy_content = generate_haproxy_cfg(haproxy_server_count)
     HAPROXY_CFG.write_text(haproxy_content)
     print(f"  Generated {HAPROXY_CFG}")
 
@@ -722,6 +773,12 @@ def cmd_scale(args):
         print(f"  ERROR: docker compose failed:\n{result.stderr}")
         sys.exit(1)
     print("  Docker compose updated.")
+
+    # 3b. Reload HAProxy to pick up config changes (mounted volume)
+    subprocess.run(
+        ["docker", "kill", "-s", "HUP", "haproxy"],
+        capture_output=True, text=True,
+    )
 
     # 4. Wait for new instances to be healthy
     if n > old_n:
@@ -807,6 +864,135 @@ def _try_flush_redis(reason):
         pass
 
 
+def fetch_haproxy_stats(stats_url="http://localhost:8404/stats;csv"):
+    """Fetch HAProxy stats CSV from the stats endpoint."""
+    req = urllib.request.Request(stats_url)
+    resp = urllib.request.urlopen(req, timeout=5)
+    return resp.read().decode()
+
+
+def parse_backend_sessions(stats_csv):
+    """Sum current sessions (scur) for pg_backends backend rows."""
+    total = 0
+    reader = csv.DictReader(io.StringIO(stats_csv))
+    for row in reader:
+        pxname = (row.get("# pxname") or row.get("pxname") or "").strip()
+        svname = (row.get("svname") or "").strip()
+        if pxname == "pg_backends" and svname not in ("FRONTEND", "BACKEND"):
+            try:
+                total += int(row.get("scur", 0))
+            except (ValueError, TypeError):
+                pass
+    return total
+
+
+def parse_backend_queue(stats_csv):
+    """Sum current queue depth (qcur) for pg_backends backend rows."""
+    total = 0
+    reader = csv.DictReader(io.StringIO(stats_csv))
+    for row in reader:
+        pxname = (row.get("# pxname") or row.get("pxname") or "").strip()
+        svname = (row.get("svname") or "").strip()
+        if pxname == "pg_backends" and svname == "BACKEND":
+            try:
+                total += int(row.get("qcur", 0))
+            except (ValueError, TypeError):
+                pass
+    return total
+
+
+def parse_frontend_session_total(stats_csv):
+    """Return total session count (stot) for pg_frontend.
+
+    Used to detect connection attempts even when all backends are DOWN
+    (HAProxy doesn't queue in that case, but stot still increments).
+    """
+    reader = csv.DictReader(io.StringIO(stats_csv))
+    for row in reader:
+        pxname = (row.get("# pxname") or row.get("pxname") or "").strip()
+        svname = (row.get("svname") or "").strip()
+        if pxname == "pg_frontend" and svname == "FRONTEND":
+            try:
+                return int(row.get("stot", 0))
+            except (ValueError, TypeError):
+                return 0
+    return 0
+
+
+def cmd_scale_to(n):
+    """Programmatic scale to N instances (used by idle-watch)."""
+    class _Args:
+        def __init__(self, count):
+            self.count = count
+            self.image = None
+    cmd_scale(_Args(n))
+
+
+def cmd_idle_watch(args):
+    """Monitor HAProxy for idle connections and scale to zero / wake on connect."""
+    idle_timeout = int(os.environ.get("IDLE_TIMEOUT_SECONDS", "900"))
+    poll_interval = int(os.environ.get("IDLE_POLL_INTERVAL", "5"))
+    stats_url = os.environ.get(
+        "HAPROXY_STATS_URL", "http://localhost:8404/stats;csv"
+    )
+    last_active = time.time()
+    current_replicas = get_instance_count()
+    last_frontend_stot = None  # Track frontend session total for wake detection
+
+    log = logging.getLogger("idle-watch")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [idle-watch] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    log.info(
+        "Started: idle_timeout=%ds, poll=%ds, current_replicas=%d",
+        idle_timeout, poll_interval, current_replicas,
+    )
+
+    while True:
+        try:
+            stats_csv = fetch_haproxy_stats(stats_url)
+            active_sessions = parse_backend_sessions(stats_csv)
+            queued = parse_backend_queue(stats_csv)
+            frontend_stot = parse_frontend_session_total(stats_csv)
+        except Exception as e:
+            log.warning("Failed to fetch HAProxy stats: %s", e)
+            time.sleep(poll_interval)
+            continue
+
+        # Detect new connection attempts via frontend stot counter.
+        # When backends are DOWN, HAProxy doesn't queue (qcur=0) but
+        # the frontend stot still increments on each connection attempt.
+        new_connections = False
+        if last_frontend_stot is not None and frontend_stot > last_frontend_stot:
+            new_connections = True
+        last_frontend_stot = frontend_stot
+
+        if active_sessions > 0 or queued > 0 or new_connections:
+            last_active = time.time()
+            if current_replicas == 0:
+                log.info(
+                    "Wake-on-connect: sessions=%d queued=%d new_conns=%s, scaling up",
+                    active_sessions, queued, new_connections,
+                )
+                try:
+                    cmd_scale_to(1)
+                    current_replicas = 1
+                except Exception as e:
+                    log.error("Scale-up failed: %s", e)
+        elif time.time() - last_active > idle_timeout and current_replicas > 0:
+            log.info("Idle for %ds, scaling to zero", idle_timeout)
+            try:
+                cmd_scale_to(0)
+                current_replicas = 0
+            except Exception as e:
+                log.error("Scale-down failed: %s", e)
+
+        time.sleep(poll_interval)
+
+
 def cmd_cache_stats(args):
     """Show Redis cache statistics."""
     try:
@@ -890,9 +1076,15 @@ def main():
 
     # scale
     p_scale = subparsers.add_parser("scale", help="Scale to N pg-deeplake instances")
-    p_scale.add_argument("count", type=int, help="Number of instances (>= 1)")
+    p_scale.add_argument("count", type=int, help="Number of instances (>= 0, 0 = scale-to-zero)")
     p_scale.add_argument("--image", default=None,
                          help=f"Docker image (default: $PG_DEEPLAKE_IMAGE or {DEFAULT_IMAGE})")
+
+    # idle-watch
+    subparsers.add_parser(
+        "idle-watch",
+        help="Monitor HAProxy and auto-scale to zero on idle / wake on connect",
+    )
 
     # cache-stats
     subparsers.add_parser("cache-stats", help="Show Redis cache statistics")
@@ -906,6 +1098,11 @@ def main():
         parser.print_help()
         sys.exit(1)
 
+    # Commands that connect to PostgreSQL require a password.
+    pg_commands = {"status", "health", "provision-db", "run-ddl", "rotate-creds"}
+    if args.command in pg_commands:
+        _require_password()
+
     commands = {
         "status": cmd_status,
         "health": cmd_health,
@@ -913,6 +1110,7 @@ def main():
         "run-ddl": cmd_run_ddl,
         "rotate-creds": cmd_rotate_creds,
         "scale": cmd_scale,
+        "idle-watch": cmd_idle_watch,
         "cache-stats": cmd_cache_stats,
         "cache-flush": cmd_cache_flush,
     }

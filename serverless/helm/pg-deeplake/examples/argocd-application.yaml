@@ -1,0 +1,70 @@
+# Example ArgoCD Application for pg-deeplake serverless.
+# Copy to live-environments/aws/saas/{env}/pg-deeplake-serverless/
+# and adjust for your environment.
+#
+# This follows the Activeloop pattern:
+#   - Multi-source ArgoCD Application
+#   - Helm chart from deeplake repo, values from live-environments
+#   - Slack notifications on sync events
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pg-deeplake-serverless-beta
+  namespace: argocd-dev
+  labels:
+    environment: beta
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: argocd-notifications
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: argocd-notifications
+spec:
+  project: default
+  syncPolicy:
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - ServerSideApply=true
+  destination:
+    name: al-dev-eks
+    namespace: deeplake
+  sources:
+    - repoURL: "https://github.com/activeloopai/deeplake"
+      targetRevision: main
+      path: serverless/helm/pg-deeplake
+      helm:
+        valueFiles:
+          # Override with values from live-environments
+          - $values/aws/saas/beta/pg-deeplake-serverless/values.yaml
+    - repoURL: "https://github.com/activeloopai/live-environments"
+      targetRevision: main
+      ref: values
+---
+# Production variant
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pg-deeplake-serverless-prod
+  namespace: argocd-prod
+  labels:
+    environment: prod
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: argocd-notifications
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: argocd-notifications
+spec:
+  project: default
+  syncPolicy:
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - ServerSideApply=true
+  destination:
+    name: al-prod-eks
+    namespace: deeplake
+  sources:
+    - repoURL: "https://github.com/activeloopai/deeplake"
+      targetRevision: main
+      path: serverless/helm/pg-deeplake
+      helm:
+        valueFiles:
+          - $values/aws/saas/prod/pg-deeplake-serverless/values.yaml
+    - repoURL: "https://github.com/activeloopai/live-environments"
+      targetRevision: main
+      ref: values

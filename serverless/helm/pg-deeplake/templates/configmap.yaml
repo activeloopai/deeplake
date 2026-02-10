@@ -30,21 +30,46 @@ data:
     bgwriter_lru_multiplier = 4.0
     checkpoint_timeout = 30min
     max_wal_size = 4GB
+    # Logging
     log_min_duration_statement = 1000
     log_statement = 'ddl'
-    log_line_prefix = '%m [%p] %d %u '
+    log_line_prefix = '%m [%p] db=%d user=%u app=%a client=%h '
     log_checkpoints = on
+    log_connections = on
+    log_disconnections = on
+    log_lock_waits = on
+    # Query performance tracking
+    shared_preload_libraries = 'pg_deeplake,pg_stat_statements'
+    pg_stat_statements.track = all
+    # Credentials loaded from tmpfs (never on persistent storage)
+    include_if_exists = '/dev/shm/deeplake-creds.conf'
+
+  deeplake-entrypoint.sh: |
+    #!/bin/bash
+    # Writes AWS credentials to tmpfs on every container start.
+    # Credentials are NEVER persisted to the data volume.
+    set -e
+    if [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+        CREDS_JSON="{\"aws_access_key_id\":\"${AWS_ACCESS_KEY_ID}\",\"aws_secret_access_key\":\"${AWS_SECRET_ACCESS_KEY}\",\"session_token\":\"${AWS_SESSION_TOKEN:-}\"}"
+        CREDS_JSON_ESCAPED=${CREDS_JSON//\'/\'\'}
+        cat > /dev/shm/deeplake-creds.conf <<EOF
+    deeplake.creds = '${CREDS_JSON_ESCAPED}'
+    EOF
+        chmod 600 /dev/shm/deeplake-creds.conf
+        echo "deeplake-entrypoint: credentials written to tmpfs"
+    else
+        echo "deeplake-entrypoint: no static AWS credentials (IRSA or local storage)"
+    fi
+    exec docker-entrypoint.sh "$@"
 
   init-deeplake-stateless.sh: |
     #!/bin/bash
     set -euo pipefail
     echo "=== pg_deeplake stateless init ==="
-    CREDS_JSON="{\"aws_access_key_id\":\"${AWS_ACCESS_KEY_ID}\",\"aws_secret_access_key\":\"${AWS_SECRET_ACCESS_KEY}\",\"session_token\":\"${AWS_SESSION_TOKEN:-}\"}"
-    CREDS_JSON_ESCAPED=${CREDS_JSON//\'/\'\'}
+    # Non-sensitive settings only — creds are on tmpfs via entrypoint
     psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
         ALTER SYSTEM SET deeplake.stateless_enabled = true;
         ALTER SYSTEM SET deeplake.root_path = '${DEEPLAKE_ROOT_PATH}';
-        ALTER SYSTEM SET deeplake.creds = '${CREDS_JSON_ESCAPED}';
         ALTER SYSTEM SET deeplake.sync_interval_ms = ${DEEPLAKE_SYNC_INTERVAL_MS:-2000};
         ALTER SYSTEM SET pg_deeplake.memory_limit_mb = ${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0};
     EOSQL
@@ -69,14 +94,32 @@ data:
             THEN 'STATELESS_OFF'
             WHEN current_setting('deeplake.root_path', true) IS NULL
                  OR current_setting('deeplake.root_path', true) = ''
-                 OR left(current_setting('deeplake.root_path', true), 5) != 's3://'
             THEN 'NO_ROOT_PATH'
             ELSE 'OK'
         END;
     " 2>/dev/null)
-    if [ "$RESULT" = "OK" ]; then
-        exit 0
-    else
+    if [ "$RESULT" != "OK" ]; then
         echo "Health check failed: ${RESULT:-connection_failed}" >&2
         exit 1
     fi
+    ROOT_PATH=$(psql -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-postgres}" -tAc \
+        "SELECT current_setting('deeplake.root_path', true);" 2>/dev/null)
+    if echo "$ROOT_PATH" | grep -q '^s3://'; then
+        S3_CHECK=$(psql -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-postgres}" -tAc "
+            SELECT CASE
+                WHEN (SELECT count(*) FROM pg_tables WHERE schemaname = 'public') >= 0
+                THEN 'OK'
+                ELSE 'S3_ERROR'
+            END;
+        " 2>/dev/null || echo "S3_UNREACHABLE")
+        if [ "$S3_CHECK" != "OK" ]; then
+            echo "Health check failed: S3 storage unreachable ($S3_CHECK)" >&2
+            exit 1
+        fi
+    elif [ -n "$ROOT_PATH" ] && echo "$ROOT_PATH" | grep -q '^/'; then
+        if [ ! -d "$ROOT_PATH" ]; then
+            echo "Health check failed: local storage path $ROOT_PATH not found" >&2
+            exit 1
+        fi
+    fi
+    exit 0

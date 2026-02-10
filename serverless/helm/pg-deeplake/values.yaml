@@ -5,11 +5,28 @@ image:
   tag: "18"
   pullPolicy: IfNotPresent
 
+# Image pull secrets (required for private registries like quay.io).
+# In production, use an ExternalSecret to provision regcred-quay.
+imagePullSecrets: []
+  # - name: regcred-quay
+
+# Service account for IRSA (IAM Roles for Service Accounts).
+# Allows S3 access without static AWS credentials.
+serviceAccount:
+  create: false
+  name: ""
+  automountServiceAccountToken: true
+  annotations: {}
+    # eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/pg-deeplake-s3"
+
 deeplake:
   rootPath: "s3://your-bucket/your-prefix/"
   syncIntervalMs: 2000
   memoryLimitMb: 0
 
+# Static AWS credentials — only for dev/testing.
+# For production, use IRSA (serviceAccount.annotations with eks role-arn)
+# or an ExternalSecret that provisions these into a K8s Secret.
 aws:
   accessKeyId: ""
   secretAccessKey: ""
@@ -20,6 +37,41 @@ postgres:
   password: postgres
   database: postgres
   hostAuthMethod: scram-sha-256
+
+# External Secrets (1Password / AWS Secrets Manager / etc).
+# When configured, secrets are provisioned by External Secrets Operator
+# instead of the inline Secret template.
+# Pattern matches live-environments: each entry becomes an ExternalSecret CRD.
+externalSecrets: []
+  # - name: pg-deeplake-creds
+  #   spec:
+  #     refreshInterval: 5m
+  #     secretStoreRef:
+  #       name: 1password-sdk
+  #       kind: ClusterSecretStore
+  #     dataFrom:
+  #       - extract:
+  #           key: pg-deeplake-serverless
+  # - name: regcred-quay
+  #   spec:
+  #     refreshInterval: 5m
+  #     secretStoreRef:
+  #       name: 1password-sdk-ops
+  #       kind: ClusterSecretStore
+  #     dataFrom:
+  #       - extract:
+  #           key: regcred-quay
+  #     target:
+  #       creationPolicy: Owner
+  #       deletionPolicy: Retain
+  #       template:
+  #         type: kubernetes.io/dockerconfigjson
+
+# Name of an externally-managed Secret to inject as envFrom into pg-deeplake pods.
+# Use this when secrets are provisioned by ExternalSecrets or manually.
+# The secret should contain: POSTGRES_PASSWORD, AWS_ACCESS_KEY_ID,
+# AWS_SECRET_ACCESS_KEY, and optionally AWS_SESSION_TOKEN.
+envFromSecret: ""
 
 persistence:
   enabled: true
@@ -35,6 +87,30 @@ resources:
     memory: "8Gi"
 
 shmSize: 1Gi
+
+# Pod-level security context (matches org standard)
+podSecurityContext: {}
+  # runAsNonRoot: true
+  # runAsUser: 999
+  # fsGroup: 999
+  # seccompProfile:
+  #   type: RuntimeDefault
+
+# Container-level security context
+securityContext: {}
+  # runAsNonRoot: true
+  # allowPrivilegeEscalation: false
+  # capabilities:
+  #   drop:
+  #     - ALL
+  # readOnlyRootFilesystem: false
+
+# Extra labels applied to all resources
+labels: {}
+
+# Extra annotations applied to pods
+annotations: {}
+  # reloader.stakater.com/auto: "true"
 
 tls:
   enabled: true
@@ -89,15 +165,28 @@ redis:
     port: 6379
 
 autoscaling:
-  enabled: false
+  enabled: true
   minReplicas: 0
   maxReplicas: 8
   idleReplicaCount: 0
   # KEDA scales based on HAProxy's queued connection count (prometheus trigger).
   # This works at 0 DB replicas because HAProxy is always running as the
-  # activation proxy. New connections queue at HAProxy → metric rises →
-  # KEDA scales up → backends become healthy → HAProxy forwards.
+  # activation proxy. New connections queue at HAProxy -> metric rises ->
+  # KEDA scales up -> backends become healthy -> HAProxy forwards.
   connectionQueueThreshold: "1"
+  cooldownPeriod: 300    # seconds before scale-down after last trigger
+  pollingInterval: 5     # seconds between KEDA metric checks
+
+monitoring:
+  alerts:
+    enabled: false
+    # Extra labels for PrometheusRule (e.g., to match Prometheus selector)
+    labels: {}
+      # release: kube-prometheus-stack
+    # Alert thresholds
+    queueDepthThreshold: 10
+    highConnectionsThreshold: 150
+    slowBackendThresholdSeconds: 5
 
 nodeSelector: {}
 tolerations: []

@@ -2,33 +2,40 @@ services:
   pg-deeplake-1:
     image: quay.io/activeloopai/pg-deeplake:18
     container_name: pg-deeplake-1
+    init: true
     restart: unless-stopped
     shm_size: 1g
     stop_grace_period: 30s
+    mem_limit: ${PG_DEEPLAKE_MEM_LIMIT:-8g}
+    cpus: ${PG_DEEPLAKE_CPUS:-4}
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
-      DEEPLAKE_ROOT_PATH: ${DEEPLAKE_ROOT_PATH}
-      DEEPLAKE_SYNC_INTERVAL_MS: ${DEEPLAKE_SYNC_INTERVAL_MS:-2000}
+      DEEPLAKE_ROOT_PATH: /deeplake-data
+      DEEPLAKE_SYNC_INTERVAL_MS: ${DEEPLAKE_SYNC_INTERVAL_MS:-1000}
       PG_DEEPLAKE_MEMORY_LIMIT_MB: ${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0}
+    entrypoint: ['/usr/local/bin/deeplake-entrypoint.sh']
+    command: ['postgres']
     volumes:
+      - ./scripts/deeplake-entrypoint.sh:/usr/local/bin/deeplake-entrypoint.sh:ro
       - ./scripts/init-deeplake-stateless.sh:/docker-entrypoint-initdb.d/3-stateless-init.sh:ro
       - ./config/postgresql-overrides.conf:/etc/postgresql-overrides.conf:ro
       - ./scripts/health-check.sh:/usr/local/bin/health-check.sh:ro
+      - /tmp/deeplake-data:/deeplake-data
     ports:
       - "5433:5432"
     healthcheck:
-      test: ["CMD", "bash", "/usr/local/bin/health-check.sh"]
+      test: ["CMD-SHELL", "bash /usr/local/bin/health-check.sh"]
       interval: 5s
       timeout: 5s
       retries: 30
-      start_period: 30s
+      start_period: 10s
     logging:
       driver: json-file
       options:
@@ -40,33 +47,40 @@ services:
   pg-deeplake-2:
     image: quay.io/activeloopai/pg-deeplake:18
     container_name: pg-deeplake-2
+    init: true
     restart: unless-stopped
     shm_size: 1g
     stop_grace_period: 30s
+    mem_limit: ${PG_DEEPLAKE_MEM_LIMIT:-8g}
+    cpus: ${PG_DEEPLAKE_CPUS:-4}
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
-      DEEPLAKE_ROOT_PATH: ${DEEPLAKE_ROOT_PATH}
-      DEEPLAKE_SYNC_INTERVAL_MS: ${DEEPLAKE_SYNC_INTERVAL_MS:-2000}
+      DEEPLAKE_ROOT_PATH: /deeplake-data
+      DEEPLAKE_SYNC_INTERVAL_MS: ${DEEPLAKE_SYNC_INTERVAL_MS:-1000}
       PG_DEEPLAKE_MEMORY_LIMIT_MB: ${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0}
+    entrypoint: ['/usr/local/bin/deeplake-entrypoint.sh']
+    command: ['postgres']
     volumes:
+      - ./scripts/deeplake-entrypoint.sh:/usr/local/bin/deeplake-entrypoint.sh:ro
       - ./scripts/init-deeplake-stateless.sh:/docker-entrypoint-initdb.d/3-stateless-init.sh:ro
       - ./config/postgresql-overrides.conf:/etc/postgresql-overrides.conf:ro
       - ./scripts/health-check.sh:/usr/local/bin/health-check.sh:ro
+      - /tmp/deeplake-data:/deeplake-data
     ports:
       - "5434:5432"
     healthcheck:
-      test: ["CMD", "bash", "/usr/local/bin/health-check.sh"]
+      test: ["CMD-SHELL", "bash /usr/local/bin/health-check.sh"]
       interval: 5s
       timeout: 5s
       retries: 30
-      start_period: 30s
+      start_period: 10s
     logging:
       driver: json-file
       options:

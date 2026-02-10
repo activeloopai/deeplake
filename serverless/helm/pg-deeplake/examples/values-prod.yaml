@@ -1,0 +1,132 @@
+# Production environment values for pg-deeplake serverless.
+# Place at: live-environments/aws/saas/prod/pg-deeplake-serverless/values.yaml
+
+replicaCount: 2
+
+image:
+  tag: "18"
+
+imagePullSecrets:
+  - name: regcred-quay
+
+serviceAccount:
+  create: true
+  name: pg-deeplake-serverless
+  automountServiceAccountToken: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::597713067985:role/pg-deeplake-serverless-prod"
+
+deeplake:
+  rootPath: "s3://activeloop-prod-deeplake/serverless/"
+  syncIntervalMs: 1000
+  memoryLimitMb: 0
+
+aws:
+  accessKeyId: ""
+  secretAccessKey: ""
+  sessionToken: ""
+
+externalSecrets:
+  - name: regcred-quay
+    spec:
+      refreshInterval: 5m
+      secretStoreRef:
+        name: 1password-sdk-ops
+        kind: ClusterSecretStore
+      dataFrom:
+        - extract:
+            conversionStrategy: Default
+            decodingStrategy: None
+            key: regcred-quay
+            metadataPolicy: None
+      target:
+        creationPolicy: Owner
+        deletionPolicy: Retain
+        template:
+          type: kubernetes.io/dockerconfigjson
+  - name: pg-deeplake-serverless-creds
+    spec:
+      refreshInterval: 5m
+      secretStoreRef:
+        name: 1password-sdk
+        kind: ClusterSecretStore
+      dataFrom:
+        - extract:
+            conversionStrategy: Default
+            decodingStrategy: None
+            key: pg-deeplake-serverless-prod
+            metadataPolicy: None
+
+envFromSecret: pg-deeplake-serverless-creds
+
+persistence:
+  enabled: true
+  storageClass: gp3
+  size: 50Gi
+
+resources:
+  requests:
+    cpu: "2"
+    memory: "4Gi"
+  limits:
+    cpu: "8"
+    memory: "16Gi"
+
+shmSize: 2Gi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 999
+  fsGroup: 999
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+
+labels:
+  environment: prod
+
+annotations:
+  reloader.stakater.com/auto: "true"
+
+nodeSelector:
+  role: application
+
+autoscaling:
+  enabled: true
+  minReplicas: 0
+  maxReplicas: 8
+  idleReplicaCount: 0
+  connectionQueueThreshold: "1"
+  cooldownPeriod: 300
+  pollingInterval: 5
+
+monitoring:
+  alerts:
+    enabled: true
+    labels:
+      release: kube-prometheus-stack
+    queueDepthThreshold: 10
+    highConnectionsThreshold: 150
+    slowBackendThresholdSeconds: 5
+
+haproxy:
+  enabled: true
+  replicaCount: 2
+  stats:
+    auth: ""  # Set "admin:password" for stats dashboard auth
+  service:
+    type: LoadBalancer
+    port: 5432
+    statsPort: 8404
+    exposeStats: false
+
+redis:
+  enabled: true
+  replicaCount: 1

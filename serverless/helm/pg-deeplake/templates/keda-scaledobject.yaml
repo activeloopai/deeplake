@@ -10,22 +10,24 @@ spec:
     apiVersion: apps/v1
     kind: StatefulSet
     name: {{ include "pg-deeplake.fullname" . }}
+  pollingInterval: {{ .Values.autoscaling.pollingInterval | default 5 }}
+  cooldownPeriod: {{ .Values.autoscaling.cooldownPeriod | default 300 }}
+  idleReplicaCount: {{ .Values.autoscaling.idleReplicaCount }}
   minReplicaCount: {{ .Values.autoscaling.minReplicas }}
   maxReplicaCount: {{ .Values.autoscaling.maxReplicas }}
-  idleReplicaCount: {{ .Values.autoscaling.idleReplicaCount }}
-  pollingInterval: 5
-  cooldownPeriod: 300
   triggers:
     # Wake-on-connect: HAProxy queues connections when all backends are down.
     # This metric is always available because HAProxy runs independently of
-    # the DB StatefulSet. At 0 replicas, a new client connection causes
-    # haproxy_backend_current_queue to rise above the activation threshold,
+    # the DB StatefulSet. At 0 replicas, a new client connection causes the
+    # queue + sessions metric to rise above the activation threshold,
     # triggering KEDA to scale the StatefulSet from 0 → minReplicas (or 1).
     # Once the DB pod is ready, HAProxy forwards the queued connection.
     - type: prometheus
       metadata:
         serverAddress: "http://{{ include "pg-deeplake.fullname" . }}-haproxy-metrics:{{ .Values.haproxy.service.statsPort }}"
-        query: "sum(haproxy_backend_current_queue{proxy=\"pg_backends\"})"
+        query: >-
+          sum(haproxy_backend_current_queue{proxy="pg_backends"})
+          + sum(haproxy_backend_current_sessions{proxy="pg_backends"})
         threshold: {{ .Values.autoscaling.connectionQueueThreshold | quote }}
         activationThreshold: "1"
 {{- end }}

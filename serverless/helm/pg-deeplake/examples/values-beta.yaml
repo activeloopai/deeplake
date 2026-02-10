@@ -1,0 +1,123 @@
+# Beta environment values for pg-deeplake serverless.
+# Place at: live-environments/aws/saas/beta/pg-deeplake-serverless/values.yaml
+
+replicaCount: 1
+
+image:
+  tag: "18"
+
+imagePullSecrets:
+  - name: regcred-quay
+
+serviceAccount:
+  create: true
+  name: pg-deeplake-serverless
+  automountServiceAccountToken: true
+  annotations:
+    # IRSA: pod assumes this IAM role for S3 access (no static AWS keys)
+    eks.amazonaws.com/role-arn: "arn:aws:iam::597713067985:role/pg-deeplake-serverless-beta"
+
+deeplake:
+  rootPath: "s3://activeloop-beta-deeplake/serverless/"
+  syncIntervalMs: 2000
+  memoryLimitMb: 0
+
+# No static AWS credentials — using IRSA instead
+aws:
+  accessKeyId: ""
+  secretAccessKey: ""
+  sessionToken: ""
+
+# Secrets provisioned by External Secrets Operator from 1Password
+externalSecrets:
+  - name: regcred-quay
+    spec:
+      refreshInterval: 5m
+      secretStoreRef:
+        name: 1password-sdk-ops
+        kind: ClusterSecretStore
+      dataFrom:
+        - extract:
+            conversionStrategy: Default
+            decodingStrategy: None
+            key: regcred-quay
+            metadataPolicy: None
+      target:
+        creationPolicy: Owner
+        deletionPolicy: Retain
+        template:
+          type: kubernetes.io/dockerconfigjson
+  - name: pg-deeplake-serverless-creds
+    spec:
+      refreshInterval: 5m
+      secretStoreRef:
+        name: 1password-sdk
+        kind: ClusterSecretStore
+      dataFrom:
+        - extract:
+            conversionStrategy: Default
+            decodingStrategy: None
+            key: pg-deeplake-serverless-beta
+            metadataPolicy: None
+
+# Secret name that ExternalSecrets provisions (contains POSTGRES_PASSWORD)
+envFromSecret: pg-deeplake-serverless-creds
+
+persistence:
+  enabled: true
+  storageClass: gp3
+  size: 10Gi
+
+resources:
+  requests:
+    cpu: "1"
+    memory: "2Gi"
+  limits:
+    cpu: "4"
+    memory: "8Gi"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 999
+  fsGroup: 999
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+
+labels:
+  environment: beta
+
+annotations:
+  reloader.stakater.com/auto: "true"
+
+nodeSelector:
+  role: application
+
+autoscaling:
+  enabled: true
+  minReplicas: 0
+  maxReplicas: 4
+  idleReplicaCount: 0
+  connectionQueueThreshold: "1"
+  cooldownPeriod: 180
+  pollingInterval: 5
+
+haproxy:
+  enabled: true
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 5432
+    statsPort: 8404
+    exposeStats: false
+
+redis:
+  enabled: true
+  replicaCount: 1

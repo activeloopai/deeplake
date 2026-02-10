@@ -36,19 +36,24 @@ data:
         option pgsql-check user {{ .Values.postgres.user }}
     {{- $fullname := include "pg-deeplake.fullname" . }}
     {{- range $i := until (int .Values.replicaCount) }}
-        server {{ $fullname }}-{{ $i }} {{ $fullname }}-{{ $i }}.{{ $fullname }}-headless:5432 check inter 3s fall 3 rise 2
+        server {{ $fullname }}-{{ $i }} {{ $fullname }}-{{ $i }}.{{ $fullname }}-headless:5432 check inter 2s fall 2 rise 1
     {{- end }}
 
     # Metrics endpoint for KEDA autoscaler and monitoring.
+    # Access restricted by NetworkPolicy (only monitoring namespace + same namespace).
     frontend stats
         bind *:8404
         mode http
         http-request use-service prometheus-exporter if { path /metrics }
-    {{- if .Values.haproxy.stats.auth }}
         stats enable
         stats uri /stats
         stats refresh 10s
+    {{- if .Values.haproxy.stats.auth }}
         stats auth {{ .Values.haproxy.stats.auth }}
         stats admin if TRUE
+    {{- else }}
+        # No auth configured — stats HTML visible but read-only.
+        # Set haproxy.stats.auth to "user:password" for dashboard auth.
+        # /metrics (Prometheus) is always unauthenticated (secured by NetworkPolicy).
     {{- end }}
 {{- end }}
