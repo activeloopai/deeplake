@@ -238,8 +238,8 @@ void initialize_guc_parameters()
                              "allowing multiple PostgreSQL instances to share the same tables. "
                              "This adds latency for remote storage (S3, GCS) due to catalog sync operations.",
                              &pg::stateless_enabled,
-                             false,
-                             PGC_USERSET,
+                             true,
+                             PGC_POSTMASTER,
                              0,
                              nullptr,
                              nullptr,

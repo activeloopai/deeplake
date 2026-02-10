@@ -28,8 +28,6 @@ async def test_stateless_bootstrap_permission_error_keeps_backend_alive(db_conn:
     - SET deeplake.root_path fails with a PostgreSQL error
     - Same connection remains usable afterwards
     """
-    await db_conn.execute("SET deeplake.stateless_enabled = true")
-
     readonly_root = Path(temp_dir_for_postgres) / "readonly_root"
     readonly_root.mkdir(parents=True, exist_ok=True)
     os.chmod(readonly_root, 0o555)
