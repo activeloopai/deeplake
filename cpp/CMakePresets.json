@@ -28,7 +28,7 @@
             "inherits": "template-unix",
             "cacheVariables": {
                 "AL_PG": "ON",
-                "AL_ASSERTIONS": "ON"
+                "AL_ASSERTIONS": "OFF"
             }
         },
         {
@@ -36,7 +36,7 @@
             "inherits": "template-windows",
             "cacheVariables": {
                 "AL_PG": "ON",
-                "AL_ASSERTIONS": "ON"
+                "AL_ASSERTIONS": "OFF"
             }
         },
         {

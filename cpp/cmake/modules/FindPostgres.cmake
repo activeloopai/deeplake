@@ -1,21 +1,28 @@
 include(FetchContent)
 include(ExternalProject)
 
-# Define PostgreSQL versions
-set(postgres_versions
-    "REL_16_0"
-    "REL_17_0"
-    "REL_18_0"
-)
+# Map BUILD_PG_* options to version tags and SHA256 checksums.
+# Only download/build PostgreSQL versions that are actually enabled,
+# avoiding unnecessary network downloads and compilation.
+set(postgres_versions)
+set(postgres_SHA256_CHECKSUMS)
 
-# Define corresponding SHA256 checksums for each version
-set(postgres_SHA256_CHECKSUMS
-    "37851d1fdae1f2cdd1d23bf9a4598b6c2f3f6792e18bc974d78ed780a28933bf"
-    "16912fe4aef3c8f297b5da1b591741f132377c8b5e1b8e896e07fdd680d6bf34"
-    "b155bd4a467b401ebe61b504643492aae2d0836981aa4a5a60f8668b94eadebc"
-)
+if(BUILD_PG_16)
+    list(APPEND postgres_versions "REL_16_0")
+    list(APPEND postgres_SHA256_CHECKSUMS "37851d1fdae1f2cdd1d23bf9a4598b6c2f3f6792e18bc974d78ed780a28933bf")
+endif()
 
-# Loop through each PostgreSQL version
+if(BUILD_PG_17)
+    list(APPEND postgres_versions "REL_17_0")
+    list(APPEND postgres_SHA256_CHECKSUMS "16912fe4aef3c8f297b5da1b591741f132377c8b5e1b8e896e07fdd680d6bf34")
+endif()
+
+if(BUILD_PG_18)
+    list(APPEND postgres_versions "REL_18_0")
+    list(APPEND postgres_SHA256_CHECKSUMS "b155bd4a467b401ebe61b504643492aae2d0836981aa4a5a60f8668b94eadebc")
+endif()
+
+# Loop through each enabled PostgreSQL version
 foreach(postgres_version IN LISTS postgres_versions)
     # Find the index of the current version
     list(FIND postgres_versions ${postgres_version} postgres_index)

@@ -88,8 +88,26 @@ void analyze_plan(PlannedStmt* plan)
                 }
             }
         }
+
+        // Warm first batches for all streamers in parallel for cold run optimization.
+        // This blocks until all first batches are downloaded but overlaps I/O across columns.
+        if (pg::eager_batch_prefetch) {
+            try {
+                table_data->get_streamers().warm_all_streamers();
+            } catch (const std::exception& e) {
+                elog(WARNING, "Eager batch prefetch failed during analyze_plan: %s", e.what());
+            } catch (...) {
+                elog(WARNING, "Eager batch prefetch failed during analyze_plan with unknown exception");
+            }
+        }
     }
     pg::query_info::current().set_all_tables_are_deeplake(all_tables_are_deeplake);
+
+    // Pre-initialize DuckDB connection early so it's ready when query execution starts.
+    // This reduces cold run latency by front-loading DuckDB init.
+    if (pg::eager_batch_prefetch && pg::query_info::current().is_deeplake_table_referenced()) {
+        pg::ensure_duckdb_initialized();
+    }
 }
 
 } // namespace pg

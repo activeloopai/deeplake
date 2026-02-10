@@ -8,6 +8,11 @@ extern "C" {
 
 #include <postgres.h>
 
+// Build fingerprint for hot-reload verification.
+// Defined in the generated build_info_<version>.cpp (see build_info.cpp.in).
+// Isolated there so that hash changes only recompile one file.
+// Extract with: strings pg_deeplake_18.so | grep PG_DEEPLAKE_BUILD:
+
 #include <catalog/namespace.h>
 #include <commands/defrem.h>
 #include <commands/vacuum.h>
@@ -64,6 +69,11 @@ bool use_shared_mem_for_refresh = false;
 bool enable_dataset_logging = false; // Enable dataset operation logging for debugging
 bool allow_custom_paths = true;      // Allow dataset_path in CREATE TABLE options
 bool stateless_enabled = false;      // Enable stateless catalog sync across instances
+bool eager_batch_prefetch = true;    // Enable eager prefetch of first batch for cold run optimization
+
+// DuckDB memory management - controls memory_limit and temp_directory for large operations
+int32_t duckdb_memory_limit_mb = 0;  // 0 = auto-detect (80% of system memory)
+char* duckdb_temp_directory = nullptr;  // nullptr/empty = DuckDB's default temp location
 
 } // namespace pg
 
@@ -245,6 +255,19 @@ void initialize_guc_parameters()
                              nullptr,
                              nullptr);
 
+    DefineCustomBoolVariable("pg_deeplake.eager_batch_prefetch",
+                             "Enable eager prefetch of first batch for cold run optimization.",
+                             "When enabled, the first batch of data for all columns is prefetched in parallel "
+                             "when a scan begins. This significantly improves cold run performance by overlapping "
+                             "the initial data fetches for multiple columns.",
+                             &pg::eager_batch_prefetch,
+                             true,
+                             PGC_USERSET,
+                             0,
+                             nullptr,
+                             nullptr,
+                             nullptr);
+
     DefineCustomBoolVariable("pg_deeplake.enable_dataset_logging",
                              "Enable operation logging for deeplake datasets.",
                              "When enabled, all dataset operations (append_row, update_row, delete_row, etc.) "
@@ -276,6 +299,42 @@ void initialize_guc_parameters()
                             nullptr // check_hook, assign_hook, show_hook
     );
 
+
+    // DuckDB memory management GUC parameters
+    // These control DuckDB's internal memory budget for large operations like JOINs
+    DefineCustomIntVariable(
+        "pg_deeplake.duckdb_memory_limit_mb",
+        "Memory limit for DuckDB's internal operations in MB.",
+        "Controls DuckDB's memory budget for large operations like JOINs and aggregations. "
+        "Set to 0 (default) for auto-detection using 80% of system memory. "
+        "When the limit is exceeded, DuckDB spills to disk using temp_directory. "
+        "For containerized environments with cgroup limits, set this explicitly as "
+        "auto-detection may use host memory instead of container limits.",
+        &pg::duckdb_memory_limit_mb, // linked C variable
+        0,                           // default value (0 = auto-detect)
+        0,                           // min value (0 = unlimited/auto)
+        INT_MAX,                     // max value
+        PGC_USERSET,                 // context - can be set by any user
+        GUC_UNIT_MB,                 // flags - treat as MB
+        nullptr,                     // check_hook
+        nullptr,                     // assign_hook
+        nullptr                      // show_hook
+    );
+
+    DefineCustomStringVariable(
+        "pg_deeplake.duckdb_temp_directory",
+        "Temporary directory for DuckDB disk spilling during large operations.",
+        "Specifies where DuckDB writes temporary files when memory_limit is exceeded. "
+        "Empty string (default) uses DuckDB's default temp location. "
+        "DuckDB will validate the path at runtime and fail gracefully if invalid.",
+        &pg::duckdb_temp_directory, // linked C variable
+        "",                         // default value (empty = DuckDB default)
+        PGC_USERSET,                // context - can be set by any user
+        0,                          // flags
+        nullptr,                    // check_hook
+        nullptr,                    // assign_hook
+        nullptr                     // show_hook
+    );
 
     // Initialize PostgreSQL memory tracking
     pg::memory_tracker::initialize_guc_parameters();

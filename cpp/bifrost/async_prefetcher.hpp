@@ -38,6 +38,16 @@ public:
     void start();
     void stop() noexcept;
 
+    /**
+     * @brief Wait for the first batch to be ready (for cold run optimization).
+     * @param timeout_ms Maximum time to wait in milliseconds.
+     *
+     * This method is used for eager prefetching during cold runs.
+     * It fetches and caches the first batch so that subsequent next_batch()
+     * calls return immediately without blocking.
+     */
+    void wait_for_first_batch(int64_t timeout_ms = 30000);
+
     bool is_started() const noexcept;
 
     heimdall::dataset_view_ptr dataset() const noexcept;

@@ -955,6 +955,22 @@ private:
         }
 
         ASSERT(output_.ColumnCount() == global_state_.column_ids.size());
+
+        // Pre-trigger parallel batch initialization for all streaming columns.
+        // Without this, each column's batch download would block sequentially,
+        // serializing I/O waits. This overlaps all column batch downloads.
+        if (!has_index_search() && pg::eager_batch_prefetch) {
+            std::vector<int32_t> streaming_cols;
+            for (unsigned i = 0; i < global_state_.column_ids.size(); ++i) {
+                const auto col_idx = global_state_.column_ids[i];
+                if (bind_data_.table_data.is_column_requested(col_idx) &&
+                    bind_data_.table_data.column_has_streamer(col_idx)) {
+                    streaming_cols.push_back(col_idx);
+                }
+            }
+            bind_data_.table_data.get_streamers().prefetch_batches_for_row(streaming_cols, current_row);
+        }
+
         icm::vector<async::promise<void>> column_promises;
         // Fill output vectors column by column using table_data streamers
         for (unsigned i = 0; i < global_state_.column_ids.size(); ++i) {
@@ -988,10 +1004,47 @@ void deeplake_scan_function(duckdb::ClientContext& context, duckdb::TableFunctio
     deeplake_scan_function_helper helper(context, data, output);
     try {
         helper.scan();
+    } catch (const duckdb::OutOfMemoryException& e) {
+        // Provide helpful error message with configuration hints for OOM
+        elog(ERROR,
+             "DuckDB out of memory during Deeplake scan: %s. "
+             "Consider increasing pg_deeplake.duckdb_memory_limit_mb or "
+             "setting pg_deeplake.duckdb_temp_directory for disk spilling.",
+             e.what());
     } catch (const duckdb::Exception& e) {
-        elog(ERROR, "DuckDB exception during Deeplake scan: %s", e.what());
+        // Check if the error message indicates memory issues
+        std::string msg = e.what();
+        std::string msg_lower;
+        msg_lower.reserve(msg.size());
+        for (char c : msg) {
+            msg_lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+        }
+        if (msg_lower.find("memory") != std::string::npos || msg_lower.find("oom") != std::string::npos) {
+            elog(ERROR,
+                 "DuckDB memory error during Deeplake scan: %s. "
+                 "Consider increasing pg_deeplake.duckdb_memory_limit_mb or "
+                 "setting pg_deeplake.duckdb_temp_directory for disk spilling.",
+                 e.what());
+        } else {
+            elog(ERROR, "DuckDB exception during Deeplake scan: %s", e.what());
+        }
     } catch (const std::exception& e) {
-        elog(ERROR, "STD exception during Deeplake scan: %s", e.what());
+        // Check if the error message indicates memory issues
+        std::string msg = e.what();
+        std::string msg_lower;
+        msg_lower.reserve(msg.size());
+        for (char c : msg) {
+            msg_lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+        }
+        if (msg_lower.find("memory") != std::string::npos || msg_lower.find("oom") != std::string::npos) {
+            elog(ERROR,
+                 "Memory error during Deeplake scan: %s. "
+                 "Consider increasing pg_deeplake.duckdb_memory_limit_mb or "
+                 "setting pg_deeplake.duckdb_temp_directory for disk spilling.",
+                 e.what());
+        } else {
+            elog(ERROR, "STD exception during Deeplake scan: %s", e.what());
+        }
     } catch (...) {
         elog(ERROR, "Unknown exception during Deeplake scan");
     }

@@ -1,9 +1,21 @@
-import distutils.sysconfig as sysconfig
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "requests>=2.28",
+# ]
+# ///
+
 import json
 import os
 import sys
 import platform
-import requests
+
+try:
+    import requests
+except ImportError:
+    os.system("pip install requests --user --break-system-packages")
+    import requests
 
 """
 Usage: python3 scripts/build_pg_ext.py debug                               #Debug build
@@ -14,7 +26,11 @@ Usage: python3 scripts/build_pg_ext.py debug --deeplake-static             #Debu
 Usage: python3 scripts/build_pg_ext.py dev --pg-versions 16,17,18          #Build for PostgreSQL 16, 17, and 18
 Usage: python3 scripts/build_pg_ext.py dev --pg-versions 16                #Build for PostgreSQL 16 only
 Usage: python3 scripts/build_pg_ext.py prod --pg-versions all              #Build for all supported PostgreSQL versions
+Usage: python3 scripts/build_pg_ext.py dev --local-api /path/to/package    #Use local deeplake API package instead of downloading
 """
+
+
+
 
 def get_pinned_version():
     """
@@ -77,6 +93,7 @@ def download_api_lib(api_root_dir, overwrite=True):
 
     print(f"Downloading prebuilt api libraries from {asset_url} ...")
 
+    
     response = requests.get(asset_url)
     if response.status_code != 200:
         raise Exception(f"Failed to download api libraries from {asset_url}. Status code: {response.status_code}")
@@ -114,7 +131,38 @@ def download_api_lib(api_root_dir, overwrite=True):
 
     print(f"Successfully installed deeplake API library version {version}")
 
-def run(mode: str, incremental: bool, deeplake_link_type: str = None, pg_versions: list = None):
+
+def install_local_api_lib(api_root_dir, local_path):
+    """
+    Install the deeplake API library from a local package directory (e.g. from an indra build).
+    This copies include/, lib/, and cmake/ from the local package into .ext/deeplake_api/.
+    """
+    if not os.path.isdir(local_path):
+        raise Exception(f"Local API path does not exist: {local_path}")
+
+    # Verify the local package has the expected structure
+    local_lib = os.path.join(local_path, "lib")
+    local_include = os.path.join(local_path, "include")
+    if not os.path.isdir(local_lib) or not os.path.isdir(local_include):
+        raise Exception(f"Local API path missing lib/ or include/ directories: {local_path}")
+
+    os.makedirs(api_root_dir, exist_ok=True)
+
+    print(f"Installing local deeplake API from {local_path} ...")
+
+    # Remove existing and copy from local
+    err = os.system(f"rm -rf {api_root_dir}/*")
+    if err:
+        raise Exception(f"Failed to clean {api_root_dir}. Command exited with code {err}.")
+
+    err = os.system(f"cp -r {local_path}/* {api_root_dir}/")
+    if err:
+        raise Exception(f"Failed to copy local API library. Command exited with code {err}.")
+
+    print(f"Successfully installed local deeplake API from {local_path}")
+
+
+def run(mode: str, incremental: bool, deeplake_link_type: str = None, pg_versions: list = None, local_api_path: str = None):
     modes = ["debug", "dev", "prod"]
     if mode not in modes:
         raise Exception(f"Invalid mode - '{mode}'. Possible values - {', '.join(modes)}")
@@ -128,9 +176,12 @@ def run(mode: str, incremental: bool, deeplake_link_type: str = None, pg_version
 
     try:
         if not incremental:
-            # Download DeepLake API library before CMake configuration
+            # Install DeepLake API library before CMake configuration
             # (CMake's find_package needs it to exist during configuration)
-            download_api_lib(".ext/deeplake_api")
+            if local_api_path:
+                install_local_api_lib(".ext/deeplake_api", local_api_path)
+            else:
+                download_api_lib(".ext/deeplake_api")
 
             cmake_cmd = (f"cmake "
                          f"{preset} ")
@@ -221,6 +272,7 @@ if __name__ == "__main__":
         mode = sys.argv[1]
         deeplake_link_type = None
         pg_versions = None
+        local_api_path = None
 
         # Parse optional flags
         i = 2
@@ -232,6 +284,11 @@ if __name__ == "__main__":
             elif arg == "--deeplake-static":
                 deeplake_link_type = "static"
                 i += 1
+            elif arg == "--local-api":
+                if i + 1 >= len(sys.argv):
+                    raise Exception("--local-api requires a path to the local deeplake API package directory")
+                local_api_path = os.path.abspath(sys.argv[i + 1])
+                i += 2
             elif arg == "--pg-versions":
                 if i + 1 >= len(sys.argv):
                     raise Exception("--pg-versions requires a value (e.g., '16,17,18' or 'all')")
@@ -250,6 +307,6 @@ if __name__ == "__main__":
                         raise Exception(f"Invalid --pg-versions format: '{versions_str}'. Use comma-separated numbers (e.g., '16,17,18') or 'all'")
                 i += 2
             else:
-                raise Exception(f"Invalid option '{arg}'. Use --deeplake-shared, --deeplake-static, or --pg-versions")
+                raise Exception(f"Invalid option '{arg}'. Use --deeplake-shared, --deeplake-static, --local-api, or --pg-versions")
 
-        run(mode=mode, incremental=False, deeplake_link_type=deeplake_link_type, pg_versions=pg_versions)
+        run(mode=mode, incremental=False, deeplake_link_type=deeplake_link_type, pg_versions=pg_versions, local_api_path=local_api_path)

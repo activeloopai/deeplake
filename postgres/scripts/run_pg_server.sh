@@ -78,12 +78,31 @@ if [ -d "$POSTGRES_DATA" ]; then
 fi
 
 install_extension
-# Initialize database
-"$POSTGRES_INSTALL/bin/initdb" -D "$POSTGRES_DATA" -U "$USER"
+# Initialize database with 'postgres' superuser (matches Docker POSTGRES_USER=postgres)
+"$POSTGRES_INSTALL/bin/initdb" -D "$POSTGRES_DATA" -U postgres
 echo "shared_preload_libraries = 'pg_deeplake'" >> "$POSTGRES_DATA/postgresql.conf"
 echo "max_connections = 300" >> "$POSTGRES_DATA/postgresql.conf"
 echo "shared_buffers = 128MB" >> "$POSTGRES_DATA/postgresql.conf"
 #echo "log_min_messages = debug1" >> "$POSTGRES_DATA/postgresql.conf"
 
-# Start PostgreSQL
-"$POSTGRES_INSTALL/bin/pg_ctl" -D "$POSTGRES_DATA" -l "$TEST_LOGFILE" start
+# Configure pg_hba.conf: use scram-sha-256 for TCP connections (matches Docker behavior)
+# Keep trust for local socket connections (for admin convenience)
+if [[ "$(uname)" == "Darwin" ]]; then
+    sed -i '' 's/^\(host.*all.*all.*127\.0\.0\.1\/32\s*\)trust/\1scram-sha-256/' "$POSTGRES_DATA/pg_hba.conf"
+    sed -i '' 's/^\(host.*all.*all.*::1\/128\s*\)trust/\1scram-sha-256/' "$POSTGRES_DATA/pg_hba.conf"
+else
+    sed -i 's/^\(host.*all.*all.*127\.0\.0\.1\/32\s*\)trust/\1scram-sha-256/' "$POSTGRES_DATA/pg_hba.conf"
+    sed -i 's/^\(host.*all.*all.*::1\/128\s*\)trust/\1scram-sha-256/' "$POSTGRES_DATA/pg_hba.conf"
+fi
+
+# Start PostgreSQL temporarily to set password
+"$POSTGRES_INSTALL/bin/pg_ctl" -D "$POSTGRES_DATA" -l "$TEST_LOGFILE" -t 120 start
+
+# Set postgres password (matches Docker POSTGRES_PASSWORD=password)
+"$POSTGRES_INSTALL/bin/psql" -U postgres -c "ALTER USER postgres PASSWORD 'password';"
+
+# Stop PostgreSQL and restart in foreground
+stop_postgres
+
+echo "Starting PostgreSQL in foreground..."
+exec "$POSTGRES_INSTALL/bin/postgres" -D "$POSTGRES_DATA"

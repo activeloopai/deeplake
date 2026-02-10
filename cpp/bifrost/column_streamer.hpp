@@ -35,6 +35,24 @@ public:
         return b.columns()[0].array();
     }
 
+    async::promise<deeplake_core::batch> next_batch_async()
+    {
+        return prefetcher_.next_batch_async();
+    }
+
+    /**
+     * @brief Pre-fetch and cache the first batch for cold run optimization.
+     * @param timeout_ms Maximum time to wait in milliseconds.
+     *
+     * This method waits for the first batch to be downloaded and cached
+     * internally. Subsequent calls to next_batch() will return immediately
+     * for the first batch.
+     */
+    void ensure_first_batch_ready(int64_t timeout_ms = 30000)
+    {
+        prefetcher_.wait_for_first_batch(timeout_ms);
+    }
+
     bool empty() const noexcept
     {
         return prefetcher_.size() == 0;

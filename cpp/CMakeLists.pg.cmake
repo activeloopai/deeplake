@@ -48,16 +48,105 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/FindDuckDB.cmake)
 set(CMAKE_PREFIX_PATH ${CMAKE_CURRENT_SOURCE_DIR}/.ext/deeplake_api ${CMAKE_PREFIX_PATH})
 find_package(DeepLakeAPI REQUIRED PATHS ${CMAKE_CURRENT_SOURCE_DIR}/.ext/deeplake_api/lib/cmake/deeplake_api NO_DEFAULT_PATH)
 
+# AWS SDK - required by deeplake_api (symbols not bundled in the prebuilt library)
+find_package(AWSSDK COMPONENTS core s3 identity-management)
+if(AWSSDK_FOUND)
+    message(STATUS "Found AWS SDK: ${AWSSDK_LIBRARIES}")
+    list(APPEND DEEPLAKE_STATIC_LINK_LIBS ${AWSSDK_LIBRARIES})
+else()
+    message(STATUS "AWS SDK not found via find_package, trying manual discovery...")
+    # Try to find AWS SDK libraries in common vcpkg locations
+    set(_AWS_SEARCH_PATHS
+        "$ENV{VCPKG_ROOT}/installed/arm64-linux/lib"
+        "$ENV{VCPKG_ROOT}/packages/aws-sdk-cpp_arm64-linux/lib"
+    )
+    # Also check for AWS libs in the build's vcpkg_installed
+    file(GLOB _VCPKG_INSTALLED_DIRS "${CMAKE_BINARY_DIR}/vcpkg_installed/*/lib")
+    list(APPEND _AWS_SEARCH_PATHS ${_VCPKG_INSTALLED_DIRS})
+
+    set(_AWS_LIBS
+        aws-cpp-sdk-s3
+        aws-cpp-sdk-core
+        aws-cpp-sdk-identity-management
+        aws-cpp-sdk-cognito-identity
+        aws-cpp-sdk-sts
+        aws-crt-cpp
+        aws-c-s3
+        aws-c-auth
+        aws-c-http
+        aws-c-mqtt
+        aws-c-event-stream
+        aws-c-io
+        aws-c-cal
+        aws-c-compression
+        aws-c-sdkutils
+        aws-c-common
+        aws-checksums
+        s2n
+    )
+    set(_FOUND_AWS_LIBS)
+    foreach(_lib ${_AWS_LIBS})
+        find_library(_LIB_${_lib} NAMES ${_lib} PATHS ${_AWS_SEARCH_PATHS} NO_DEFAULT_PATH)
+        if(_LIB_${_lib})
+            list(APPEND _FOUND_AWS_LIBS ${_LIB_${_lib}})
+            message(STATUS "  Found: ${_LIB_${_lib}}")
+        endif()
+    endforeach()
+    if(_FOUND_AWS_LIBS)
+        list(APPEND DEEPLAKE_STATIC_LINK_LIBS ${_FOUND_AWS_LIBS})
+        message(STATUS "Linked ${CMAKE_LIST_LENGTH(_FOUND_AWS_LIBS)} AWS SDK libraries manually")
+    else()
+        message(WARNING "AWS SDK libraries not found. pg_deeplake may fail to load at runtime.")
+    endif()
+endif()
+
 # }
 
 include_directories(${DEFAULT_PARENT_DIR}/.ext/duckdb/src/include)
 
 set(POSTGRES_DIR "${DEFAULT_PARENT_DIR}/../postgres")
 
+# Build fingerprint: git hash + dirty state for hot-reload verification.
+# Always recomputed at configure time so the .so reflects the current source.
+# -c safe.directory=* is needed because the Docker container runs as root
+# but the bind-mounted /deeplake is owned by the host user.
+execute_process(
+    COMMAND git -c safe.directory=* rev-parse --short=12 HEAD
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE _GIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+    RESULT_VARIABLE _GIT_RESULT)
+if(_GIT_RESULT EQUAL 0)
+    execute_process(
+        COMMAND git -c safe.directory=* diff --quiet
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        RESULT_VARIABLE _GIT_DIRTY)
+    if(_GIT_DIRTY)
+        set(PG_DEEPLAKE_BUILD_HASH "${_GIT_HASH}-dirty")
+    else()
+        set(PG_DEEPLAKE_BUILD_HASH "${_GIT_HASH}")
+    endif()
+else()
+    set(PG_DEEPLAKE_BUILD_HASH "unknown")
+endif()
+message(STATUS "PG_DEEPLAKE_BUILD_HASH: ${PG_DEEPLAKE_BUILD_HASH}")
+
 foreach(PG_VERSION ${PG_VERSIONS})
     set(PG_LIB "pg_deeplake_${PG_VERSION}")
     message(STATUS "Creating library ${PG_LIB} with sources: ${PG_SOURCES}")
     ADD_LIBRARY(${PG_LIB} SHARED ${PG_SOURCES})
+
+    # Embed build fingerprint for hot-reload verification.
+    # Isolated in a generated .cpp so hash changes only recompile one file
+    # instead of every source file in the target (configure_file only
+    # rewrites when content actually changes, so same-hash = zero work).
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/deeplake_pg/build_info.cpp.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/build_info_${PG_VERSION}.cpp"
+        @ONLY)
+    target_sources(${PG_LIB} PRIVATE
+        "${CMAKE_CURRENT_BINARY_DIR}/build_info_${PG_VERSION}.cpp")
 
     set(PG_TARGET_NAME "configure_postgres_REL_${PG_VERSION}_0")
 
@@ -151,8 +240,14 @@ foreach(PG_VERSION ${PG_VERSIONS})
         DESTINATION ${PG_SHAREDIR}/extension
     )
 
+    # Symlink instead of copy: always points at the build output, zero I/O,
+    # and survives incremental builds where the target is up-to-date (the
+    # existing symlink still resolves to the current .so).
     add_custom_command(TARGET ${PG_LIB} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy ${PG_LIB}${CMAKE_SHARED_LIBRARY_SUFFIX} "${POSTGRES_DIR}/"
-        COMMENT "Copied ${CMAKE_BINARY_DIR}/${PG_LIB}${CMAKE_SHARED_LIBRARY_SUFFIX} to ${POSTGRES_DIR}/"
+        COMMAND ${CMAKE_COMMAND} -E rm -f "${POSTGRES_DIR}/${PG_LIB}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+            "$<TARGET_FILE:${PG_LIB}>"
+            "${POSTGRES_DIR}/${PG_LIB}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+        COMMENT "Symlinked ${POSTGRES_DIR}/${PG_LIB}${CMAKE_SHARED_LIBRARY_SUFFIX} -> $<TARGET_FILE:${PG_LIB}>"
     )
 endforeach()

@@ -24,6 +24,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -131,12 +132,38 @@ public:
 
         std::vector<column_data> column_to_batches;
         std::vector<std::unique_ptr<bifrost::column_streamer>> streamers;
+        std::vector<std::optional<nd::array>> first_batch_cache_;
+        bool warmed_ = false;
 
         inline void reset() noexcept
         {
             column_to_batches.clear();
             streamers.clear();
+            first_batch_cache_.clear();
+            warmed_ = false;
         }
+
+        /**
+         * @brief Pre-warm all streamers by triggering parallel first batch downloads.
+         *
+         * This method initiates the download of the first batch for all active
+         * streamers in parallel, then waits for all downloads to complete.
+         * This significantly improves cold run performance by overlapping the
+         * initial data fetches.
+         */
+        inline void warm_all_streamers();
+
+
+        /**
+         * @brief Pre-initialize batches for all given columns at the specified row in parallel.
+         *
+         * For a cold run, batch initialization blocks on I/O. Without this method,
+         * the scan processes columns sequentially, serializing I/O waits.
+         * This method triggers batch downloads for all columns that need it concurrently,
+         * then waits for all to complete, so the subsequent sequential column processing
+         * finds all batches already initialized.
+         */
+        inline void prefetch_batches_for_row(const std::vector<int32_t>& column_indices, int64_t row_number);
 
         inline nd::array get_sample(int32_t column_number, int64_t row_number);
 
