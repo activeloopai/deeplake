@@ -1,0 +1,54 @@
+{{- if .Values.haproxy.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pg-deeplake.fullname" . }}-haproxy
+  labels:
+    {{- include "pg-deeplake.labels" . | nindent 4 }}
+data:
+  haproxy.cfg: |
+    global
+        log stdout format raw local0 info
+        maxconn 1000
+
+    defaults
+        log     global
+        mode    tcp
+        option  tcplog
+        option  dontlognull
+        timeout connect 10s
+        timeout client  1h
+        timeout server  1h
+        timeout queue   {{ .Values.haproxy.queueTimeout }}
+        retries 3
+        option redispatch
+
+    frontend pg_frontend
+    {{- if .Values.tls.enabled }}
+        bind *:5432 ssl crt /etc/haproxy/certs/server.pem
+    {{- else }}
+        bind *:5432
+    {{- end }}
+        default_backend pg_backends
+
+    backend pg_backends
+        balance roundrobin
+        option pgsql-check user {{ .Values.postgres.user }}
+    {{- $fullname := include "pg-deeplake.fullname" . }}
+    {{- range $i := until (int .Values.replicaCount) }}
+        server {{ $fullname }}-{{ $i }} {{ $fullname }}-{{ $i }}.{{ $fullname }}-headless:5432 check inter 3s fall 3 rise 2
+    {{- end }}
+
+    # Metrics endpoint for KEDA autoscaler and monitoring.
+    frontend stats
+        bind *:8404
+        mode http
+        http-request use-service prometheus-exporter if { path /metrics }
+    {{- if .Values.haproxy.stats.auth }}
+        stats enable
+        stats uri /stats
+        stats refresh 10s
+        stats auth {{ .Values.haproxy.stats.auth }}
+        stats admin if TRUE
+    {{- end }}
+{{- end }}

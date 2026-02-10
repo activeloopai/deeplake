@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pg-deeplake.fullname" . }}-config
+  labels:
+    {{- include "pg-deeplake.labels" . | nindent 4 }}
+data:
+  postgresql-overrides.conf: |
+    # pg_deeplake serverless overrides
+    {{- if .Values.persistence.enabled }}
+    # Safe WAL settings — persistent storage requires durability guarantees
+    wal_level = replica
+    fsync = on
+    full_page_writes = on
+    synchronous_commit = on
+    {{- else }}
+    # Aggressive WAL settings — ephemeral storage, data lives in S3
+    wal_level = minimal
+    max_wal_senders = 0
+    fsync = off
+    full_page_writes = off
+    synchronous_commit = off
+    {{- end }}
+    shared_buffers = 512MB
+    work_mem = 2GB
+    maintenance_work_mem = 512MB
+    effective_cache_size = 4GB
+    max_connections = 200
+    bgwriter_lru_maxpages = 1000
+    bgwriter_lru_multiplier = 4.0
+    checkpoint_timeout = 30min
+    max_wal_size = 4GB
+    log_min_duration_statement = 1000
+    log_statement = 'ddl'
+    log_line_prefix = '%m [%p] %d %u '
+    log_checkpoints = on
+
+  init-deeplake-stateless.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    echo "=== pg_deeplake stateless init ==="
+    CREDS_JSON="{\"aws_access_key_id\":\"${AWS_ACCESS_KEY_ID}\",\"aws_secret_access_key\":\"${AWS_SECRET_ACCESS_KEY}\",\"session_token\":\"${AWS_SESSION_TOKEN:-}\"}"
+    CREDS_JSON_ESCAPED=${CREDS_JSON//\'/\'\'}
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+        ALTER SYSTEM SET deeplake.stateless_enabled = true;
+        ALTER SYSTEM SET deeplake.root_path = '${DEEPLAKE_ROOT_PATH}';
+        ALTER SYSTEM SET deeplake.creds = '${CREDS_JSON_ESCAPED}';
+        ALTER SYSTEM SET deeplake.sync_interval_ms = ${DEEPLAKE_SYNC_INTERVAL_MS:-2000};
+        ALTER SYSTEM SET pg_deeplake.memory_limit_mb = ${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0};
+    EOSQL
+    if [ -f /etc/postgresql-overrides.conf ]; then
+        echo "" >> "$PGDATA/postgresql.conf"
+        echo "# --- serverless overrides ---" >> "$PGDATA/postgresql.conf"
+        cat /etc/postgresql-overrides.conf >> "$PGDATA/postgresql.conf"
+    fi
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+        SELECT pg_reload_conf();
+    EOSQL
+    echo "=== pg_deeplake stateless init complete ==="
+
+  health-check.sh: |
+    #!/bin/bash
+    set -e
+    RESULT=$(psql -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-postgres}" -tAc "
+        SELECT CASE
+            WHEN (SELECT count(*) FROM pg_extension WHERE extname = 'pg_deeplake') = 0
+            THEN 'NO_EXTENSION'
+            WHEN current_setting('deeplake.stateless_enabled', true) NOT IN ('on', 'true')
+            THEN 'STATELESS_OFF'
+            WHEN current_setting('deeplake.root_path', true) IS NULL
+                 OR current_setting('deeplake.root_path', true) = ''
+                 OR left(current_setting('deeplake.root_path', true), 5) != 's3://'
+            THEN 'NO_ROOT_PATH'
+            ELSE 'OK'
+        END;
+    " 2>/dev/null)
+    if [ "$RESULT" = "OK" ]; then
+        exit 0
+    else
+        echo "Health check failed: ${RESULT:-connection_failed}" >&2
+        exit 1
+    fi

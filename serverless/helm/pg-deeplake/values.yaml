@@ -1,0 +1,104 @@
+replicaCount: 2
+
+image:
+  repository: quay.io/activeloopai/pg-deeplake
+  tag: "18"
+  pullPolicy: IfNotPresent
+
+deeplake:
+  rootPath: "s3://your-bucket/your-prefix/"
+  syncIntervalMs: 2000
+  memoryLimitMb: 0
+
+aws:
+  accessKeyId: ""
+  secretAccessKey: ""
+  sessionToken: ""
+
+postgres:
+  user: postgres
+  password: postgres
+  database: postgres
+  hostAuthMethod: scram-sha-256
+
+persistence:
+  enabled: true
+  storageClass: ""
+  size: 10Gi
+
+resources:
+  requests:
+    cpu: "1"
+    memory: "2Gi"
+  limits:
+    cpu: "4"
+    memory: "8Gi"
+
+shmSize: 1Gi
+
+tls:
+  enabled: true
+  # Name of a Kubernetes TLS Secret (must contain tls.crt and tls.key).
+  # Create with: kubectl create secret tls pg-deeplake-tls --cert=server.crt --key=server.key
+  secretName: "pg-deeplake-tls"
+
+haproxy:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: haproxy
+    tag: "2.9"
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "1"
+      memory: "512Mi"
+  # Connection queue timeout: how long to hold connections while waiting
+  # for backends to become available (enables wake-on-connect).
+  queueTimeout: "120s"
+  stats:
+    # Set to "user:password" to enable the stats HTML dashboard.
+    # Leave empty to disable the dashboard (prometheus metrics remain available).
+    auth: ""
+  service:
+    type: LoadBalancer
+    port: 5432
+    statsPort: 8404
+    exposeStats: false
+
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "7-alpine"
+  maxMemory: "512mb"
+  # For production HA, use an external Redis cluster (e.g. AWS ElastiCache,
+  # Bitnami Redis Sentinel chart). Single-replica Redis is acceptable when
+  # the cache is purely a performance optimization and not critical path.
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "640Mi"
+  service:
+    port: 6379
+
+autoscaling:
+  enabled: false
+  minReplicas: 0
+  maxReplicas: 8
+  idleReplicaCount: 0
+  # KEDA scales based on HAProxy's queued connection count (prometheus trigger).
+  # This works at 0 DB replicas because HAProxy is always running as the
+  # activation proxy. New connections queue at HAProxy → metric rises →
+  # KEDA scales up → backends become healthy → HAProxy forwards.
+  connectionQueueThreshold: "1"
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

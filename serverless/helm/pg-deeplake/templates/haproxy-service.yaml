@@ -1,0 +1,46 @@
+{{- if .Values.haproxy.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pg-deeplake.fullname" . }}-haproxy
+  labels:
+    {{- include "pg-deeplake.labels" . | nindent 4 }}
+    app.kubernetes.io/component: load-balancer
+spec:
+  type: {{ .Values.haproxy.service.type }}
+  ports:
+    - port: {{ .Values.haproxy.service.port }}
+      targetPort: postgres
+      protocol: TCP
+      name: postgres
+    {{- if .Values.haproxy.service.exposeStats }}
+    - port: {{ .Values.haproxy.service.statsPort }}
+      targetPort: stats
+      protocol: TCP
+      name: stats
+    {{- end }}
+  selector:
+    {{- include "pg-deeplake.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: load-balancer
+{{- end }}
+
+{{- if and .Values.haproxy.enabled .Values.autoscaling.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pg-deeplake.fullname" . }}-haproxy-metrics
+  labels:
+    {{- include "pg-deeplake.labels" . | nindent 4 }}
+    app.kubernetes.io/component: load-balancer
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.haproxy.service.statsPort }}
+      targetPort: stats
+      protocol: TCP
+      name: metrics
+  selector:
+    {{- include "pg-deeplake.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: load-balancer
+{{- end }}

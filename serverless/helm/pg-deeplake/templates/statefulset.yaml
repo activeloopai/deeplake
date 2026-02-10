@@ -1,0 +1,134 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "pg-deeplake.fullname" . }}
+  labels:
+    {{- include "pg-deeplake.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "pg-deeplake.fullname" . }}-headless
+  replicas: {{ if .Values.autoscaling.enabled }}{{ .Values.autoscaling.minReplicas }}{{ else }}{{ .Values.replicaCount }}{{ end }}
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      {{- include "pg-deeplake.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: database
+  template:
+    metadata:
+      labels:
+        {{- include "pg-deeplake.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: database
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: pg-deeplake
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.user | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pg-deeplake.fullname" . }}-aws
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_HOST_AUTH_METHOD
+              value: {{ .Values.postgres.hostAuthMethod | quote }}
+            - name: POSTGRES_INITDB_ARGS
+              value: "--auth-host={{ .Values.postgres.hostAuthMethod }}"
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.database | quote }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pg-deeplake.fullname" . }}-aws
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pg-deeplake.fullname" . }}-aws
+                  key: AWS_SECRET_ACCESS_KEY
+            - name: AWS_SESSION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pg-deeplake.fullname" . }}-aws
+                  key: AWS_SESSION_TOKEN
+            - name: DEEPLAKE_ROOT_PATH
+              value: {{ .Values.deeplake.rootPath | quote }}
+            - name: DEEPLAKE_SYNC_INTERVAL_MS
+              value: {{ .Values.deeplake.syncIntervalMs | quote }}
+            - name: PG_DEEPLAKE_MEMORY_LIMIT_MB
+              value: {{ .Values.deeplake.memoryLimitMb | quote }}
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: config
+              mountPath: /docker-entrypoint-initdb.d/3-stateless-init.sh
+              subPath: init-deeplake-stateless.sh
+              readOnly: true
+            - name: config
+              mountPath: /etc/postgresql-overrides.conf
+              subPath: postgresql-overrides.conf
+              readOnly: true
+            - name: config
+              mountPath: /usr/local/bin/health-check.sh
+              subPath: health-check.sh
+              readOnly: true
+            - name: shm
+              mountPath: /dev/shm
+            {{- if .Values.persistence.enabled }}
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          readinessProbe:
+            exec:
+              command: ["bash", "/usr/local/bin/health-check.sh"]
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            exec:
+              command: ["bash", "/usr/local/bin/health-check.sh"]
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "pg-deeplake.fullname" . }}-config
+            defaultMode: 0755
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ .Values.shmSize }}
+  {{- if .Values.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.persistence.storageClass }}
+        storageClassName: {{ .Values.persistence.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+  {{- end }}

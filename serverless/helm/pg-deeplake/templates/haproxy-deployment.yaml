@@ -1,0 +1,79 @@
+{{- if .Values.haproxy.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pg-deeplake.fullname" . }}-haproxy
+  labels:
+    {{- include "pg-deeplake.labels" . | nindent 4 }}
+    app.kubernetes.io/component: load-balancer
+spec:
+  replicas: {{ .Values.haproxy.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "pg-deeplake.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: load-balancer
+  template:
+    metadata:
+      labels:
+        {{- include "pg-deeplake.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: load-balancer
+    spec:
+      {{- if .Values.tls.enabled }}
+      initContainers:
+        - name: build-server-pem
+          image: alpine:3.20
+          command:
+            - sh
+            - -c
+            - "cat /tls-src/tls.crt /tls-src/tls.key > /tls-out/server.pem && chmod 0600 /tls-out/server.pem"
+          volumeMounts:
+            - name: tls-source
+              mountPath: /tls-src
+              readOnly: true
+            - name: tls-certs
+              mountPath: /tls-out
+      {{- end }}
+      containers:
+        - name: haproxy
+          image: "{{ .Values.haproxy.image.repository }}:{{ .Values.haproxy.image.tag }}"
+          ports:
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+            - name: stats
+              containerPort: 8404
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /usr/local/etc/haproxy/haproxy.cfg
+              subPath: haproxy.cfg
+              readOnly: true
+            {{- if .Values.tls.enabled }}
+            - name: tls-certs
+              mountPath: /etc/haproxy/certs
+              readOnly: true
+            {{- end }}
+          resources:
+            {{- toYaml .Values.haproxy.resources | nindent 12 }}
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "pg-deeplake.fullname" . }}-haproxy
+        {{- if .Values.tls.enabled }}
+        - name: tls-source
+          secret:
+            secretName: {{ required "tls.secretName is required when tls.enabled=true" .Values.tls.secretName }}
+        - name: tls-certs
+          emptyDir: {}
+        {{- end }}
+{{- end }}

@@ -1,0 +1,13 @@
+# Secrets — never commit actual credentials
+.env
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Docker
+docker-compose.override.yml
+
+# Generated state
+config/.instance_count

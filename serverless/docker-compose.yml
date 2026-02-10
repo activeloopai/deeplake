@@ -1,0 +1,152 @@
+services:
+  pg-deeplake-1:
+    image: quay.io/activeloopai/pg-deeplake:18
+    container_name: pg-deeplake-1
+    restart: unless-stopped
+    shm_size: 1g
+    stop_grace_period: 30s
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      DEEPLAKE_ROOT_PATH: ${DEEPLAKE_ROOT_PATH}
+      DEEPLAKE_SYNC_INTERVAL_MS: ${DEEPLAKE_SYNC_INTERVAL_MS:-2000}
+      PG_DEEPLAKE_MEMORY_LIMIT_MB: ${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0}
+    volumes:
+      - ./scripts/init-deeplake-stateless.sh:/docker-entrypoint-initdb.d/3-stateless-init.sh:ro
+      - ./config/postgresql-overrides.conf:/etc/postgresql-overrides.conf:ro
+      - ./scripts/health-check.sh:/usr/local/bin/health-check.sh:ro
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD", "bash", "/usr/local/bin/health-check.sh"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+    networks:
+      - deeplake-net
+
+  pg-deeplake-2:
+    image: quay.io/activeloopai/pg-deeplake:18
+    container_name: pg-deeplake-2
+    restart: unless-stopped
+    shm_size: 1g
+    stop_grace_period: 30s
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      DEEPLAKE_ROOT_PATH: ${DEEPLAKE_ROOT_PATH}
+      DEEPLAKE_SYNC_INTERVAL_MS: ${DEEPLAKE_SYNC_INTERVAL_MS:-2000}
+      PG_DEEPLAKE_MEMORY_LIMIT_MB: ${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0}
+    volumes:
+      - ./scripts/init-deeplake-stateless.sh:/docker-entrypoint-initdb.d/3-stateless-init.sh:ro
+      - ./config/postgresql-overrides.conf:/etc/postgresql-overrides.conf:ro
+      - ./scripts/health-check.sh:/usr/local/bin/health-check.sh:ro
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD", "bash", "/usr/local/bin/health-check.sh"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+    networks:
+      - deeplake-net
+
+  haproxy:
+    image: haproxy:2.9
+    container_name: haproxy
+    restart: unless-stopped
+    profiles: ["haproxy"]
+    volumes:
+      - ./config/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./config/certs:/etc/haproxy/certs:ro
+    ports:
+      - "5432:5432"
+      - "127.0.0.1:8404:8404"
+    depends_on:
+      pg-deeplake-1:
+        condition: service_healthy
+      pg-deeplake-2:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - deeplake-net
+
+  supavisor:
+    image: supabase/supavisor:2.0
+    container_name: supavisor
+    restart: unless-stopped
+    profiles: ["supavisor"]
+    ports:
+      - "5432:5432"
+      - "4000:4000"
+    volumes:
+      - ./config/supavisor.toml:/etc/supavisor/config.toml:ro
+    depends_on:
+      pg-deeplake-1:
+        condition: service_healthy
+      pg-deeplake-2:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - deeplake-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - deeplake-net
+
+networks:
+  deeplake-net:
+    driver: bridge
