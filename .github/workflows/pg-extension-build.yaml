@@ -345,6 +345,7 @@ jobs:
         uses: docker/setup-buildx-action@v3.11.1
 
       - name: build and push container images
+        if: github.ref_name != 'serverless'
         shell: bash
         env:
           PG_VERSION: "${{ matrix.version }}"
@@ -359,6 +360,27 @@ jobs:
             --tag quay.io/activeloopai/pg-deeplake:"${PG_VERSION}"_"${VERSION}"_"${COMMIT_SHA}" \
             --tag quay.io/activeloopai/pg-deeplake:"${PG_VERSION}" \
             --build-arg VERSION="${PG_VERSION}"_"${VERSION}"-1 \
+            --platform linux/amd64,linux/arm64 \
+            -f Dockerfile.build \
+            .
+
+      - name: build and push container images (stateless)
+        if: github.ref_name == 'serverless'
+        shell: bash
+        env:
+          PG_VERSION: "${{ matrix.version }}"
+          VERSION: "${{ needs.extension-build.outputs.version }}"
+          COMMIT_SHA: "${{ github.sha }}"
+        run: |-
+          echo "Using package version: ${VERSION}"
+          echo "Using commit SHA: ${COMMIT_SHA}"
+          sed s/BASE_IMAGE/postgres:"${PG_VERSION}"-bookworm/g postgres/Dockerfile > Dockerfile.build
+          docker buildx build \
+            --push \
+            --tag quay.io/activeloopai/pg-deeplake:stateless-"${PG_VERSION}"_"${VERSION}"_"${COMMIT_SHA}" \
+            --tag quay.io/activeloopai/pg-deeplake:stateless-"${PG_VERSION}" \
+            --build-arg VERSION="${PG_VERSION}"_"${VERSION}"-1 \
+            --build-arg STATELESS=true \
             --platform linux/amd64,linux/arm64 \
             -f Dockerfile.build \
             .

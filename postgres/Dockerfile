@@ -1,6 +1,7 @@
 FROM BASE_IMAGE
 ARG VERSION=VERSION
 ARG TARGETARCH
+ARG STATELESS=false
 
 LABEL name="pg-deeplake" \
   version="${VERSION}" \
@@ -28,4 +29,10 @@ COPY ./debs/ /tmp/debs/
 COPY --chmod=444 ./LICENSE /LICENSE
 COPY ./postgres/docker-entrypoint.d/ /docker-entrypoint-initdb.d/
 RUN apt-get install --no-install-recommends -y /tmp/debs/pg-deeplake-${VERSION}_${TARGETARCH}.deb && rm -rf /tmp/debs/
+RUN if [ "$STATELESS" = "true" ]; then \
+      cp ./serverless/scripts/init-deeplake-stateless.sh /docker-entrypoint-initdb.d/3-stateless-init.sh && \
+      cp ./serverless/config/postgresql-overrides.conf /etc/postgresql-overrides.conf && \
+      cp ./serverless/scripts/health-check.sh /usr/local/bin/health-check.sh && \
+      mkdir -p /deeplake-data; \
+    fi
 USER 999
