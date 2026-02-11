@@ -364,9 +364,6 @@ jobs:
             -f Dockerfile.build \
             .
 
-      - name: Debugging with tmate
-        uses: mxschmitt/action-tmate@v3.23
-
       - name: build and push container images (stateless)
         if: github.ref_name == 'serverless'
         shell: bash
