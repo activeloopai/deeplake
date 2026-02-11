@@ -25,6 +25,7 @@ extern "C" {
 
 #include "column_statistics.hpp"
 #include "deeplake_executor.hpp"
+#include "dl_catalog.hpp"
 #include "pg_deeplake.hpp"
 #include "pg_version_compat.h"
 #include "sync_worker.hpp"
@@ -473,6 +474,10 @@ static void deeplake_shmem_request()
     // Request shared memory for table DDL lock
     RequestAddinShmemSpace(pg::table_ddl_lock::get_shmem_size());
     RequestNamedLWLockTranche("deeplake_table_ddl", 1);
+
+    // Request shared memory for pending extension install queue
+    RequestAddinShmemSpace(pg::pending_install_queue::get_shmem_size());
+    RequestNamedLWLockTranche("deeplake_install_queue", 1);
 }
 
 static void deeplake_shmem_startup()
@@ -483,6 +488,7 @@ static void deeplake_shmem_startup()
 
     pg::table_version_tracker::initialize();
     pg::table_ddl_lock::initialize();
+    pg::pending_install_queue::initialize();
 }
 
 static void process_utility(PlannedStmt* pstmt,
@@ -675,10 +681,81 @@ static void process_utility(PlannedStmt* pstmt,
         }
     }
 
+    // Pre-hook: mark database as "dropping" in S3 catalog before PostgreSQL drops it
+    if (IsA(pstmt->utilityStmt, DropdbStmt) && pg::stateless_enabled) {
+        DropdbStmt* dbstmt = (DropdbStmt*)pstmt->utilityStmt;
+        try {
+            auto root_path = pg::session_credentials::get_root_path();
+            if (root_path.empty()) {
+                root_path = pg::utils::get_deeplake_root_directory();
+            }
+            if (!root_path.empty()) {
+                auto creds = pg::session_credentials::get_credentials();
+                pg::dl_catalog::database_meta db_meta;
+                db_meta.db_name = dbstmt->dbname;
+                db_meta.state = "dropping";
+                pg::dl_catalog::upsert_database(root_path, creds, db_meta);
+                pg::dl_catalog::bump_catalog_version(root_path, creds);
+                elog(LOG, "pg_deeplake: marked database '%s' as dropping in catalog", dbstmt->dbname);
+            }
+        } catch (const std::exception& e) {
+            elog(WARNING, "pg_deeplake: failed to mark database '%s' as dropping in catalog: %s", dbstmt->dbname, e.what());
+        }
+    }
+
     if (prev_process_utility_hook != nullptr) {
         prev_process_utility_hook(pstmt, queryString, readOnlyTree, context, params, queryEnv, dest, completionTag);
     } else {
         standard_ProcessUtility(pstmt, queryString, readOnlyTree, context, params, queryEnv, dest, completionTag);
+    }
+
+    // Post-hook: record CREATE DATABASE in S3 catalog and install extension
+    if (IsA(pstmt->utilityStmt, CreatedbStmt)) {
+        CreatedbStmt* dbstmt = (CreatedbStmt*)pstmt->utilityStmt;
+
+        // Queue the database for async extension install by the sync worker.
+        // The inline PQconnectdb approach fails on PG15+ because CREATE DATABASE
+        // is WAL-logged/transactional and the pg_database row isn't committed yet.
+        pg::pending_install_queue::enqueue(dbstmt->dbname);
+
+        // Record in S3 catalog if stateless mode is enabled
+        if (pg::stateless_enabled) {
+            try {
+                auto root_path = pg::session_credentials::get_root_path();
+                if (root_path.empty()) {
+                    root_path = pg::utils::get_deeplake_root_directory();
+                }
+                if (!root_path.empty()) {
+                    auto creds = pg::session_credentials::get_credentials();
+                    pg::dl_catalog::database_meta db_meta;
+                    db_meta.db_name = dbstmt->dbname;
+                    db_meta.state = "ready";
+
+                    // Extract options from CREATE DATABASE statement
+                    ListCell* lc = nullptr;
+                    foreach (lc, dbstmt->options) {
+                        DefElem* def = (DefElem*)lfirst(lc);
+                        if (strcmp(def->defname, "owner") == 0) {
+                            db_meta.owner = defGetString(def);
+                        } else if (strcmp(def->defname, "encoding") == 0) {
+                            db_meta.encoding = defGetString(def);
+                        } else if (strcmp(def->defname, "lc_collate") == 0) {
+                            db_meta.lc_collate = defGetString(def);
+                        } else if (strcmp(def->defname, "lc_ctype") == 0) {
+                            db_meta.lc_ctype = defGetString(def);
+                        } else if (strcmp(def->defname, "template") == 0) {
+                            db_meta.template_db = defGetString(def);
+                        }
+                    }
+
+                    pg::dl_catalog::upsert_database(root_path, creds, db_meta);
+                    pg::dl_catalog::bump_catalog_version(root_path, creds);
+                    elog(DEBUG1, "pg_deeplake: recorded CREATE DATABASE '%s' in catalog", dbstmt->dbname);
+                }
+            } catch (const std::exception& e) {
+                elog(DEBUG1, "pg_deeplake: failed to record CREATE DATABASE '%s' in catalog: %s", dbstmt->dbname, e.what());
+            }
+        }
     }
 
     // Post-process ALTER TABLE ADD COLUMN to add column to deeplake dataset

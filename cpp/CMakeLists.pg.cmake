@@ -70,6 +70,7 @@ foreach(PG_VERSION ${PG_VERSIONS})
     endif()
 
     set(PG_SERVER_INCLUDE_DIR "${postgres_INSTALL_DIR_REL_${PG_VERSION}_0}/include/server")
+    set(PG_INCLUDE_DIR "${postgres_INSTALL_DIR_REL_${PG_VERSION}_0}/include")
     set(PG_PKGLIBDIR "${postgres_INSTALL_DIR_REL_${PG_VERSION}_0}/lib")
     set(PG_SHAREDIR "${postgres_INSTALL_DIR_REL_${PG_VERSION}_0}/share")
 
@@ -79,7 +80,7 @@ foreach(PG_VERSION ${PG_VERSIONS})
     )
 
     target_include_directories(${PG_LIB}
-        SYSTEM PRIVATE ${PG_SERVER_INCLUDE_DIR}
+        SYSTEM PRIVATE ${PG_SERVER_INCLUDE_DIR} ${PG_INCLUDE_DIR}
         PRIVATE
         ${indicators_INCLUDE_DIRS}
     )

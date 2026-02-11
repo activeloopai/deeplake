@@ -29,6 +29,7 @@ constexpr const char* k_tables_name = "tables";
 constexpr const char* k_columns_name = "columns";
 constexpr const char* k_indexes_name = "indexes";
 constexpr const char* k_meta_name = "meta";
+constexpr const char* k_databases_name = "databases";
 
 std::string join_path(const std::string& root, const std::string& name)
 {
@@ -131,6 +132,7 @@ int64_t ensure_catalog(const std::string& root_path, icm::string_map<> creds)
     const auto columns_path = join_path(root_path, k_columns_name);
     const auto indexes_path = join_path(root_path, k_indexes_name);
     const auto meta_path = join_path(root_path, k_meta_name);
+    const auto databases_path = join_path(root_path, k_databases_name);
 
     try {
         // Build schemas for all catalog tables
@@ -165,9 +167,20 @@ int64_t ensure_catalog(const std::string& root_path, icm::string_map<> creds)
             .add("updated_at", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
             .set_primary_key("catalog_version");
 
-        // Launch all 4 open_or_create operations in parallel
+        deeplake_api::catalog_table_schema databases_schema;
+        databases_schema.add("db_name", deeplake_core::type::text(codecs::compression::null))
+            .add("owner", deeplake_core::type::text(codecs::compression::null))
+            .add("encoding", deeplake_core::type::text(codecs::compression::null))
+            .add("lc_collate", deeplake_core::type::text(codecs::compression::null))
+            .add("lc_ctype", deeplake_core::type::text(codecs::compression::null))
+            .add("template_db", deeplake_core::type::text(codecs::compression::null))
+            .add("state", deeplake_core::type::text(codecs::compression::null))
+            .add("updated_at", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
+            .set_primary_key("db_name");
+
+        // Launch all 5 open_or_create operations in parallel
         icm::vector<async::promise<std::shared_ptr<deeplake_api::catalog_table>>> promises;
-        promises.reserve(4);
+        promises.reserve(5);
         promises.push_back(
             deeplake_api::open_or_create_catalog_table(tables_path, std::move(tables_schema), icm::string_map<>(creds)));
         promises.push_back(
@@ -176,12 +189,14 @@ int64_t ensure_catalog(const std::string& root_path, icm::string_map<> creds)
             deeplake_api::open_or_create_catalog_table(indexes_path, std::move(indexes_schema), icm::string_map<>(creds)));
         promises.push_back(
             deeplake_api::open_or_create_catalog_table(meta_path, std::move(meta_schema), icm::string_map<>(creds)));
+        promises.push_back(
+            deeplake_api::open_or_create_catalog_table(databases_path, std::move(databases_schema), icm::string_map<>(creds)));
 
         // Wait for all to complete
         auto results = async::combine(std::move(promises)).get_future().get();
-        if (results.size() != 4) {
+        if (results.size() != 5) {
             elog(ERROR,
-                 "Failed to initialize catalog at %s: expected 4 catalog tables, got %zu",
+                 "Failed to initialize catalog at %s: expected 5 catalog tables, got %zu",
                  root_path.c_str(),
                  static_cast<size_t>(results.size()));
         }
@@ -497,6 +512,83 @@ void upsert_columns(const std::string& root_path, icm::string_map<> creds, const
         rows.push_back(std::move(row));
     }
     table->upsert_many(std::move(rows)).get_future().get();
+}
+
+std::vector<database_meta> load_databases(const std::string& root_path, icm::string_map<> creds)
+{
+    std::vector<database_meta> out;
+    try {
+        auto table = open_catalog_table(root_path, k_databases_name, std::move(creds));
+        if (!table) {
+            return out;
+        }
+        auto snapshot = table->read().get_future().get();
+        if (snapshot.row_count() == 0) {
+            return out;
+        }
+
+        std::unordered_map<std::string, database_meta> latest;
+        for (const auto& row : snapshot.rows()) {
+            auto db_name_it = row.find("db_name");
+            auto owner_it = row.find("owner");
+            auto encoding_it = row.find("encoding");
+            auto lc_collate_it = row.find("lc_collate");
+            auto lc_ctype_it = row.find("lc_ctype");
+            auto template_it = row.find("template_db");
+            auto state_it = row.find("state");
+            auto updated_it = row.find("updated_at");
+            if (db_name_it == row.end() || state_it == row.end()) {
+                continue;
+            }
+
+            database_meta meta;
+            meta.db_name = deeplake_api::array_to_string(db_name_it->second);
+            if (owner_it != row.end()) meta.owner = deeplake_api::array_to_string(owner_it->second);
+            if (encoding_it != row.end()) meta.encoding = deeplake_api::array_to_string(encoding_it->second);
+            if (lc_collate_it != row.end()) meta.lc_collate = deeplake_api::array_to_string(lc_collate_it->second);
+            if (lc_ctype_it != row.end()) meta.lc_ctype = deeplake_api::array_to_string(lc_ctype_it->second);
+            if (template_it != row.end()) meta.template_db = deeplake_api::array_to_string(template_it->second);
+            meta.state = deeplake_api::array_to_string(state_it->second);
+            if (updated_it != row.end()) {
+                auto updated_vec = load_int64_vector(updated_it->second);
+                meta.updated_at = updated_vec.empty() ? 0 : updated_vec.front();
+            }
+
+            auto it = latest.find(meta.db_name);
+            if (it == latest.end() || it->second.updated_at <= meta.updated_at) {
+                latest[meta.db_name] = std::move(meta);
+            }
+        }
+
+        out.reserve(latest.size());
+        for (auto& [_, meta] : latest) {
+            if (meta.state == "ready") {
+                out.push_back(std::move(meta));
+            }
+        }
+        return out;
+    } catch (const std::exception& e) {
+        elog(WARNING, "Failed to load catalog databases: %s", e.what());
+        return out;
+    } catch (...) {
+        elog(WARNING, "Failed to load catalog databases: unknown error");
+        return out;
+    }
+}
+
+void upsert_database(const std::string& root_path, icm::string_map<> creds, const database_meta& meta)
+{
+    auto table = open_catalog_table(root_path, k_databases_name, std::move(creds));
+    icm::string_map<nd::array> row;
+    row["db_name"] = nd::adapt(meta.db_name);
+    row["owner"] = nd::adapt(meta.owner);
+    row["encoding"] = nd::adapt(meta.encoding);
+    row["lc_collate"] = nd::adapt(meta.lc_collate);
+    row["lc_ctype"] = nd::adapt(meta.lc_ctype);
+    row["template_db"] = nd::adapt(meta.template_db);
+    row["state"] = nd::adapt(meta.state);
+    row["updated_at"] = nd::adapt(meta.updated_at == 0 ? now_ms() : meta.updated_at);
+    table->upsert(std::move(row)).get_future().get();
 }
 
 int64_t get_catalog_version(const std::string& root_path, icm::string_map<> creds)
