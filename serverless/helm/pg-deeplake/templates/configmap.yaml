@@ -21,17 +21,17 @@ data:
     full_page_writes = off
     synchronous_commit = off
     {{- end }}
-    shared_buffers = 512MB
-    work_mem = 2GB
-    maintenance_work_mem = 512MB
-    effective_cache_size = 4GB
-    max_connections = 200
+    shared_buffers = {{ .Values.postgresConfig.sharedBuffers }}
+    work_mem = {{ .Values.postgresConfig.workMem }}
+    maintenance_work_mem = {{ .Values.postgresConfig.maintenanceWorkMem }}
+    effective_cache_size = {{ .Values.postgresConfig.effectiveCacheSize }}
+    max_connections = {{ .Values.postgresConfig.maxConnections }}
     bgwriter_lru_maxpages = 1000
     bgwriter_lru_multiplier = 4.0
-    checkpoint_timeout = 30min
-    max_wal_size = 4GB
+    checkpoint_timeout = {{ .Values.postgresConfig.checkpointTimeout }}
+    max_wal_size = {{ .Values.postgresConfig.maxWalSize }}
     # Logging
-    log_min_duration_statement = 1000
+    log_min_duration_statement = {{ .Values.postgresConfig.logMinDurationStatement }}
     log_statement = 'ddl'
     log_line_prefix = '%m [%p] db=%d user=%u app=%a client=%h '
     log_checkpoints = on
@@ -66,12 +66,36 @@ data:
     #!/bin/bash
     set -euo pipefail
     echo "=== pg_deeplake stateless init ==="
+    # Optional startup jitter to reduce thundering-herd behavior during scale-up.
+    JITTER_MAX="${DEEPLAKE_STARTUP_JITTER_MAX_SECONDS:-0}"
+    if [[ "$JITTER_MAX" =~ ^[0-9]+$ ]] && [ "$JITTER_MAX" -gt 0 ]; then
+        JITTER_SECS=$((RANDOM % (JITTER_MAX + 1)))
+        if [ "$JITTER_SECS" -gt 0 ]; then
+            echo "Applying startup jitter: sleeping ${JITTER_SECS}s"
+            sleep "$JITTER_SECS"
+        fi
+    fi
+    SYNC_INTERVAL_MS="${DEEPLAKE_SYNC_INTERVAL_MS:-2000}"
+    MEMORY_LIMIT_MB="${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0}"
+    if ! [[ "$SYNC_INTERVAL_MS" =~ ^[0-9]+$ ]]; then
+        echo "Invalid DEEPLAKE_SYNC_INTERVAL_MS: '$SYNC_INTERVAL_MS' (must be integer)" >&2
+        exit 1
+    fi
+    if ! [[ "$MEMORY_LIMIT_MB" =~ ^[0-9]+$ ]]; then
+        echo "Invalid PG_DEEPLAKE_MEMORY_LIMIT_MB: '$MEMORY_LIMIT_MB' (must be integer)" >&2
+        exit 1
+    fi
     # Non-sensitive settings only — creds are on tmpfs via entrypoint
-    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+    psql -v ON_ERROR_STOP=1 \
+        --username "$POSTGRES_USER" \
+        --dbname "$POSTGRES_DB" \
+        -v dl_root_path="$DEEPLAKE_ROOT_PATH" \
+        -v dl_sync_interval="$SYNC_INTERVAL_MS" \
+        -v dl_memory_limit="$MEMORY_LIMIT_MB" <<'EOSQL'
         ALTER SYSTEM SET deeplake.stateless_enabled = true;
-        ALTER SYSTEM SET deeplake.root_path = '${DEEPLAKE_ROOT_PATH}';
-        ALTER SYSTEM SET deeplake.sync_interval_ms = ${DEEPLAKE_SYNC_INTERVAL_MS:-2000};
-        ALTER SYSTEM SET pg_deeplake.memory_limit_mb = ${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0};
+        ALTER SYSTEM SET deeplake.root_path = :'dl_root_path';
+        ALTER SYSTEM SET deeplake.sync_interval_ms = :dl_sync_interval;
+        ALTER SYSTEM SET pg_deeplake.memory_limit_mb = :dl_memory_limit;
     EOSQL
     if [ -f /etc/postgresql-overrides.conf ]; then
         echo "" >> "$PGDATA/postgresql.conf"

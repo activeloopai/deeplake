@@ -59,6 +59,10 @@ externalSecrets:
 
 envFromSecret: pg-deeplake-serverless-creds
 
+security:
+  enforceSecureDefaults: true
+  requireEnvFromSecret: true
+
 persistence:
   enabled: true
   storageClass: gp3
@@ -110,6 +114,8 @@ autoscaling:
 monitoring:
   alerts:
     enabled: true
+    owner: data-platform
+    runbookBaseUrl: https://internal-wiki/runbooks/pg-deeplake
     labels:
       release: kube-prometheus-stack
     queueDepthThreshold: 10

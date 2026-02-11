@@ -18,6 +18,39 @@ spec:
         {{- include "pg-deeplake.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: load-balancer
     spec:
+      {{- with .Values.haproxy.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.haproxy.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.haproxy.affinity }}
+      affinity:
+        {{- toYaml .Values.haproxy.affinity | nindent 8 }}
+      {{- else if .Values.defaultScheduling.haproxy.enablePodAntiAffinity }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: {{ .Values.defaultScheduling.haproxy.topologyKey | quote }}
+                labelSelector:
+                  matchLabels:
+                    {{- include "pg-deeplake.selectorLabels" . | nindent 20 }}
+                    app.kubernetes.io/component: load-balancer
+      {{- end }}
+      {{- if .Values.defaultScheduling.haproxy.enableTopologySpread }}
+      topologySpreadConstraints:
+        - maxSkew: {{ .Values.defaultScheduling.haproxy.maxSkew }}
+          topologyKey: {{ .Values.defaultScheduling.haproxy.spreadTopologyKey | quote }}
+          whenUnsatisfiable: {{ .Values.defaultScheduling.haproxy.whenUnsatisfiable }}
+          labelSelector:
+            matchLabels:
+              {{- include "pg-deeplake.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: load-balancer
+      {{- end }}
       {{- if .Values.tls.enabled }}
       initContainers:
         - name: build-server-pem

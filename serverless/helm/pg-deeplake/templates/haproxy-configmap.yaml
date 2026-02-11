@@ -35,7 +35,11 @@ data:
         balance roundrobin
         option pgsql-check user {{ .Values.postgres.user }}
     {{- $fullname := include "pg-deeplake.fullname" . }}
-    {{- range $i := until (int .Values.replicaCount) }}
+    {{- $backendCount := int .Values.replicaCount }}
+    {{- if .Values.autoscaling.enabled }}
+    {{- $backendCount = int (max (int .Values.replicaCount) (int .Values.autoscaling.maxReplicas)) }}
+    {{- end }}
+    {{- range $i := until $backendCount }}
         server {{ $fullname }}-{{ $i }} {{ $fullname }}-{{ $i }}.{{ $fullname }}-headless:5432 check inter 2s fall 2 rise 1
     {{- end }}
 

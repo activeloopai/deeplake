@@ -15,12 +15,39 @@ set -euo pipefail
 
 echo "=== pg_deeplake stateless init ==="
 
+# Optional startup jitter to reduce thundering-herd behavior during scale-up.
+JITTER_MAX="${DEEPLAKE_STARTUP_JITTER_MAX_SECONDS:-0}"
+if [[ "$JITTER_MAX" =~ ^[0-9]+$ ]] && [ "$JITTER_MAX" -gt 0 ]; then
+    JITTER_SECS=$((RANDOM % (JITTER_MAX + 1)))
+    if [ "$JITTER_SECS" -gt 0 ]; then
+        echo "Applying startup jitter: sleeping ${JITTER_SECS}s"
+        sleep "$JITTER_SECS"
+    fi
+fi
+
+SYNC_INTERVAL_MS="${DEEPLAKE_SYNC_INTERVAL_MS:-1000}"
+MEMORY_LIMIT_MB="${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0}"
+
+if ! [[ "$SYNC_INTERVAL_MS" =~ ^[0-9]+$ ]]; then
+    echo "Invalid DEEPLAKE_SYNC_INTERVAL_MS: '$SYNC_INTERVAL_MS' (must be integer)" >&2
+    exit 1
+fi
+if ! [[ "$MEMORY_LIMIT_MB" =~ ^[0-9]+$ ]]; then
+    echo "Invalid PG_DEEPLAKE_MEMORY_LIMIT_MB: '$MEMORY_LIMIT_MB' (must be integer)" >&2
+    exit 1
+fi
+
 # Non-sensitive settings only — persist across restarts via postgresql.auto.conf
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+psql -v ON_ERROR_STOP=1 \
+    --username "$POSTGRES_USER" \
+    --dbname "$POSTGRES_DB" \
+    -v dl_root_path="$DEEPLAKE_ROOT_PATH" \
+    -v dl_sync_interval="$SYNC_INTERVAL_MS" \
+    -v dl_memory_limit="$MEMORY_LIMIT_MB" <<'EOSQL'
     ALTER SYSTEM SET deeplake.stateless_enabled = true;
-    ALTER SYSTEM SET deeplake.root_path = '${DEEPLAKE_ROOT_PATH}';
-    ALTER SYSTEM SET deeplake.sync_interval_ms = ${DEEPLAKE_SYNC_INTERVAL_MS:-1000};
-    ALTER SYSTEM SET pg_deeplake.memory_limit_mb = ${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0};
+    ALTER SYSTEM SET deeplake.root_path = :'dl_root_path';
+    ALTER SYSTEM SET deeplake.sync_interval_ms = :dl_sync_interval;
+    ALTER SYSTEM SET pg_deeplake.memory_limit_mb = :dl_memory_limit;
 EOSQL
 
 # Append performance overrides to postgresql.conf

@@ -1,3 +1,4 @@
+{{- include "pg-deeplake.validate" . }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -36,7 +37,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.serviceAccount.create }}
+      {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
       serviceAccountName: {{ .Values.serviceAccount.name | default (include "pg-deeplake.fullname" .) }}
       {{- end }}
       {{- with .Values.podSecurityContext }}
@@ -51,9 +52,30 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.affinity }}
+      {{- if .Values.affinity }}
       affinity:
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml .Values.affinity | nindent 8 }}
+      {{- else if .Values.defaultScheduling.database.enablePodAntiAffinity }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: {{ .Values.defaultScheduling.database.topologyKey | quote }}
+                labelSelector:
+                  matchLabels:
+                    {{- include "pg-deeplake.selectorLabels" . | nindent 20 }}
+                    app.kubernetes.io/component: database
+      {{- end }}
+      {{- if .Values.defaultScheduling.database.enableTopologySpread }}
+      topologySpreadConstraints:
+        - maxSkew: {{ .Values.defaultScheduling.database.maxSkew }}
+          topologyKey: {{ .Values.defaultScheduling.database.spreadTopologyKey | quote }}
+          whenUnsatisfiable: {{ .Values.defaultScheduling.database.whenUnsatisfiable }}
+          labelSelector:
+            matchLabels:
+              {{- include "pg-deeplake.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: database
       {{- end }}
       containers:
         - name: pg-deeplake
@@ -108,6 +130,8 @@ spec:
               value: {{ .Values.deeplake.syncIntervalMs | quote }}
             - name: PG_DEEPLAKE_MEMORY_LIMIT_MB
               value: {{ .Values.deeplake.memoryLimitMb | quote }}
+            - name: DEEPLAKE_STARTUP_JITTER_MAX_SECONDS
+              value: {{ .Values.deeplake.startupJitterMaxSeconds | quote }}
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
           {{- if .Values.envFromSecret }}
@@ -140,17 +164,21 @@ spec:
             {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          startupProbe:
+            exec:
+              command: ["bash", "/usr/local/bin/health-check.sh"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
           readinessProbe:
             exec:
               command: ["bash", "/usr/local/bin/health-check.sh"]
-            initialDelaySeconds: 30
             periodSeconds: 5
             timeoutSeconds: 5
-            failureThreshold: 30
+            failureThreshold: 3
           livenessProbe:
             exec:
               command: ["bash", "/usr/local/bin/health-check.sh"]
-            initialDelaySeconds: 60
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 6

@@ -19,12 +19,18 @@ spec:
           for: 2m
           labels:
             severity: warning
+            {{- if .Values.monitoring.alerts.owner }}
+            owner: {{ .Values.monitoring.alerts.owner | quote }}
+            {{- end }}
           annotations:
             summary: "HAProxy connection queue depth is high"
             description: >-
               {{ "{{" }} $value {{ "}}" }} connections are queued at HAProxy
               waiting for pg-deeplake backends. This may indicate slow queries,
               insufficient replicas, or backends failing health checks.
+            {{- if .Values.monitoring.alerts.runbookBaseUrl }}
+            runbook: "{{ trimSuffix "/" .Values.monitoring.alerts.runbookBaseUrl }}/#pgdeeplakehighqueuedepth"
+            {{- end }}
 
         # HAProxy: all backends down (complete outage)
         - alert: PgDeeplakeAllBackendsDown
@@ -34,12 +40,18 @@ spec:
           for: 30s
           labels:
             severity: critical
+            {{- if .Values.monitoring.alerts.owner }}
+            owner: {{ .Values.monitoring.alerts.owner | quote }}
+            {{- end }}
           annotations:
             summary: "All pg-deeplake backends are down"
             description: >-
               No healthy pg-deeplake instances available and connections are
               queuing. If KEDA/idle-watch is active, scale-up should trigger
               automatically. If this alert persists, investigate pod health.
+            {{- if .Values.monitoring.alerts.runbookBaseUrl }}
+            runbook: "{{ trimSuffix "/" .Values.monitoring.alerts.runbookBaseUrl }}/#pgdeeplakeallbackendsdown"
+            {{- end }}
 
         # Pod: OOM killed
         - alert: PgDeeplakeOOMKilled
@@ -49,12 +61,18 @@ spec:
           for: 0s
           labels:
             severity: critical
+            {{- if .Values.monitoring.alerts.owner }}
+            owner: {{ .Values.monitoring.alerts.owner | quote }}
+            {{- end }}
           annotations:
             summary: "pg-deeplake container was OOM killed"
             description: >-
               Container {{ "{{" }} $labels.pod {{ "}}" }} was killed due to
               out-of-memory. Increase resources.limits.memory or
               PG_DEEPLAKE_MEMORY_LIMIT_MB.
+            {{- if .Values.monitoring.alerts.runbookBaseUrl }}
+            runbook: "{{ trimSuffix "/" .Values.monitoring.alerts.runbookBaseUrl }}/#pgdeeplakeoomkilled"
+            {{- end }}
 
         # Pod: not ready for extended period
         - alert: PgDeeplakePodNotReady
@@ -63,11 +81,17 @@ spec:
           for: 5m
           labels:
             severity: warning
+            {{- if .Values.monitoring.alerts.owner }}
+            owner: {{ .Values.monitoring.alerts.owner | quote }}
+            {{- end }}
           annotations:
             summary: "pg-deeplake pod not ready"
             description: >-
               Pod {{ "{{" }} $labels.pod {{ "}}" }} has been not-ready for 5
               minutes. Check health-check.sh output and pod logs.
+            {{- if .Values.monitoring.alerts.runbookBaseUrl }}
+            runbook: "{{ trimSuffix "/" .Values.monitoring.alerts.runbookBaseUrl }}/#pgdeeplakepodnotready"
+            {{- end }}
 
         # HAProxy: high connection count approaching limit
         - alert: PgDeeplakeHighConnections
@@ -76,12 +100,18 @@ spec:
           for: 5m
           labels:
             severity: warning
+            {{- if .Values.monitoring.alerts.owner }}
+            owner: {{ .Values.monitoring.alerts.owner | quote }}
+            {{- end }}
           annotations:
             summary: "High connection count on pg-deeplake"
             description: >-
               {{ "{{" }} $value {{ "}}" }} active connections across pg-deeplake
               backends (threshold: {{ .Values.monitoring.alerts.highConnectionsThreshold | default 150 }}).
               Consider scaling up or reviewing connection pooling.
+            {{- if .Values.monitoring.alerts.runbookBaseUrl }}
+            runbook: "{{ trimSuffix "/" .Values.monitoring.alerts.runbookBaseUrl }}/#pgdeeplakehighconnections"
+            {{- end }}
 
         # HAProxy: backend response time too high
         - alert: PgDeeplakeSlowBackend
@@ -90,9 +120,15 @@ spec:
           for: 5m
           labels:
             severity: warning
+            {{- if .Values.monitoring.alerts.owner }}
+            owner: {{ .Values.monitoring.alerts.owner | quote }}
+            {{- end }}
           annotations:
             summary: "pg-deeplake backend response time is high"
             description: >-
               Average backend response time is {{ "{{" }} $value {{ "}}" }}s.
               Investigate slow queries or resource contention.
+            {{- if .Values.monitoring.alerts.runbookBaseUrl }}
+            runbook: "{{ trimSuffix "/" .Values.monitoring.alerts.runbookBaseUrl }}/#pgdeeplakeslowbackend"
+            {{- end }}
 {{- end }}

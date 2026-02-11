@@ -56,7 +56,8 @@ pytest tests/test_deployment.py -v
 python scripts/manage.py status        # Instance overview
 python scripts/manage.py health        # Detailed health per instance
 python scripts/manage.py provision-db NAME   # Create DB on all instances
-python scripts/manage.py run-ddl "SQL" [-d DB]  # Execute DDL on instance 1
+python scripts/manage.py run-ddl "SQL" [-d DB]  # Execute DDL on instance 1 (guarded)
+python scripts/manage.py run-ddl "SQL" --force  # Bypass DDL guard for advanced cases
 python scripts/manage.py rotate-creds  # Update AWS creds on all instances
 python scripts/manage.py scale N       # Scale to N instances
 python scripts/manage.py cache-stats   # Redis cache statistics
@@ -94,9 +95,10 @@ The `scale` command generates `docker-compose.yml` and `config/haproxy.cfg` for 
 | `DEEPLAKE_ROOT_PATH` | (required) | S3 path for data + catalog |
 | `DEEPLAKE_SYNC_INTERVAL_MS` | 2000 | Catalog sync polling interval |
 | `PG_DEEPLAKE_MEMORY_LIMIT_MB` | 0 | Memory limit (0 = unlimited) |
+| `DEEPLAKE_STARTUP_JITTER_MAX_SECONDS` | 0 | Random startup delay (0..N sec) to reduce thundering-herd scale-ups |
 | `POSTGRES_USER` | postgres | PostgreSQL superuser |
 | `POSTGRES_PASSWORD` | postgres | PostgreSQL password |
-| `COMPOSE_PROFILES` | haproxy | Load balancer: `haproxy` or `supavisor` |
+| `COMPOSE_PROFILES` | haproxy | Load balancer profile (`haproxy`) |
 
 ### PostgreSQL Tuning (postgresql-overrides.conf)
 
@@ -218,3 +220,16 @@ python scripts/manage.py rotate-creds \
 ```
 
 If rotation fails on any instance, the command exits with a non-zero status and warns about potentially inconsistent credentials.
+
+## Runbooks
+
+Operational runbooks are in `serverless/RUNBOOKS.md`:
+- credential rotation
+- backup/restore workflow
+- incident playbooks (OOM, queue buildup, pod crash)
+
+## Monitoring Assets
+
+Monitoring references are in `serverless/monitoring/`:
+- `serverless/monitoring/grafana-dashboard.json`
+- `serverless/monitoring/README.md`

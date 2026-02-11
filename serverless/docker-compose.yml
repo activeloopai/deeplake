@@ -20,6 +20,7 @@ services:
       DEEPLAKE_ROOT_PATH: /deeplake-data
       DEEPLAKE_SYNC_INTERVAL_MS: ${DEEPLAKE_SYNC_INTERVAL_MS:-1000}
       PG_DEEPLAKE_MEMORY_LIMIT_MB: ${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0}
+      DEEPLAKE_STARTUP_JITTER_MAX_SECONDS: ${DEEPLAKE_STARTUP_JITTER_MAX_SECONDS:-0}
     entrypoint: ['/usr/local/bin/deeplake-entrypoint.sh']
     command: ['postgres']
     volumes:
@@ -65,6 +66,7 @@ services:
       DEEPLAKE_ROOT_PATH: /deeplake-data
       DEEPLAKE_SYNC_INTERVAL_MS: ${DEEPLAKE_SYNC_INTERVAL_MS:-1000}
       PG_DEEPLAKE_MEMORY_LIMIT_MB: ${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0}
+      DEEPLAKE_STARTUP_JITTER_MAX_SECONDS: ${DEEPLAKE_STARTUP_JITTER_MAX_SECONDS:-0}
     entrypoint: ['/usr/local/bin/deeplake-entrypoint.sh']
     command: ['postgres']
     volumes:
@@ -100,29 +102,6 @@ services:
     ports:
       - "5432:5432"
       - "127.0.0.1:8404:8404"
-    depends_on:
-      pg-deeplake-1:
-        condition: service_healthy
-      pg-deeplake-2:
-        condition: service_healthy
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    networks:
-      - deeplake-net
-
-  supavisor:
-    image: supabase/supavisor:2.0
-    container_name: supavisor
-    restart: unless-stopped
-    profiles: ["supavisor"]
-    ports:
-      - "5432:5432"
-      - "4000:4000"
-    volumes:
-      - ./config/supavisor.toml:/etc/supavisor/config.toml:ro
     depends_on:
       pg-deeplake-1:
         condition: service_healthy

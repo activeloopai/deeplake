@@ -1,0 +1,60 @@
+{
+  "title": "pg_deeplake Serverless Overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "editable": true,
+  "tags": ["pg-deeplake", "serverless", "haproxy"],
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "HAProxy Queue Depth",
+      "targets": [
+        {
+          "expr": "sum(haproxy_backend_current_queue{proxy=\"pg_backends\"})",
+          "legendFormat": "queue"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "HAProxy Active Sessions",
+      "targets": [
+        {
+          "expr": "sum(haproxy_backend_current_sessions{proxy=\"pg_backends\"})",
+          "legendFormat": "sessions"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Active Backends",
+      "targets": [
+        {
+          "expr": "haproxy_backend_active_servers{proxy=\"pg_backends\"}",
+          "legendFormat": "active servers"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Container Restarts",
+      "targets": [
+        {
+          "expr": "sum(increase(kube_pod_container_status_restarts_total{container=\"pg-deeplake\"}[5m]))",
+          "legendFormat": "restarts/5m"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+    }
+  ],
+  "templating": {"list": []},
+  "annotations": {"list": []}
+}

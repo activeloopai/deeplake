@@ -63,6 +63,10 @@ externalSecrets:
 # Secret name that ExternalSecrets provisions (contains POSTGRES_PASSWORD)
 envFromSecret: pg-deeplake-serverless-creds
 
+security:
+  enforceSecureDefaults: true
+  requireEnvFromSecret: true
+
 persistence:
   enabled: true
   storageClass: gp3

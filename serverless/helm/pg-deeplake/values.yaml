@@ -23,6 +23,7 @@ deeplake:
   rootPath: "s3://your-bucket/your-prefix/"
   syncIntervalMs: 2000
   memoryLimitMb: 0
+  startupJitterMaxSeconds: 0
 
 # Static AWS credentials — only for dev/testing.
 # For production, use IRSA (serviceAccount.annotations with eks role-arn)
@@ -34,9 +35,16 @@ aws:
 
 postgres:
   user: postgres
-  password: postgres
+  password: ""
   database: postgres
   hostAuthMethod: scram-sha-256
+
+security:
+  # Enforce secure chart inputs (recommended for production values files).
+  # When enabled, blocks weak inline postgres.password values unless envFromSecret is set.
+  enforceSecureDefaults: true
+  # When enabled (and enforceSecureDefaults=true), require envFromSecret for DB/AWS credentials.
+  requireEnvFromSecret: false
 
 # External Secrets (1Password / AWS Secrets Manager / etc).
 # When configured, secrets are provisioned by External Secrets Operator
@@ -88,22 +96,33 @@ resources:
 
 shmSize: 1Gi
 
+# PostgreSQL tuning parameters (adjust to match resource limits)
+postgresConfig:
+  sharedBuffers: "512MB"
+  workMem: "2GB"
+  maintenanceWorkMem: "512MB"
+  effectiveCacheSize: "4GB"
+  maxConnections: 200
+  maxWalSize: "4GB"
+  checkpointTimeout: "30min"
+  logMinDurationStatement: 1000
+
 # Pod-level security context (matches org standard)
-podSecurityContext: {}
-  # runAsNonRoot: true
-  # runAsUser: 999
-  # fsGroup: 999
-  # seccompProfile:
-  #   type: RuntimeDefault
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 999
+  fsGroup: 999
+  seccompProfile:
+    type: RuntimeDefault
 
 # Container-level security context
-securityContext: {}
-  # runAsNonRoot: true
-  # allowPrivilegeEscalation: false
-  # capabilities:
-  #   drop:
-  #     - ALL
-  # readOnlyRootFilesystem: false
+securityContext:
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
 
 # Extra labels applied to all resources
 labels: {}
@@ -111,6 +130,23 @@ labels: {}
 # Extra annotations applied to pods
 annotations: {}
   # reloader.stakater.com/auto: "true"
+
+# Default scheduling hardening (used when explicit affinity is not provided).
+defaultScheduling:
+  database:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+    enableTopologySpread: true
+    spreadTopologyKey: topology.kubernetes.io/zone
+    maxSkew: 1
+    whenUnsatisfiable: ScheduleAnyway
+  haproxy:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+    enableTopologySpread: true
+    spreadTopologyKey: topology.kubernetes.io/zone
+    maxSkew: 1
+    whenUnsatisfiable: ScheduleAnyway
 
 tls:
   enabled: true
@@ -143,6 +179,9 @@ haproxy:
     port: 5432
     statsPort: 8404
     exposeStats: false
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 redis:
   enabled: true
@@ -179,7 +218,7 @@ autoscaling:
 
 monitoring:
   alerts:
-    enabled: false
+    enabled: true
     # Extra labels for PrometheusRule (e.g., to match Prometheus selector)
     labels: {}
       # release: kube-prometheus-stack
@@ -187,6 +226,9 @@ monitoring:
     queueDepthThreshold: 10
     highConnectionsThreshold: 150
     slowBackendThresholdSeconds: 5
+    # Optional alert ownership/runbook metadata.
+    owner: ""
+    runbookBaseUrl: ""
 
 nodeSelector: {}
 tolerations: []
