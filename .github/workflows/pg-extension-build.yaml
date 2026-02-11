@@ -380,8 +380,8 @@ jobs:
           sed s/BASE_IMAGE/postgres:"${PG_VERSION}"-bookworm/g postgres/Dockerfile > Dockerfile.build
           docker buildx build \
             --push \
-            --tag quay.io/activeloopai/pg-deeplake:stateless-"${PG_VERSION}"_"${VERSION}"_"${COMMIT_SHA}" \
-            --tag quay.io/activeloopai/pg-deeplake:stateless-"${PG_VERSION}" \
+            --tag quay.io/activeloopai/pg-deeplake:"${PG_VERSION}"_"${VERSION}"_"${COMMIT_SHA}"-stateless \
+            --tag quay.io/activeloopai/pg-deeplake:"${PG_VERSION}"-stateless \
             --build-arg VERSION="${PG_VERSION}"_"${VERSION}"-1 \
             --build-arg STATELESS=true \
             --platform linux/amd64,linux/arm64 \
