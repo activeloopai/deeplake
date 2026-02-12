@@ -128,6 +128,9 @@ std::vector<int64_t> load_int64_vector(const nd::array& arr)
 
 int64_t ensure_catalog(const std::string& root_path, icm::string_map<> creds)
 {
+    if (root_path.empty()) {
+        return 0;
+    }
     const auto tables_path = join_path(root_path, k_tables_name);
     const auto columns_path = join_path(root_path, k_columns_name);
     const auto indexes_path = join_path(root_path, k_indexes_name);

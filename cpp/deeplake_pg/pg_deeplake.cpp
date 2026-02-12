@@ -356,7 +356,7 @@ void deeplake_xact_callback(XactEvent event, void *arg)
 void init_deeplake()
 {
     static bool initialized = false;
-    if (initialized) {
+    if (initialized || !IsUnderPostmaster) {
         return;
     }
     initialized = true;
