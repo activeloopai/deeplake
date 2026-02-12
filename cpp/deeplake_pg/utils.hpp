@@ -270,17 +270,22 @@ static std::string get_pg_data_directory()
 {
     const char* data_dir = GetConfigOption("data_directory", true, false);
     if (data_dir == nullptr) {
-        ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Unable to retrieve data_directory")));
+        return "";
     }
     return std::string(data_dir);
 }
 
 static std::string get_deeplake_root_directory()
 {
-    static const std::string root_dir_variable_name = "DEEPLAKE_ROOT_PATH";
-    static const std::string pg_data_dir = get_pg_data_directory();
-    static const std::string deeplake_root_dir = base::getenv<std::string>(root_dir_variable_name, pg_data_dir);
-    return deeplake_root_dir;
+    // Avoid static locals: if get_pg_data_directory() previously failed via
+    // ereport(ERROR) (longjmp through C++ static init), the static guard
+    // variable is permanently poisoned and subsequent calls return "".
+    // Re-evaluate every time so a later call can succeed once GUCs are ready.
+    auto root = base::getenv<std::string>("DEEPLAKE_ROOT_PATH", "");
+    if (root.empty()) {
+        root = get_pg_data_directory();
+    }
+    return root;
 }
 
 inline std::pair<BlockNumber, OffsetNumber> row_number_to_tid(int64_t row_number)
