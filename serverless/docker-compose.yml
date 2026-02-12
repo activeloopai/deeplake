@@ -21,6 +21,7 @@ services:
       DEEPLAKE_SYNC_INTERVAL_MS: ${DEEPLAKE_SYNC_INTERVAL_MS:-1000}
       PG_DEEPLAKE_MEMORY_LIMIT_MB: ${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0}
       DEEPLAKE_STARTUP_JITTER_MAX_SECONDS: ${DEEPLAKE_STARTUP_JITTER_MAX_SECONDS:-0}
+      REDIS_URL: redis://redis:6379
     entrypoint: ['/usr/local/bin/deeplake-entrypoint.sh']
     command: ['postgres']
     volumes:
@@ -67,6 +68,7 @@ services:
       DEEPLAKE_SYNC_INTERVAL_MS: ${DEEPLAKE_SYNC_INTERVAL_MS:-1000}
       PG_DEEPLAKE_MEMORY_LIMIT_MB: ${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0}
       DEEPLAKE_STARTUP_JITTER_MAX_SECONDS: ${DEEPLAKE_STARTUP_JITTER_MAX_SECONDS:-0}
+      REDIS_URL: redis://redis:6379
     entrypoint: ['/usr/local/bin/deeplake-entrypoint.sh']
     command: ['postgres']
     volumes:

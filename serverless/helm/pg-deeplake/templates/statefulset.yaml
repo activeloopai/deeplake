@@ -134,6 +134,10 @@ spec:
               value: {{ .Values.deeplake.startupJitterMaxSeconds | quote }}
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
+            {{- if .Values.redis.enabled }}
+            - name: REDIS_URL
+              value: {{ .Values.redis.url | default (printf "redis://%s-redis:%d" (include "pg-deeplake.fullname" .) (int .Values.redis.service.port)) | quote }}
+            {{- end }}
           {{- if .Values.envFromSecret }}
           envFrom:
             - secretRef:

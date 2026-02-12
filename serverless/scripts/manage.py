@@ -273,6 +273,7 @@ def generate_compose(n, profile="haproxy"):
         lines.append("      DEEPLAKE_SYNC_INTERVAL_MS: ${DEEPLAKE_SYNC_INTERVAL_MS:-1000}")
         lines.append("      PG_DEEPLAKE_MEMORY_LIMIT_MB: ${PG_DEEPLAKE_MEMORY_LIMIT_MB:-0}")
         lines.append("      DEEPLAKE_STARTUP_JITTER_MAX_SECONDS: ${DEEPLAKE_STARTUP_JITTER_MAX_SECONDS:-0}")
+        lines.append("      REDIS_URL: redis://redis:6379")
         lines.append("    entrypoint: ['/usr/local/bin/deeplake-entrypoint.sh']")
         lines.append("    command: ['postgres']")
         lines.append("    volumes:")

@@ -185,6 +185,7 @@ haproxy:
 
 redis:
   enabled: true
+  url: ""   # Auto-constructed from service name when empty
   image:
     repository: redis
     tag: "7-alpine"
