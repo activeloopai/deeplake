@@ -36,6 +36,18 @@ struct index_meta
     int32_t order_type = 0;
 };
 
+struct database_meta
+{
+    std::string db_name;       // PK
+    std::string owner;
+    std::string encoding;
+    std::string lc_collate;
+    std::string lc_ctype;
+    std::string template_db;
+    std::string state;         // "ready" or "dropping"
+    int64_t updated_at = 0;
+};
+
 int64_t ensure_catalog(const std::string& root_path, icm::string_map<> creds);
 
 std::vector<table_meta> load_tables(const std::string& root_path, icm::string_map<> creds);
@@ -48,6 +60,9 @@ load_tables_and_columns(const std::string& root_path, icm::string_map<> creds);
 
 void upsert_table(const std::string& root_path, icm::string_map<> creds, const table_meta& meta);
 void upsert_columns(const std::string& root_path, icm::string_map<> creds, const std::vector<column_meta>& columns);
+
+std::vector<database_meta> load_databases(const std::string& root_path, icm::string_map<> creds);
+void upsert_database(const std::string& root_path, icm::string_map<> creds, const database_meta& meta);
 
 int64_t get_catalog_version(const std::string& root_path, icm::string_map<> creds);
 void bump_catalog_version(const std::string& root_path, icm::string_map<> creds);
