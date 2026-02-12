@@ -100,7 +100,6 @@ async def measure_connection_latency(
     database: str = "postgres",
     with_extension: bool = True,
     root_path: Optional[str] = None,
-    stateless_enabled: bool = False,
     run_first_query: bool = True,
     create_table: bool = False,
     table_name: str = "latency_test",
@@ -113,7 +112,6 @@ async def measure_connection_latency(
         database: Database to connect to
         with_extension: Whether to load pg_deeplake extension
         root_path: If set, configure deeplake.root_path
-        stateless_enabled: Whether to enable stateless mode
         run_first_query: Whether to measure first query time
         create_table: Whether to measure table creation time
         table_name: Name for test table
@@ -143,10 +141,6 @@ async def measure_connection_latency(
             await conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
             await conn.execute("CREATE EXTENSION pg_deeplake")
             metrics.extension_load_time_ms = (time.perf_counter() - ext_start) * 1000
-
-            # Set stateless mode if requested
-            if stateless_enabled:
-                await conn.execute("SET deeplake.stateless_enabled = true")
 
         # 3. Measure root_path set time (triggers catalog loading in stateless mode)
         if root_path:
@@ -188,7 +182,6 @@ async def measure_catalog_discovery_latency(
     port: int,
     root_path: str,
     num_tables: int,
-    stateless_enabled: bool = True,
 ) -> LatencyMetrics:
     """
     Measure time to discover existing tables from catalog.
@@ -214,8 +207,6 @@ async def measure_catalog_discovery_latency(
         ext_start = time.perf_counter()
         await conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
         await conn.execute("CREATE EXTENSION pg_deeplake")
-        if stateless_enabled:
-            await conn.execute("SET deeplake.stateless_enabled = true")
         metrics.extension_load_time_ms = (time.perf_counter() - ext_start) * 1000
 
         # Set root_path - this triggers catalog discovery
@@ -349,7 +340,6 @@ async def test_stateless_catalog_loading_latency(pg_server, temp_root_path):
     try:
         await setup_conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
         await setup_conn.execute("CREATE EXTENSION pg_deeplake")
-        await setup_conn.execute("SET deeplake.stateless_enabled = true")
         await setup_conn.execute(f"SET deeplake.root_path = '{temp_root_path}'")
 
         # Create multiple tables to populate the catalog
@@ -383,7 +373,6 @@ async def test_stateless_catalog_loading_latency(pg_server, temp_root_path):
             port=5432,
             root_path=temp_root_path,
             num_tables=num_tables,
-            stateless_enabled=True,
         )
         report.add(metrics)
         print(f"Run {i+1}:")
@@ -425,7 +414,6 @@ async def test_stateless_vs_nonstateless_comparison(pg_server, temp_root_path):
         metrics = await measure_connection_latency(
             with_extension=True,
             root_path=temp_root_path,
-            stateless_enabled=False,
             run_first_query=True,
             create_table=True,
             table_name=f"nonstateless_test_{i}",
@@ -441,7 +429,6 @@ async def test_stateless_vs_nonstateless_comparison(pg_server, temp_root_path):
         metrics = await measure_connection_latency(
             with_extension=True,
             root_path=temp_root_path,
-            stateless_enabled=True,
             run_first_query=True,
             create_table=True,
             table_name=f"stateless_test_{i}",
@@ -492,7 +479,6 @@ async def test_multi_table_catalog_scaling(pg_server, temp_root_path):
         try:
             await setup_conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
             await setup_conn.execute("CREATE EXTENSION pg_deeplake")
-            await setup_conn.execute("SET deeplake.stateless_enabled = true")
             await setup_conn.execute(f"SET deeplake.root_path = '{temp_root_path}'")
 
             # Create tables
@@ -512,7 +498,6 @@ async def test_multi_table_catalog_scaling(pg_server, temp_root_path):
                 port=5432,
                 root_path=temp_root_path,
                 num_tables=num_tables,
-                stateless_enabled=True,
             )
             report.add(metrics)
 
@@ -593,7 +578,6 @@ async def test_cold_start_simulation(pg_server, temp_root_path):
     try:
         await setup_conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
         await setup_conn.execute("CREATE EXTENSION pg_deeplake")
-        await setup_conn.execute("SET deeplake.stateless_enabled = true")
         await setup_conn.execute(f"SET deeplake.root_path = '{temp_root_path}'")
 
         await setup_conn.execute("""
@@ -633,10 +617,6 @@ async def test_cold_start_simulation(pg_server, temp_root_path):
         try:
             # Extension is already loaded via shared_preload_libraries
             # Just configure the session (simulating a new backend)
-            ext_start = time.perf_counter()
-            await conn.execute("SET deeplake.stateless_enabled = true")
-            ext_time = (time.perf_counter() - ext_start) * 1000
-
             root_start = time.perf_counter()
             await conn.execute(f"SET deeplake.root_path = '{temp_root_path}'")
             root_time = (time.perf_counter() - root_start) * 1000
@@ -650,7 +630,6 @@ async def test_cold_start_simulation(pg_server, temp_root_path):
 
             print(f"\nRun {run + 1}:")
             print(f"  Connection:       {conn_time:8.2f} ms")
-            print(f"  Session config:   {ext_time:8.2f} ms")
             print(f"  Root path set:    {root_time:8.2f} ms")
             print(f"  First query:      {query_time:8.2f} ms (count={count})")
             print(f"  TOTAL COLD START: {total_time:8.2f} ms")
