@@ -9,7 +9,9 @@ extern "C" {
 #include <postgres.h>
 
 #include <catalog/namespace.h>
+#include <commands/dbcommands.h>
 #include <commands/defrem.h>
+#include <miscadmin.h>
 #include <commands/vacuum.h>
 #include <nodes/nodeFuncs.h>
 #include <optimizer/planner.h>
@@ -586,6 +588,35 @@ static void process_utility(PlannedStmt* pstmt,
                         }
                     }
                 }
+
+                // Mark schema as "dropping" in the S3 catalog
+                if (pg::stateless_enabled) {
+                    try {
+                        auto root_path = pg::session_credentials::get_root_path();
+                        if (root_path.empty()) {
+                            root_path = pg::utils::get_deeplake_root_directory();
+                        }
+                        if (!root_path.empty()) {
+                            auto creds = pg::session_credentials::get_credentials();
+                            const char* dbname = get_database_name(MyDatabaseId);
+                            std::string db_name = dbname ? dbname : "postgres";
+                            if (dbname) pfree(const_cast<char*>(dbname));
+
+                            pg::dl_catalog::ensure_catalog(root_path, creds);
+                            pg::dl_catalog::ensure_db_catalog(root_path, db_name, creds);
+
+                            pg::dl_catalog::schema_meta s_meta;
+                            s_meta.schema_name = schema_name;
+                            s_meta.state = "dropping";
+                            pg::dl_catalog::upsert_schema(root_path, db_name, creds, s_meta);
+
+                            pg::dl_catalog::bump_db_catalog_version(root_path, db_name, pg::session_credentials::get_credentials());
+                            pg::dl_catalog::bump_catalog_version(root_path, pg::session_credentials::get_credentials());
+                        }
+                    } catch (const std::exception& e) {
+                        elog(WARNING, "pg_deeplake: failed to mark schema '%s' as dropping in catalog: %s", schema_name, e.what());
+                    }
+                }
             }
         } else if (stmt->removeType == OBJECT_DATABASE) {
             const char* query = "SELECT nspname, relname "
@@ -691,6 +722,7 @@ static void process_utility(PlannedStmt* pstmt,
             }
             if (!root_path.empty()) {
                 auto creds = pg::session_credentials::get_credentials();
+                pg::dl_catalog::ensure_catalog(root_path, creds);
                 pg::dl_catalog::database_meta db_meta;
                 db_meta.db_name = dbstmt->dbname;
                 db_meta.state = "dropping";
@@ -727,6 +759,7 @@ static void process_utility(PlannedStmt* pstmt,
                 }
                 if (!root_path.empty()) {
                     auto creds = pg::session_credentials::get_credentials();
+                    pg::dl_catalog::ensure_catalog(root_path, creds);
                     pg::dl_catalog::database_meta db_meta;
                     db_meta.db_name = dbstmt->dbname;
                     db_meta.state = "ready";
@@ -755,6 +788,40 @@ static void process_utility(PlannedStmt* pstmt,
             } catch (const std::exception& e) {
                 elog(DEBUG1, "pg_deeplake: failed to record CREATE DATABASE '%s' in catalog: %s", dbstmt->dbname, e.what());
             }
+        }
+    }
+
+    // Post-hook: record CREATE SCHEMA in S3 catalog for multi-instance sync
+    if (IsA(pstmt->utilityStmt, CreateSchemaStmt) && pg::stateless_enabled) {
+        CreateSchemaStmt* schemastmt = (CreateSchemaStmt*)pstmt->utilityStmt;
+        try {
+            auto root_path = pg::session_credentials::get_root_path();
+            if (root_path.empty()) {
+                root_path = pg::utils::get_deeplake_root_directory();
+            }
+            if (!root_path.empty() && schemastmt->schemaname != nullptr) {
+                auto creds = pg::session_credentials::get_credentials();
+                const char* dbname = get_database_name(MyDatabaseId);
+                std::string db_name = dbname ? dbname : "postgres";
+                if (dbname) pfree(const_cast<char*>(dbname));
+
+                pg::dl_catalog::ensure_catalog(root_path, creds);
+                pg::dl_catalog::ensure_db_catalog(root_path, db_name, creds);
+
+                pg::dl_catalog::schema_meta s_meta;
+                s_meta.schema_name = schemastmt->schemaname;
+                s_meta.state = "ready";
+                if (schemastmt->authrole != nullptr) {
+                    s_meta.owner = schemastmt->authrole->rolename;
+                }
+                pg::dl_catalog::upsert_schema(root_path, db_name, creds, s_meta);
+
+                pg::dl_catalog::bump_db_catalog_version(root_path, db_name, pg::session_credentials::get_credentials());
+                pg::dl_catalog::bump_catalog_version(root_path, pg::session_credentials::get_credentials());
+                elog(DEBUG1, "pg_deeplake: recorded CREATE SCHEMA '%s' in catalog", schemastmt->schemaname);
+            }
+        } catch (const std::exception& e) {
+            elog(DEBUG1, "pg_deeplake: failed to record CREATE SCHEMA in catalog: %s", e.what());
         }
     }
 
