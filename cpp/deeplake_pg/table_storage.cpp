@@ -12,6 +12,7 @@ extern "C" {
 #include <access/xact.h>
 #include <catalog/namespace.h>
 #include <catalog/pg_type.h>
+#include <commands/dbcommands.h>
 #include <executor/spi.h>
 #include <miscadmin.h>
 #include <nodes/makefuncs.h>
@@ -130,6 +131,15 @@ void convert_pg_to_nd(const pg::table_data& table_data,
     }
 }
 
+std::string get_current_database_name()
+{
+    const char* dbname = get_database_name(MyDatabaseId);
+    if (!dbname) return "postgres";
+    std::string result(dbname);
+    pfree(const_cast<char*>(dbname));
+    return result;
+}
+
 } // unnamed namespace
 
 namespace pg {
@@ -240,7 +250,9 @@ void table_storage::save_table_metadata(const pg::table_data& table_data)
             return;
         }
         auto creds = session_credentials::get_credentials();
+        const auto db_name = get_current_database_name();
         pg::dl_catalog::ensure_catalog(root_dir, creds);
+        pg::dl_catalog::ensure_db_catalog(root_dir, db_name, creds);
 
         auto [schema_name, simple_table_name] = split_table_name(table_name);
         const std::string table_id = schema_name + "." + simple_table_name;
@@ -251,7 +263,8 @@ void table_storage::save_table_metadata(const pg::table_data& table_data)
         meta.table_name = simple_table_name;
         meta.dataset_path = ds_path;
         meta.state = "ready";
-        pg::dl_catalog::upsert_table(root_dir, creds, meta);
+        meta.db_name = db_name;
+        pg::dl_catalog::upsert_table(root_dir, db_name, creds, meta);
 
         // Save column metadata to catalog
         TupleDesc tupdesc = table_data.get_tuple_descriptor();
@@ -269,10 +282,11 @@ void table_storage::save_table_metadata(const pg::table_data& table_data)
             col.position = i;
             columns.push_back(std::move(col));
         }
-        pg::dl_catalog::upsert_columns(root_dir, creds, columns);
+        pg::dl_catalog::upsert_columns(root_dir, db_name, creds, columns);
 
+        pg::dl_catalog::bump_db_catalog_version(root_dir, db_name, session_credentials::get_credentials());
         pg::dl_catalog::bump_catalog_version(root_dir, session_credentials::get_credentials());
-        catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, session_credentials::get_credentials());
+        catalog_version_ = pg::dl_catalog::get_db_catalog_version(root_dir, db_name, session_credentials::get_credentials());
     }
 }
 
@@ -297,9 +311,11 @@ void table_storage::load_table_metadata()
 
     // Stateless catalog sync (only when enabled and root_dir is configured)
     if (pg::stateless_enabled && !root_dir.empty()) {
-        // Fast path: if already loaded, just check version without ensure_catalog
+        const auto db_name = get_current_database_name();
+
+        // Fast path: if already loaded, just check per-db version
         if (tables_loaded_) {
-            const auto current_version = pg::dl_catalog::get_catalog_version(root_dir, creds);
+            const auto current_version = pg::dl_catalog::get_db_catalog_version(root_dir, db_name, creds);
             if (current_version == catalog_version_) {
                 return;
             }
@@ -310,18 +326,22 @@ void table_storage::load_table_metadata()
             catalog_version_ = current_version;
         }
 
-        // Ensure catalog exists and get version in one call
-        const auto version = pg::dl_catalog::ensure_catalog(root_dir, creds);
+        // Ensure both shared and per-database catalogs exist
+        pg::dl_catalog::ensure_catalog(root_dir, creds);
+        const auto version = pg::dl_catalog::ensure_db_catalog(root_dir, db_name, creds);
         if (catalog_version_ == 0) {
             catalog_version_ = version;
         }
         tables_loaded_ = true;
 
-        // Load tables and columns in parallel
-        auto [catalog_tables, catalog_columns] = pg::dl_catalog::load_tables_and_columns(root_dir, creds);
+        // Load tables and columns in parallel from per-database path
+        auto [catalog_tables, catalog_columns] = pg::dl_catalog::load_tables_and_columns(root_dir, db_name, creds);
 
         if (!catalog_tables.empty()) {
             for (const auto& meta : catalog_tables) {
+                if (meta.state == "dropping") {
+                    continue;
+                }
                 const std::string qualified_name = meta.schema_name + "." + meta.table_name;
                 auto* rel = makeRangeVar(pstrdup(meta.schema_name.c_str()), pstrdup(meta.table_name.c_str()), -1);
                 Oid relid = RangeVarGetRelid(rel, NoLock, true);
@@ -375,8 +395,10 @@ void table_storage::load_table_metadata()
                     BeginInternalSubTransaction(NULL);
                     PG_TRY();
                     {
-                        catalog_only_guard co_guard;
-                        pg::utils::spi_connector connector;
+                        table_storage::set_catalog_only_create(true);
+                        if (SPI_connect() != SPI_OK_CONNECT) {
+                            elog(ERROR, "Could not connect to SPI manager");
+                        }
                         bool pushed_snapshot = false;
                         if (!ActiveSnapshotSet()) {
                             PushActiveSnapshot(GetTransactionSnapshot());
@@ -396,11 +418,14 @@ void table_storage::load_table_metadata()
                             PopActiveSnapshot();
                         }
 
+                        SPI_finish();
+                        table_storage::set_catalog_only_create(false);
                         ReleaseCurrentSubTransaction();
                     }
                     PG_CATCH();
                     {
                         // Another backend created this table concurrently — not an error.
+                        table_storage::set_catalog_only_create(false);
                         MemoryContextSwitchTo(saved_context);
                         CurrentResourceOwner = saved_owner;
                         RollbackAndReleaseCurrentSubTransaction();
@@ -538,6 +563,7 @@ void table_storage::load_table_metadata()
         try {
             // Seed the DL catalog with legacy metadata (only when stateless is enabled).
             if (pg::stateless_enabled && !root_dir.empty()) {
+                const auto db_name = get_current_database_name();
                 auto [schema_name, simple_table_name] = split_table_name(table_name);
                 pg::dl_catalog::table_meta meta;
                 meta.table_id = schema_name + "." + simple_table_name;
@@ -545,7 +571,8 @@ void table_storage::load_table_metadata()
                 meta.table_name = simple_table_name;
                 meta.dataset_path = ds_path;
                 meta.state = "ready";
-                pg::dl_catalog::upsert_table(root_dir, creds, meta);
+                meta.db_name = db_name;
+                pg::dl_catalog::upsert_table(root_dir, db_name, creds, meta);
                 catalog_seeded = true;
             }
 
@@ -584,8 +611,10 @@ void table_storage::load_table_metadata()
         }
     }
     if (catalog_seeded && pg::stateless_enabled && !root_dir.empty()) {
+        const auto db_name = get_current_database_name();
+        pg::dl_catalog::bump_db_catalog_version(root_dir, db_name, session_credentials::get_credentials());
         pg::dl_catalog::bump_catalog_version(root_dir, session_credentials::get_credentials());
-        catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, session_credentials::get_credentials());
+        catalog_version_ = pg::dl_catalog::get_db_catalog_version(root_dir, db_name, session_credentials::get_credentials());
     }
     load_views();
     load_schema_name();
@@ -995,7 +1024,9 @@ void table_storage::drop_table(const std::string& table_name)
                 return root;
             }();
             if (!root_dir.empty()) {
+                const auto db_name = get_current_database_name();
                 pg::dl_catalog::ensure_catalog(root_dir, creds);
+                pg::dl_catalog::ensure_db_catalog(root_dir, db_name, creds);
                 auto [schema_name, simple_table_name] = split_table_name(table_name);
                 pg::dl_catalog::table_meta meta;
                 meta.table_id = schema_name + "." + simple_table_name;
@@ -1003,9 +1034,11 @@ void table_storage::drop_table(const std::string& table_name)
                 meta.table_name = simple_table_name;
                 meta.dataset_path = table_data.get_dataset_path().url();
                 meta.state = "dropping";
-                pg::dl_catalog::upsert_table(root_dir, creds, meta);
+                meta.db_name = db_name;
+                pg::dl_catalog::upsert_table(root_dir, db_name, creds, meta);
+                pg::dl_catalog::bump_db_catalog_version(root_dir, db_name, session_credentials::get_credentials());
                 pg::dl_catalog::bump_catalog_version(root_dir, session_credentials::get_credentials());
-                catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, session_credentials::get_credentials());
+                catalog_version_ = pg::dl_catalog::get_db_catalog_version(root_dir, db_name, session_credentials::get_credentials());
             }
         }
 

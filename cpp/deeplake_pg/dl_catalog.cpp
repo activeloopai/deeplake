@@ -31,12 +31,23 @@ constexpr const char* k_indexes_name = "indexes";
 constexpr const char* k_meta_name = "meta";
 constexpr const char* k_databases_name = "databases";
 
+// Shared (cluster-wide) path: {root}/__deeplake_catalog/{name}
 std::string join_path(const std::string& root, const std::string& name)
 {
     if (!root.empty() && root.back() == '/') {
         return root + k_catalog_dir + "/" + name;
     }
     return root + "/" + k_catalog_dir + "/" + name;
+}
+
+// Per-database path: {root}/{db_name}/__deeplake_catalog/{name}
+std::string join_db_path(const std::string& root, const std::string& db_name, const std::string& name)
+{
+    std::string base = root;
+    if (!base.empty() && base.back() == '/') {
+        base.pop_back();
+    }
+    return base + "/" + db_name + "/" + k_catalog_dir + "/" + name;
 }
 
 // Cache for catalog table handles to avoid repeated S3 opens
@@ -75,10 +86,19 @@ int64_t now_ms()
     return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 }
 
+// Open a shared (cluster-wide) catalog table
 std::shared_ptr<deeplake_api::catalog_table>
 open_catalog_table(const std::string& root_path, const std::string& name, icm::string_map<> creds)
 {
     const auto path = join_path(root_path, name);
+    return deeplake_api::open_catalog_table(path, std::move(creds)).get_future().get();
+}
+
+// Open a per-database catalog table
+std::shared_ptr<deeplake_api::catalog_table>
+open_db_catalog_table(const std::string& root_path, const std::string& db_name, const std::string& name, icm::string_map<> creds)
+{
+    const auto path = join_db_path(root_path, db_name, name);
     return deeplake_api::open_catalog_table(path, std::move(creds)).get_future().get();
 }
 
@@ -124,6 +144,70 @@ std::vector<int64_t> load_int64_vector(const nd::array& arr)
     return out;
 }
 
+// Build the tables schema (shared between ensure_db_catalog and schema definitions)
+deeplake_api::catalog_table_schema make_tables_schema()
+{
+    deeplake_api::catalog_table_schema schema;
+    schema.add("table_id", deeplake_core::type::text(codecs::compression::null))
+        .add("schema_name", deeplake_core::type::text(codecs::compression::null))
+        .add("table_name", deeplake_core::type::text(codecs::compression::null))
+        .add("dataset_path", deeplake_core::type::text(codecs::compression::null))
+        .add("state", deeplake_core::type::text(codecs::compression::null))
+        .add("db_name", deeplake_core::type::text(codecs::compression::null))
+        .add("updated_at", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
+        .set_primary_key("table_id");
+    return schema;
+}
+
+deeplake_api::catalog_table_schema make_columns_schema()
+{
+    deeplake_api::catalog_table_schema schema;
+    schema.add("column_id", deeplake_core::type::text(codecs::compression::null))
+        .add("table_id", deeplake_core::type::text(codecs::compression::null))
+        .add("column_name", deeplake_core::type::text(codecs::compression::null))
+        .add("pg_type", deeplake_core::type::text(codecs::compression::null))
+        .add("dl_type_json", deeplake_core::type::text(codecs::compression::null))
+        .add("nullable", deeplake_core::type::generic(nd::type::scalar(nd::dtype::boolean)))
+        .add("position", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int32)))
+        .set_primary_key("column_id");
+    return schema;
+}
+
+deeplake_api::catalog_table_schema make_indexes_schema()
+{
+    deeplake_api::catalog_table_schema schema;
+    schema.add("table_id", deeplake_core::type::text(codecs::compression::null))
+        .add("column_names", deeplake_core::type::text(codecs::compression::null))
+        .add("index_type", deeplake_core::type::text(codecs::compression::null))
+        .add("order_type", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int32)))
+        .set_primary_key("table_id");
+    return schema;
+}
+
+deeplake_api::catalog_table_schema make_meta_schema()
+{
+    deeplake_api::catalog_table_schema schema;
+    schema.add("catalog_version", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
+        .add("updated_at", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
+        .set_primary_key("catalog_version");
+    return schema;
+}
+
+deeplake_api::catalog_table_schema make_databases_schema()
+{
+    deeplake_api::catalog_table_schema schema;
+    schema.add("db_name", deeplake_core::type::text(codecs::compression::null))
+        .add("owner", deeplake_core::type::text(codecs::compression::null))
+        .add("encoding", deeplake_core::type::text(codecs::compression::null))
+        .add("lc_collate", deeplake_core::type::text(codecs::compression::null))
+        .add("lc_ctype", deeplake_core::type::text(codecs::compression::null))
+        .add("template_db", deeplake_core::type::text(codecs::compression::null))
+        .add("state", deeplake_core::type::text(codecs::compression::null))
+        .add("updated_at", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
+        .set_primary_key("db_name");
+    return schema;
+}
+
 } // namespace
 
 int64_t ensure_catalog(const std::string& root_path, icm::string_map<> creds)
@@ -131,80 +215,88 @@ int64_t ensure_catalog(const std::string& root_path, icm::string_map<> creds)
     if (root_path.empty()) {
         return 0;
     }
-    const auto tables_path = join_path(root_path, k_tables_name);
-    const auto columns_path = join_path(root_path, k_columns_name);
-    const auto indexes_path = join_path(root_path, k_indexes_name);
     const auto meta_path = join_path(root_path, k_meta_name);
     const auto databases_path = join_path(root_path, k_databases_name);
 
     try {
-        // Build schemas for all catalog tables
-        deeplake_api::catalog_table_schema tables_schema;
-        tables_schema.add("table_id", deeplake_core::type::text(codecs::compression::null))
-            .add("schema_name", deeplake_core::type::text(codecs::compression::null))
-            .add("table_name", deeplake_core::type::text(codecs::compression::null))
-            .add("dataset_path", deeplake_core::type::text(codecs::compression::null))
-            .add("state", deeplake_core::type::text(codecs::compression::null))
-            .add("updated_at", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
-            .set_primary_key("table_id");
-
-        deeplake_api::catalog_table_schema columns_schema;
-        columns_schema.add("column_id", deeplake_core::type::text(codecs::compression::null))
-            .add("table_id", deeplake_core::type::text(codecs::compression::null))
-            .add("column_name", deeplake_core::type::text(codecs::compression::null))
-            .add("pg_type", deeplake_core::type::text(codecs::compression::null))
-            .add("dl_type_json", deeplake_core::type::text(codecs::compression::null))
-            .add("nullable", deeplake_core::type::generic(nd::type::scalar(nd::dtype::boolean)))
-            .add("position", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int32)))
-            .set_primary_key("column_id");
-
-        deeplake_api::catalog_table_schema indexes_schema;
-        indexes_schema.add("table_id", deeplake_core::type::text(codecs::compression::null))
-            .add("column_names", deeplake_core::type::text(codecs::compression::null))
-            .add("index_type", deeplake_core::type::text(codecs::compression::null))
-            .add("order_type", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int32)))
-            .set_primary_key("table_id");
-
-        deeplake_api::catalog_table_schema meta_schema;
-        meta_schema.add("catalog_version", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
-            .add("updated_at", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
-            .set_primary_key("catalog_version");
-
-        deeplake_api::catalog_table_schema databases_schema;
-        databases_schema.add("db_name", deeplake_core::type::text(codecs::compression::null))
-            .add("owner", deeplake_core::type::text(codecs::compression::null))
-            .add("encoding", deeplake_core::type::text(codecs::compression::null))
-            .add("lc_collate", deeplake_core::type::text(codecs::compression::null))
-            .add("lc_ctype", deeplake_core::type::text(codecs::compression::null))
-            .add("template_db", deeplake_core::type::text(codecs::compression::null))
-            .add("state", deeplake_core::type::text(codecs::compression::null))
-            .add("updated_at", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)))
-            .set_primary_key("db_name");
-
-        // Launch all 5 open_or_create operations in parallel
+        // Launch shared catalog table creation in parallel (meta + databases only)
         icm::vector<async::promise<std::shared_ptr<deeplake_api::catalog_table>>> promises;
-        promises.reserve(5);
+        promises.reserve(2);
         promises.push_back(
-            deeplake_api::open_or_create_catalog_table(tables_path, std::move(tables_schema), icm::string_map<>(creds)));
+            deeplake_api::open_or_create_catalog_table(meta_path, make_meta_schema(), icm::string_map<>(creds)));
         promises.push_back(
-            deeplake_api::open_or_create_catalog_table(columns_path, std::move(columns_schema), icm::string_map<>(creds)));
-        promises.push_back(
-            deeplake_api::open_or_create_catalog_table(indexes_path, std::move(indexes_schema), icm::string_map<>(creds)));
-        promises.push_back(
-            deeplake_api::open_or_create_catalog_table(meta_path, std::move(meta_schema), icm::string_map<>(creds)));
-        promises.push_back(
-            deeplake_api::open_or_create_catalog_table(databases_path, std::move(databases_schema), icm::string_map<>(creds)));
+            deeplake_api::open_or_create_catalog_table(databases_path, make_databases_schema(), icm::string_map<>(creds)));
 
         // Wait for all to complete
         auto results = async::combine(std::move(promises)).get_future().get();
-        if (results.size() != 5) {
+        if (results.size() != 2) {
             elog(ERROR,
-                 "Failed to initialize catalog at %s: expected 5 catalog tables, got %zu",
+                 "Failed to initialize shared catalog at %s: expected 2 catalog tables, got %zu",
                  root_path.c_str(),
                  static_cast<size_t>(results.size()));
         }
 
-        // Initialize meta table if empty (index 3 is meta)
+        // Initialize meta table if empty (index 0 is meta)
+        auto& meta_table = results[0];
+        if (meta_table) {
+            auto snapshot = meta_table->read().get_future().get();
+            if (snapshot.row_count() == 0) {
+                icm::string_map<nd::array> row;
+                row["catalog_version"] = nd::adapt(static_cast<int64_t>(1));
+                row["updated_at"] = nd::adapt(now_ms());
+                meta_table->insert(std::move(row)).get_future().get();
+            }
+        }
+        // Get version from the meta table we already have open
+        if (meta_table) {
+            return static_cast<int64_t>(meta_table->version().get_future().get());
+        }
+        return 0;
+    } catch (const std::exception& e) {
+        catalog_table_cache::instance().invalidate();
+        elog(ERROR, "Failed to ensure shared catalog at %s: %s", root_path.c_str(), e.what());
+        return 0;
+    } catch (...) {
+        catalog_table_cache::instance().invalidate();
+        elog(ERROR, "Failed to ensure shared catalog at %s: unknown error", root_path.c_str());
+        return 0;
+    }
+}
+
+int64_t ensure_db_catalog(const std::string& root_path, const std::string& db_name, icm::string_map<> creds)
+{
+    if (root_path.empty() || db_name.empty()) {
+        return 0;
+    }
+
+    const auto tables_path = join_db_path(root_path, db_name, k_tables_name);
+    const auto columns_path = join_db_path(root_path, db_name, k_columns_name);
+    const auto indexes_path = join_db_path(root_path, db_name, k_indexes_name);
+    const auto meta_path = join_db_path(root_path, db_name, k_meta_name);
+
+    try {
+        // Launch all 4 per-database catalog table creation in parallel
+        icm::vector<async::promise<std::shared_ptr<deeplake_api::catalog_table>>> promises;
+        promises.reserve(4);
+        promises.push_back(
+            deeplake_api::open_or_create_catalog_table(tables_path, make_tables_schema(), icm::string_map<>(creds)));
+        promises.push_back(
+            deeplake_api::open_or_create_catalog_table(columns_path, make_columns_schema(), icm::string_map<>(creds)));
+        promises.push_back(
+            deeplake_api::open_or_create_catalog_table(indexes_path, make_indexes_schema(), icm::string_map<>(creds)));
+        promises.push_back(
+            deeplake_api::open_or_create_catalog_table(meta_path, make_meta_schema(), icm::string_map<>(creds)));
+
+        auto results = async::combine(std::move(promises)).get_future().get();
+        if (results.size() != 4) {
+            elog(ERROR,
+                 "Failed to initialize per-db catalog at %s/%s: expected 4 catalog tables, got %zu",
+                 root_path.c_str(),
+                 db_name.c_str(),
+                 static_cast<size_t>(results.size()));
+        }
+
+        // Initialize per-db meta table if empty (index 3 is meta)
         auto& meta_table = results[3];
         if (meta_table) {
             auto snapshot = meta_table->read().get_future().get();
@@ -215,27 +307,24 @@ int64_t ensure_catalog(const std::string& root_path, icm::string_map<> creds)
                 meta_table->insert(std::move(row)).get_future().get();
             }
         }
-        // Get version from the meta table we already have open (avoids a second open_catalog_table)
         if (meta_table) {
             return static_cast<int64_t>(meta_table->version().get_future().get());
         }
         return 0;
     } catch (const std::exception& e) {
-        catalog_table_cache::instance().invalidate();
-        elog(ERROR, "Failed to ensure catalog at %s: %s", root_path.c_str(), e.what());
+        elog(ERROR, "Failed to ensure per-db catalog at %s/%s: %s", root_path.c_str(), db_name.c_str(), e.what());
         return 0;
     } catch (...) {
-        catalog_table_cache::instance().invalidate();
-        elog(ERROR, "Failed to ensure catalog at %s: unknown error", root_path.c_str());
+        elog(ERROR, "Failed to ensure per-db catalog at %s/%s: unknown error", root_path.c_str(), db_name.c_str());
         return 0;
     }
 }
 
-std::vector<table_meta> load_tables(const std::string& root_path, icm::string_map<> creds)
+std::vector<table_meta> load_tables(const std::string& root_path, const std::string& db_name, icm::string_map<> creds)
 {
     std::vector<table_meta> out;
     try {
-        auto table = open_catalog_table(root_path, k_tables_name, std::move(creds));
+        auto table = open_db_catalog_table(root_path, db_name, k_tables_name, std::move(creds));
         if (!table) {
             return out;
         }
@@ -263,6 +352,11 @@ std::vector<table_meta> load_tables(const std::string& root_path, icm::string_ma
             meta.table_name = deeplake_api::array_to_string(table_it->second);
             meta.dataset_path = deeplake_api::array_to_string(path_it->second);
             meta.state = deeplake_api::array_to_string(state_it->second);
+            meta.db_name = db_name;
+            auto db_name_it = row.find("db_name");
+            if (db_name_it != row.end()) {
+                meta.db_name = deeplake_api::array_to_string(db_name_it->second);
+            }
             auto updated_vec = load_int64_vector(updated_it->second);
             meta.updated_at = updated_vec.empty() ? 0 : updated_vec.front();
 
@@ -280,19 +374,19 @@ std::vector<table_meta> load_tables(const std::string& root_path, icm::string_ma
         }
         return out;
     } catch (const std::exception& e) {
-        elog(WARNING, "Failed to load catalog tables: %s", e.what());
+        elog(WARNING, "Failed to load catalog tables for db '%s': %s", db_name.c_str(), e.what());
         return out;
     } catch (...) {
-        elog(WARNING, "Failed to load catalog tables: unknown error");
+        elog(WARNING, "Failed to load catalog tables for db '%s': unknown error", db_name.c_str());
         return out;
     }
 }
 
-std::vector<column_meta> load_columns(const std::string& root_path, icm::string_map<> creds)
+std::vector<column_meta> load_columns(const std::string& root_path, const std::string& db_name, icm::string_map<> creds)
 {
     std::vector<column_meta> out;
     try {
-        auto table = open_catalog_table(root_path, k_columns_name, std::move(creds));
+        auto table = open_db_catalog_table(root_path, db_name, k_columns_name, std::move(creds));
         if (!table) {
             return out;
         }
@@ -340,29 +434,29 @@ std::vector<column_meta> load_columns(const std::string& root_path, icm::string_
         }
         return out;
     } catch (const std::exception& e) {
-        elog(WARNING, "Failed to load catalog columns: %s", e.what());
+        elog(WARNING, "Failed to load catalog columns for db '%s': %s", db_name.c_str(), e.what());
         return out;
     } catch (...) {
-        elog(WARNING, "Failed to load catalog columns: unknown error");
+        elog(WARNING, "Failed to load catalog columns for db '%s': unknown error", db_name.c_str());
         return out;
     }
 }
 
-std::vector<index_meta> load_indexes(const std::string&, icm::string_map<>)
+std::vector<index_meta> load_indexes(const std::string&, const std::string&, icm::string_map<>)
 {
     return {};
 }
 
 std::pair<std::vector<table_meta>, std::vector<column_meta>>
-load_tables_and_columns(const std::string& root_path, icm::string_map<> creds)
+load_tables_and_columns(const std::string& root_path, const std::string& db_name, icm::string_map<> creds)
 {
     std::vector<table_meta> tables_out;
     std::vector<column_meta> columns_out;
 
     try {
-        // Open both catalog tables in parallel
-        auto tables_promise = deeplake_api::open_catalog_table(join_path(root_path, k_tables_name), icm::string_map<>(creds));
-        auto columns_promise = deeplake_api::open_catalog_table(join_path(root_path, k_columns_name), icm::string_map<>(creds));
+        // Open both per-database catalog tables in parallel
+        auto tables_promise = deeplake_api::open_catalog_table(join_db_path(root_path, db_name, k_tables_name), icm::string_map<>(creds));
+        auto columns_promise = deeplake_api::open_catalog_table(join_db_path(root_path, db_name, k_columns_name), icm::string_map<>(creds));
 
         icm::vector<async::promise<std::shared_ptr<deeplake_api::catalog_table>>> open_promises;
         open_promises.push_back(std::move(tables_promise));
@@ -411,6 +505,11 @@ load_tables_and_columns(const std::string& root_path, icm::string_map<> creds)
                 meta.table_name = deeplake_api::array_to_string(table_it->second);
                 meta.dataset_path = deeplake_api::array_to_string(path_it->second);
                 meta.state = deeplake_api::array_to_string(state_it->second);
+                meta.db_name = db_name;
+                auto db_name_it = row.find("db_name");
+                if (db_name_it != row.end()) {
+                    meta.db_name = deeplake_api::array_to_string(db_name_it->second);
+                }
                 auto updated_vec = load_int64_vector(updated_it->second);
                 meta.updated_at = updated_vec.empty() ? 0 : updated_vec.front();
 
@@ -473,33 +572,34 @@ load_tables_and_columns(const std::string& root_path, icm::string_map<> creds)
 
         return {tables_out, columns_out};
     } catch (const std::exception& e) {
-        elog(WARNING, "Failed to load catalog tables and columns: %s", e.what());
+        elog(WARNING, "Failed to load catalog tables and columns for db '%s': %s", db_name.c_str(), e.what());
         return {tables_out, columns_out};
     } catch (...) {
-        elog(WARNING, "Failed to load catalog tables and columns: unknown error");
+        elog(WARNING, "Failed to load catalog tables and columns for db '%s': unknown error", db_name.c_str());
         return {tables_out, columns_out};
     }
 }
 
-void upsert_table(const std::string& root_path, icm::string_map<> creds, const table_meta& meta)
+void upsert_table(const std::string& root_path, const std::string& db_name, icm::string_map<> creds, const table_meta& meta)
 {
-    auto table = open_catalog_table(root_path, k_tables_name, std::move(creds));
+    auto table = open_db_catalog_table(root_path, db_name, k_tables_name, std::move(creds));
     icm::string_map<nd::array> row;
     row["table_id"] = nd::adapt(meta.table_id);
     row["schema_name"] = nd::adapt(meta.schema_name);
     row["table_name"] = nd::adapt(meta.table_name);
     row["dataset_path"] = nd::adapt(meta.dataset_path);
     row["state"] = nd::adapt(meta.state);
+    row["db_name"] = nd::adapt(meta.db_name.empty() ? db_name : meta.db_name);
     row["updated_at"] = nd::adapt(meta.updated_at == 0 ? now_ms() : meta.updated_at);
     table->upsert(std::move(row)).get_future().get();
 }
 
-void upsert_columns(const std::string& root_path, icm::string_map<> creds, const std::vector<column_meta>& columns)
+void upsert_columns(const std::string& root_path, const std::string& db_name, icm::string_map<> creds, const std::vector<column_meta>& columns)
 {
     if (columns.empty()) {
         return;
     }
-    auto table = open_catalog_table(root_path, k_columns_name, std::move(creds));
+    auto table = open_db_catalog_table(root_path, db_name, k_columns_name, std::move(creds));
     icm::vector<icm::string_map<nd::array>> rows;
     rows.reserve(columns.size());
     for (const auto& col : columns) {
@@ -625,6 +725,38 @@ void bump_catalog_version(const std::string& root_path, icm::string_map<> creds)
     row["catalog_version"] = nd::adapt(static_cast<int64_t>(1));
     row["updated_at"] = nd::adapt(now_ms());
     table->upsert(std::move(row)).get_future().get();
+}
+
+int64_t get_db_catalog_version(const std::string& root_path, const std::string& db_name, icm::string_map<> creds)
+{
+    try {
+        auto table = open_db_catalog_table(root_path, db_name, k_meta_name, std::move(creds));
+        if (!table) {
+            return 0;
+        }
+        return static_cast<int64_t>(table->version().get_future().get());
+    } catch (const std::exception& e) {
+        elog(WARNING, "Failed to read per-db catalog version for '%s': %s", db_name.c_str(), e.what());
+        return 0;
+    } catch (...) {
+        elog(WARNING, "Failed to read per-db catalog version for '%s': unknown error", db_name.c_str());
+        return 0;
+    }
+}
+
+void bump_db_catalog_version(const std::string& root_path, const std::string& db_name, icm::string_map<> creds)
+{
+    auto table = open_db_catalog_table(root_path, db_name, k_meta_name, std::move(creds));
+    icm::string_map<nd::array> row;
+    row["catalog_version"] = nd::adapt(static_cast<int64_t>(1));
+    row["updated_at"] = nd::adapt(now_ms());
+    table->upsert(std::move(row)).get_future().get();
+}
+
+std::shared_ptr<deeplake_api::catalog_table>
+open_db_meta_table(const std::string& root_path, const std::string& db_name, icm::string_map<> creds)
+{
+    return open_db_catalog_table(root_path, db_name, k_meta_name, std::move(creds));
 }
 
 } // namespace pg::dl_catalog

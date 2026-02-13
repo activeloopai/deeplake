@@ -32,8 +32,13 @@ extern "C" {
 #include "table_storage.hpp"
 #include "utils.hpp"
 
+#include <async/promise.hpp>
+#include <deeplake_api/catalog_table.hpp>
+#include <icm/vector.hpp>
+
 #include <algorithm>
 #include <cstring>
+#include <unordered_map>
 #include <vector>
 
 // GUC variables
@@ -305,98 +310,151 @@ void deeplake_sync_databases_from_catalog(const std::string& root_path, icm::str
 }
 
 /**
- * Sync tables from the deeplake catalog to PostgreSQL.
- *
- * This function checks the catalog for tables that exist in the deeplake
- * catalog but not in PostgreSQL, and creates them.
+ * Sync tables for a specific database from pre-loaded catalog data via libpq.
+ * Creates missing tables in the target database.
  */
-void deeplake_sync_tables_from_catalog(const std::string& root_path, icm::string_map<> creds)
+void deeplake_sync_tables_for_db(const std::string& db_name,
+    const std::vector<pg::dl_catalog::table_meta>& tables,
+    const std::vector<pg::dl_catalog::column_meta>& columns)
 {
-    // Load tables and columns in parallel for better performance
-    auto [catalog_tables, catalog_columns] = pg::dl_catalog::load_tables_and_columns(root_path, creds);
-
-    for (const auto& meta : catalog_tables) {
-        // Skip tables marked as dropping
+    for (const auto& meta : tables) {
         if (meta.state == "dropping") {
             continue;
         }
 
         const std::string qualified_name = meta.schema_name + "." + meta.table_name;
 
-        // Check if table exists in PostgreSQL
-        auto* rel = makeRangeVar(pstrdup(meta.schema_name.c_str()), pstrdup(meta.table_name.c_str()), -1);
-        Oid relid = RangeVarGetRelid(rel, NoLock, true);
-
-        if (!OidIsValid(relid)) {
-            // Gather columns for this table, sorted by position
-            std::vector<pg::dl_catalog::column_meta> table_columns;
-            for (const auto& col : catalog_columns) {
-                if (col.table_id == meta.table_id) {
-                    table_columns.push_back(col);
-                }
+        // Gather columns for this table, sorted by position
+        std::vector<pg::dl_catalog::column_meta> table_columns;
+        for (const auto& col : columns) {
+            if (col.table_id == meta.table_id) {
+                table_columns.push_back(col);
             }
-            std::sort(table_columns.begin(), table_columns.end(),
-                      [](const auto& a, const auto& b) { return a.position < b.position; });
+        }
+        std::sort(table_columns.begin(), table_columns.end(),
+                  [](const auto& a, const auto& b) { return a.position < b.position; });
 
-            if (table_columns.empty()) {
-                elog(DEBUG1, "pg_deeplake sync: no columns found for table %s, skipping", qualified_name.c_str());
-                continue;
+        if (table_columns.empty()) {
+            elog(DEBUG1, "pg_deeplake sync: no columns for %s in db %s, skipping",
+                 qualified_name.c_str(), db_name.c_str());
+            continue;
+        }
+
+        const char* qschema = quote_identifier(meta.schema_name.c_str());
+        const char* qtable = quote_identifier(meta.table_name.c_str());
+
+        // Combine schema + table creation into a single SQL statement
+        StringInfoData buf;
+        initStringInfo(&buf);
+        appendStringInfo(&buf, "CREATE SCHEMA IF NOT EXISTS %s; ", qschema);
+        appendStringInfo(&buf, "CREATE TABLE IF NOT EXISTS %s.%s (", qschema, qtable);
+
+        bool first = true;
+        for (const auto& col : table_columns) {
+            if (!first) {
+                appendStringInfoString(&buf, ", ");
             }
+            first = false;
+            appendStringInfo(&buf, "%s %s", quote_identifier(col.column_name.c_str()), col.pg_type.c_str());
+        }
+        appendStringInfo(&buf, ") USING deeplake");
 
-            const char* qschema = quote_identifier(meta.schema_name.c_str());
-            const char* qtable = quote_identifier(meta.table_name.c_str());
+        if (execute_via_libpq(db_name.c_str(), buf.data)) {
+            elog(LOG, "pg_deeplake sync: created table %s in database %s",
+                 qualified_name.c_str(), db_name.c_str());
+        }
 
-            // Build CREATE TABLE IF NOT EXISTS statement
-            StringInfoData buf;
-            initStringInfo(&buf);
-            appendStringInfo(&buf, "CREATE TABLE IF NOT EXISTS %s.%s (", qschema, qtable);
+        pfree(buf.data);
+    }
+}
 
-            bool first = true;
-            for (const auto& col : table_columns) {
-                if (!first) {
-                    appendStringInfoString(&buf, ", ");
-                }
-                first = false;
-                appendStringInfo(&buf, "%s %s", quote_identifier(col.column_name.c_str()), col.pg_type.c_str());
+/**
+ * Sync all databases: check per-db versions in parallel, load changed ones,
+ * create missing tables via libpq.
+ *
+ * Called OUTSIDE transaction context.
+ */
+void sync_all_databases(
+    const std::string& root_path,
+    icm::string_map<> creds,
+    std::unordered_map<std::string, int64_t>& last_db_versions)
+{
+    // Step 1: Sync databases (create missing ones, install extension)
+    deeplake_sync_databases_from_catalog(root_path, creds);
+
+    // Step 2: Get list of all databases from the shared catalog
+    auto databases = pg::dl_catalog::load_databases(root_path, creds);
+
+    // Always include "postgres" which may not be in the databases catalog
+    bool has_postgres = false;
+    for (const auto& db : databases) {
+        if (db.db_name == "postgres") { has_postgres = true; break; }
+    }
+    if (!has_postgres) {
+        pg::dl_catalog::database_meta pg_meta;
+        pg_meta.db_name = "postgres";
+        pg_meta.state = "ready";
+        databases.push_back(std::move(pg_meta));
+    }
+
+    // Step 3: Open per-db meta tables and check versions in parallel
+    std::vector<std::string> db_names;
+    std::vector<std::shared_ptr<deeplake_api::catalog_table>> meta_handles;
+
+    for (const auto& db : databases) {
+        if (db.db_name == "template0" || db.db_name == "template1") {
+            continue;
+        }
+        try {
+            auto handle = pg::dl_catalog::open_db_meta_table(root_path, db.db_name, creds);
+            if (handle) {
+                db_names.push_back(db.db_name);
+                meta_handles.push_back(std::move(handle));
             }
-            appendStringInfo(&buf, ") USING deeplake");
+        } catch (...) {
+            // Per-db catalog may not exist yet — skip silently
+            elog(DEBUG1, "pg_deeplake sync: no per-db catalog for '%s', skipping", db.db_name.c_str());
+        }
+    }
 
-            // Wrap in subtransaction so that if another backend concurrently
-            // creates the same table (race on composite type), the error is
-            // caught and we continue instead of aborting the sync cycle.
-            MemoryContext saved_context = CurrentMemoryContext;
-            ResourceOwner saved_owner = CurrentResourceOwner;
+    if (db_names.empty()) {
+        return;
+    }
 
-            BeginInternalSubTransaction(NULL);
-            PG_TRY();
-            {
-                pg::utils::spi_connector connector;
+    // Fire all version() promises in parallel (1 round-trip wall-clock)
+    icm::vector<async::promise<uint64_t>> version_promises;
+    version_promises.reserve(db_names.size());
+    for (auto& handle : meta_handles) {
+        version_promises.push_back(handle->version());
+    }
+    auto versions = async::combine(std::move(version_promises)).get_future().get();
 
-                // Create schema if needed
-                StringInfoData schema_buf;
-                initStringInfo(&schema_buf);
-                appendStringInfo(&schema_buf, "CREATE SCHEMA IF NOT EXISTS %s", qschema);
-                SPI_execute(schema_buf.data, false, 0);
-                pfree(schema_buf.data);
+    // Step 4: Identify databases whose version changed since last sync
+    std::vector<std::string> changed_dbs;
+    for (size_t i = 0; i < db_names.size(); ++i) {
+        int64_t ver = static_cast<int64_t>(versions[i]);
+        auto it = last_db_versions.find(db_names[i]);
+        if (it == last_db_versions.end() || it->second != ver) {
+            changed_dbs.push_back(db_names[i]);
+            last_db_versions[db_names[i]] = ver;
+        }
+    }
 
-                if (SPI_execute(buf.data, false, 0) == SPI_OK_UTILITY) {
-                    elog(LOG, "pg_deeplake sync: successfully created table %s", qualified_name.c_str());
-                }
+    if (changed_dbs.empty()) {
+        return;
+    }
 
-                ReleaseCurrentSubTransaction();
-            }
-            PG_CATCH();
-            {
-                // Another backend created this table concurrently — not an error.
-                MemoryContextSwitchTo(saved_context);
-                CurrentResourceOwner = saved_owner;
-                RollbackAndReleaseCurrentSubTransaction();
-                FlushErrorState();
-                elog(DEBUG1, "pg_deeplake sync: concurrent creation of %s, skipping", qualified_name.c_str());
-            }
-            PG_END_TRY();
-
-            pfree(buf.data);
+    // Step 5: For each changed database, load tables+columns and sync
+    for (const auto& db_name : changed_dbs) {
+        try {
+            auto [tables, columns] = pg::dl_catalog::load_tables_and_columns(root_path, db_name, creds);
+            deeplake_sync_tables_for_db(db_name, tables, columns);
+            elog(LOG, "pg_deeplake sync: synced %zu tables for database '%s'",
+                 tables.size(), db_name.c_str());
+        } catch (const std::exception& e) {
+            elog(WARNING, "pg_deeplake sync: failed to sync database '%s': %s", db_name.c_str(), e.what());
+        } catch (...) {
+            elog(WARNING, "pg_deeplake sync: failed to sync database '%s': unknown error", db_name.c_str());
         }
     }
 }
@@ -421,6 +479,7 @@ PGDLLEXPORT void deeplake_sync_worker_main(Datum main_arg)
 
     int64_t last_catalog_version = 0;
     std::string last_root_path;  // Track root_path to detect changes
+    std::unordered_map<std::string, int64_t> last_db_versions;
 
 
     while (!got_sigterm) {
@@ -467,15 +526,16 @@ PGDLLEXPORT void deeplake_sync_worker_main(Datum main_arg)
                     if (!last_root_path.empty()) {
                         pg::table_storage::instance().reset_and_load_table_metadata();
                         last_catalog_version = 0;
+                        last_db_versions.clear();
                     }
                     last_root_path = root_path;
                 }
 
-                // Use existing catalog version API to check for changes (now fast with cache)
+                // Fast global version check (single HEAD request via cached meta table)
                 int64_t current_version = pg::dl_catalog::get_catalog_version(root_path, creds);
 
                 if (current_version != last_catalog_version) {
-                    // Save state for database sync (which happens outside transaction)
+                    // Save state for sync (which happens outside transaction)
                     sync_root_path = root_path;
                     sync_creds = creds;
                     need_sync = true;
@@ -494,36 +554,16 @@ PGDLLEXPORT void deeplake_sync_worker_main(Datum main_arg)
         PopActiveSnapshot();
         CommitTransactionCommand();
 
-        // Sync databases via libpq OUTSIDE transaction context
-        // (CREATE DATABASE cannot run inside a transaction block)
+        // All sync happens OUTSIDE transaction context via libpq
         if (need_sync && !sync_root_path.empty()) {
             try {
-                deeplake_sync_databases_from_catalog(sync_root_path, sync_creds);
+                sync_all_databases(sync_root_path, sync_creds, last_db_versions);
+                elog(DEBUG1, "pg_deeplake sync: completed (global version %ld)", last_catalog_version);
             } catch (const std::exception& e) {
-                elog(WARNING, "pg_deeplake sync: database sync failed: %s", e.what());
+                elog(WARNING, "pg_deeplake sync: sync failed: %s", e.what());
             } catch (...) {
-                elog(WARNING, "pg_deeplake sync: database sync failed: unknown error");
+                elog(WARNING, "pg_deeplake sync: sync failed: unknown error");
             }
-
-            // Re-enter transaction for table sync
-            SetCurrentStatementStartTimestamp();
-            StartTransactionCommand();
-            PushActiveSnapshot(GetTransactionSnapshot());
-
-            PG_TRY();
-            {
-                deeplake_sync_tables_from_catalog(sync_root_path, sync_creds);
-                elog(DEBUG1, "pg_deeplake sync: synced (catalog version %ld)", last_catalog_version);
-            }
-            PG_CATCH();
-            {
-                EmitErrorReport();
-                FlushErrorState();
-            }
-            PG_END_TRY();
-
-            PopActiveSnapshot();
-            CommitTransactionCommand();
         }
 
         pgstat_report_stat(true);

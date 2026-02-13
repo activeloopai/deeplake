@@ -691,6 +691,7 @@ static void process_utility(PlannedStmt* pstmt,
             }
             if (!root_path.empty()) {
                 auto creds = pg::session_credentials::get_credentials();
+                pg::dl_catalog::ensure_catalog(root_path, creds);
                 pg::dl_catalog::database_meta db_meta;
                 db_meta.db_name = dbstmt->dbname;
                 db_meta.state = "dropping";
@@ -727,6 +728,7 @@ static void process_utility(PlannedStmt* pstmt,
                 }
                 if (!root_path.empty()) {
                     auto creds = pg::session_credentials::get_credentials();
+                    pg::dl_catalog::ensure_catalog(root_path, creds);
                     pg::dl_catalog::database_meta db_meta;
                     db_meta.db_name = dbstmt->dbname;
                     db_meta.state = "ready";
