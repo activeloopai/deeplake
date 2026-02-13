@@ -356,7 +356,7 @@ void deeplake_xact_callback(XactEvent event, void *arg)
 void init_deeplake()
 {
     static bool initialized = false;
-    if (initialized) {
+    if (initialized || !IsUnderPostmaster) {
         return;
     }
     initialized = true;
@@ -367,6 +367,12 @@ void init_deeplake()
 
     constexpr int THREAD_POOL_MULTIPLIER = 8;  // Threads per CPU core for async operations
     deeplake_api::initialize(std::make_shared<pg::logger_adapter>(), THREAD_POOL_MULTIPLIER * base::system_report::cpu_cores());
+
+    const std::string redis_url = base::getenv<std::string>("REDIS_URL", "");
+    if (!redis_url.empty()) {
+        deeplake_api::initialize_redis_cache(redis_url, 86400,
+                                             deeplake_api::metadata_catalog_cache_pattern);
+    }
 
     pg::table_storage::instance(); /// initialize table storage
 

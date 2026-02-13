@@ -236,6 +236,9 @@ void table_storage::save_table_metadata(const pg::table_data& table_data)
             }
             return root;
         }();
+        if (root_dir.empty()) {
+            return;
+        }
         auto creds = session_credentials::get_credentials();
         pg::dl_catalog::ensure_catalog(root_dir, creds);
 
@@ -292,8 +295,8 @@ void table_storage::load_table_metadata()
     }();
     auto creds = session_credentials::get_credentials();
 
-    // Stateless catalog sync (only when enabled)
-    if (pg::stateless_enabled) {
+    // Stateless catalog sync (only when enabled and root_dir is configured)
+    if (pg::stateless_enabled && !root_dir.empty()) {
         // Fast path: if already loaded, just check version without ensure_catalog
         if (tables_loaded_) {
             const auto current_version = pg::dl_catalog::get_catalog_version(root_dir, creds);
@@ -534,7 +537,7 @@ void table_storage::load_table_metadata()
         }
         try {
             // Seed the DL catalog with legacy metadata (only when stateless is enabled).
-            if (pg::stateless_enabled) {
+            if (pg::stateless_enabled && !root_dir.empty()) {
                 auto [schema_name, simple_table_name] = split_table_name(table_name);
                 pg::dl_catalog::table_meta meta;
                 meta.table_id = schema_name + "." + simple_table_name;
@@ -580,7 +583,7 @@ void table_storage::load_table_metadata()
                 base::log_channel::generic, "Failed to delete invalid table metadata for table_oid: {}", invalid_oid);
         }
     }
-    if (catalog_seeded && pg::stateless_enabled) {
+    if (catalog_seeded && pg::stateless_enabled && !root_dir.empty()) {
         pg::dl_catalog::bump_catalog_version(root_dir, session_credentials::get_credentials());
         catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, session_credentials::get_credentials());
     }
@@ -991,17 +994,19 @@ void table_storage::drop_table(const std::string& table_name)
                 }
                 return root;
             }();
-            pg::dl_catalog::ensure_catalog(root_dir, creds);
-            auto [schema_name, simple_table_name] = split_table_name(table_name);
-            pg::dl_catalog::table_meta meta;
-            meta.table_id = schema_name + "." + simple_table_name;
-            meta.schema_name = schema_name;
-            meta.table_name = simple_table_name;
-            meta.dataset_path = table_data.get_dataset_path().url();
-            meta.state = "dropping";
-            pg::dl_catalog::upsert_table(root_dir, creds, meta);
-            pg::dl_catalog::bump_catalog_version(root_dir, session_credentials::get_credentials());
-            catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, session_credentials::get_credentials());
+            if (!root_dir.empty()) {
+                pg::dl_catalog::ensure_catalog(root_dir, creds);
+                auto [schema_name, simple_table_name] = split_table_name(table_name);
+                pg::dl_catalog::table_meta meta;
+                meta.table_id = schema_name + "." + simple_table_name;
+                meta.schema_name = schema_name;
+                meta.table_name = simple_table_name;
+                meta.dataset_path = table_data.get_dataset_path().url();
+                meta.state = "dropping";
+                pg::dl_catalog::upsert_table(root_dir, creds, meta);
+                pg::dl_catalog::bump_catalog_version(root_dir, session_credentials::get_credentials());
+                catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, session_credentials::get_credentials());
+            }
         }
 
         try {
