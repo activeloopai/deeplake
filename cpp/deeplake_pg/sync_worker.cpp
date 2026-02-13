@@ -310,6 +310,39 @@ void deeplake_sync_databases_from_catalog(const std::string& root_path, icm::str
 }
 
 /**
+ * Sync schemas for a specific database from pre-loaded catalog data via libpq.
+ * Creates missing schemas in the target database.
+ */
+void deeplake_sync_schemas_for_db(const std::string& db_name,
+    const std::vector<pg::dl_catalog::schema_meta>& schemas)
+{
+    for (const auto& meta : schemas) {
+        if (meta.state == "dropping") {
+            continue;
+        }
+
+        // Skip system schemas
+        if (meta.schema_name == "public" || meta.schema_name == "pg_catalog" ||
+            meta.schema_name == "information_schema" ||
+            meta.schema_name.substr(0, 3) == "pg_") {
+            continue;
+        }
+
+        StringInfoData buf;
+        initStringInfo(&buf);
+        appendStringInfo(&buf, "CREATE SCHEMA IF NOT EXISTS %s",
+                         quote_identifier(meta.schema_name.c_str()));
+
+        if (execute_via_libpq(db_name.c_str(), buf.data)) {
+            elog(LOG, "pg_deeplake sync: created schema '%s' in database '%s'",
+                 meta.schema_name.c_str(), db_name.c_str());
+        }
+
+        pfree(buf.data);
+    }
+}
+
+/**
  * Sync tables for a specific database from pre-loaded catalog data via libpq.
  * Creates missing tables in the target database.
  */
@@ -444,13 +477,19 @@ void sync_all_databases(
         return;
     }
 
-    // Step 5: For each changed database, load tables+columns and sync
+    // Step 5: For each changed database, load schemas first, then tables+columns and sync
     for (const auto& db_name : changed_dbs) {
         try {
+            // Sync schemas before tables so CREATE TABLE can find the target schema
+            auto schemas = pg::dl_catalog::load_schemas(root_path, db_name, creds);
+            if (!schemas.empty()) {
+                deeplake_sync_schemas_for_db(db_name, schemas);
+            }
+
             auto [tables, columns] = pg::dl_catalog::load_tables_and_columns(root_path, db_name, creds);
             deeplake_sync_tables_for_db(db_name, tables, columns);
-            elog(LOG, "pg_deeplake sync: synced %zu tables for database '%s'",
-                 tables.size(), db_name.c_str());
+            elog(LOG, "pg_deeplake sync: synced %zu schemas, %zu tables for database '%s'",
+                 schemas.size(), tables.size(), db_name.c_str());
         } catch (const std::exception& e) {
             elog(WARNING, "pg_deeplake sync: failed to sync database '%s': %s", db_name.c_str(), e.what());
         } catch (...) {

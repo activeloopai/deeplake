@@ -289,6 +289,20 @@ void table_storage::save_table_metadata(const pg::table_data& table_data)
         }
         pg::dl_catalog::upsert_columns(root_dir, db_name, creds, columns);
 
+        // Belt-and-suspenders: ensure the schema is recorded even if
+        // the CREATE SCHEMA hook was missed (e.g., schema created before
+        // the extension was loaded, or via a different code path).
+        if (schema_name != "public") {
+            try {
+                pg::dl_catalog::schema_meta s_meta;
+                s_meta.schema_name = schema_name;
+                s_meta.state = "ready";
+                pg::dl_catalog::upsert_schema(root_dir, db_name, creds, s_meta);
+            } catch (...) {
+                elog(DEBUG1, "pg_deeplake: failed to upsert schema '%s' in catalog (non-fatal)", schema_name.c_str());
+            }
+        }
+
         pg::dl_catalog::bump_db_catalog_version(root_dir, db_name, session_credentials::get_credentials());
         pg::dl_catalog::bump_catalog_version(root_dir, session_credentials::get_credentials());
         catalog_version_ = pg::dl_catalog::get_db_catalog_version(root_dir, db_name, session_credentials::get_credentials());

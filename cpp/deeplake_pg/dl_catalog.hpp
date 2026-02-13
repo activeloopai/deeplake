@@ -40,6 +40,14 @@ struct index_meta
     int32_t order_type = 0;
 };
 
+struct schema_meta
+{
+    std::string schema_name;   // PK
+    std::string owner;
+    std::string state;         // "ready" or "dropping"
+    int64_t updated_at = 0;
+};
+
 struct database_meta
 {
     std::string db_name;       // PK
@@ -66,6 +74,10 @@ std::vector<index_meta> load_indexes(const std::string& root_path, const std::st
 // Load tables and columns in parallel for better performance
 std::pair<std::vector<table_meta>, std::vector<column_meta>>
 load_tables_and_columns(const std::string& root_path, const std::string& db_name, icm::string_map<> creds);
+
+// Per-database schema catalog
+std::vector<schema_meta> load_schemas(const std::string& root_path, const std::string& db_name, icm::string_map<> creds);
+void upsert_schema(const std::string& root_path, const std::string& db_name, icm::string_map<> creds, const schema_meta& meta);
 
 // Per-database upserts (write to {root}/{db_name}/__deeplake_catalog/)
 void upsert_table(const std::string& root_path, const std::string& db_name, icm::string_map<> creds, const table_meta& meta);
