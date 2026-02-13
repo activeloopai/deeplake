@@ -25,7 +25,7 @@ async def test_drop_table_column(db_conn: asyncpg.Connection):
     try:
         # Create table with multiple columns
         await db_conn.execute("""
-            CREATE TABLE vectors (
+            CREATE TABLE drop_col_vectors (
                 id SERIAL PRIMARY KEY,
                 v1 float4[],
                 v2 float4[]
@@ -34,7 +34,7 @@ async def test_drop_table_column(db_conn: asyncpg.Connection):
 
         # Create index on v2 (not v1)
         await db_conn.execute("""
-            CREATE INDEX index_for_v2 ON vectors USING deeplake_index (v2 DESC)
+            CREATE INDEX index_for_v2 ON drop_col_vectors USING deeplake_index (v2 DESC)
         """)
 
         # Verify index exists in pg_class
@@ -60,7 +60,7 @@ async def test_drop_table_column(db_conn: asyncpg.Connection):
             f"Dataset directory '{dataset_path}' should exist before DROP COLUMN"
 
         # DROP non-indexed column (v1) - index should remain
-        await db_conn.execute("ALTER TABLE vectors DROP COLUMN v1")
+        await db_conn.execute("ALTER TABLE drop_col_vectors DROP COLUMN v1")
 
         # Verify index still exists after dropping non-indexed column
         await assertions.assert_query_row_count(
@@ -83,7 +83,7 @@ async def test_drop_table_column(db_conn: asyncpg.Connection):
             f"Dataset directory '{dataset_path_after_v1}' should exist after dropping non-indexed column"
 
         # DROP indexed column (v2) - index should be removed
-        await db_conn.execute("ALTER TABLE vectors DROP COLUMN v2")
+        await db_conn.execute("ALTER TABLE drop_col_vectors DROP COLUMN v2")
 
         # Verify index removed from pg_class
         await assertions.assert_query_row_count(
@@ -108,4 +108,4 @@ async def test_drop_table_column(db_conn: asyncpg.Connection):
     finally:
         # Cleanup (in case test fails)
         await db_conn.execute("DROP INDEX IF EXISTS index_for_v2 CASCADE")
-        await db_conn.execute("DROP TABLE IF EXISTS vectors CASCADE")
+        await db_conn.execute("DROP TABLE IF EXISTS drop_col_vectors CASCADE")
