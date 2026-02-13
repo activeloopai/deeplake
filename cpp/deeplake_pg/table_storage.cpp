@@ -173,6 +173,11 @@ icm::string_map<> session_credentials::get_credentials()
 
 std::string session_credentials::get_root_path()
 {
+    // Environment variable takes priority over per-session GUC
+    auto root = base::getenv<std::string>("DEEPLAKE_ROOT_PATH", "");
+    if (!root.empty()) {
+        return root;
+    }
     if (root_path_guc_string != nullptr && std::strlen(root_path_guc_string) > 0) {
         return std::string(root_path_guc_string);
     }
@@ -731,8 +736,11 @@ void table_storage::create_table(const std::string& table_name, Oid table_id, Tu
         if (session_root.empty()) {
             session_root = pg::utils::get_deeplake_root_directory();
         }
-        // Construct path: root_dir/schema_name/table_name
-        dataset_path = session_root + "/" + schema_name + "/" + simple_table_name;
+        // Construct path: root_dir/db_name/schema_name/table_name
+        // root_path is the global root; include the database name so each
+        // database's datasets are stored under their own prefix.
+        const auto db_name = get_current_database_name();
+        dataset_path = session_root + "/" + db_name + "/" + schema_name + "/" + simple_table_name;
     }
 
     // Get credentials from current session
