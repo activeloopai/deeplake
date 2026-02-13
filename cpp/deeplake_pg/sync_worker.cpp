@@ -346,9 +346,34 @@ void deeplake_sync_schemas_for_db(const std::string& db_name,
  * Sync tables for a specific database from pre-loaded catalog data via libpq.
  * Creates missing tables in the target database.
  */
+/**
+ * Parse comma-separated column names string into a vector.
+ * The column_names string uses trailing comma format: "col1,col2,"
+ */
+std::vector<std::string> parse_column_names(const std::string& column_names)
+{
+    std::vector<std::string> result;
+    std::string current;
+    for (char c : column_names) {
+        if (c == ',') {
+            if (!current.empty()) {
+                result.push_back(current);
+                current.clear();
+            }
+        } else {
+            current += c;
+        }
+    }
+    if (!current.empty()) {
+        result.push_back(current);
+    }
+    return result;
+}
+
 void deeplake_sync_tables_for_db(const std::string& db_name,
     const std::vector<pg::dl_catalog::table_meta>& tables,
-    const std::vector<pg::dl_catalog::column_meta>& columns)
+    const std::vector<pg::dl_catalog::column_meta>& columns,
+    const std::vector<pg::dl_catalog::index_meta>& indexes)
 {
     for (const auto& meta : tables) {
         if (meta.state == "dropping") {
@@ -373,6 +398,24 @@ void deeplake_sync_tables_for_db(const std::string& db_name,
             continue;
         }
 
+        // Find indexes for this table
+        std::vector<pg::dl_catalog::index_meta> table_indexes;
+        for (const auto& idx : indexes) {
+            if (idx.table_id == meta.table_id) {
+                table_indexes.push_back(idx);
+            }
+        }
+
+        // Determine which columns are part of a primary key (inverted_index on non-nullable columns)
+        // The primary key columns are stored as comma-separated names in column_names
+        std::vector<std::string> pk_columns;
+        for (const auto& idx : table_indexes) {
+            if (idx.index_type == "inverted_index") {
+                pk_columns = parse_column_names(idx.column_names);
+                break;
+            }
+        }
+
         const char* qschema = quote_identifier(meta.schema_name.c_str());
         const char* qtable = quote_identifier(meta.table_name.c_str());
 
@@ -390,6 +433,19 @@ void deeplake_sync_tables_for_db(const std::string& db_name,
             first = false;
             appendStringInfo(&buf, "%s %s", quote_identifier(col.column_name.c_str()), col.pg_type.c_str());
         }
+
+        // Add PRIMARY KEY table constraint if we have PK columns
+        if (!pk_columns.empty()) {
+            appendStringInfoString(&buf, ", PRIMARY KEY (");
+            for (size_t i = 0; i < pk_columns.size(); ++i) {
+                if (i > 0) {
+                    appendStringInfoString(&buf, ", ");
+                }
+                appendStringInfoString(&buf, quote_identifier(pk_columns[i].c_str()));
+            }
+            appendStringInfoChar(&buf, ')');
+        }
+
         appendStringInfo(&buf, ") USING deeplake");
 
         if (execute_via_libpq(db_name.c_str(), buf.data)) {
@@ -487,9 +543,10 @@ void sync_all_databases(
             }
 
             auto [tables, columns] = pg::dl_catalog::load_tables_and_columns(root_path, db_name, creds);
-            deeplake_sync_tables_for_db(db_name, tables, columns);
-            elog(LOG, "pg_deeplake sync: synced %zu schemas, %zu tables for database '%s'",
-                 schemas.size(), tables.size(), db_name.c_str());
+            auto indexes = pg::dl_catalog::load_indexes(root_path, db_name, creds);
+            deeplake_sync_tables_for_db(db_name, tables, columns, indexes);
+            elog(LOG, "pg_deeplake sync: synced %zu schemas, %zu tables, %zu indexes for database '%s'",
+                 schemas.size(), tables.size(), indexes.size(), db_name.c_str());
         } catch (const std::exception& e) {
             elog(WARNING, "pg_deeplake sync: failed to sync database '%s': %s", db_name.c_str(), e.what());
         } catch (...) {

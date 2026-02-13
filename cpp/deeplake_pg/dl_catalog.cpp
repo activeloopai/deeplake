@@ -457,9 +457,52 @@ std::vector<column_meta> load_columns(const std::string& root_path, const std::s
     }
 }
 
-std::vector<index_meta> load_indexes(const std::string&, const std::string&, icm::string_map<>)
+std::vector<index_meta> load_indexes(const std::string& root_path, const std::string& db_name, icm::string_map<> creds)
 {
-    return {};
+    std::vector<index_meta> out;
+    try {
+        auto table = open_db_catalog_table(root_path, db_name, k_indexes_name, std::move(creds));
+        if (!table) {
+            return out;
+        }
+        auto snapshot = table->read().get_future().get();
+        if (snapshot.row_count() == 0) {
+            return out;
+        }
+
+        for (const auto& row : snapshot.rows()) {
+            auto table_id_it = row.find("table_id");
+            auto column_names_it = row.find("column_names");
+            auto index_type_it = row.find("index_type");
+            auto order_type_it = row.find("order_type");
+
+            if (table_id_it == row.end() || column_names_it == row.end() || index_type_it == row.end()) {
+                continue;
+            }
+
+            index_meta meta;
+            meta.table_id = deeplake_api::array_to_string(table_id_it->second);
+            meta.column_names = deeplake_api::array_to_string(column_names_it->second);
+            meta.index_type = deeplake_api::array_to_string(index_type_it->second);
+            if (order_type_it != row.end()) {
+                try {
+                    auto order_vec = load_vector<int32_t>(order_type_it->second);
+                    meta.order_type = order_vec.empty() ? 0 : order_vec.front();
+                } catch (...) {
+                    meta.order_type = 0;
+                }
+            }
+
+            out.push_back(std::move(meta));
+        }
+        return out;
+    } catch (const std::exception& e) {
+        elog(DEBUG1, "Failed to load catalog indexes for db '%s': %s", db_name.c_str(), e.what());
+        return out;
+    } catch (...) {
+        elog(DEBUG1, "Failed to load catalog indexes for db '%s': unknown error", db_name.c_str());
+        return out;
+    }
 }
 
 std::vector<schema_meta> load_schemas(const std::string& root_path, const std::string& db_name, icm::string_map<> creds)
@@ -694,6 +737,25 @@ void upsert_columns(const std::string& root_path, const std::string& db_name, ic
         row["dl_type_json"] = nd::adapt(col.dl_type_json);
         row["nullable"] = nd::adapt(col.nullable);
         row["position"] = nd::adapt(col.position);
+        rows.push_back(std::move(row));
+    }
+    table->upsert_many(std::move(rows)).get_future().get();
+}
+
+void upsert_indexes(const std::string& root_path, const std::string& db_name, icm::string_map<> creds, const std::vector<index_meta>& indexes)
+{
+    if (indexes.empty()) {
+        return;
+    }
+    auto table = open_db_catalog_table(root_path, db_name, k_indexes_name, std::move(creds));
+    icm::vector<icm::string_map<nd::array>> rows;
+    rows.reserve(indexes.size());
+    for (const auto& idx : indexes) {
+        icm::string_map<nd::array> row;
+        row["table_id"] = nd::adapt(idx.table_id);
+        row["column_names"] = nd::adapt(idx.column_names);
+        row["index_type"] = nd::adapt(idx.index_type);
+        row["order_type"] = nd::adapt(idx.order_type);
         rows.push_back(std::move(row));
     }
     table->upsert_many(std::move(rows)).get_future().get();

@@ -353,8 +353,9 @@ void table_storage::load_table_metadata()
         }
         tables_loaded_ = true;
 
-        // Load tables and columns in parallel from per-database path
+        // Load tables, columns, and indexes from per-database path
         auto [catalog_tables, catalog_columns] = pg::dl_catalog::load_tables_and_columns(root_dir, db_name, creds);
+        auto catalog_indexes = pg::dl_catalog::load_indexes(root_dir, db_name, creds);
 
         if (!catalog_tables.empty()) {
             for (const auto& meta : catalog_tables) {
@@ -387,6 +388,29 @@ void table_storage::load_table_metadata()
                         continue;
                     }
 
+                    // Find primary key columns from indexes
+                    std::vector<std::string> pk_columns;
+                    for (const auto& idx : catalog_indexes) {
+                        if (idx.table_id == meta.table_id && idx.index_type == "inverted_index") {
+                            // Parse comma-separated column names
+                            std::string current;
+                            for (char c : idx.column_names) {
+                                if (c == ',') {
+                                    if (!current.empty()) {
+                                        pk_columns.push_back(current);
+                                        current.clear();
+                                    }
+                                } else {
+                                    current += c;
+                                }
+                            }
+                            if (!current.empty()) {
+                                pk_columns.push_back(current);
+                            }
+                            break;
+                        }
+                    }
+
                     // Build CREATE TABLE IF NOT EXISTS from catalog metadata.
                     // Wrap in a subtransaction so that if another backend concurrently
                     // creates the same table (race on composite type), the error is
@@ -406,6 +430,19 @@ void table_storage::load_table_metadata()
                         first = false;
                         appendStringInfo(&buf, "%s %s", quote_identifier(col.column_name.c_str()), col.pg_type.c_str());
                     }
+
+                    // Add PRIMARY KEY table constraint if found in catalog indexes
+                    if (!pk_columns.empty()) {
+                        appendStringInfoString(&buf, ", PRIMARY KEY (");
+                        for (size_t i = 0; i < pk_columns.size(); ++i) {
+                            if (i > 0) {
+                                appendStringInfoString(&buf, ", ");
+                            }
+                            appendStringInfoString(&buf, quote_identifier(pk_columns[i].c_str()));
+                        }
+                        appendStringInfoChar(&buf, ')');
+                    }
+
                     appendStringInfo(&buf, ") USING deeplake");
 
                     MemoryContext saved_context = CurrentMemoryContext;

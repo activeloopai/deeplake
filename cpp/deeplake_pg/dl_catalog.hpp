@@ -82,6 +82,7 @@ void upsert_schema(const std::string& root_path, const std::string& db_name, icm
 // Per-database upserts (write to {root}/{db_name}/__deeplake_catalog/)
 void upsert_table(const std::string& root_path, const std::string& db_name, icm::string_map<> creds, const table_meta& meta);
 void upsert_columns(const std::string& root_path, const std::string& db_name, icm::string_map<> creds, const std::vector<column_meta>& columns);
+void upsert_indexes(const std::string& root_path, const std::string& db_name, icm::string_map<> creds, const std::vector<index_meta>& indexes);
 
 // Shared (cluster-wide) database catalog
 std::vector<database_meta> load_databases(const std::string& root_path, icm::string_map<> creds);
