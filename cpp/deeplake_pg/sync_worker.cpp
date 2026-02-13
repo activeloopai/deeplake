@@ -42,7 +42,7 @@ extern "C" {
 #include <vector>
 
 // GUC variables
-int deeplake_sync_interval_ms = 2000;  // Default 2 seconds
+int deeplake_sync_interval_ms = 500;  // Default 500ms
 
 // Forward declaration (defined in the anonymous namespace below)
 namespace { bool execute_via_libpq(const char* dbname, const char* sql); }
