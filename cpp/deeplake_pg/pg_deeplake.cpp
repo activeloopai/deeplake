@@ -265,8 +265,10 @@ void save_index_metadata(Oid oid)
         ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Failed to save metadata")));
     }
 
-    // Persist index to shared catalog for stateless multi-instance sync
-    if (pg::stateless_enabled) {
+    // Persist index to shared catalog for stateless multi-instance sync.
+    // Skip when in catalog-only mode — the table was synced FROM the catalog,
+    // so writing back would be redundant and cause version bump loops.
+    if (pg::stateless_enabled && !pg::table_storage::is_catalog_only_create()) {
         try {
             auto root_dir = pg::session_credentials::get_root_path();
             if (root_dir.empty()) {
