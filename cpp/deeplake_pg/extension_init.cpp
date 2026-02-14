@@ -11,6 +11,7 @@ extern "C" {
 #include <catalog/namespace.h>
 #include <commands/dbcommands.h>
 #include <commands/defrem.h>
+#include <commands/extension.h>
 #include <miscadmin.h>
 #include <commands/vacuum.h>
 #include <nodes/nodeFuncs.h>
@@ -27,7 +28,7 @@ extern "C" {
 
 #include "column_statistics.hpp"
 #include "deeplake_executor.hpp"
-#include "dl_catalog.hpp"
+#include "dl_wal.hpp"
 #include "pg_deeplake.hpp"
 #include "pg_version_compat.h"
 #include "sync_worker.hpp"
@@ -44,6 +45,7 @@ extern "C" {
 #include <climits>
 #include <cmath>
 #include <cstdint>
+#include <unistd.h>
 #include <map>
 #include <memory>
 #include <numeric>
@@ -71,6 +73,61 @@ bool stateless_enabled = false;      // Enable stateless catalog sync across ins
 } // namespace pg
 
 namespace {
+
+bool is_ddl_log_suppressed()
+{
+    if (pg::table_storage::is_catalog_only_create()) {
+        return true;
+    }
+    if (creating_extension) {
+        return true;
+    }
+    const char* app_name = GetConfigOption("application_name", true, false);
+    return app_name && strcmp(app_name, "pg_deeplake_sync") == 0;
+}
+
+void append_to_ddl_log_if_needed(const char* command_tag, const char* object_identity, const char* query_string)
+{
+    if (!pg::stateless_enabled || is_ddl_log_suppressed()) {
+        return;
+    }
+    if (query_string == nullptr || query_string[0] == '\0') {
+        return;
+    }
+
+    auto root_path = pg::session_credentials::get_root_path();
+    if (root_path.empty()) {
+        root_path = pg::utils::get_deeplake_root_directory();
+    }
+    if (root_path.empty()) {
+        return;
+    }
+
+    try {
+        auto creds = pg::session_credentials::get_credentials();
+        const char* dbname = get_database_name(MyDatabaseId);
+        std::string db_name = dbname ? dbname : "postgres";
+        if (dbname) {
+            pfree(const_cast<char*>(dbname));
+        }
+
+        pg::dl_wal::ensure_catalog(root_path, creds);
+        pg::dl_wal::ensure_db_catalog(root_path, db_name, creds);
+
+        pg::dl_wal::ddl_log_entry entry;
+        entry.seq = pg::dl_wal::next_ddl_seq();
+        entry.origin_instance_id = pg::dl_wal::local_instance_id();
+        const char* current_search_path = GetConfigOption("search_path", true, false);
+        entry.search_path = current_search_path != nullptr ? current_search_path : "";
+        entry.command_tag = command_tag != nullptr ? command_tag : "";
+        entry.object_identity = object_identity != nullptr ? object_identity : "";
+        entry.ddl_sql = query_string;
+
+        pg::dl_wal::append_ddl_log(root_path, db_name, creds, entry);
+    } catch (const std::exception& e) {
+        elog(WARNING, "pg_deeplake: failed to append DDL to WAL log: %s", e.what());
+    }
+}
 
 bool is_count_star(TargetEntry* node)
 {
@@ -589,34 +646,7 @@ static void process_utility(PlannedStmt* pstmt,
                     }
                 }
 
-                // Mark schema as "dropping" in the S3 catalog
-                if (pg::stateless_enabled) {
-                    try {
-                        auto root_path = pg::session_credentials::get_root_path();
-                        if (root_path.empty()) {
-                            root_path = pg::utils::get_deeplake_root_directory();
-                        }
-                        if (!root_path.empty()) {
-                            auto creds = pg::session_credentials::get_credentials();
-                            const char* dbname = get_database_name(MyDatabaseId);
-                            std::string db_name = dbname ? dbname : "postgres";
-                            if (dbname) pfree(const_cast<char*>(dbname));
-
-                            pg::dl_catalog::ensure_catalog(root_path, creds);
-                            pg::dl_catalog::ensure_db_catalog(root_path, db_name, creds);
-
-                            pg::dl_catalog::schema_meta s_meta;
-                            s_meta.schema_name = schema_name;
-                            s_meta.state = "dropping";
-                            pg::dl_catalog::upsert_schema(root_path, db_name, creds, s_meta);
-
-                            pg::dl_catalog::bump_db_catalog_version(root_path, db_name, pg::session_credentials::get_credentials());
-                            pg::dl_catalog::bump_catalog_version(root_path, pg::session_credentials::get_credentials());
-                        }
-                    } catch (const std::exception& e) {
-                        elog(WARNING, "pg_deeplake: failed to mark schema '%s' as dropping in catalog: %s", schema_name, e.what());
-                    }
-                }
+                // DROP SCHEMA propagation is handled by DDL WAL logging post-hook.
             }
         } else if (stmt->removeType == OBJECT_DATABASE) {
             const char* query = "SELECT nspname, relname "
@@ -722,12 +752,11 @@ static void process_utility(PlannedStmt* pstmt,
             }
             if (!root_path.empty()) {
                 auto creds = pg::session_credentials::get_credentials();
-                pg::dl_catalog::ensure_catalog(root_path, creds);
-                pg::dl_catalog::database_meta db_meta;
+                pg::dl_wal::ensure_catalog(root_path, creds);
+                pg::dl_wal::database_meta db_meta;
                 db_meta.db_name = dbstmt->dbname;
                 db_meta.state = "dropping";
-                pg::dl_catalog::upsert_database(root_path, creds, db_meta);
-                pg::dl_catalog::bump_catalog_version(root_path, creds);
+                pg::dl_wal::upsert_database(root_path, creds, db_meta);
                 elog(LOG, "pg_deeplake: marked database '%s' as dropping in catalog", dbstmt->dbname);
             }
         } catch (const std::exception& e) {
@@ -759,8 +788,8 @@ static void process_utility(PlannedStmt* pstmt,
                 }
                 if (!root_path.empty()) {
                     auto creds = pg::session_credentials::get_credentials();
-                    pg::dl_catalog::ensure_catalog(root_path, creds);
-                    pg::dl_catalog::database_meta db_meta;
+                    pg::dl_wal::ensure_catalog(root_path, creds);
+                    pg::dl_wal::database_meta db_meta;
                     db_meta.db_name = dbstmt->dbname;
                     db_meta.state = "ready";
 
@@ -781,8 +810,7 @@ static void process_utility(PlannedStmt* pstmt,
                         }
                     }
 
-                    pg::dl_catalog::upsert_database(root_path, creds, db_meta);
-                    pg::dl_catalog::bump_catalog_version(root_path, creds);
+                    pg::dl_wal::upsert_database(root_path, creds, db_meta);
                     elog(DEBUG1, "pg_deeplake: recorded CREATE DATABASE '%s' in catalog", dbstmt->dbname);
                 }
             } catch (const std::exception& e) {
@@ -791,37 +819,11 @@ static void process_utility(PlannedStmt* pstmt,
         }
     }
 
-    // Post-hook: record CREATE SCHEMA in S3 catalog for multi-instance sync
-    if (IsA(pstmt->utilityStmt, CreateSchemaStmt) && pg::stateless_enabled) {
+    // Post-hook: record CREATE SCHEMA in DDL WAL log
+    if (IsA(pstmt->utilityStmt, CreateSchemaStmt)) {
         CreateSchemaStmt* schemastmt = (CreateSchemaStmt*)pstmt->utilityStmt;
-        try {
-            auto root_path = pg::session_credentials::get_root_path();
-            if (root_path.empty()) {
-                root_path = pg::utils::get_deeplake_root_directory();
-            }
-            if (!root_path.empty() && schemastmt->schemaname != nullptr) {
-                auto creds = pg::session_credentials::get_credentials();
-                const char* dbname = get_database_name(MyDatabaseId);
-                std::string db_name = dbname ? dbname : "postgres";
-                if (dbname) pfree(const_cast<char*>(dbname));
-
-                pg::dl_catalog::ensure_catalog(root_path, creds);
-                pg::dl_catalog::ensure_db_catalog(root_path, db_name, creds);
-
-                pg::dl_catalog::schema_meta s_meta;
-                s_meta.schema_name = schemastmt->schemaname;
-                s_meta.state = "ready";
-                if (schemastmt->authrole != nullptr) {
-                    s_meta.owner = schemastmt->authrole->rolename;
-                }
-                pg::dl_catalog::upsert_schema(root_path, db_name, creds, s_meta);
-
-                pg::dl_catalog::bump_db_catalog_version(root_path, db_name, pg::session_credentials::get_credentials());
-                pg::dl_catalog::bump_catalog_version(root_path, pg::session_credentials::get_credentials());
-                elog(DEBUG1, "pg_deeplake: recorded CREATE SCHEMA '%s' in catalog", schemastmt->schemaname);
-            }
-        } catch (const std::exception& e) {
-            elog(DEBUG1, "pg_deeplake: failed to record CREATE SCHEMA in catalog: %s", e.what());
+        if (schemastmt->schemaname != nullptr) {
+            append_to_ddl_log_if_needed("CREATE SCHEMA", schemastmt->schemaname, queryString);
         }
     }
 
@@ -1323,6 +1325,59 @@ static void process_utility(PlannedStmt* pstmt,
             }
         }
     }
+
+    if (nodeTag(pstmt->utilityStmt) == T_DropStmt) {
+        DropStmt* stmt = (DropStmt*)pstmt->utilityStmt;
+        if (stmt->removeType == OBJECT_SCHEMA) {
+            append_to_ddl_log_if_needed("DROP SCHEMA", nullptr, queryString);
+        } else if (stmt->removeType == OBJECT_TABLE) {
+            append_to_ddl_log_if_needed("DROP TABLE", nullptr, queryString);
+        } else if (stmt->removeType == OBJECT_INDEX) {
+            append_to_ddl_log_if_needed("DROP INDEX", nullptr, queryString);
+        } else if (stmt->removeType == OBJECT_VIEW) {
+            append_to_ddl_log_if_needed("DROP VIEW", nullptr, queryString);
+        }
+    }
+
+    if (IsA(pstmt->utilityStmt, CreateStmt)) {
+        CreateStmt* stmt = (CreateStmt*)pstmt->utilityStmt;
+        if (stmt->accessMethod != nullptr && std::strcmp(stmt->accessMethod, "deeplake") == 0) {
+            const char* schema_name = stmt->relation->schemaname ? stmt->relation->schemaname : "public";
+            std::string object_id = std::string(schema_name) + "." + stmt->relation->relname;
+            append_to_ddl_log_if_needed("CREATE TABLE", object_id.c_str(), queryString);
+        }
+    }
+
+    if (IsA(pstmt->utilityStmt, AlterTableStmt)) {
+        if (queryString != nullptr && strncasecmp(queryString, "ALTER TABLE", 11) == 0) {
+            AlterTableStmt* stmt = (AlterTableStmt*)pstmt->utilityStmt;
+            const char* schema_name = stmt->relation->schemaname ? stmt->relation->schemaname : "public";
+            std::string object_id = std::string(schema_name) + "." + stmt->relation->relname;
+            append_to_ddl_log_if_needed("ALTER TABLE", object_id.c_str(), queryString);
+        }
+    }
+
+    if (IsA(pstmt->utilityStmt, IndexStmt)) {
+        if (queryString && strncasecmp(queryString, "CREATE", 6) == 0 &&
+            strncasecmp(queryString, "CREATE TABLE", 12) != 0) {
+            IndexStmt* stmt = (IndexStmt*)pstmt->utilityStmt;
+            const char* schema_name = stmt->relation->schemaname ? stmt->relation->schemaname : "public";
+            std::string object_id = std::string(schema_name) + "." + stmt->relation->relname;
+            append_to_ddl_log_if_needed("CREATE INDEX", object_id.c_str(), queryString);
+        }
+    }
+
+    if (IsA(pstmt->utilityStmt, ViewStmt)) {
+        ViewStmt* stmt = (ViewStmt*)pstmt->utilityStmt;
+        const char* schema_name = stmt->view->schemaname ? stmt->view->schemaname : "public";
+        std::string object_id = std::string(schema_name) + "." + stmt->view->relname;
+        append_to_ddl_log_if_needed("CREATE VIEW", object_id.c_str(), queryString);
+    }
+
+    if (IsA(pstmt->utilityStmt, RenameStmt)) {
+        append_to_ddl_log_if_needed("RENAME", nullptr, queryString);
+    }
+
     if (IsA(pstmt->utilityStmt, VariableSetStmt)) {
         VariableSetStmt* vstmt = (VariableSetStmt*)pstmt->utilityStmt;
         if (vstmt->name != nullptr && pg_strcasecmp(vstmt->name, "search_path") == 0) {

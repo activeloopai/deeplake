@@ -75,8 +75,17 @@ async def primary_conn(pg_server):
     try:
         await conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
         await conn.execute("CREATE EXTENSION pg_deeplake")
+        # Clean up any leftover reserved schemas from previous failed test runs
+        for schema in ["default", "user", "table"]:
+            await conn.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
         yield conn
     finally:
+        # Best-effort cleanup of reserved schemas on teardown
+        for schema in ["default", "user", "table"]:
+            try:
+                await conn.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
+            except Exception:
+                pass
         await conn.close()
 
 

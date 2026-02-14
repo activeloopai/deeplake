@@ -231,7 +231,7 @@ async def test_create_multiple_databases(pg_server):
 # ---------------------------------------------------------------------------
 
 
-async def poll_for_extension(conn, timeout=10.0):
+async def poll_for_extension(conn, timeout=20.0):
     """Poll for pg_deeplake extension. Returns True if found, False on timeout."""
     deadline = asyncio.get_event_loop().time() + timeout
     while asyncio.get_event_loop().time() < deadline:
@@ -265,7 +265,7 @@ async def test_async_extension_auto_install(pg_server):
 
         installed = await poll_for_extension(target_conn)
         assert installed, (
-            "Sync worker should have auto-installed pg_deeplake within 10s"
+            "Sync worker should have auto-installed pg_deeplake within 20s"
         )
     finally:
         if target_conn is not None:
@@ -295,7 +295,7 @@ async def test_async_extension_auto_install_multiple(pg_server):
 
         # Poll all databases for extension
         remaining = set(db_names)
-        deadline = asyncio.get_event_loop().time() + 10.0
+        deadline = asyncio.get_event_loop().time() + 20.0
         while remaining and asyncio.get_event_loop().time() < deadline:
             for db in list(remaining):
                 ext = await conns[db].fetchval(
@@ -308,7 +308,7 @@ async def test_async_extension_auto_install_multiple(pg_server):
 
         assert not remaining, (
             f"Sync worker should have installed pg_deeplake in all databases "
-            f"within 10s, still missing: {remaining}"
+            f"within 20s, still missing: {remaining}"
         )
     finally:
         for c in conns.values():

@@ -129,7 +129,10 @@ public:
 
     inline void refresh_table(Oid table_id)
     {
-        tables_.at(table_id).refresh();
+        auto it = tables_.find(table_id);
+        if (it != tables_.end()) {
+            it->second.refresh();
+        }
     }
 
     // Data operations
@@ -199,7 +202,7 @@ public:
         tables_.clear();
         views_.clear();
         tables_loaded_ = false;
-        catalog_version_ = 0;
+        ddl_log_last_seq_ = 0;
         load_table_metadata();
     }
     void mark_metadata_stale() noexcept
@@ -321,7 +324,7 @@ private:
     std::string schema_name_ = "public";
     bool tables_loaded_ = false;
     bool up_to_date_ = true;
-    int64_t catalog_version_ = 0;
+    int64_t ddl_log_last_seq_ = 0;
 };
 
 } // namespace pg

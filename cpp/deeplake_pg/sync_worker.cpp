@@ -28,16 +28,16 @@ extern "C" {
 
 #include "sync_worker.hpp"
 
-#include "dl_catalog.hpp"
+#include "dl_wal.hpp"
 #include "table_storage.hpp"
 #include "utils.hpp"
 
-#include <async/promise.hpp>
-#include <deeplake_api/catalog_table.hpp>
-#include <icm/vector.hpp>
-
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
+#include <fstream>
+#include <sstream>
+#include <unistd.h>
 #include <unordered_map>
 #include <vector>
 
@@ -130,6 +130,75 @@ void pending_install_queue::drain_and_install()
 
 namespace {
 
+std::string wal_checkpoint_file_path()
+{
+    if (DataDir == nullptr) {
+        return "/tmp/pg_deeplake_wal_checkpoints.tsv";
+    }
+    return std::string(DataDir) + "/pg_deeplake_wal_checkpoints.tsv";
+}
+
+std::string checkpoint_key(const std::string& root_path, const std::string& db_name)
+{
+    return root_path + "\t" + db_name;
+}
+
+void load_wal_checkpoints(std::unordered_map<std::string, int64_t>& checkpoints)
+{
+    checkpoints.clear();
+    std::ifstream in(wal_checkpoint_file_path());
+    if (!in.is_open()) {
+        return;
+    }
+
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.empty()) {
+            continue;
+        }
+        std::istringstream ss(line);
+        std::string root_path;
+        std::string db_name;
+        std::string seq_str;
+        if (!std::getline(ss, root_path, '\t') ||
+            !std::getline(ss, db_name, '\t') ||
+            !std::getline(ss, seq_str)) {
+            continue;
+        }
+        try {
+            checkpoints[checkpoint_key(root_path, db_name)] = std::stoll(seq_str);
+        } catch (...) {
+        }
+    }
+}
+
+void persist_wal_checkpoints(const std::unordered_map<std::string, int64_t>& checkpoints)
+{
+    const std::string path = wal_checkpoint_file_path();
+    const std::string tmp_path = path + ".tmp";
+
+    std::ofstream out(tmp_path, std::ios::trunc);
+    if (!out.is_open()) {
+        elog(WARNING, "pg_deeplake sync: failed to open WAL checkpoint tmp file: %s", tmp_path.c_str());
+        return;
+    }
+
+    for (const auto& kv : checkpoints) {
+        const size_t sep = kv.first.find('\t');
+        if (sep == std::string::npos) {
+            continue;
+        }
+        out << kv.first.substr(0, sep) << '\t'
+            << kv.first.substr(sep + 1) << '\t'
+            << kv.second << '\n';
+    }
+    out.close();
+
+    if (std::rename(tmp_path.c_str(), path.c_str()) != 0) {
+        elog(WARNING, "pg_deeplake sync: failed to persist WAL checkpoints to %s", path.c_str());
+    }
+}
+
 // Worker state - use sig_atomic_t for signal safety
 volatile sig_atomic_t got_sigterm = false;
 volatile sig_atomic_t got_sighup = false;
@@ -217,7 +286,7 @@ bool execute_via_libpq(const char* dbname, const char* sql)
  */
 void deeplake_sync_databases_from_catalog(const std::string& root_path, icm::string_map<> creds)
 {
-    auto catalog_databases = pg::dl_catalog::load_databases(root_path, creds);
+    auto catalog_databases = pg::dl_wal::load_databases(root_path, creds);
 
     for (const auto& db : catalog_databases) {
         // Skip system databases
@@ -309,170 +378,114 @@ void deeplake_sync_databases_from_catalog(const std::string& root_path, icm::str
     }
 }
 
-/**
- * Sync schemas for a specific database from pre-loaded catalog data via libpq.
- * Creates missing schemas in the target database.
- */
-void deeplake_sync_schemas_for_db(const std::string& db_name,
-    const std::vector<pg::dl_catalog::schema_meta>& schemas)
+bool is_harmless_replay_error(const char* sqlstate)
 {
-    for (const auto& meta : schemas) {
-        if (meta.state == "dropping") {
+    if (sqlstate == nullptr) {
+        return false;
+    }
+    return strcmp(sqlstate, "42P07") == 0 ||  // duplicate_table
+           strcmp(sqlstate, "42P06") == 0 ||  // duplicate_schema
+           strcmp(sqlstate, "42701") == 0 ||  // duplicate_column
+           strcmp(sqlstate, "42710") == 0 ||  // duplicate_object
+           strcmp(sqlstate, "42704") == 0 ||  // undefined_object
+           strcmp(sqlstate, "42P01") == 0 ||  // undefined_table
+           strcmp(sqlstate, "3F000") == 0;    // invalid_schema_name
+}
+
+void deeplake_replay_ddl_log_for_db(const std::string& db_name, const std::string& root_path,
+                                    icm::string_map<> creds, int64_t& last_seq)
+{
+    auto entries = pg::dl_wal::load_ddl_log(root_path, db_name, creds, last_seq);
+    for (const auto& entry : entries) {
+        if (entry.seq > last_seq) {
+            last_seq = entry.seq;
+        }
+        if (entry.origin_instance_id == pg::dl_wal::local_instance_id()) {
             continue;
         }
 
-        // Skip system schemas
-        if (meta.schema_name == "public" || meta.schema_name == "pg_catalog" ||
-            meta.schema_name == "information_schema" ||
-            meta.schema_name.substr(0, 3) == "pg_") {
+        StringInfoData sql;
+        initStringInfo(&sql);
+        appendStringInfo(&sql, "SET application_name = 'pg_deeplake_sync'; ");
+        if (!entry.search_path.empty()) {
+            appendStringInfo(&sql,
+                             "SELECT pg_catalog.set_config('search_path', %s, false); ",
+                             quote_literal_cstr(entry.search_path.c_str()));
+        }
+        appendStringInfoString(&sql, entry.ddl_sql.c_str());
+
+        const char* port = GetConfigOption("port", true, false);
+        const char* socket_dir = GetConfigOption("unix_socket_directories", true, false);
+
+        StringInfoData conninfo;
+        initStringInfo(&conninfo);
+        appendStringInfo(&conninfo, "dbname=%s", db_name.c_str());
+        if (port != nullptr) {
+            appendStringInfo(&conninfo, " port=%s", port);
+        }
+        if (socket_dir != nullptr) {
+            char* dir_copy = pstrdup(socket_dir);
+            char* comma = strchr(dir_copy, ',');
+            if (comma != nullptr) {
+                *comma = '\0';
+            }
+            char* dir = dir_copy;
+            while (*dir == ' ') {
+                dir++;
+            }
+            appendStringInfo(&conninfo, " host=%s", dir);
+            pfree(dir_copy);
+        }
+
+        PGconn* conn = PQconnectdb(conninfo.data);
+        pfree(conninfo.data);
+        if (PQstatus(conn) != CONNECTION_OK) {
+            elog(WARNING, "pg_deeplake sync: libpq connect failed for '%s': %s", db_name.c_str(), PQerrorMessage(conn));
+            PQfinish(conn);
+            pfree(sql.data);
             continue;
         }
 
-        StringInfoData buf;
-        initStringInfo(&buf);
-        appendStringInfo(&buf, "CREATE SCHEMA IF NOT EXISTS %s",
-                         quote_identifier(meta.schema_name.c_str()));
-
-        if (execute_via_libpq(db_name.c_str(), buf.data)) {
-            elog(LOG, "pg_deeplake sync: created schema '%s' in database '%s'",
-                 meta.schema_name.c_str(), db_name.c_str());
+        PGresult* res = PQexec(conn, sql.data);
+        const ExecStatusType status = PQresultStatus(res);
+        bool ok = status == PGRES_COMMAND_OK || status == PGRES_TUPLES_OK;
+        if (!ok) {
+            const char* sqlstate = PQresultErrorField(res, PG_DIAG_SQLSTATE);
+            if (!is_harmless_replay_error(sqlstate)) {
+                elog(WARNING,
+                     "pg_deeplake sync: DDL WAL replay failed in '%s' [%s]: %s (SQL: %.200s)",
+                     db_name.c_str(),
+                     entry.command_tag.c_str(),
+                     PQerrorMessage(conn),
+                     entry.ddl_sql.c_str());
+            } else {
+                ok = true;
+            }
         }
-
-        pfree(buf.data);
+        if (ok) {
+            elog(LOG, "pg_deeplake sync: replayed %s in '%s'", entry.command_tag.c_str(), db_name.c_str());
+        }
+        PQclear(res);
+        PQfinish(conn);
+        pfree(sql.data);
     }
 }
 
 /**
- * Sync tables for a specific database from pre-loaded catalog data via libpq.
- * Creates missing tables in the target database.
- */
-/**
- * Parse comma-separated column names string into a vector.
- * The column_names string uses trailing comma format: "col1,col2,"
- */
-std::vector<std::string> parse_column_names(const std::string& column_names)
-{
-    std::vector<std::string> result;
-    std::string current;
-    for (char c : column_names) {
-        if (c == ',') {
-            if (!current.empty()) {
-                result.push_back(current);
-                current.clear();
-            }
-        } else {
-            current += c;
-        }
-    }
-    if (!current.empty()) {
-        result.push_back(current);
-    }
-    return result;
-}
-
-void deeplake_sync_tables_for_db(const std::string& db_name,
-    const std::vector<pg::dl_catalog::table_meta>& tables,
-    const std::vector<pg::dl_catalog::column_meta>& columns,
-    const std::vector<pg::dl_catalog::index_meta>& indexes)
-{
-    for (const auto& meta : tables) {
-        if (meta.state == "dropping") {
-            continue;
-        }
-
-        const std::string qualified_name = meta.schema_name + "." + meta.table_name;
-
-        // Gather columns for this table, sorted by position
-        std::vector<pg::dl_catalog::column_meta> table_columns;
-        for (const auto& col : columns) {
-            if (col.table_id == meta.table_id) {
-                table_columns.push_back(col);
-            }
-        }
-        std::sort(table_columns.begin(), table_columns.end(),
-                  [](const auto& a, const auto& b) { return a.position < b.position; });
-
-        if (table_columns.empty()) {
-            elog(DEBUG1, "pg_deeplake sync: no columns for %s in db %s, skipping",
-                 qualified_name.c_str(), db_name.c_str());
-            continue;
-        }
-
-        // Find indexes for this table
-        std::vector<pg::dl_catalog::index_meta> table_indexes;
-        for (const auto& idx : indexes) {
-            if (idx.table_id == meta.table_id) {
-                table_indexes.push_back(idx);
-            }
-        }
-
-        // Determine which columns are part of a primary key (inverted_index on non-nullable columns)
-        // The primary key columns are stored as comma-separated names in column_names
-        std::vector<std::string> pk_columns;
-        for (const auto& idx : table_indexes) {
-            if (idx.index_type == "inverted_index") {
-                pk_columns = parse_column_names(idx.column_names);
-                break;
-            }
-        }
-
-        const char* qschema = quote_identifier(meta.schema_name.c_str());
-        const char* qtable = quote_identifier(meta.table_name.c_str());
-
-        // Combine schema + table creation into a single SQL statement
-        StringInfoData buf;
-        initStringInfo(&buf);
-        appendStringInfo(&buf, "CREATE SCHEMA IF NOT EXISTS %s; ", qschema);
-        appendStringInfo(&buf, "CREATE TABLE IF NOT EXISTS %s.%s (", qschema, qtable);
-
-        bool first = true;
-        for (const auto& col : table_columns) {
-            if (!first) {
-                appendStringInfoString(&buf, ", ");
-            }
-            first = false;
-            appendStringInfo(&buf, "%s %s", quote_identifier(col.column_name.c_str()), col.pg_type.c_str());
-        }
-
-        // Add PRIMARY KEY table constraint if we have PK columns
-        if (!pk_columns.empty()) {
-            appendStringInfoString(&buf, ", PRIMARY KEY (");
-            for (size_t i = 0; i < pk_columns.size(); ++i) {
-                if (i > 0) {
-                    appendStringInfoString(&buf, ", ");
-                }
-                appendStringInfoString(&buf, quote_identifier(pk_columns[i].c_str()));
-            }
-            appendStringInfoChar(&buf, ')');
-        }
-
-        appendStringInfo(&buf, ") USING deeplake");
-
-        if (execute_via_libpq(db_name.c_str(), buf.data)) {
-            elog(LOG, "pg_deeplake sync: created table %s in database %s",
-                 qualified_name.c_str(), db_name.c_str());
-        }
-
-        pfree(buf.data);
-    }
-}
-
-/**
- * Sync all databases: check per-db versions in parallel, load changed ones,
- * create missing tables via libpq.
+ * Sync all databases: check per-db versions in parallel, replay new DDL WAL entries.
  *
  * Called OUTSIDE transaction context.
  */
 void sync_all_databases(
     const std::string& root_path,
     icm::string_map<> creds,
-    std::unordered_map<std::string, int64_t>& last_db_versions)
+    std::unordered_map<std::string, int64_t>& last_db_seqs)
 {
     // Step 1: Sync databases (create missing ones, install extension)
     deeplake_sync_databases_from_catalog(root_path, creds);
 
     // Step 2: Get list of all databases from the shared catalog
-    auto databases = pg::dl_catalog::load_databases(root_path, creds);
+    auto databases = pg::dl_wal::load_databases(root_path, creds);
 
     // Always include "postgres" which may not be in the databases catalog
     bool has_postgres = false;
@@ -480,78 +493,37 @@ void sync_all_databases(
         if (db.db_name == "postgres") { has_postgres = true; break; }
     }
     if (!has_postgres) {
-        pg::dl_catalog::database_meta pg_meta;
+        pg::dl_wal::database_meta pg_meta;
         pg_meta.db_name = "postgres";
         pg_meta.state = "ready";
         databases.push_back(std::move(pg_meta));
     }
 
-    // Step 3: Open per-db meta tables and check versions in parallel
-    std::vector<std::string> db_names;
-    std::vector<std::shared_ptr<deeplake_api::catalog_table>> meta_handles;
-
+    // Step 3: For each database, replay DDL WAL entries
+    // (cheap if no new entries due to after_seq filtering)
+    bool checkpoints_updated = false;
     for (const auto& db : databases) {
         if (db.db_name == "template0" || db.db_name == "template1") {
             continue;
         }
         try {
-            auto handle = pg::dl_catalog::open_db_meta_table(root_path, db.db_name, creds);
-            if (handle) {
-                db_names.push_back(db.db_name);
-                meta_handles.push_back(std::move(handle));
+            const std::string key = checkpoint_key(root_path, db.db_name);
+            int64_t& last_seq = last_db_seqs[key];
+            const int64_t prev_seq = last_seq;
+            deeplake_replay_ddl_log_for_db(db.db_name, root_path, creds, last_seq);
+            if (last_seq != prev_seq) {
+                checkpoints_updated = true;
             }
-        } catch (...) {
-            // Per-db catalog may not exist yet — skip silently
-            elog(DEBUG1, "pg_deeplake sync: no per-db catalog for '%s', skipping", db.db_name.c_str());
-        }
-    }
-
-    if (db_names.empty()) {
-        return;
-    }
-
-    // Fire all version() promises in parallel (1 round-trip wall-clock)
-    icm::vector<async::promise<uint64_t>> version_promises;
-    version_promises.reserve(db_names.size());
-    for (auto& handle : meta_handles) {
-        version_promises.push_back(handle->version());
-    }
-    auto versions = async::combine(std::move(version_promises)).get_future().get();
-
-    // Step 4: Identify databases whose version changed since last sync
-    std::vector<std::string> changed_dbs;
-    for (size_t i = 0; i < db_names.size(); ++i) {
-        int64_t ver = static_cast<int64_t>(versions[i]);
-        auto it = last_db_versions.find(db_names[i]);
-        if (it == last_db_versions.end() || it->second != ver) {
-            changed_dbs.push_back(db_names[i]);
-            last_db_versions[db_names[i]] = ver;
-        }
-    }
-
-    if (changed_dbs.empty()) {
-        return;
-    }
-
-    // Step 5: For each changed database, load schemas first, then tables+columns and sync
-    for (const auto& db_name : changed_dbs) {
-        try {
-            // Sync schemas before tables so CREATE TABLE can find the target schema
-            auto schemas = pg::dl_catalog::load_schemas(root_path, db_name, creds);
-            if (!schemas.empty()) {
-                deeplake_sync_schemas_for_db(db_name, schemas);
-            }
-
-            auto [tables, columns] = pg::dl_catalog::load_tables_and_columns(root_path, db_name, creds);
-            auto indexes = pg::dl_catalog::load_indexes(root_path, db_name, creds);
-            deeplake_sync_tables_for_db(db_name, tables, columns, indexes);
-            elog(LOG, "pg_deeplake sync: synced %zu schemas, %zu tables, %zu indexes for database '%s'",
-                 schemas.size(), tables.size(), indexes.size(), db_name.c_str());
+            elog(LOG, "pg_deeplake sync: replayed DDL WAL for '%s' (last_seq=%ld)", db.db_name.c_str(), last_seq);
         } catch (const std::exception& e) {
-            elog(WARNING, "pg_deeplake sync: failed to sync database '%s': %s", db_name.c_str(), e.what());
+            elog(WARNING, "pg_deeplake sync: failed to sync database '%s': %s", db.db_name.c_str(), e.what());
         } catch (...) {
-            elog(WARNING, "pg_deeplake sync: failed to sync database '%s': unknown error", db_name.c_str());
+            elog(WARNING, "pg_deeplake sync: failed to sync database '%s': unknown error", db.db_name.c_str());
         }
+    }
+
+    if (checkpoints_updated) {
+        persist_wal_checkpoints(last_db_seqs);
     }
 }
 
@@ -575,7 +547,8 @@ PGDLLEXPORT void deeplake_sync_worker_main(Datum main_arg)
 
     int64_t last_catalog_version = 0;
     std::string last_root_path;  // Track root_path to detect changes
-    std::unordered_map<std::string, int64_t> last_db_versions;
+    std::unordered_map<std::string, int64_t> last_db_seqs;
+    load_wal_checkpoints(last_db_seqs);
 
 
     while (!got_sigterm) {
@@ -587,6 +560,10 @@ PGDLLEXPORT void deeplake_sync_worker_main(Datum main_arg)
             got_sighup = false;
             ProcessConfigFile(PGC_SIGHUP);
         }
+
+        // Always drain pending extension installs first so CREATE DATABASE
+        // async installs are not starved behind expensive sync work.
+        pg::pending_install_queue::drain_and_install();
 
         // Variables to carry state across transaction boundaries
         // (declared before goto target to avoid crossing initialization)
@@ -622,13 +599,13 @@ PGDLLEXPORT void deeplake_sync_worker_main(Datum main_arg)
                     if (!last_root_path.empty()) {
                         pg::table_storage::instance().reset_and_load_table_metadata();
                         last_catalog_version = 0;
-                        last_db_versions.clear();
+                        last_db_seqs.clear();
                     }
                     last_root_path = root_path;
                 }
 
-                // Fast global version check (single HEAD request via cached meta table)
-                int64_t current_version = pg::dl_catalog::get_catalog_version(root_path, creds);
+                // Fast global version check via databases catalog_table
+                int64_t current_version = pg::dl_wal::get_databases_version(root_path, creds);
 
                 if (current_version != last_catalog_version) {
                     // Save state for sync (which happens outside transaction)
@@ -653,7 +630,7 @@ PGDLLEXPORT void deeplake_sync_worker_main(Datum main_arg)
         // All sync happens OUTSIDE transaction context via libpq
         if (need_sync && !sync_root_path.empty()) {
             try {
-                sync_all_databases(sync_root_path, sync_creds, last_db_versions);
+                sync_all_databases(sync_root_path, sync_creds, last_db_seqs);
                 elog(DEBUG1, "pg_deeplake sync: completed (global version %ld)", last_catalog_version);
             } catch (const std::exception& e) {
                 elog(WARNING, "pg_deeplake sync: sync failed: %s", e.what());
@@ -663,9 +640,6 @@ PGDLLEXPORT void deeplake_sync_worker_main(Datum main_arg)
         }
 
         pgstat_report_stat(true);
-
-        // Drain any databases queued for async extension install
-        pg::pending_install_queue::drain_and_install();
 
     wait_for_latch:
         // Wait for latch or timeout
