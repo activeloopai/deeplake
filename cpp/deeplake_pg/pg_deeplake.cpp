@@ -1,5 +1,5 @@
 #include "pg_deeplake.hpp"
-#include "dl_catalog.hpp"
+#include "dl_wal.hpp"
 #include "logger.hpp"
 #include "table_storage.hpp"
 #include "utils.hpp"
@@ -11,6 +11,7 @@
 extern "C" {
 #endif
 
+#include <access/xact.h>
 #include <commands/dbcommands.h>
 #include <miscadmin.h>
 #include <storage/ipc.h>
@@ -264,41 +265,6 @@ void save_index_metadata(Oid oid)
     if (SPI_execute(buf.data, false, 0) != SPI_OK_INSERT) {
         ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Failed to save metadata")));
     }
-
-    // Persist index to shared catalog for stateless multi-instance sync.
-    // Skip when in catalog-only mode — the table was synced FROM the catalog,
-    // so writing back would be redundant and cause version bump loops.
-    if (pg::stateless_enabled && !pg::table_storage::is_catalog_only_create()) {
-        try {
-            auto root_dir = pg::session_credentials::get_root_path();
-            if (root_dir.empty()) {
-                root_dir = pg::utils::get_deeplake_root_directory();
-            }
-            if (!root_dir.empty()) {
-                auto creds = pg::session_credentials::get_credentials();
-                const char* dbname = get_database_name(MyDatabaseId);
-                std::string db_name = dbname ? dbname : "postgres";
-                if (dbname) pfree(const_cast<char*>(dbname));
-
-                const std::string& table_id = idx_info.table_name(); // already schema-qualified
-
-                pg::dl_catalog::index_meta idx_meta;
-                idx_meta.table_id = table_id;
-                idx_meta.column_names = idx_info.get_column_names_string();
-                idx_meta.index_type = std::string(deeplake_core::deeplake_index_type::to_string(idx_info.index_type()));
-                idx_meta.order_type = static_cast<int32_t>(idx_info.order_type());
-
-                std::vector<pg::dl_catalog::index_meta> indexes = {idx_meta};
-                pg::dl_catalog::upsert_indexes(root_dir, db_name, creds, indexes);
-                pg::dl_catalog::bump_db_catalog_version(root_dir, db_name, creds);
-                pg::dl_catalog::bump_catalog_version(root_dir, creds);
-            }
-        } catch (const std::exception& e) {
-            elog(DEBUG1, "pg_deeplake: failed to persist index to shared catalog: %s", e.what());
-        } catch (...) {
-            elog(DEBUG1, "pg_deeplake: failed to persist index to shared catalog: unknown error");
-        }
-    }
 }
 
 void load_index_metadata()
@@ -392,6 +358,23 @@ void deeplake_xact_callback(XactEvent event, void *arg)
     }
 }
 
+void deeplake_subxact_callback(SubXactEvent event,
+                               SubTransactionId my_subid,
+                               SubTransactionId parent_subid,
+                               void* arg)
+{
+    switch (event) {
+    case SUBXACT_EVENT_ABORT_SUB:
+        pg::table_storage::instance().rollback_subxact(my_subid);
+        break;
+    case SUBXACT_EVENT_COMMIT_SUB:
+        pg::table_storage::instance().commit_subxact(my_subid, parent_subid);
+        break;
+    default:
+        break;
+    }
+}
+
 void init_deeplake()
 {
     static bool initialized = false;
@@ -416,6 +399,7 @@ void init_deeplake()
     pg::table_storage::instance(); /// initialize table storage
 
     RegisterXactCallback(deeplake_xact_callback, nullptr);
+    RegisterSubXactCallback(deeplake_subxact_callback, nullptr);
 }
 
 } // namespace pg

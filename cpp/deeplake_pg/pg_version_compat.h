@@ -1,6 +1,5 @@
 #pragma once
 
-#define PG_VERSION_NUM_16 160000
 #define PG_VERSION_NUM_17 170000
 #define PG_VERSION_NUM_18 180000
 

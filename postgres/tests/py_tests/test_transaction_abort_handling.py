@@ -28,7 +28,6 @@ from test_utils.assertions import Assertions
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="pg_deeplake does not handle rollback yet.")
 async def test_error_during_insert_with_abort(db_conn: asyncpg.Connection):
     """
     Test that errors during INSERT operations don't cause cascading aborts.
@@ -104,7 +103,6 @@ async def test_guc_parameter_error_handling(db_conn: asyncpg.Connection):
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="pg_deeplake does not handle rollback yet.")
 async def test_query_error_with_pending_changes(db_conn: asyncpg.Connection):
     """
     Test that query errors with pending changes are handled correctly.
@@ -163,7 +161,6 @@ async def test_query_error_with_pending_changes(db_conn: asyncpg.Connection):
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="pg_deeplake does not handle rollback yet.")
 async def test_multiple_errors_in_sequence(db_conn: asyncpg.Connection):
     """
     Test that multiple errors in sequence don't cause cascading issues.
@@ -203,7 +200,6 @@ async def test_multiple_errors_in_sequence(db_conn: asyncpg.Connection):
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="pg_deeplake does not handle rollback yet.")
 async def test_nested_transaction_abort(db_conn: asyncpg.Connection):
     """
     Test nested transaction (savepoint) abort handling.
@@ -248,6 +244,253 @@ async def test_nested_transaction_abort(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_nested_abort")
+        except:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_nested_transaction_abort_large_inner_insert(db_conn: asyncpg.Connection):
+    """
+    Test savepoint rollback when inner transaction has enough rows to trigger insert buffering thresholds.
+    """
+    try:
+        await db_conn.execute("""
+            CREATE TABLE test_nested_abort_large (
+                id SERIAL PRIMARY KEY,
+                value INTEGER
+            ) USING deeplake
+        """)
+
+        async with db_conn.transaction():
+            await db_conn.execute("INSERT INTO test_nested_abort_large (value) VALUES (1)")
+
+            try:
+                async with db_conn.transaction():
+                    await db_conn.execute("""
+                        INSERT INTO test_nested_abort_large (value)
+                        SELECT generate_series(2, 700)
+                    """)
+                    await db_conn.execute("SELECT * FROM nonexistent_table_large")
+            except asyncpg.exceptions.UndefinedTableError:
+                pass
+
+            await db_conn.execute("INSERT INTO test_nested_abort_large (value) VALUES (701)")
+
+        count = await db_conn.fetchval("SELECT COUNT(*) FROM test_nested_abort_large")
+        assert count == 2, f"Expected 2 rows (values 1 and 701), got {count}"
+
+        values = await db_conn.fetch("SELECT value FROM test_nested_abort_large ORDER BY value")
+        assert [r['value'] for r in values] == [1, 701], "Should have values 1 and 701"
+    finally:
+        try:
+            await db_conn.execute("DROP TABLE IF EXISTS test_nested_abort_large")
+        except:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_nested_transaction_abort_delete(db_conn: asyncpg.Connection):
+    """Inner savepoint DELETEs should rollback while outer transaction changes commit."""
+    try:
+        await db_conn.execute("""
+            CREATE TABLE test_nested_abort_delete (
+                id SERIAL PRIMARY KEY,
+                value INTEGER
+            ) USING deeplake
+        """)
+        await db_conn.execute("""
+            INSERT INTO test_nested_abort_delete (value)
+            SELECT generate_series(1, 5)
+        """)
+
+        async with db_conn.transaction():
+            try:
+                async with db_conn.transaction():
+                    await db_conn.execute("DELETE FROM test_nested_abort_delete WHERE value IN (2, 3)")
+                    await db_conn.execute("SELECT * FROM nonexistent_table_delete")
+            except asyncpg.exceptions.UndefinedTableError:
+                pass
+
+            await db_conn.execute("DELETE FROM test_nested_abort_delete WHERE value = 5")
+
+        values = await db_conn.fetch("SELECT value FROM test_nested_abort_delete ORDER BY value")
+        assert [r['value'] for r in values] == [1, 2, 3, 4], "Inner DELETEs must rollback, outer DELETE must commit"
+    finally:
+        try:
+            await db_conn.execute("DROP TABLE IF EXISTS test_nested_abort_delete")
+        except:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_nested_transaction_abort_update(db_conn: asyncpg.Connection):
+    """Inner savepoint UPDATEs should rollback while outer transaction updates commit."""
+    try:
+        await db_conn.execute("""
+            CREATE TABLE test_nested_abort_update (
+                id INTEGER PRIMARY KEY,
+                value INTEGER
+            ) USING deeplake
+        """)
+        await db_conn.execute("""
+            INSERT INTO test_nested_abort_update (id, value) VALUES (1, 10), (2, 20)
+        """)
+
+        async with db_conn.transaction():
+            await db_conn.execute("UPDATE test_nested_abort_update SET value = 11 WHERE id = 1")
+            try:
+                async with db_conn.transaction():
+                    await db_conn.execute("UPDATE test_nested_abort_update SET value = 22 WHERE id = 2")
+                    await db_conn.execute("SELECT * FROM nonexistent_table_update")
+            except asyncpg.exceptions.UndefinedTableError:
+                pass
+            await db_conn.execute("UPDATE test_nested_abort_update SET value = 12 WHERE id = 1")
+
+        rows = await db_conn.fetch("SELECT id, value FROM test_nested_abort_update ORDER BY id")
+        assert [(r['id'], r['value']) for r in rows] == [(1, 12), (2, 20)], \
+            "Inner UPDATE must rollback, outer UPDATE must persist"
+    finally:
+        try:
+            await db_conn.execute("DROP TABLE IF EXISTS test_nested_abort_update")
+        except:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_nested_transaction_abort_copy_like_insert(db_conn: asyncpg.Connection):
+    """COPY path in inner savepoint should rollback only inner rows on error."""
+    try:
+        await db_conn.execute("""
+            CREATE TABLE test_nested_abort_copy (
+                id SERIAL PRIMARY KEY,
+                value INTEGER NOT NULL
+            ) USING deeplake
+        """)
+
+        async with db_conn.transaction():
+            await db_conn.execute("INSERT INTO test_nested_abort_copy (value) VALUES (1)")
+            try:
+                async with db_conn.transaction():
+                    await db_conn.copy_records_to_table(
+                        "test_nested_abort_copy",
+                        records=[(2,), (None,), (3,)],
+                        columns=["value"],
+                    )
+            except asyncpg.exceptions.NotNullViolationError:
+                pass
+            await db_conn.execute("INSERT INTO test_nested_abort_copy (value) VALUES (4)")
+
+        values = await db_conn.fetch("SELECT value FROM test_nested_abort_copy ORDER BY value")
+        assert [r['value'] for r in values] == [1, 4], "Inner COPY rows must rollback on error"
+    finally:
+        try:
+            await db_conn.execute("DROP TABLE IF EXISTS test_nested_abort_copy")
+        except:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_multi_level_savepoint_abort(db_conn: asyncpg.Connection):
+    """Abort at second-level savepoint must preserve first-level savepoint and outer transaction."""
+    try:
+        await db_conn.execute("""
+            CREATE TABLE test_multi_level_savepoint (
+                id SERIAL PRIMARY KEY,
+                value INTEGER
+            ) USING deeplake
+        """)
+
+        async with db_conn.transaction():
+            await db_conn.execute("INSERT INTO test_multi_level_savepoint (value) VALUES (1)")
+            async with db_conn.transaction():
+                await db_conn.execute("INSERT INTO test_multi_level_savepoint (value) VALUES (2)")
+                try:
+                    async with db_conn.transaction():
+                        await db_conn.execute("INSERT INTO test_multi_level_savepoint (value) VALUES (3)")
+                        await db_conn.execute("SELECT * FROM nonexistent_table_sp2")
+                except asyncpg.exceptions.UndefinedTableError:
+                    pass
+                await db_conn.execute("INSERT INTO test_multi_level_savepoint (value) VALUES (4)")
+            await db_conn.execute("INSERT INTO test_multi_level_savepoint (value) VALUES (5)")
+
+        values = await db_conn.fetch("SELECT value FROM test_multi_level_savepoint ORDER BY value")
+        assert [r['value'] for r in values] == [1, 2, 4, 5], "Only deepest savepoint changes should rollback"
+    finally:
+        try:
+            await db_conn.execute("DROP TABLE IF EXISTS test_multi_level_savepoint")
+        except:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_top_level_abort_after_inner_savepoint_success(db_conn: asyncpg.Connection):
+    """Top-level abort must rollback both outer and successfully committed inner savepoint changes."""
+    try:
+        await db_conn.execute("""
+            CREATE TABLE test_top_level_abort_after_inner (
+                id SERIAL PRIMARY KEY,
+                value INTEGER
+            ) USING deeplake
+        """)
+
+        try:
+            async with db_conn.transaction():
+                await db_conn.execute("INSERT INTO test_top_level_abort_after_inner (value) VALUES (1)")
+                async with db_conn.transaction():
+                    await db_conn.execute("INSERT INTO test_top_level_abort_after_inner (value) VALUES (2)")
+                await db_conn.execute("SELECT * FROM nonexistent_table_outer_abort")
+        except asyncpg.exceptions.UndefinedTableError:
+            pass
+
+        count = await db_conn.fetchval("SELECT COUNT(*) FROM test_top_level_abort_after_inner")
+        assert count == 0, "Top-level abort must clear all changes including inner savepoint changes"
+    finally:
+        try:
+            await db_conn.execute("DROP TABLE IF EXISTS test_top_level_abort_after_inner")
+        except:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_nested_transaction_abort_cross_table(db_conn: asyncpg.Connection):
+    """Savepoint rollback should restore staged state across multiple deeplake tables."""
+    try:
+        await db_conn.execute("""
+            CREATE TABLE test_nested_abort_cross_a (
+                id SERIAL PRIMARY KEY,
+                value INTEGER
+            ) USING deeplake
+        """)
+        await db_conn.execute("""
+            CREATE TABLE test_nested_abort_cross_b (
+                id SERIAL PRIMARY KEY,
+                value INTEGER
+            ) USING deeplake
+        """)
+
+        async with db_conn.transaction():
+            await db_conn.execute("INSERT INTO test_nested_abort_cross_a (value) VALUES (1)")
+            await db_conn.execute("INSERT INTO test_nested_abort_cross_b (value) VALUES (1)")
+
+            try:
+                async with db_conn.transaction():
+                    await db_conn.execute("INSERT INTO test_nested_abort_cross_a (value) VALUES (2)")
+                    await db_conn.execute("INSERT INTO test_nested_abort_cross_b (value) VALUES (2)")
+                    await db_conn.execute("SELECT * FROM nonexistent_table_cross")
+            except asyncpg.exceptions.UndefinedTableError:
+                pass
+
+            await db_conn.execute("INSERT INTO test_nested_abort_cross_a (value) VALUES (3)")
+            await db_conn.execute("INSERT INTO test_nested_abort_cross_b (value) VALUES (3)")
+
+        values_a = await db_conn.fetch("SELECT value FROM test_nested_abort_cross_a ORDER BY value")
+        values_b = await db_conn.fetch("SELECT value FROM test_nested_abort_cross_b ORDER BY value")
+        assert [r['value'] for r in values_a] == [1, 3], "Table A must rollback inner savepoint rows"
+        assert [r['value'] for r in values_b] == [1, 3], "Table B must rollback inner savepoint rows"
+    finally:
+        try:
+            await db_conn.execute("DROP TABLE IF EXISTS test_nested_abort_cross_a")
+            await db_conn.execute("DROP TABLE IF EXISTS test_nested_abort_cross_b")
         except:
             pass
 
