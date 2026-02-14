@@ -55,7 +55,10 @@ async def test_root_path_basic(db_conn: asyncpg.Connection, temp_dir_for_postgre
         print(f"✓ Dataset path from metadata: {ds_path}")
 
         # Verify the path starts with our root_path
-        expected_path = os.path.join(root_path, "public", "test_root_path")
+        # The extension now auto-includes the database name in the path:
+        # root_path / db_name / schema / table
+        db_name = await db_conn.fetchval("SELECT current_database()")
+        expected_path = os.path.join(root_path, db_name, "public", "test_root_path")
         # Strip trailing slash for comparison
         ds_path_normalized = ds_path.rstrip('/')
         expected_path_normalized = expected_path.rstrip('/')

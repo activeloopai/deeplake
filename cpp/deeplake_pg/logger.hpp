@@ -37,7 +37,7 @@ public:
             elog(DEBUG1, "%s", message.c_str());
             break;
         case base::log_level::info:
-            elog(INFO, "%s", message.c_str());
+            elog(LOG, "%s", message.c_str());
             break;
         case base::log_level::warning:
             elog(WARNING, "%s", message.c_str());

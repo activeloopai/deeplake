@@ -236,9 +236,9 @@ async def db_conn(pg_server) -> AsyncGenerator[asyncpg.Connection, None]:
     )
 
     try:
-        # Setup: Clean extension state
-        await conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
-        await conn.execute("CREATE EXTENSION pg_deeplake")
+        # Setup: ensure extension is available without potentially blocking DROP.
+        # DROP EXTENSION can wait on concurrent backend locks and stall tests.
+        await conn.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
 
         # Load utility functions from utils.psql
         script_path = Path(__file__).parent  # py_tests/

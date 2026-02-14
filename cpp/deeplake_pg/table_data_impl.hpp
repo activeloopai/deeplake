@@ -84,12 +84,19 @@ inline table_data::table_data(
 
 inline void table_data::commit(bool show_progress)
 {
-    if (dataset_ == nullptr || !dataset_->has_uncommitted_changes()) {
+    if (dataset_ == nullptr) {
+        return;
+    }
+    const bool has_pending_ops = !insert_rows_.empty() || !delete_rows_.empty() ||
+                                 !update_rows_.empty() || !insert_promises_.empty();
+    if (!has_pending_ops && !dataset_->has_uncommitted_changes()) {
         return;
     }
     try {
         flush();
-        impl::commit_dataset(get_dataset(), show_progress);
+        if (dataset_->has_uncommitted_changes()) {
+            impl::commit_dataset(get_dataset(), show_progress);
+        }
     } catch (const std::exception& e) {
         reset_insert_rows();
         clear_delete_rows();
@@ -105,6 +112,66 @@ inline void table_data::commit(bool show_progress)
     force_refresh();
 }
 
+inline void table_data::rollback()
+{
+    // Clear any local staged operations first.
+    reset_insert_rows();
+    clear_delete_rows();
+    clear_update_rows();
+    streamers_.reset();
+
+    // Reopen dataset handles to drop any in-memory uncommitted state associated
+    // with the current object instance.
+    if (dataset_) {
+        dataset_.reset();
+        refreshing_dataset_.reset();
+        open_dataset(false);
+    }
+
+    // Align cached row count with the current committed dataset state.
+    if (dataset_) {
+        num_total_rows_ = dataset_->num_rows();
+    }
+}
+
+inline table_data::tx_snapshot table_data::capture_tx_snapshot() const
+{
+    tx_snapshot snapshot;
+    snapshot.delete_rows_size = delete_rows_.size();
+    snapshot.update_rows_size = update_rows_.size();
+    snapshot.num_total_rows = num_total_rows_;
+
+    for (const auto& [column_name, values] : insert_rows_) {
+        snapshot.insert_rows_sizes[column_name] = values.size();
+    }
+    return snapshot;
+}
+
+inline void table_data::restore_tx_snapshot(const tx_snapshot& snapshot)
+{
+    // Remove or truncate staged inserts to the savepoint snapshot.
+    for (auto it = insert_rows_.begin(); it != insert_rows_.end();) {
+        auto snapshot_it = snapshot.insert_rows_sizes.find(it->first);
+        if (snapshot_it == snapshot.insert_rows_sizes.end()) {
+            it = insert_rows_.erase(it);
+            continue;
+        }
+        if (it->second.size() > snapshot_it->second) {
+            it->second.resize(snapshot_it->second);
+        }
+        ++it;
+    }
+
+    if (delete_rows_.size() > snapshot.delete_rows_size) {
+        delete_rows_.resize(snapshot.delete_rows_size);
+    }
+    if (update_rows_.size() > snapshot.update_rows_size) {
+        update_rows_.resize(snapshot.update_rows_size);
+    }
+    num_total_rows_ = snapshot.num_total_rows;
+    streamers_.reset();
+}
+
 inline void table_data::open_dataset(bool create)
 {
     elog(DEBUG1, "Opening dataset at path: %s (create=%s)", dataset_path_.url().c_str(), create ? "true" : "false");
@@ -116,6 +183,9 @@ inline void table_data::open_dataset(bool create)
             dataset_ = deeplake_api::open(dataset_path_, std::move(creds)).get_future().get();
         }
         ASSERT(dataset_ != nullptr);
+        // PostgreSQL transaction boundaries must control durability. Disable
+        // DeepLake auto-commit so writes are only persisted on explicit commit().
+        dataset_->set_auto_commit_enabled(false).get_future().get();
         num_total_rows_ = dataset_->num_rows();
 
         // Enable logging if GUC parameter is set
@@ -347,7 +417,7 @@ inline void table_data::add_insert_slots(int32_t nslots, TupleTableSlot** slots)
     }
     num_total_rows_ += nslots;
     const auto num_inserts = insert_rows_.begin()->second.size();
-    if (num_inserts >= 512) {
+    if (num_inserts >= 512 && GetCurrentTransactionNestLevel() <= 1) {
         flush_inserts();
     }
 }

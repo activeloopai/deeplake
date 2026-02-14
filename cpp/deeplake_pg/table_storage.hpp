@@ -129,7 +129,10 @@ public:
 
     inline void refresh_table(Oid table_id)
     {
-        tables_.at(table_id).refresh();
+        auto it = tables_.find(table_id);
+        if (it != tables_.end()) {
+            it->second.refresh();
+        }
     }
 
     // Data operations
@@ -138,6 +141,9 @@ public:
     bool delete_tuple(Oid table_id, ItemPointer tid);
     bool update_tuple(Oid table_id, ItemPointer tid, HeapTuple new_tuple);
     bool fetch_tuple(Oid table_id, ItemPointer tid, TupleTableSlot* slot);
+    void mark_subxact_change(Oid table_id);
+    void rollback_subxact(SubTransactionId sub_id);
+    void commit_subxact(SubTransactionId sub_id, SubTransactionId parent_sub_id);
 
     bool flush_all()
     {
@@ -156,15 +162,16 @@ public:
         for (auto& [_, table_data] : tables_) {
             table_data.commit();
         }
+        subxact_snapshots_.clear();
     }
 
     void rollback_all()
     {
         // Rollback all changes in all tables
         for (auto& [_, table_data] : tables_) {
-            table_data.reset_insert_rows();
-            table_data.clear_delete_rows();
+            table_data.rollback();
         }
+        subxact_snapshots_.clear();
     }
 
     inline auto& get_tables() noexcept
@@ -195,7 +202,7 @@ public:
         tables_.clear();
         views_.clear();
         tables_loaded_ = false;
-        catalog_version_ = 0;
+        ddl_log_last_seq_ = 0;
         load_table_metadata();
     }
     void mark_metadata_stale() noexcept
@@ -298,6 +305,11 @@ public:
         return catalog_only_create_;
     }
 
+    static void set_catalog_only_create(bool value) noexcept
+    {
+        catalog_only_create_ = value;
+    }
+
 private:
     static inline thread_local bool in_ddl_context_ = false;
     static inline thread_local bool catalog_only_create_ = false;
@@ -307,11 +319,12 @@ private:
     void erase_table_metadata(const std::string& table_name);
 
     std::unordered_map<Oid, table_data> tables_;
+    std::unordered_map<SubTransactionId, std::unordered_map<Oid, table_data::tx_snapshot>> subxact_snapshots_;
     std::unordered_map<Oid, std::pair<std::string, std::string>> views_;
     std::string schema_name_ = "public";
     bool tables_loaded_ = false;
     bool up_to_date_ = true;
-    int64_t catalog_version_ = 0;
+    int64_t ddl_log_last_seq_ = 0;
 };
 
 } // namespace pg

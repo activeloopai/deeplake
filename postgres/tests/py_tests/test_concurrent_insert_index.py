@@ -217,7 +217,6 @@ async def test_concurrent_insert_and_index_creation(db_conn: asyncpg.Connection)
     try:
         # Initialization: Create domains and table
         print("Setting up domains and table...")
-        await db_conn.execute("CREATE DOMAIN file_id AS UUID")
         await db_conn.execute("CREATE DOMAIN chunk_id AS TEXT")
 
         await db_conn.execute("""
@@ -381,7 +380,6 @@ async def test_concurrent_insert_and_index_creation(db_conn: asyncpg.Connection)
             try:
                 await db_conn.execute("DROP TABLE IF EXISTS chunk_text_image CASCADE")
                 await db_conn.execute("DROP DOMAIN IF EXISTS chunk_id CASCADE")
-                await db_conn.execute("DROP DOMAIN IF EXISTS file_id CASCADE")
                 print("✓ Cleanup complete")
             except Exception as e:
                 print(f"⚠ Cleanup failed: {e}")

@@ -12,6 +12,7 @@ extern "C" {
 #include <access/xact.h>
 #include <catalog/namespace.h>
 #include <catalog/pg_type.h>
+#include <commands/dbcommands.h>
 #include <executor/spi.h>
 #include <miscadmin.h>
 #include <nodes/makefuncs.h>
@@ -31,11 +32,12 @@ extern "C" {
 
 #include "table_storage.hpp"
 
-#include "dl_catalog.hpp"
+#include "dl_wal.hpp"
 #include "exceptions.hpp"
 #include "logger.hpp"
 #include "memory_tracker.hpp"
 #include "nd_utils.hpp"
+#include "pg_version_compat.h"
 #include "table_ddl_lock.hpp"
 #include "table_scan.hpp"
 #include "utils.hpp"
@@ -130,6 +132,15 @@ void convert_pg_to_nd(const pg::table_data& table_data,
     }
 }
 
+std::string get_current_database_name()
+{
+    const char* dbname = get_database_name(MyDatabaseId);
+    if (!dbname) return "postgres";
+    std::string result(dbname);
+    pfree(const_cast<char*>(dbname));
+    return result;
+}
+
 } // unnamed namespace
 
 namespace pg {
@@ -163,6 +174,11 @@ icm::string_map<> session_credentials::get_credentials()
 
 std::string session_credentials::get_root_path()
 {
+    // Environment variable takes priority over per-session GUC
+    auto root = base::getenv<std::string>("DEEPLAKE_ROOT_PATH", "");
+    if (!root.empty()) {
+        return root;
+    }
     if (root_path_guc_string != nullptr && std::strlen(root_path_guc_string) > 0) {
         return std::string(root_path_guc_string);
     }
@@ -225,55 +241,7 @@ void table_storage::save_table_metadata(const pg::table_data& table_data)
         return true;
     });
 
-    // Also write into Deep Lake catalog for stateless multi-instance support.
-    // Skip when in catalog-only mode — the data was synced FROM the S3 catalog,
-    // so writing back would be redundant and add unnecessary S3 latency.
-    if (pg::stateless_enabled && !is_catalog_only_create()) {
-        const auto root_dir = []() {
-            auto root = session_credentials::get_root_path();
-            if (root.empty()) {
-                root = pg::utils::get_deeplake_root_directory();
-            }
-            return root;
-        }();
-        if (root_dir.empty()) {
-            return;
-        }
-        auto creds = session_credentials::get_credentials();
-        pg::dl_catalog::ensure_catalog(root_dir, creds);
-
-        auto [schema_name, simple_table_name] = split_table_name(table_name);
-        const std::string table_id = schema_name + "." + simple_table_name;
-
-        pg::dl_catalog::table_meta meta;
-        meta.table_id = table_id;
-        meta.schema_name = schema_name;
-        meta.table_name = simple_table_name;
-        meta.dataset_path = ds_path;
-        meta.state = "ready";
-        pg::dl_catalog::upsert_table(root_dir, creds, meta);
-
-        // Save column metadata to catalog
-        TupleDesc tupdesc = table_data.get_tuple_descriptor();
-        std::vector<pg::dl_catalog::column_meta> columns;
-        for (int i = 0; i < tupdesc->natts; i++) {
-            Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
-            if (attr->attisdropped) {
-                continue;
-            }
-            pg::dl_catalog::column_meta col;
-            col.table_id = table_id;
-            col.column_name = NameStr(attr->attname);
-            col.pg_type = format_type_with_typemod(attr->atttypid, attr->atttypmod);
-            col.nullable = !attr->attnotnull;
-            col.position = i;
-            columns.push_back(std::move(col));
-        }
-        pg::dl_catalog::upsert_columns(root_dir, creds, columns);
-
-        pg::dl_catalog::bump_catalog_version(root_dir, session_credentials::get_credentials());
-        catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, session_credentials::get_credentials());
-    }
+    // Stateless sync uses DDL WAL replay from __wal_table.
 }
 
 void table_storage::load_table_metadata()
@@ -295,156 +263,74 @@ void table_storage::load_table_metadata()
     }();
     auto creds = session_credentials::get_credentials();
 
-    // Stateless catalog sync (only when enabled and root_dir is configured)
+    // Stateless sync via DDL WAL replay (only when enabled and root_dir is configured)
     if (pg::stateless_enabled && !root_dir.empty()) {
-        // Fast path: if already loaded, just check version without ensure_catalog
-        if (tables_loaded_) {
-            const auto current_version = pg::dl_catalog::get_catalog_version(root_dir, creds);
-            if (current_version == catalog_version_) {
-                return;
+        const auto db_name = get_current_database_name();
+
+        // Ensure both shared and per-database catalogs exist
+        pg::dl_wal::ensure_catalog(root_dir, creds);
+        pg::dl_wal::ensure_db_catalog(root_dir, db_name, creds);
+
+        auto is_sync_replay_backend = []() {
+            const char* app_name = GetConfigOption("application_name", true, false);
+            return app_name != nullptr && strcmp(app_name, "pg_deeplake_sync") == 0;
+        };
+        if (!in_ddl_context() && !AmBackgroundWorkerProcess() && !is_sync_replay_backend()) {
+            auto entries = pg::dl_wal::load_ddl_log(root_dir, db_name, creds, ddl_log_last_seq_);
+            if (!entries.empty()) {
+                elog(LOG, "pg_deeplake: DDL WAL replay: %zu entries to process for db '%s' (after seq %ld)",
+                     entries.size(), db_name.c_str(), ddl_log_last_seq_);
             }
-            // Version changed, need to reload
-            tables_.clear();
-            views_.clear();
-            tables_loaded_ = false;
-            catalog_version_ = current_version;
-        }
-
-        // Ensure catalog exists and get version in one call
-        const auto version = pg::dl_catalog::ensure_catalog(root_dir, creds);
-        if (catalog_version_ == 0) {
-            catalog_version_ = version;
-        }
-        tables_loaded_ = true;
-
-        // Load tables and columns in parallel
-        auto [catalog_tables, catalog_columns] = pg::dl_catalog::load_tables_and_columns(root_dir, creds);
-
-        if (!catalog_tables.empty()) {
-            for (const auto& meta : catalog_tables) {
-                const std::string qualified_name = meta.schema_name + "." + meta.table_name;
-                auto* rel = makeRangeVar(pstrdup(meta.schema_name.c_str()), pstrdup(meta.table_name.c_str()), -1);
-                Oid relid = RangeVarGetRelid(rel, NoLock, true);
-                if (!OidIsValid(relid)) {
-                    // Table exists in catalog but not in PostgreSQL.
-                    if (in_ddl_context()) {
-                        // During DDL (CREATE TABLE), skip auto-creation to avoid races.
-                        // The table might be in the middle of being created by another backend.
-                        continue;
-                    }
-
-                    // Gather columns for this table, sorted by position
-                    std::vector<pg::dl_catalog::column_meta> table_columns;
-                    for (const auto& col : catalog_columns) {
-                        if (col.table_id == meta.table_id) {
-                            table_columns.push_back(col);
-                        }
-                    }
-                    std::sort(table_columns.begin(), table_columns.end(),
-                              [](const auto& a, const auto& b) { return a.position < b.position; });
-
-                    if (table_columns.empty()) {
-                        elog(WARNING, "No columns found for catalog table %s, skipping", qualified_name.c_str());
-                        continue;
-                    }
-
-                    // Build CREATE TABLE IF NOT EXISTS from catalog metadata.
-                    // Wrap in a subtransaction so that if another backend concurrently
-                    // creates the same table (race on composite type), the error is
-                    // caught and we continue instead of aborting the session.
-                    const char* qschema = quote_identifier(meta.schema_name.c_str());
-                    const char* qtable = quote_identifier(meta.table_name.c_str());
-
-                    StringInfoData buf;
-                    initStringInfo(&buf);
-                    appendStringInfo(&buf, "CREATE TABLE IF NOT EXISTS %s.%s (", qschema, qtable);
-
-                    bool first = true;
-                    for (const auto& col : table_columns) {
-                        if (!first) {
-                            appendStringInfoString(&buf, ", ");
-                        }
-                        first = false;
-                        appendStringInfo(&buf, "%s %s", quote_identifier(col.column_name.c_str()), col.pg_type.c_str());
-                    }
-                    appendStringInfo(&buf, ") USING deeplake");
-
-                    MemoryContext saved_context = CurrentMemoryContext;
-                    ResourceOwner saved_owner = CurrentResourceOwner;
-
-                    BeginInternalSubTransaction(NULL);
-                    PG_TRY();
-                    {
-                        catalog_only_guard co_guard;
-                        pg::utils::spi_connector connector;
-                        bool pushed_snapshot = false;
-                        if (!ActiveSnapshotSet()) {
-                            PushActiveSnapshot(GetTransactionSnapshot());
-                            pushed_snapshot = true;
-                        }
-
-                        // Create schema if needed
-                        StringInfoData schema_buf;
-                        initStringInfo(&schema_buf);
-                        appendStringInfo(&schema_buf, "CREATE SCHEMA IF NOT EXISTS %s", qschema);
-                        SPI_execute(schema_buf.data, false, 0);
-                        pfree(schema_buf.data);
-
-                        SPI_execute(buf.data, false, 0);
-
-                        if (pushed_snapshot) {
-                            PopActiveSnapshot();
-                        }
-
-                        ReleaseCurrentSubTransaction();
-                    }
-                    PG_CATCH();
-                    {
-                        // Another backend created this table concurrently — not an error.
-                        MemoryContextSwitchTo(saved_context);
-                        CurrentResourceOwner = saved_owner;
-                        RollbackAndReleaseCurrentSubTransaction();
-                        FlushErrorState();
-                        elog(DEBUG1, "Concurrent table creation for %s, skipping", qualified_name.c_str());
-                    }
-                    PG_END_TRY();
-
-                    pfree(buf.data);
-
-                    relid = RangeVarGetRelid(rel, NoLock, true);
+            for (const auto& entry : entries) {
+                if (entry.seq > ddl_log_last_seq_) {
+                    ddl_log_last_seq_ = entry.seq;
                 }
-                if (!OidIsValid(relid)) {
-                    elog(WARNING, "Catalog table %s does not exist in PG instance", qualified_name.c_str());
+                if (entry.origin_instance_id == pg::dl_wal::local_instance_id()) {
                     continue;
                 }
-                Relation relation = try_relation_open(relid, NoLock);
-                if (relation == nullptr) {
-                    elog(WARNING, "Could not open relation for table %s", qualified_name.c_str());
-                    continue;
-                }
+
+                MemoryContext saved_context = CurrentMemoryContext;
+                ResourceOwner saved_owner = CurrentResourceOwner;
+                BeginInternalSubTransaction(nullptr);
+                PG_TRY();
                 {
-                    pg::utils::memory_context_switcher context_switcher(TopMemoryContext);
-                    table_data td(
-                        relid, qualified_name, CreateTupleDescCopy(RelationGetDescr(relation)), meta.dataset_path, creds);
-                    auto it2status = tables_.emplace(relid, std::move(td));
-                    up_to_date_ = false;
-                    ASSERT(it2status.second);
+                    set_catalog_only_create(true);
+                    pg::utils::spi_connector connector;
+                    bool pushed_snapshot = false;
+                    if (!ActiveSnapshotSet()) {
+                        PushActiveSnapshot(GetTransactionSnapshot());
+                        pushed_snapshot = true;
+                    }
+                    SPI_execute(entry.ddl_sql.c_str(), false, 0);
+                    if (pushed_snapshot) {
+                        PopActiveSnapshot();
+                    }
+                    set_catalog_only_create(false);
+                    ReleaseCurrentSubTransaction();
                 }
-                relation_close(relation, NoLock);
+                PG_CATCH();
+                {
+                    set_catalog_only_create(false);
+                    MemoryContextSwitchTo(saved_context);
+                    CurrentResourceOwner = saved_owner;
+                    RollbackAndReleaseCurrentSubTransaction();
+                    FlushErrorState();
+                    elog(WARNING, "pg_deeplake: DDL WAL replay failed (seq=%ld, tag=%s): %.200s",
+                         entry.seq, entry.command_tag.c_str(), entry.ddl_sql.c_str());
+                }
+                PG_END_TRY();
             }
-
-            load_schema_name();
-            return;
         }
     }
 
-    // Non-stateless path: load from local pg_deeplake_tables
+    // Load from local pg_deeplake_tables
     if (tables_loaded_) {
         return;
     }
     tables_loaded_ = true;
 
     if (!pg::utils::check_table_exists("pg_deeplake_tables")) {
+        elog(LOG, "pg_deeplake: pg_deeplake_tables does not exist, skipping local scan");
         return;
     }
 
@@ -519,8 +405,6 @@ void table_storage::load_table_metadata()
     creds = session_credentials::get_credentials();
 
     std::vector<Oid> invalid_table_oids;
-    bool catalog_seeded = false;
-
     for (auto i = 0; i < proc; ++i) {
         HeapTuple tuple = tuptable->vals[i];
         bool is_null = false;
@@ -536,19 +420,6 @@ void table_storage::load_table_metadata()
             continue;
         }
         try {
-            // Seed the DL catalog with legacy metadata (only when stateless is enabled).
-            if (pg::stateless_enabled && !root_dir.empty()) {
-                auto [schema_name, simple_table_name] = split_table_name(table_name);
-                pg::dl_catalog::table_meta meta;
-                meta.table_id = schema_name + "." + simple_table_name;
-                meta.schema_name = schema_name;
-                meta.table_name = simple_table_name;
-                meta.dataset_path = ds_path;
-                meta.state = "ready";
-                pg::dl_catalog::upsert_table(root_dir, creds, meta);
-                catalog_seeded = true;
-            }
-
             // Get the relation and its tuple descriptor
             Relation rel = try_relation_open(relid, NoLock);
             if (rel == nullptr) {
@@ -582,10 +453,6 @@ void table_storage::load_table_metadata()
             base::log_warning(
                 base::log_channel::generic, "Failed to delete invalid table metadata for table_oid: {}", invalid_oid);
         }
-    }
-    if (catalog_seeded && pg::stateless_enabled && !root_dir.empty()) {
-        pg::dl_catalog::bump_catalog_version(root_dir, session_credentials::get_credentials());
-        catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, session_credentials::get_credentials());
     }
     load_views();
     load_schema_name();
@@ -702,8 +569,11 @@ void table_storage::create_table(const std::string& table_name, Oid table_id, Tu
         if (session_root.empty()) {
             session_root = pg::utils::get_deeplake_root_directory();
         }
-        // Construct path: root_dir/schema_name/table_name
-        dataset_path = session_root + "/" + schema_name + "/" + simple_table_name;
+        // Construct path: root_dir/db_name/schema_name/table_name
+        // root_path is the global root; include the database name so each
+        // database's datasets are stored under their own prefix.
+        const auto db_name = get_current_database_name();
+        dataset_path = session_root + "/" + db_name + "/" + schema_name + "/" + simple_table_name;
     }
 
     // Get credentials from current session
@@ -985,29 +855,7 @@ void table_storage::drop_table(const std::string& table_name)
         auto& table_data = get_table_data(table_name);
         auto creds = session_credentials::get_credentials();
 
-        // Update stateless catalog if enabled
-        if (pg::stateless_enabled) {
-            const auto root_dir = []() {
-                auto root = session_credentials::get_root_path();
-                if (root.empty()) {
-                    root = pg::utils::get_deeplake_root_directory();
-                }
-                return root;
-            }();
-            if (!root_dir.empty()) {
-                pg::dl_catalog::ensure_catalog(root_dir, creds);
-                auto [schema_name, simple_table_name] = split_table_name(table_name);
-                pg::dl_catalog::table_meta meta;
-                meta.table_id = schema_name + "." + simple_table_name;
-                meta.schema_name = schema_name;
-                meta.table_name = simple_table_name;
-                meta.dataset_path = table_data.get_dataset_path().url();
-                meta.state = "dropping";
-                pg::dl_catalog::upsert_table(root_dir, creds, meta);
-                pg::dl_catalog::bump_catalog_version(root_dir, session_credentials::get_credentials());
-                catalog_version_ = pg::dl_catalog::get_catalog_version(root_dir, session_credentials::get_credentials());
-            }
-        }
+        // Stateless propagation is handled by DDL WAL logging in ProcessUtility hook.
 
         try {
             table_data.commit(); // Ensure all changes are committed before deletion
@@ -1032,14 +880,64 @@ void table_storage::insert_slot(Oid table_id, TupleTableSlot* slot)
     insert_slots(table_id, 1, &slot);
 }
 
+void table_storage::mark_subxact_change(Oid table_id)
+{
+    if (GetCurrentTransactionNestLevel() <= 1) {
+        return;
+    }
+
+    auto& table_data = get_table_data(table_id);
+    const SubTransactionId sub_id = GetCurrentSubTransactionId();
+    auto& sub_snapshots = subxact_snapshots_[sub_id];
+    if (!sub_snapshots.contains(table_id)) {
+        sub_snapshots.emplace(table_id, table_data.capture_tx_snapshot());
+    }
+}
+
+void table_storage::rollback_subxact(SubTransactionId sub_id)
+{
+    auto it = subxact_snapshots_.find(sub_id);
+    if (it == subxact_snapshots_.end()) {
+        return;
+    }
+
+    for (const auto& [table_id, snapshot] : it->second) {
+        auto table_it = tables_.find(table_id);
+        if (table_it != tables_.end()) {
+            table_it->second.restore_tx_snapshot(snapshot);
+        }
+    }
+    subxact_snapshots_.erase(it);
+}
+
+void table_storage::commit_subxact(SubTransactionId sub_id, SubTransactionId parent_sub_id)
+{
+    auto it = subxact_snapshots_.find(sub_id);
+    if (it == subxact_snapshots_.end()) {
+        return;
+    }
+
+    if (parent_sub_id != InvalidSubTransactionId) {
+        auto& parent_snapshots = subxact_snapshots_[parent_sub_id];
+        for (const auto& [table_id, snapshot] : it->second) {
+            if (!parent_snapshots.contains(table_id)) {
+                parent_snapshots.emplace(table_id, snapshot);
+            }
+        }
+    }
+    subxact_snapshots_.erase(it);
+}
+
 void table_storage::insert_slots(Oid table_id, int32_t nslots, TupleTableSlot** slots)
 {
+    mark_subxact_change(table_id);
     auto& table_data = get_table_data(table_id);
     table_data.add_insert_slots(nslots, slots);
 }
 
 bool table_storage::delete_tuple(Oid table_id, ItemPointer tid)
 {
+    mark_subxact_change(table_id);
     auto& table_data = get_table_data(table_id);
     try {
         const auto row_number = utils::tid_to_row_number(tid);
@@ -1062,6 +960,7 @@ bool table_storage::delete_tuple(Oid table_id, ItemPointer tid)
 
 bool table_storage::update_tuple(Oid table_id, ItemPointer tid, HeapTuple new_tuple)
 {
+    mark_subxact_change(table_id);
     auto& table_data = get_table_data(table_id);
     TupleDesc tupdesc = table_data.get_tuple_descriptor();
 

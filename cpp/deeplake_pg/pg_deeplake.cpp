@@ -1,6 +1,8 @@
 #include "pg_deeplake.hpp"
+#include "dl_wal.hpp"
 #include "logger.hpp"
 #include "table_storage.hpp"
+#include "utils.hpp"
 
 #include <deeplake_api/deeplake_api.hpp>
 #include <deeplake_core/deeplake_index_type.hpp>
@@ -9,6 +11,9 @@
 extern "C" {
 #endif
 
+#include <access/xact.h>
+#include <commands/dbcommands.h>
+#include <miscadmin.h>
 #include <storage/ipc.h>
 
 #ifdef __cplusplus
@@ -260,6 +265,8 @@ void save_index_metadata(Oid oid)
     if (SPI_execute(buf.data, false, 0) != SPI_OK_INSERT) {
         ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Failed to save metadata")));
     }
+
+    // Cross-instance propagation is driven by DDL WAL logging in ProcessUtility.
 }
 
 void load_index_metadata()
@@ -353,6 +360,23 @@ void deeplake_xact_callback(XactEvent event, void *arg)
     }
 }
 
+void deeplake_subxact_callback(SubXactEvent event,
+                               SubTransactionId my_subid,
+                               SubTransactionId parent_subid,
+                               void* arg)
+{
+    switch (event) {
+    case SUBXACT_EVENT_ABORT_SUB:
+        pg::table_storage::instance().rollback_subxact(my_subid);
+        break;
+    case SUBXACT_EVENT_COMMIT_SUB:
+        pg::table_storage::instance().commit_subxact(my_subid, parent_subid);
+        break;
+    default:
+        break;
+    }
+}
+
 void init_deeplake()
 {
     static bool initialized = false;
@@ -377,6 +401,7 @@ void init_deeplake()
     pg::table_storage::instance(); /// initialize table storage
 
     RegisterXactCallback(deeplake_xact_callback, nullptr);
+    RegisterSubXactCallback(deeplake_subxact_callback, nullptr);
 }
 
 } // namespace pg
