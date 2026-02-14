@@ -138,8 +138,7 @@ async def measure_connection_latency(
         # 2. Measure extension load time
         if with_extension:
             ext_start = time.perf_counter()
-            await conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
-            await conn.execute("CREATE EXTENSION pg_deeplake")
+            await conn.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
             metrics.extension_load_time_ms = (time.perf_counter() - ext_start) * 1000
 
         # 3. Measure root_path set time (triggers catalog loading in stateless mode)
@@ -205,8 +204,7 @@ async def measure_catalog_discovery_latency(
     try:
         # Load extension
         ext_start = time.perf_counter()
-        await conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
-        await conn.execute("CREATE EXTENSION pg_deeplake")
+        await conn.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
         metrics.extension_load_time_ms = (time.perf_counter() - ext_start) * 1000
 
         # Set root_path - this triggers catalog discovery
@@ -338,8 +336,7 @@ async def test_stateless_catalog_loading_latency(pg_server, temp_root_path):
     )
 
     try:
-        await setup_conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
-        await setup_conn.execute("CREATE EXTENSION pg_deeplake")
+        await setup_conn.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
         await setup_conn.execute(f"SET deeplake.root_path = '{temp_root_path}'")
 
         # Create multiple tables to populate the catalog
@@ -389,8 +386,7 @@ async def test_stateless_catalog_loading_latency(pg_server, temp_root_path):
         statement_cache_size=0
     )
     try:
-        await cleanup_conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
-        await cleanup_conn.execute("CREATE EXTENSION pg_deeplake")
+        await cleanup_conn.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
         await cleanup_conn.execute(f"SET deeplake.root_path = '{temp_root_path}'")
         for i in range(num_tables):
             await cleanup_conn.execute(f"DROP TABLE IF EXISTS catalog_test_{i} CASCADE")
@@ -477,8 +473,7 @@ async def test_multi_table_catalog_scaling(pg_server, temp_root_path):
         )
 
         try:
-            await setup_conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
-            await setup_conn.execute("CREATE EXTENSION pg_deeplake")
+            await setup_conn.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
             await setup_conn.execute(f"SET deeplake.root_path = '{temp_root_path}'")
 
             # Create tables
@@ -513,8 +508,7 @@ async def test_multi_table_catalog_scaling(pg_server, temp_root_path):
             statement_cache_size=0
         )
         try:
-            await cleanup_conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
-            await cleanup_conn.execute("CREATE EXTENSION pg_deeplake")
+            await cleanup_conn.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
             await cleanup_conn.execute(f"SET deeplake.root_path = '{temp_root_path}'")
             for i in range(num_tables):
                 await cleanup_conn.execute(f"DROP TABLE IF EXISTS scale_test_{num_tables}_{i} CASCADE")
@@ -576,8 +570,7 @@ async def test_cold_start_simulation(pg_server, temp_root_path):
     )
 
     try:
-        await setup_conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
-        await setup_conn.execute("CREATE EXTENSION pg_deeplake")
+        await setup_conn.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
         await setup_conn.execute(f"SET deeplake.root_path = '{temp_root_path}'")
 
         await setup_conn.execute("""
@@ -645,8 +638,7 @@ async def test_cold_start_simulation(pg_server, temp_root_path):
         statement_cache_size=0
     )
     try:
-        await cleanup_conn.execute("DROP EXTENSION IF EXISTS pg_deeplake CASCADE")
-        await cleanup_conn.execute("CREATE EXTENSION pg_deeplake")
+        await cleanup_conn.execute("CREATE EXTENSION IF NOT EXISTS pg_deeplake")
         await cleanup_conn.execute(f"SET deeplake.root_path = '{temp_root_path}'")
         await cleanup_conn.execute("DROP TABLE IF EXISTS existing_data CASCADE")
     finally:

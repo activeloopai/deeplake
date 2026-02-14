@@ -13,6 +13,10 @@ COMMENT ON DOMAIN VIDEO IS 'Binary video data stored as BYTEA';
 CREATE DOMAIN FILE AS BYTEA;
 COMMENT ON DOMAIN FILE IS 'Binary file data stored as BYTEA';
 
+-- FILE_ID domain: UUID alias for file identifiers
+CREATE DOMAIN FILE_ID AS UUID;
+COMMENT ON DOMAIN FILE_ID IS 'UUID identifier for files';
+
 CREATE FUNCTION handle_index_creation() RETURNS event_trigger AS 'pg_deeplake' LANGUAGE C VOLATILE;
 
 -- Create the event trigger to listen for CREATE INDEX events

@@ -298,6 +298,11 @@ public:
         return catalog_only_create_;
     }
 
+    static void set_catalog_only_create(bool value) noexcept
+    {
+        catalog_only_create_ = value;
+    }
+
 private:
     static inline thread_local bool in_ddl_context_ = false;
     static inline thread_local bool catalog_only_create_ = false;
