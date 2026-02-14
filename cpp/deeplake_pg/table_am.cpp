@@ -313,7 +313,6 @@ bool deeplake_scan_analyze_next_tuple(
     return true;
 }
 
-#if PG_VERSION_NUM >= PG_VERSION_NUM_17
 bool deeplake_scan_analyze_next_block(TableScanDesc scan, ReadStream* stream)
 {
     DeeplakeScanData* scan_data = get_scan_data(scan);
@@ -349,7 +348,6 @@ bool deeplake_scan_analyze_next_block(TableScanDesc scan, ReadStream* stream)
 
     return true; // Indicate we have data to process
 }
-#endif
 
 double deeplake_index_build_range_scan(Relation heap_rel,
                                        Relation index_rel,
@@ -657,9 +655,7 @@ void deeplake_table_am_routine::initialize()
     routine.relation_size = deeplake_relation_size;
     routine.relation_estimate_size = deeplake_estimate_rel_size;
     routine.scan_analyze_next_tuple = deeplake_scan_analyze_next_tuple;
-#if PG_VERSION_NUM >= PG_VERSION_NUM_17
     routine.scan_analyze_next_block = deeplake_scan_analyze_next_block;
-#endif
 
     routine.parallelscan_initialize = parallelscan_initialize;
     routine.parallelscan_estimate = parallelscan_estimate;

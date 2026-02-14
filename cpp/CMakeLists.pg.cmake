@@ -1,14 +1,9 @@
-option(BUILD_PG_16 "Build PostgreSQL 16 extension" OFF)
 option(BUILD_PG_17 "Build PostgreSQL 17 extension" OFF)
 option(BUILD_PG_18 "Build PostgreSQL 18 extension" ON)
 option(USE_DEEPLAKE_SHARED "Use shared library for deeplake_api (default: auto-detect)" OFF)
 
 set(PG_MODULE deeplake_pg)
 set(PG_VERSIONS)
-
-if(BUILD_PG_16)
-    list(APPEND PG_VERSIONS 16)
-endif()
 
 if(BUILD_PG_17)
     list(APPEND PG_VERSIONS 17)

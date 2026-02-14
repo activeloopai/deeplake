@@ -8,12 +8,11 @@ on:
   workflow_dispatch:
     inputs:
       pg_version:
-        description: "PostgreSQL version to build (16, 17, 18, or all)"
+        description: "PostgreSQL version to build (17, 18, or all)"
         required: false
         default: "18"
         type: choice
         options:
-          - "16"
           - "17"
           - "18"
           - all
@@ -50,8 +49,8 @@ jobs:
         id: set-versions
         run: |-
           if [ "${PG_VERSION}" == "all" ]; then
-            echo "versions=[\"16\",\"17\",\"18\"]" >> "${GITHUB_OUTPUT}"
-            echo "versions-list=16,17,18" >> "${GITHUB_OUTPUT}"
+            echo "versions=[\"17\",\"18\"]" >> "${GITHUB_OUTPUT}"
+            echo "versions-list=17,18" >> "${GITHUB_OUTPUT}"
           else
             echo "versions=[\"${PG_VERSION}\"]" >> "${GITHUB_OUTPUT}"
             echo "versions-list=${PG_VERSION}" >> "${GITHUB_OUTPUT}"

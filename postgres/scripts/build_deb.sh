@@ -42,10 +42,10 @@ usage() {
     echo -e "  repository:         Repository directory path"
     echo -e "  architecture:       amd64 or arm64"
     echo -e "  gpg-keyid:          GPG key ID for signing"
-    echo -e "  supported-versions: Comma-separated PostgreSQL versions (e.g., 16,17,18)"
+    echo -e "  supported-versions: Comma-separated PostgreSQL versions (e.g., 17,18)"
     echo -e "\nExamples:"
-    echo -e "  bash $0 4.4.4-1 /tmp/repo arm64 1F8B584DBEA11E9D 16,17,18"
-    echo -e "  bash $0 /tmp/repo arm64 1F8B584DBEA11E9D 16,17,18  # Auto-detect version"
+    echo -e "  bash $0 4.4.4-1 /tmp/repo arm64 1F8B584DBEA11E9D 17,18"
+    echo -e "  bash $0 /tmp/repo arm64 1F8B584DBEA11E9D 17,18  # Auto-detect version"
 }
 
 # Error handling function

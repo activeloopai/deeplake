@@ -3,14 +3,12 @@ include(ExternalProject)
 
 # Define PostgreSQL versions
 set(postgres_versions
-    "REL_16_0"
     "REL_17_0"
     "REL_18_0"
 )
 
 # Define corresponding SHA256 checksums for each version
 set(postgres_SHA256_CHECKSUMS
-    "37851d1fdae1f2cdd1d23bf9a4598b6c2f3f6792e18bc974d78ed780a28933bf"
     "16912fe4aef3c8f297b5da1b591741f132377c8b5e1b8e896e07fdd680d6bf34"
     "b155bd4a467b401ebe61b504643492aae2d0836981aa4a5a60f8668b94eadebc"
 )
@@ -47,6 +45,5 @@ foreach(postgres_version IN LISTS postgres_versions)
     )
 endforeach()
 
-set(postgres_INSTALL_DIR_REL_16_0 ${DEFAULT_PARENT_DIR}/.ext/postgres-REL_16_0/install)
 set(postgres_INSTALL_DIR_REL_17_0 ${DEFAULT_PARENT_DIR}/.ext/postgres-REL_17_0/install)
 set(postgres_INSTALL_DIR_REL_18_0 ${DEFAULT_PARENT_DIR}/.ext/postgres-REL_18_0/install)

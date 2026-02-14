@@ -63,11 +63,11 @@ check_postgres() {
   if command_exists psql; then
     psql_version=$(psql -V | awk '{print $3}' | cut -d'.' -f1)
     case "$psql_version" in
-    14 | 15 | 16 | 17)
+    17 | 18)
       log "PostgreSQL version $psql_version detected."
       ;;
     *)
-      handle_error 1 "Unsupported PostgreSQL version: $psql_version. Only versions 14, 15, 16, and 17 are supported."
+      handle_error 1 "Unsupported PostgreSQL version: $psql_version. Only versions 17 and 18 are supported."
       ;;
     esac
   else

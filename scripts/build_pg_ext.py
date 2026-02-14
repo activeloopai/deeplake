@@ -11,8 +11,8 @@ Usage: python3 scripts/build_pg_ext.py dev                                 #Deve
 Usage: python3 scripts/build_pg_ext.py prod                                #Release build
 Usage: python3 scripts/build_pg_ext.py debug --deeplake-shared             #Debug build with shared deeplake_api linking
 Usage: python3 scripts/build_pg_ext.py debug --deeplake-static             #Debug build with static deeplake_api linking (force)
-Usage: python3 scripts/build_pg_ext.py dev --pg-versions 16,17,18          #Build for PostgreSQL 16, 17, and 18
-Usage: python3 scripts/build_pg_ext.py dev --pg-versions 16                #Build for PostgreSQL 16 only
+Usage: python3 scripts/build_pg_ext.py dev --pg-versions 17,18             #Build for PostgreSQL 17 and 18
+Usage: python3 scripts/build_pg_ext.py dev --pg-versions 17                #Build for PostgreSQL 17 only
 Usage: python3 scripts/build_pg_ext.py prod --pg-versions all              #Build for all supported PostgreSQL versions
 """
 
@@ -141,7 +141,7 @@ def run(mode: str, incremental: bool, deeplake_link_type: str = None, pg_version
 
             # Add PostgreSQL version options if specified
             if pg_versions is not None:
-                supported_versions = {16, 17, 18}
+                supported_versions = {17, 18}
                 # Set all versions to OFF by default
                 for ver in supported_versions:
                     if ver in pg_versions:
@@ -234,20 +234,20 @@ if __name__ == "__main__":
                 i += 1
             elif arg == "--pg-versions":
                 if i + 1 >= len(sys.argv):
-                    raise Exception("--pg-versions requires a value (e.g., '16,17,18' or 'all')")
+                    raise Exception("--pg-versions requires a value (e.g., '17,18' or 'all')")
                 versions_str = sys.argv[i + 1]
                 if versions_str == "all":
-                    pg_versions = [16, 17, 18]
+                    pg_versions = [17, 18]
                 else:
                     try:
                         pg_versions = [int(v.strip()) for v in versions_str.split(',')]
                         # Validate versions
-                        supported = {16, 17, 18}
+                        supported = {17, 18}
                         invalid = set(pg_versions) - supported
                         if invalid:
                             raise Exception(f"Invalid PostgreSQL versions: {invalid}. Supported: {supported}")
                     except ValueError:
-                        raise Exception(f"Invalid --pg-versions format: '{versions_str}'. Use comma-separated numbers (e.g., '16,17,18') or 'all'")
+                        raise Exception(f"Invalid --pg-versions format: '{versions_str}'. Use comma-separated numbers (e.g., '17,18') or 'all'")
                 i += 2
             else:
                 raise Exception(f"Invalid option '{arg}'. Use --deeplake-shared, --deeplake-static, or --pg-versions")
