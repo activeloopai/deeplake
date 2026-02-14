@@ -643,7 +643,6 @@ static void process_utility(PlannedStmt* pstmt,
                     }
                 }
 
-                // DROP SCHEMA propagation is handled by DDL WAL logging post-hook.
             }
         } else if (stmt->removeType == OBJECT_DATABASE) {
             const char* query = "SELECT nspname, relname "

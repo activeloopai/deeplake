@@ -265,8 +265,6 @@ void save_index_metadata(Oid oid)
     if (SPI_execute(buf.data, false, 0) != SPI_OK_INSERT) {
         ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("Failed to save metadata")));
     }
-
-    // Cross-instance propagation is driven by DDL WAL logging in ProcessUtility.
 }
 
 void load_index_metadata()

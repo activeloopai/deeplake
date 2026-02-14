@@ -32,6 +32,10 @@ extern "C" {
 #include "table_storage.hpp"
 #include "utils.hpp"
 
+#include <async/promise.hpp>
+#include <deeplake_api/catalog_table.hpp>
+#include <icm/vector.hpp>
+
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -549,7 +553,6 @@ PGDLLEXPORT void deeplake_sync_worker_main(Datum main_arg)
     std::string last_root_path;  // Track root_path to detect changes
     std::unordered_map<std::string, int64_t> last_db_seqs;
     load_wal_checkpoints(last_db_seqs);
-
 
     while (!got_sigterm) {
         // Process pending interrupts (including ProcSignalBarrier from DROP DATABASE)
