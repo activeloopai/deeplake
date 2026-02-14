@@ -1124,14 +1124,64 @@ void table_storage::insert_slot(Oid table_id, TupleTableSlot* slot)
     insert_slots(table_id, 1, &slot);
 }
 
+void table_storage::mark_subxact_change(Oid table_id)
+{
+    if (GetCurrentTransactionNestLevel() <= 1) {
+        return;
+    }
+
+    auto& table_data = get_table_data(table_id);
+    const SubTransactionId sub_id = GetCurrentSubTransactionId();
+    auto& sub_snapshots = subxact_snapshots_[sub_id];
+    if (!sub_snapshots.contains(table_id)) {
+        sub_snapshots.emplace(table_id, table_data.capture_tx_snapshot());
+    }
+}
+
+void table_storage::rollback_subxact(SubTransactionId sub_id)
+{
+    auto it = subxact_snapshots_.find(sub_id);
+    if (it == subxact_snapshots_.end()) {
+        return;
+    }
+
+    for (const auto& [table_id, snapshot] : it->second) {
+        auto table_it = tables_.find(table_id);
+        if (table_it != tables_.end()) {
+            table_it->second.restore_tx_snapshot(snapshot);
+        }
+    }
+    subxact_snapshots_.erase(it);
+}
+
+void table_storage::commit_subxact(SubTransactionId sub_id, SubTransactionId parent_sub_id)
+{
+    auto it = subxact_snapshots_.find(sub_id);
+    if (it == subxact_snapshots_.end()) {
+        return;
+    }
+
+    if (parent_sub_id != InvalidSubTransactionId) {
+        auto& parent_snapshots = subxact_snapshots_[parent_sub_id];
+        for (const auto& [table_id, snapshot] : it->second) {
+            if (!parent_snapshots.contains(table_id)) {
+                parent_snapshots.emplace(table_id, snapshot);
+            }
+        }
+    }
+    subxact_snapshots_.erase(it);
+}
+
 void table_storage::insert_slots(Oid table_id, int32_t nslots, TupleTableSlot** slots)
 {
+    mark_subxact_change(table_id);
     auto& table_data = get_table_data(table_id);
     table_data.add_insert_slots(nslots, slots);
 }
 
 bool table_storage::delete_tuple(Oid table_id, ItemPointer tid)
 {
+    mark_subxact_change(table_id);
     auto& table_data = get_table_data(table_id);
     try {
         const auto row_number = utils::tid_to_row_number(tid);
@@ -1154,6 +1204,7 @@ bool table_storage::delete_tuple(Oid table_id, ItemPointer tid)
 
 bool table_storage::update_tuple(Oid table_id, ItemPointer tid, HeapTuple new_tuple)
 {
+    mark_subxact_change(table_id);
     auto& table_data = get_table_data(table_id);
     TupleDesc tupdesc = table_data.get_tuple_descriptor();
 

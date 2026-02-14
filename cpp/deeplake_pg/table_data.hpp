@@ -15,6 +15,7 @@
 
 #include <access/htup.h>
 #include <access/tupdesc.h>
+#include <access/xact.h>
 #include <miscadmin.h>
 #include <postgres.h>
 #include <utils/date.h>
@@ -35,6 +36,14 @@ using string_stream_array_holder = nd::string_stream_array_holder;
 
 struct table_data
 {
+    struct tx_snapshot
+    {
+        icm::string_map<size_t> insert_rows_sizes;
+        size_t delete_rows_size = 0;
+        size_t update_rows_size = 0;
+        int64_t num_total_rows = 0;
+    };
+
     inline table_data(Oid table_oid,
                       const std::string& table_name,
                       TupleDesc tupdesc,
@@ -79,6 +88,9 @@ struct table_data
     inline void clear_delete_rows() noexcept;
     inline void add_update_row(int64_t row_id, icm::string_map<nd::array> update_row);
     inline void clear_update_rows() noexcept;
+    inline tx_snapshot capture_tx_snapshot() const;
+    inline void restore_tx_snapshot(const tx_snapshot& snapshot);
+    inline void rollback();
     inline Oid get_table_oid() const noexcept;
     inline bool flush();
 

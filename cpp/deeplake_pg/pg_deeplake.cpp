@@ -11,6 +11,7 @@
 extern "C" {
 #endif
 
+#include <access/xact.h>
 #include <commands/dbcommands.h>
 #include <miscadmin.h>
 #include <storage/ipc.h>
@@ -392,6 +393,23 @@ void deeplake_xact_callback(XactEvent event, void *arg)
     }
 }
 
+void deeplake_subxact_callback(SubXactEvent event,
+                               SubTransactionId my_subid,
+                               SubTransactionId parent_subid,
+                               void* arg)
+{
+    switch (event) {
+    case SUBXACT_EVENT_ABORT_SUB:
+        pg::table_storage::instance().rollback_subxact(my_subid);
+        break;
+    case SUBXACT_EVENT_COMMIT_SUB:
+        pg::table_storage::instance().commit_subxact(my_subid, parent_subid);
+        break;
+    default:
+        break;
+    }
+}
+
 void init_deeplake()
 {
     static bool initialized = false;
@@ -416,6 +434,7 @@ void init_deeplake()
     pg::table_storage::instance(); /// initialize table storage
 
     RegisterXactCallback(deeplake_xact_callback, nullptr);
+    RegisterSubXactCallback(deeplake_subxact_callback, nullptr);
 }
 
 } // namespace pg

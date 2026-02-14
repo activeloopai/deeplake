@@ -138,6 +138,9 @@ public:
     bool delete_tuple(Oid table_id, ItemPointer tid);
     bool update_tuple(Oid table_id, ItemPointer tid, HeapTuple new_tuple);
     bool fetch_tuple(Oid table_id, ItemPointer tid, TupleTableSlot* slot);
+    void mark_subxact_change(Oid table_id);
+    void rollback_subxact(SubTransactionId sub_id);
+    void commit_subxact(SubTransactionId sub_id, SubTransactionId parent_sub_id);
 
     bool flush_all()
     {
@@ -156,15 +159,16 @@ public:
         for (auto& [_, table_data] : tables_) {
             table_data.commit();
         }
+        subxact_snapshots_.clear();
     }
 
     void rollback_all()
     {
         // Rollback all changes in all tables
         for (auto& [_, table_data] : tables_) {
-            table_data.reset_insert_rows();
-            table_data.clear_delete_rows();
+            table_data.rollback();
         }
+        subxact_snapshots_.clear();
     }
 
     inline auto& get_tables() noexcept
@@ -312,6 +316,7 @@ private:
     void erase_table_metadata(const std::string& table_name);
 
     std::unordered_map<Oid, table_data> tables_;
+    std::unordered_map<SubTransactionId, std::unordered_map<Oid, table_data::tx_snapshot>> subxact_snapshots_;
     std::unordered_map<Oid, std::pair<std::string, std::string>> views_;
     std::string schema_name_ = "public";
     bool tables_loaded_ = false;
