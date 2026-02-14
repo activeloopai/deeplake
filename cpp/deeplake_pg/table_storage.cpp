@@ -240,8 +240,6 @@ void table_storage::save_table_metadata(const pg::table_data& table_data)
         }
         return true;
     });
-
-    // Stateless sync uses DDL WAL replay from __wal_table.
 }
 
 void table_storage::load_table_metadata()
@@ -854,8 +852,6 @@ void table_storage::drop_table(const std::string& table_name)
     if (table_exists(table_name)) {
         auto& table_data = get_table_data(table_name);
         auto creds = session_credentials::get_credentials();
-
-        // Stateless propagation is handled by DDL WAL logging in ProcessUtility hook.
 
         try {
             table_data.commit(); // Ensure all changes are committed before deletion
