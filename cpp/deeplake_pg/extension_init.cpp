@@ -111,9 +111,6 @@ void append_to_ddl_log_if_needed(const char* command_tag, const char* object_ide
             pfree(const_cast<char*>(dbname));
         }
 
-        pg::dl_wal::ensure_catalog(root_path, creds);
-        pg::dl_wal::ensure_db_catalog(root_path, db_name, creds);
-
         pg::dl_wal::ddl_log_entry entry;
         entry.seq = pg::dl_wal::next_ddl_seq();
         entry.origin_instance_id = pg::dl_wal::local_instance_id();

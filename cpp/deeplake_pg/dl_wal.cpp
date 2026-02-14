@@ -62,11 +62,10 @@ open_catalog_table(const std::string& root_path, const std::string& name, icm::s
     return deeplake_api::open_catalog_table(path, std::move(creds)).get_future().get();
 }
 
-std::shared_ptr<deeplake_api::dataset>
-open_or_create_ddl_dataset(const std::string& root_path, const std::string& db_name, icm::string_map<> creds)
+// Create the WAL dataset with schema. Called once from ensure_db_catalog.
+void create_ddl_dataset(const std::string& root_path, const std::string& db_name, icm::string_map<> creds)
 {
     const auto path = join_db_path(root_path, db_name, k_ddl_log_name);
-    std::shared_ptr<deeplake_api::dataset> ds;
     bool exists = false;
     try {
         exists = deeplake_api::exists(path, icm::string_map<>(creds)).get_future().get();
@@ -74,34 +73,50 @@ open_or_create_ddl_dataset(const std::string& root_path, const std::string& db_n
         exists = false;
     }
     if (exists) {
-        ds = deeplake_api::open(path, std::move(creds)).get_future().get();
-    } else {
-        ds = deeplake_api::create(path, std::move(creds)).get_future().get();
+        return;
     }
 
-    bool schema_changed = false;
-    auto ensure_column = [&](const char* name, const deeplake_core::type& type) {
-        try {
-            (void)ds->get_column(name);
-        } catch (...) {
-            ds->add_column(name, type);
-            schema_changed = true;
-        }
-    };
-
-    ensure_column("seq", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)));
-    ensure_column("origin_instance_id", deeplake_core::type::text(codecs::compression::null));
-    ensure_column("search_path", deeplake_core::type::text(codecs::compression::null));
-    ensure_column("command_tag", deeplake_core::type::text(codecs::compression::null));
-    ensure_column("object_identity", deeplake_core::type::text(codecs::compression::null));
-    ensure_column("ddl_sql", deeplake_core::type::text(codecs::compression::null));
-    ensure_column("timestamp", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)));
-
-    if (schema_changed) {
-        ds->commit().get_future().get();
-    }
-    return ds;
+    auto ds = deeplake_api::create(path, std::move(creds)).get_future().get();
+    ds->add_column("seq", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)));
+    ds->add_column("origin_instance_id", deeplake_core::type::text(codecs::compression::null));
+    ds->add_column("search_path", deeplake_core::type::text(codecs::compression::null));
+    ds->add_column("command_tag", deeplake_core::type::text(codecs::compression::null));
+    ds->add_column("object_identity", deeplake_core::type::text(codecs::compression::null));
+    ds->add_column("ddl_sql", deeplake_core::type::text(codecs::compression::null));
+    ds->add_column("timestamp", deeplake_core::type::generic(nd::type::scalar(nd::dtype::int64)));
+    ds->commit().get_future().get();
 }
+
+// Thread-local cached WAL dataset handle for append (hot path).
+struct ddl_dataset_cache
+{
+    std::string key; // root_path + "\t" + db_name
+    std::shared_ptr<deeplake_api::dataset> ds;
+
+    static ddl_dataset_cache& instance()
+    {
+        static thread_local ddl_dataset_cache cache;
+        return cache;
+    }
+
+    std::shared_ptr<deeplake_api::dataset> get(const std::string& root_path, const std::string& db_name, icm::string_map<> creds)
+    {
+        const auto k = root_path + "\t" + db_name;
+        if (k == key && ds) {
+            return ds;
+        }
+        const auto path = join_db_path(root_path, db_name, k_ddl_log_name);
+        ds = deeplake_api::open(path, std::move(creds)).get_future().get();
+        key = k;
+        return ds;
+    }
+
+    void invalidate()
+    {
+        key.clear();
+        ds.reset();
+    }
+};
 
 std::vector<int64_t> load_int64_vector(const nd::array& arr)
 {
@@ -203,7 +218,7 @@ void ensure_db_catalog(const std::string& root_path, const std::string& db_name,
     }
 
     try {
-        (void)open_or_create_ddl_dataset(root_path, db_name, std::move(creds));
+        create_ddl_dataset(root_path, db_name, std::move(creds));
     } catch (const std::exception& e) {
         elog(ERROR, "Failed to ensure per-db catalog at %s/%s: %s", root_path.c_str(), db_name.c_str(), e.what());
     } catch (...) {
@@ -308,24 +323,29 @@ int64_t get_databases_version(const std::string& root_path, icm::string_map<> cr
 std::shared_ptr<deeplake_api::dataset>
 open_ddl_log_table(const std::string& root_path, const std::string& db_name, icm::string_map<> creds)
 {
-    return open_or_create_ddl_dataset(root_path, db_name, std::move(creds));
+    return ddl_dataset_cache::instance().get(root_path, db_name, std::move(creds));
 }
 
 void append_ddl_log(const std::string& root_path, const std::string& db_name, icm::string_map<> creds,
                     const ddl_log_entry& entry)
 {
-    auto ds = open_ddl_log_table(root_path, db_name, std::move(creds));
-    ds->set_auto_commit_enabled(false).get_future().get();
-    icm::string_map<nd::array> row;
-    row["seq"] = nd::adapt(entry.seq);
-    row["origin_instance_id"] = nd::adapt(entry.origin_instance_id);
-    row["search_path"] = nd::adapt(entry.search_path);
-    row["command_tag"] = nd::adapt(entry.command_tag);
-    row["object_identity"] = nd::adapt(entry.object_identity);
-    row["ddl_sql"] = nd::adapt(entry.ddl_sql);
-    row["timestamp"] = nd::adapt(entry.timestamp == 0 ? now_ms() : entry.timestamp);
-    ds->append_row(row).get_future().get();
-    ds->commit().get_future().get();
+    try {
+        auto ds = ddl_dataset_cache::instance().get(root_path, db_name, std::move(creds));
+        ds->set_auto_commit_enabled(false).get_future().get();
+        icm::string_map<nd::array> row;
+        row["seq"] = nd::adapt(entry.seq);
+        row["origin_instance_id"] = nd::adapt(entry.origin_instance_id);
+        row["search_path"] = nd::adapt(entry.search_path);
+        row["command_tag"] = nd::adapt(entry.command_tag);
+        row["object_identity"] = nd::adapt(entry.object_identity);
+        row["ddl_sql"] = nd::adapt(entry.ddl_sql);
+        row["timestamp"] = nd::adapt(entry.timestamp == 0 ? now_ms() : entry.timestamp);
+        ds->append_row(row).get_future().get();
+        ds->commit().get_future().get();
+    } catch (...) {
+        ddl_dataset_cache::instance().invalidate();
+        throw;
+    }
 }
 
 std::vector<ddl_log_entry> load_ddl_log(const std::string& root_path, const std::string& db_name,
@@ -333,7 +353,7 @@ std::vector<ddl_log_entry> load_ddl_log(const std::string& root_path, const std:
 {
     std::vector<ddl_log_entry> out;
     try {
-        auto ds = open_ddl_log_table(root_path, db_name, std::move(creds));
+        auto ds = ddl_dataset_cache::instance().get(root_path, db_name, std::move(creds));
         if (!ds) {
             return out;
         }
