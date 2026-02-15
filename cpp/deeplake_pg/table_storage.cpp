@@ -46,6 +46,7 @@ extern "C" {
 #include <icm/json.hpp>
 #include <icm/string_map.hpp>
 #include <nd/none.hpp>
+#include <unordered_set>
 
 #include <algorithm>
 #include <vector>
@@ -287,13 +288,20 @@ void table_storage::load_table_metadata()
                     continue;
                 }
 
+                // Snapshot tables_ keys so we can roll back C++ state on failure
+                std::vector<Oid> tables_before;
+                tables_before.reserve(tables_.size());
+                for (const auto& [oid, _] : tables_) {
+                    tables_before.push_back(oid);
+                }
+
                 MemoryContext saved_context = CurrentMemoryContext;
                 ResourceOwner saved_owner = CurrentResourceOwner;
                 BeginInternalSubTransaction(nullptr);
                 PG_TRY();
                 {
                     set_catalog_only_create(true);
-                    pg::utils::spi_connector connector;
+                    SPI_connect();
                     bool pushed_snapshot = false;
                     if (!ActiveSnapshotSet()) {
                         PushActiveSnapshot(GetTransactionSnapshot());
@@ -328,6 +336,7 @@ void table_storage::load_table_metadata()
                     if (pushed_snapshot) {
                         PopActiveSnapshot();
                     }
+                    SPI_finish();
                     set_catalog_only_create(false);
                     ReleaseCurrentSubTransaction();
                 }
@@ -339,6 +348,19 @@ void table_storage::load_table_metadata()
                     CurrentResourceOwner = saved_owner;
                     RollbackAndReleaseCurrentSubTransaction();
                     FlushErrorState();
+
+                    // Remove any tables_ entries added during the failed replay,
+                    // since the subtransaction rollback undid the catalog changes
+                    // but the C++ map entries persist.
+                    std::unordered_set<Oid> before_set(tables_before.begin(), tables_before.end());
+                    for (auto it = tables_.begin(); it != tables_.end(); ) {
+                        if (!before_set.contains(it->first)) {
+                            it = tables_.erase(it);
+                        } else {
+                            ++it;
+                        }
+                    }
+
                     elog(WARNING, "pg_deeplake: DDL WAL replay failed (seq=%ld, tag=%s): %s (SQL: %.200s)",
                          entry.seq, entry.command_tag.c_str(),
                          edata->message ? edata->message : "unknown error",
