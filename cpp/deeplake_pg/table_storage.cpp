@@ -46,7 +46,6 @@ extern "C" {
 #include <icm/json.hpp>
 #include <icm/string_map.hpp>
 #include <nd/none.hpp>
-#include <unordered_set>
 
 #include <algorithm>
 #include <vector>
@@ -261,116 +260,6 @@ void table_storage::load_table_metadata()
         return root;
     }();
     auto creds = session_credentials::get_credentials();
-
-    // Stateless sync via DDL WAL replay (only when enabled and root_dir is configured)
-    if (pg::stateless_enabled && !root_dir.empty()) {
-        const auto db_name = get_current_database_name();
-
-        // Ensure both shared and per-database catalogs exist
-        pg::dl_wal::ensure_catalog(root_dir, creds);
-        pg::dl_wal::ensure_db_catalog(root_dir, db_name, creds);
-
-        auto is_sync_replay_backend = []() {
-            const char* app_name = GetConfigOption("application_name", true, false);
-            return app_name != nullptr && strcmp(app_name, "pg_deeplake_sync") == 0;
-        };
-        if (!in_ddl_context() && !AmBackgroundWorkerProcess() && !is_sync_replay_backend()) {
-            auto entries = pg::dl_wal::load_ddl_log(root_dir, db_name, creds, ddl_log_last_seq_);
-            if (!entries.empty()) {
-                elog(LOG, "pg_deeplake: DDL WAL replay: %zu entries to process for db '%s' (after seq %ld)",
-                     entries.size(), db_name.c_str(), ddl_log_last_seq_);
-            }
-            for (const auto& entry : entries) {
-                if (entry.seq > ddl_log_last_seq_) {
-                    ddl_log_last_seq_ = entry.seq;
-                }
-                if (entry.origin_instance_id == pg::dl_wal::local_instance_id()) {
-                    continue;
-                }
-
-                // Snapshot tables_ keys so we can roll back C++ state on failure
-                std::vector<Oid> tables_before;
-                tables_before.reserve(tables_.size());
-                for (const auto& [oid, _] : tables_) {
-                    tables_before.push_back(oid);
-                }
-
-                MemoryContext saved_context = CurrentMemoryContext;
-                ResourceOwner saved_owner = CurrentResourceOwner;
-                BeginInternalSubTransaction(nullptr);
-                PG_TRY();
-                {
-                    set_catalog_only_create(true);
-                    SPI_connect();
-                    bool pushed_snapshot = false;
-                    if (!ActiveSnapshotSet()) {
-                        PushActiveSnapshot(GetTransactionSnapshot());
-                        pushed_snapshot = true;
-                    }
-                    // Restore the original search_path so unqualified names resolve correctly
-                    std::string saved_search_path;
-                    if (!entry.search_path.empty()) {
-                        const char* current_sp = GetConfigOption("search_path", true, false);
-                        if (current_sp != nullptr) {
-                            saved_search_path = current_sp;
-                        }
-                        StringInfoData sp_sql;
-                        initStringInfo(&sp_sql);
-                        appendStringInfo(&sp_sql,
-                                         "SELECT pg_catalog.set_config('search_path', %s, true)",
-                                         quote_literal_cstr(entry.search_path.c_str()));
-                        SPI_execute(sp_sql.data, true, 0);
-                        pfree(sp_sql.data);
-                    }
-                    SPI_execute(entry.ddl_sql.c_str(), false, 0);
-                    // Restore the session's original search_path
-                    if (!entry.search_path.empty()) {
-                        StringInfoData restore_sql;
-                        initStringInfo(&restore_sql);
-                        appendStringInfo(&restore_sql,
-                                         "SELECT pg_catalog.set_config('search_path', %s, true)",
-                                         quote_literal_cstr(saved_search_path.c_str()));
-                        SPI_execute(restore_sql.data, true, 0);
-                        pfree(restore_sql.data);
-                    }
-                    if (pushed_snapshot) {
-                        PopActiveSnapshot();
-                    }
-                    SPI_finish();
-                    set_catalog_only_create(false);
-                    ReleaseCurrentSubTransaction();
-                }
-                PG_CATCH();
-                {
-                    set_catalog_only_create(false);
-                    MemoryContextSwitchTo(saved_context);
-                    ErrorData* edata = CopyErrorData();
-                    CurrentResourceOwner = saved_owner;
-                    RollbackAndReleaseCurrentSubTransaction();
-                    FlushErrorState();
-
-                    // Remove any tables_ entries added during the failed replay,
-                    // since the subtransaction rollback undid the catalog changes
-                    // but the C++ map entries persist.
-                    std::unordered_set<Oid> before_set(tables_before.begin(), tables_before.end());
-                    for (auto it = tables_.begin(); it != tables_.end(); ) {
-                        if (!before_set.contains(it->first)) {
-                            it = tables_.erase(it);
-                        } else {
-                            ++it;
-                        }
-                    }
-
-                    elog(WARNING, "pg_deeplake: DDL WAL replay failed (seq=%ld, tag=%s): %s (SQL: %.200s)",
-                         entry.seq, entry.command_tag.c_str(),
-                         edata->message ? edata->message : "unknown error",
-                         entry.ddl_sql.c_str());
-                    FreeErrorData(edata);
-                }
-                PG_END_TRY();
-            }
-        }
-    }
 
     // Load from local pg_deeplake_tables
     if (tables_loaded_) {
