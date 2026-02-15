@@ -335,11 +335,15 @@ void table_storage::load_table_metadata()
                 {
                     set_catalog_only_create(false);
                     MemoryContextSwitchTo(saved_context);
+                    ErrorData* edata = CopyErrorData();
                     CurrentResourceOwner = saved_owner;
                     RollbackAndReleaseCurrentSubTransaction();
                     FlushErrorState();
-                    elog(WARNING, "pg_deeplake: DDL WAL replay failed (seq=%ld, tag=%s): %.200s",
-                         entry.seq, entry.command_tag.c_str(), entry.ddl_sql.c_str());
+                    elog(WARNING, "pg_deeplake: DDL WAL replay failed (seq=%ld, tag=%s): %s (SQL: %.200s)",
+                         entry.seq, entry.command_tag.c_str(),
+                         edata->message ? edata->message : "unknown error",
+                         entry.ddl_sql.c_str());
+                    FreeErrorData(edata);
                 }
                 PG_END_TRY();
             }
