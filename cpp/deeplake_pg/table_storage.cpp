@@ -299,7 +299,32 @@ void table_storage::load_table_metadata()
                         PushActiveSnapshot(GetTransactionSnapshot());
                         pushed_snapshot = true;
                     }
+                    // Restore the original search_path so unqualified names resolve correctly
+                    std::string saved_search_path;
+                    if (!entry.search_path.empty()) {
+                        const char* current_sp = GetConfigOption("search_path", true, false);
+                        if (current_sp != nullptr) {
+                            saved_search_path = current_sp;
+                        }
+                        StringInfoData sp_sql;
+                        initStringInfo(&sp_sql);
+                        appendStringInfo(&sp_sql,
+                                         "SELECT pg_catalog.set_config('search_path', %s, true)",
+                                         quote_literal_cstr(entry.search_path.c_str()));
+                        SPI_execute(sp_sql.data, true, 0);
+                        pfree(sp_sql.data);
+                    }
                     SPI_execute(entry.ddl_sql.c_str(), false, 0);
+                    // Restore the session's original search_path
+                    if (!entry.search_path.empty()) {
+                        StringInfoData restore_sql;
+                        initStringInfo(&restore_sql);
+                        appendStringInfo(&restore_sql,
+                                         "SELECT pg_catalog.set_config('search_path', %s, true)",
+                                         quote_literal_cstr(saved_search_path.c_str()));
+                        SPI_execute(restore_sql.data, true, 0);
+                        pfree(restore_sql.data);
+                    }
                     if (pushed_snapshot) {
                         PopActiveSnapshot();
                     }
