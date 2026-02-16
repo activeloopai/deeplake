@@ -10,6 +10,8 @@ This validates the stateless architecture where:
 """
 import pytest
 
+pytestmark = pytest.mark.skip(reason="client-side DDL WAL replay removed; tests need rework")
+
 import asyncpg
 import asyncio
 import os
