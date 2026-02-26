@@ -48,7 +48,7 @@ async def test_update_with_where_on_integer_after_rename(db_conn: asyncpg.Connec
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_update_int CASCADE")
-        except:
+        except Exception:
             pass
 
 
@@ -96,7 +96,7 @@ async def test_update_with_where_on_text_after_rename(db_conn: asyncpg.Connectio
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_update_text CASCADE")
-        except:
+        except Exception:
             pass
 
 
@@ -140,7 +140,7 @@ async def test_update_without_where_after_rename(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_update_no_where CASCADE")
-        except:
+        except Exception:
             pass
 
 
@@ -184,5 +184,5 @@ async def test_update_with_where_on_varchar_after_rename(db_conn: asyncpg.Connec
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_update_varchar CASCADE")
-        except:
+        except Exception:
             pass

@@ -9,7 +9,7 @@ def bbox_converter_(obj, converter, tensor_name, context, generate_labels):
     ds = context["ds"]
     try:
         ds.create_tensor(tensor_name, **bbox_tensor_create_kwargs_())
-    except:
+    except Exception:
         pass
 
     if generate_labels:
@@ -59,7 +59,7 @@ def polygon_converter_(obj, converter, tensor_name, context, generate_labels):
     ds = context["ds"]
     try:
         ds.create_tensor(tensor_name, **polygon_tensor_create_kwargs_())
-    except:
+    except Exception:
         pass
 
     if generate_labels:
@@ -118,7 +118,7 @@ def radio_converter_(obj, converter, tensor_name, context, generate_labels):
         ds[tensor_name].update_metadata(
             {"class_names": list(converter.label_mappings[tensor_name].keys())}
         )
-    except:
+    except Exception:
         pass
 
     converter.register_feature_id_for_kind(
@@ -161,7 +161,7 @@ def checkbox_converter_(obj, converter, tensor_name, context, generate_labels):
         ds[tensor_name].update_metadata(
             {"class_names": list(converter.label_mappings[tensor_name].keys())}
         )
-    except:
+    except Exception:
         pass
 
     converter.register_feature_id_for_kind(
@@ -192,7 +192,7 @@ def point_converter_(obj, converter, tensor_name, context, generate_labels):
     ds = context["ds"]
     try:
         ds.create_tensor(tensor_name, **point_tensor_create_kwargs_())
-    except:
+    except Exception:
         pass
 
     converter.register_feature_id_for_kind("annotation", "point", obj, tensor_name)
@@ -230,7 +230,7 @@ def line_converter_(obj, converter, tensor_name, context, generate_labels):
     ds = context["ds"]
     try:
         ds.create_tensor(tensor_name, **polygon_tensor_create_kwargs_())
-    except:
+    except Exception:
         pass
 
     converter.register_feature_id_for_kind("annotation", "line", obj, tensor_name)
@@ -277,7 +277,7 @@ def raster_segmentation_converter_(
     ds = context["ds"]
     try:
         ds.create_tensor(tensor_name, **binary_mask_tensor_create_kwargs_())
-    except:
+    except Exception:
         pass
 
     try:
@@ -286,7 +286,7 @@ def raster_segmentation_converter_(
                 f"{tensor_name}_labels", **class_label_tensor_create_kwargs_()
             )
             converter.label_mappings[f"{tensor_name}_labels"] = dict()
-    except:
+    except Exception:
         pass
 
     converter.register_feature_id_for_kind(
@@ -360,7 +360,7 @@ def text_converter_(obj, converter, tensor_name, context, generate_labels):
     ds = context["ds"]
     try:
         ds.create_tensor(tensor_name, **text_tensor_create_kwargs_())
-    except:
+    except Exception:
         pass
 
     converter.register_feature_id_for_kind("annotation", "text", obj, tensor_name)

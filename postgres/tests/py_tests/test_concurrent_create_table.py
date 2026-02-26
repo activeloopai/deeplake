@@ -170,7 +170,7 @@ async def test_concurrent_create_multiple_tables_stress(db_conn: asyncpg.Connect
             try:
                 await cleanup_conn.execute(f'DROP TABLE IF EXISTS "{schema_name}".{table_name} CASCADE')
                 await cleanup_conn.execute(f'DROP TYPE IF EXISTS "{schema_name}".{table_name} CASCADE')
-            except:
+            except Exception:
                 pass
 
             tasks = [
@@ -234,7 +234,7 @@ async def test_concurrent_create_multiple_tables_stress(db_conn: asyncpg.Connect
         for i in range(num_tables):
             await db_conn.execute(f'DROP TABLE IF EXISTS "{schema_name}".stress_table_{i} CASCADE')
         await db_conn.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
-    except:
+    except Exception:
         pass
 
 
@@ -255,7 +255,7 @@ async def test_concurrent_create_with_explicit_duplicate_check(db_conn: asyncpg.
     try:
         await db_conn.execute(f'DROP TABLE IF EXISTS "{schema_name}".{table_name} CASCADE')
         await db_conn.execute(f'DROP TYPE IF EXISTS "{schema_name}".{table_name} CASCADE')
-    except:
+    except Exception:
         pass
 
     print(f"\n  Running {num_workers} concurrent CREATE TABLE operations...")
@@ -314,7 +314,7 @@ async def test_concurrent_create_with_explicit_duplicate_check(db_conn: asyncpg.
     try:
         await db_conn.execute(f'DROP TABLE IF EXISTS "{schema_name}".{table_name} CASCADE')
         await db_conn.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
-    except:
+    except Exception:
         pass
 
 
@@ -481,5 +481,5 @@ async def test_concurrent_create_different_tables(db_conn: asyncpg.Connection):
             for i in range(num_tables):
                 await db_conn.execute(f'DROP TABLE IF EXISTS "{schema_name}".table_{i} CASCADE')
             await db_conn.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
-        except:
+        except Exception:
             pass

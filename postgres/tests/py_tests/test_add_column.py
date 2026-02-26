@@ -140,7 +140,7 @@ async def test_add_column_to_table(db_conn: asyncpg.Connection):
         # Cleanup - Note: if test crashes, cleanup may not run
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_crash CASCADE")
-        except:
+        except Exception:
             pass  # Connection may be dead after segfault
 
 
@@ -215,5 +215,5 @@ async def test_add_column_with_custom_schema(db_conn: asyncpg.Connection):
         # Cleanup
         try:
             await db_conn.execute("DROP SCHEMA IF EXISTS valod CASCADE")
-        except:
+        except Exception:
             pass  # Connection may be dead after segfault

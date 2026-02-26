@@ -71,7 +71,7 @@ async def test_table_name_with_hash_suffix(db_conn: asyncpg.Connection):
         # Cleanup
         try:
             await db_conn.execute(f"DROP TABLE IF EXISTS {table_name}")
-        except:
+        except Exception:
             pass
 
 
@@ -124,7 +124,7 @@ async def test_schema_qualified_table_with_suffix(db_conn: asyncpg.Connection):
         try:
             await db_conn.execute(f"DROP TABLE IF EXISTS {qualified_name}")
             await db_conn.execute(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
-        except:
+        except Exception:
             pass
 
 
@@ -175,7 +175,7 @@ async def test_table_metadata_staleness(db_conn: asyncpg.Connection):
         # Cleanup
         try:
             await db_conn.execute(f"DROP TABLE IF EXISTS {original_name}")
-        except:
+        except Exception:
             pass
 
 
@@ -226,5 +226,5 @@ async def test_multiple_tables_with_similar_names(db_conn: asyncpg.Connection):
         for table_name in tables:
             try:
                 await db_conn.execute(f"DROP TABLE IF EXISTS {table_name}")
-            except:
+            except Exception:
                 pass

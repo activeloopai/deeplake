@@ -70,7 +70,7 @@ async def test_error_during_insert_with_abort(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_abort_insert")
-        except:
+        except Exception:
             pass
 
 
@@ -156,7 +156,7 @@ async def test_query_error_with_pending_changes(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_abort_query")
-        except:
+        except Exception:
             pass
 
 
@@ -195,7 +195,7 @@ async def test_multiple_errors_in_sequence(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_multi_error")
-        except:
+        except Exception:
             pass
 
 
@@ -244,7 +244,7 @@ async def test_nested_transaction_abort(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_nested_abort")
-        except:
+        except Exception:
             pass
 
 
@@ -284,7 +284,7 @@ async def test_nested_transaction_abort_large_inner_insert(db_conn: asyncpg.Conn
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_nested_abort_large")
-        except:
+        except Exception:
             pass
 
 
@@ -318,7 +318,7 @@ async def test_nested_transaction_abort_delete(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_nested_abort_delete")
-        except:
+        except Exception:
             pass
 
 
@@ -352,7 +352,7 @@ async def test_nested_transaction_abort_update(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_nested_abort_update")
-        except:
+        except Exception:
             pass
 
 
@@ -385,7 +385,7 @@ async def test_nested_transaction_abort_copy_like_insert(db_conn: asyncpg.Connec
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_nested_abort_copy")
-        except:
+        except Exception:
             pass
 
 
@@ -418,7 +418,7 @@ async def test_multi_level_savepoint_abort(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_multi_level_savepoint")
-        except:
+        except Exception:
             pass
 
 
@@ -447,7 +447,7 @@ async def test_top_level_abort_after_inner_savepoint_success(db_conn: asyncpg.Co
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_top_level_abort_after_inner")
-        except:
+        except Exception:
             pass
 
 
@@ -491,7 +491,7 @@ async def test_nested_transaction_abort_cross_table(db_conn: asyncpg.Connection)
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_nested_abort_cross_a")
             await db_conn.execute("DROP TABLE IF EXISTS test_nested_abort_cross_b")
-        except:
+        except Exception:
             pass
 
 
@@ -527,7 +527,7 @@ async def test_abort_during_schema_operation(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_ddl_abort")
-        except:
+        except Exception:
             pass
 
 
@@ -571,5 +571,5 @@ async def test_error_in_parallel_queries(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_parallel_error")
-        except:
+        except Exception:
             pass

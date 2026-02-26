@@ -146,7 +146,7 @@ async def test_rename_column_in_table(db_conn: asyncpg.Connection):
         # Cleanup - Note: if test crashes, cleanup may not run
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_rename CASCADE")
-        except:
+        except Exception:
             pass  # Connection may be dead after crash
 
 
@@ -261,5 +261,5 @@ async def test_rename_column_with_custom_schema(db_conn: asyncpg.Connection):
         # Cleanup
         try:
             await db_conn.execute("DROP SCHEMA IF EXISTS test_schema CASCADE")
-        except:
+        except Exception:
             pass  # Connection may be dead after crash

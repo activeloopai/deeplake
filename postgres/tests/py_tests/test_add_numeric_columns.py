@@ -255,7 +255,7 @@ async def test_add_multiple_numeric_columns_with_null(db_conn: asyncpg.Connectio
         # Cleanup
         try:
             await db_conn.execute("DROP TABLE IF EXISTS users CASCADE")
-        except:
+        except Exception:
             pass  # Connection may be dead after errors
 
 

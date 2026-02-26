@@ -42,7 +42,7 @@ def load_ds_from_cfg(cfg: mmcv.utils.config.ConfigDict):
 
     try:
         ds = dp.open_read_only(cfg.deeplake_path, token=token, creds=creds)
-    except:
+    except Exception:
         if not deeplake_query:
             raise
         ds = dp.query(deeplake_query)

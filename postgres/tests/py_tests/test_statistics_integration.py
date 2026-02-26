@@ -81,7 +81,7 @@ async def test_insert_updates_statistics(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_stats_insert")
-        except:
+        except Exception:
             pass
 
 
@@ -150,7 +150,7 @@ async def test_update_updates_statistics(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_stats_update")
-        except:
+        except Exception:
             pass
 
 
@@ -206,7 +206,7 @@ async def test_delete_updates_statistics(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_stats_delete")
-        except:
+        except Exception:
             pass
 
 
@@ -270,7 +270,7 @@ async def test_analyze_resets_mod_since_analyze(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_stats_analyze")
-        except:
+        except Exception:
             pass
 
 
@@ -355,7 +355,7 @@ async def test_combined_operations_statistics(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_stats_combined")
-        except:
+        except Exception:
             pass
 
 
@@ -405,7 +405,7 @@ async def test_bulk_insert_statistics(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_stats_bulk")
-        except:
+        except Exception:
             pass
 
 
@@ -473,7 +473,7 @@ async def test_dead_tuples_always_zero(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_stats_dead")
-        except:
+        except Exception:
             pass
 
 
@@ -528,7 +528,7 @@ async def test_vacuum_does_not_crash(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_vacuum")
-        except:
+        except Exception:
             pass
 
 
@@ -593,7 +593,7 @@ async def test_concurrent_insert_and_analyze(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_concurrent")
-        except:
+        except Exception:
             pass
 
 
@@ -662,7 +662,7 @@ async def test_autovacuum_integration(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_autovacuum")
-        except:
+        except Exception:
             pass
 
 
@@ -740,7 +740,7 @@ async def test_pg_class_reltuples_after_analyze(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_reltuples")
-        except:
+        except Exception:
             pass
 
 
@@ -804,7 +804,7 @@ async def test_pg_class_reltuples_small_table(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_reltuples_small")
-        except:
+        except Exception:
             pass
 
 
@@ -879,7 +879,7 @@ async def test_large_bulk_insert_with_statistics(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_bulk_stats")
-        except:
+        except Exception:
             pass
 
 
@@ -954,7 +954,7 @@ async def test_column_statistics_null_frac(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_col_stats_nulls")
-        except:
+        except Exception:
             pass
 
 
@@ -1046,7 +1046,7 @@ async def test_column_statistics_n_distinct(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_col_stats_distinct")
-        except:
+        except Exception:
             pass
 
 
@@ -1142,7 +1142,7 @@ async def test_column_statistics_most_common_values(db_conn: asyncpg.Connection)
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_col_stats_mcv")
-        except:
+        except Exception:
             pass
 
 
@@ -1211,7 +1211,7 @@ async def test_column_statistics_text_column(db_conn: asyncpg.Connection):
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_col_stats_text")
-        except:
+        except Exception:
             pass
 
 
@@ -1285,5 +1285,5 @@ async def test_column_statistics_query_planner_uses_stats(db_conn: asyncpg.Conne
     finally:
         try:
             await db_conn.execute("DROP TABLE IF EXISTS test_col_stats_planner")
-        except:
+        except Exception:
             pass

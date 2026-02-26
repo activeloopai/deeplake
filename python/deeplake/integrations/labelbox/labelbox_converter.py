@@ -345,7 +345,7 @@ class labelbox_type_converter:
         for tensor_name, v in generators.items():
             try:
                 self.dataset.add_column(tensor_name, **v["create_tensor_kwargs"])
-            except:
+            except Exception:
                 pass
 
     def fill_metadata_(
