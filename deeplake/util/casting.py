@@ -20,6 +20,17 @@ def _get_bigger_dtype(d1, d2):
             return np.object
 
 
+# Map Python scalar types to their default NumPy equivalents.
+# NumPy 2.x (NEP 50) no longer accepts raw Python scalars in np.can_cast,
+# so we resolve them to a concrete dtype before calling can_cast.
+_PYTHON_TYPE_TO_NUMPY_DTYPE = {
+    float: np.float64,
+    int: np.int64,
+    bool: np.bool_,
+    complex: np.complex128,
+}
+
+
 def get_dtype(val: Union[np.ndarray, Sequence, Sample]) -> np.dtype:
     """Get the dtype of a non-uniform mixed dtype sequence of samples."""
 
@@ -133,12 +144,15 @@ def get_incompatible_dtype(
         elif samples.size == 1:
             samples = samples.reshape(1).tolist()[0]
 
-    if isinstance(samples, (int, float, bool)) or hasattr(samples, "dtype"):
-        return (
-            None
-            if np.can_cast(samples, dtype)
-            else getattr(samples, "dtype", np.array(samples).dtype)
-        )
+    py_type = type(samples)
+    if py_type in _PYTHON_TYPE_TO_NUMPY_DTYPE:
+        # NumPy 2.x (NEP 50) removed support for passing raw Python scalars to
+        # np.can_cast. Convert to the equivalent NumPy dtype first.
+        from_dtype = _PYTHON_TYPE_TO_NUMPY_DTYPE[py_type]
+        return None if np.can_cast(from_dtype, dtype, casting="same_kind") else from_dtype
+    elif hasattr(samples, "dtype"):
+        from_dtype = samples.dtype
+        return None if np.can_cast(from_dtype, dtype, casting="same_kind") else from_dtype
     elif isinstance(samples, str):
         return None if dtype == np.dtype(str) else np.dtype(str)
     elif isinstance(samples, Sequence):
