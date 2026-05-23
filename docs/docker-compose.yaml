@@ -3,7 +3,7 @@ services:
     container_name: deeplake-docs
     build:
       context: ..
-      dockerfile: dockerfiles/Dockerfile
+      dockerfile: docs/Dockerfile
     ports:
       - '8000:8000'
     volumes:
