@@ -127,7 +127,7 @@ if (${AL_PG})
     find_package(PkgConfig)
 
     pkg_check_modules(liburing IMPORTED_TARGET GLOBAL liburing>=2.0)
-    
+
     include(CheckCSourceCompiles)
     set(CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
     check_c_source_compiles("
@@ -140,7 +140,7 @@ if (${AL_PG})
             return 0;
         }
     " HAVE_STATX)
-    
+
     if(liburing_FOUND AND HAVE_STATX)
         set(HAVE_LIBURING TRUE)
         add_compile_definitions(HAVE_LIBURING=1)

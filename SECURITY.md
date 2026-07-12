@@ -16,7 +16,7 @@ Please include the requested information listed below (as much as you can provid
 * Proof-of-concept or exploit code (if possible)
 * Impact of the issue, including how an attacker might exploit the issue
 
-You should receive a response within 72 hours. If for some reason you do not, please follow up via email to ensure we received your original message. 
+You should receive a response within 72 hours. If for some reason you do not, please follow up via email to ensure we received your original message.
 
 After the initial reply to your report, the security team will endeavor to keep
 you informed of the progress being made towards a fix and full announcement,

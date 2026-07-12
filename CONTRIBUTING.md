@@ -31,7 +31,7 @@ pip3 install -r deeplake/requirements/tests.txt
 - `pytest .`: Run all tests with memory only.
 - `pytest . --local`: Run all tests with memory and local.
 - `pytest . --s3`: Run all tests with memory and s3.
-- `pytest . --gcs`: Run all tests with memory and GCS 
+- `pytest . --gcs`: Run all tests with memory and GCS
 - `pytest . --kaggle`: Run all tests that use the kaggle API.
 - `pytest . --memory-skip --hub-cloud`: Run all tests with hub cloud only.
 #### Backwards Compatibility Tests
