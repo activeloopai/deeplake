@@ -49,7 +49,7 @@ def convert_pathlib_to_string_if_needed(path: Union[str, pathlib.Path]) -> str:
 
 
 def verify_coco_annotation_dict(
-    annotation_files: Dict[str, Union[str, pathlib.Path]] = {}
+    annotation_files: Dict[str, Union[str, pathlib.Path]] = {},
 ):
     return {
         key: convert_pathlib_to_string_if_needed(value)
@@ -190,6 +190,14 @@ class COCOStructuredDataset:
             f"{tensor_prefix}{self.key_to_column_mapping['masks']}",
             dp.types.BinaryMask(sample_compression="lz4"),
         )
+        self.dataset.add_column(
+            f"{tensor_prefix}{self.key_to_column_mapping['areas']}",
+            dp.types.Array("uint32", 1),
+        )
+        self.dataset.add_column(
+            f"{tensor_prefix}{self.key_to_column_mapping['iscrowds']}",
+            dp.types.Array("bool", 1),
+        )
 
         cat_path = f"{tensor_prefix}{self.key_to_column_mapping['categories']}"
         supercat_path = (
@@ -201,37 +209,37 @@ class COCOStructuredDataset:
             file_key
         ]
 
-        sample_ann = self.coco_instances[file_key].loadAnns(
-            self.coco_instances[file_key].getAnnIds(self.img_ids[0])
-        )[0]
+        sample_anns = []
+        coco = self.coco_instances[file_key]
+        for image_id in self.img_ids:
+            ann_ids = coco.getAnnIds(image_id)
+            if ann_ids:
+                sample_anns = coco.loadAnns(ann_ids)
+                break
 
-        if "area" in sample_ann:
-            self.dataset.add_column(
-                f"{tensor_prefix}{self.key_to_column_mapping['areas']}",
-                dp.types.Array("uint32", 1),
-            )
+        category_keypoints = next(
+            (
+                category["keypoints"]
+                for category in self.category_info[file_key]
+                if "keypoints" in category
+            ),
+            None,
+        )
+        has_keypoints = category_keypoints is not None or any(
+            "keypoints" in ann for ann in sample_anns
+        )
 
-        if "iscrowd" in sample_ann:
-            self.dataset.add_column(
-                f"{tensor_prefix}{self.key_to_column_mapping['iscrowds']}",
-                dp.types.Array("bool", 1),
-            )
-
-        if "keypoints" in sample_ann:
+        if has_keypoints:
             self.keypoints_group[group_prefix] = True
             self.dataset.add_column(
                 f"{tensor_prefix}{self.key_to_column_mapping['keypoints']}",
                 dp.types.Array("int32", 2),
             )
 
-            if "keypoints" in self.category_info[file_key][0]:
+            if category_keypoints is not None:
                 self.dataset[
                     f"{tensor_prefix}{self.key_to_column_mapping['keypoints']}"
-                ].metadata["keypoints"] = [
-                    category["keypoints"] for category in self.category_info[file_key]
-                ][
-                    0
-                ]
+                ].metadata["keypoints"] = category_keypoints
 
     def create_structure(self):
         """Create the complete dataset structure"""
