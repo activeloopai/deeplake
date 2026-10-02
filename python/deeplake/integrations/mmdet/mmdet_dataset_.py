@@ -556,11 +556,7 @@ class MMDetDataset(MMDetTorchDataset):
 
     def __len__(self):
         if self.mode == "val":
-            per_gpu_length = math.floor(
-                len(self.dataset) / (self.batch_size * self.num_gpus)
-            )
-            total_length = per_gpu_length * self.num_gpus
-            return total_length
+            return len(self.dataset)
         return super().__len__()
 
     def _get_images(self, images_tensor):
