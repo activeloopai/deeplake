@@ -1,3 +1,6 @@
+from urllib.parse import quote
+
+
 def load_blob_file_paths_from_azure(
     storage_account_name,
     container_name,
@@ -19,7 +22,7 @@ def load_blob_file_paths_from_azure(
     # List blobs in the directory
     blob_list = container_client.list_blobs(name_starts_with=parent_path)
     file_url_list = [
-        f"{account_url}/{container_name}/{blob.name}"
+        f"{account_url}/{container_name}/{quote(blob.name, safe='/')}"
         + (f"?{sas_token}" if sign_urls else "")
         for blob in blob_list
         if predicate(blob.name)
