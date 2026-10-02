@@ -262,18 +262,34 @@ def convert(
         iterable_cols = [col for col in column_names if col not in links]
         link_sample_info = {link: source[link]._links_info() for link in links}
         dest.set_creds_key(link_sample_info[links[0]]["key"])
-        quoted_cols = ['"' + col + '"' for col in iterable_cols]
-        joined_cols = ",".join(quoted_cols)
-        pref_ds = source.query(f"SELECT {joined_cols}")
-        dl = deeplake._deeplake._Prefetcher(pref_ds, raw_columns=set(get_raw_columns(source)))
+        if iterable_cols:
+            quoted_cols = ['"' + col + '"' for col in iterable_cols]
+            joined_cols = ",".join(quoted_cols)
+            pref_ds = source.query(f"SELECT {joined_cols}")
+            dl = deeplake._deeplake._Prefetcher(
+                pref_ds, raw_columns=set(get_raw_columns(source))
+            )
+        else:
+            chunk_size = 100
 
+            def link_batches():
+                for start_index in range(0, len(source), chunk_size):
+                    end_index = min(start_index + chunk_size, len(source))
+                    yield {
+                        link: link_sample_info[link]["data"][start_index:end_index]
+                        for link in links
+                    }
+
+            dl = link_batches()
+
+        row_offset = 0
         for counter, batch in enumerate(progress_bar(dl), start=1):
-            batch_size = len(batch[iterable_cols[0]])
-            for link in links:
-                link_data = link_sample_info[link]["data"]
-                start_index = (counter - 1) * batch_size
-                end_index = min((counter) * batch_size, len(link_data))
-                batch[link] = link_data[start_index:end_index]
+            if iterable_cols:
+                batch_size = len(batch[iterable_cols[0]])
+                for link in links:
+                    link_data = link_sample_info[link]["data"]
+                    batch[link] = link_data[row_offset : row_offset + batch_size]
+                row_offset += batch_size
 
             dest.append(batch)
             if counter % 100 == 0:
