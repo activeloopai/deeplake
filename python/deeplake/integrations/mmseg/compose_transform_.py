@@ -38,7 +38,7 @@ def transform(
     try:
         mask = sample_in[masks_tensor]
     except Exception as e:
-        raise InvalidSegmentMaskError(images_tensor, e)
+        raise InvalidSegmentError(masks_tensor, e)
     if not isinstance(mask, np.ndarray):
         mask = np.array(mask)
 
