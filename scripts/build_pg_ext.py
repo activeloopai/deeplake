@@ -119,6 +119,9 @@ def run(mode: str, incremental: bool, deeplake_link_type: str = None, pg_version
     if mode not in modes:
         raise Exception(f"Invalid mode - '{mode}'. Possible values - {', '.join(modes)}")
 
+    if not incremental:
+        invalidate_mode()
+
     os.chdir("cpp")
 
     # include path to specific verison from manylinux docker container in the path, so vcpkg_find_acquire_package can find it
@@ -178,7 +181,8 @@ def run(mode: str, incremental: bool, deeplake_link_type: str = None, pg_version
 
     finally:
         os.chdir("..")
-        write_mode(mode)
+
+    write_mode(mode)
 
 def read_mode():
     try:
@@ -192,6 +196,20 @@ def read_mode():
             return data["deeplake-pg"]["mode"]
     except Exception as e:
         raise Exception("No previous mode found for incremental build. Please run full build.")
+
+
+def invalidate_mode():
+    try:
+        with open('.buildinfo') as f:
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return
+
+    previous = data.get("deeplake-pg")
+    if isinstance(previous, dict) and "mode" in previous:
+        del previous["mode"]
+        with open('.buildinfo', 'w') as f:
+            json.dump(data, f)
 
 
 def write_mode(mode: str):
