@@ -67,15 +67,12 @@ def frame_generator_(
             else:
                 raise e
 
-    try:
-        container = get_video_container(retries)
-        print(f"Start generating frames from {video_path}")
-        frame_num = 0
-        for frame in container.decode(video=0):
-            yield frame_num, frame.to_ndarray(format="rgb24")
-            frame_num += 1
-    except Exception as e:
-        print(f"Failed generating frames: {e}")
+    container = get_video_container(retries)
+    print(f"Start generating frames from {video_path}")
+    frame_num = 0
+    for frame in container.decode(video=0):
+        yield frame_num, frame.to_ndarray(format="rgb24")
+        frame_num += 1
 
 
 def frames_batch_generator_(
