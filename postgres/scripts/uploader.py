@@ -32,6 +32,7 @@ s3_client = boto3.client(
 
 
 def upload_directory(local_directory, bucket_name):
+    failed_uploads = []
     for root, dirs, files in os.walk(local_directory):
         for filename in files:
             local_path = os.path.join(root, filename)
@@ -42,8 +43,13 @@ def upload_directory(local_directory, bucket_name):
                 print(f"Uploaded: '{local_path}' → '{s3_path}'")
             except Exception as e:
                 print(f"Failed to upload '{local_path}': {e}")
+                failed_uploads.append(local_path)
+    return failed_uploads
 
 
 print(f"Starting upload of '{directory_to_upload}' to R2 bucket '{R2_BUCKET_NAME}'...")
-upload_directory(directory_to_upload, R2_BUCKET_NAME)
+failed_uploads = upload_directory(directory_to_upload, R2_BUCKET_NAME)
+if failed_uploads:
+    print(f"Upload failed for {len(failed_uploads)} file(s).")
+    sys.exit(1)
 print("Upload completed successfully!")
