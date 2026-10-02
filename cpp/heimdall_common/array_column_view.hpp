@@ -120,7 +120,7 @@ protected:
     {
         ASSERT(index >= 0);
         ASSERT(index < samples_count());
-        return async::fulfilled(samples_count() == 1 ? data_ : data_[index]);
+        return async::fulfilled(data_.dimensions() == 0 ? data_ : data_[index]);
     }
 
     async::promise<nd::array>
