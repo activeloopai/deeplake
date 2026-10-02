@@ -110,18 +110,12 @@ class MMSegDataset(MMSegTorchDataset):
             )
 
         mask_col = self._get_masks(self.masks_tensor_name)
-        last_successful_index = -1
         for idx in range(len(self)):
             try:
                 result = upcast_array(mask_col[idx])
-                last_successful_index = idx
                 yield result
             except Exception as e:
-                print(f"Error processing mask at index {idx}: {e}")
-                if last_successful_index == -1:
-                    continue
-                else:
-                    yield upcast_array(mask_col[last_successful_index])
+                raise InvalidSegmentError(self.masks_tensor_name, e) from e
 
     def evaluate(self, results, metric="mIoU", logger=None, gt_seg_maps=None, **kwargs):
         """Evaluate the dataset.
