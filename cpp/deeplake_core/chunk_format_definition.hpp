@@ -243,6 +243,7 @@ class video_datafile_format
 public:
     explicit video_datafile_format(nd::type type, codecs::compression compression)
         : type_(std::move(type))
+        , compression_(compression)
     {
     }
 
