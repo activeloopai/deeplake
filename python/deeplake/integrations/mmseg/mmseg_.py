@@ -338,7 +338,7 @@ def train_segmentor(
     check_unsupported_functionalities(cfg)
 
     if not hasattr(cfg, "gpu_ids"):
-        cfg.gpu_ids = range(torch.cuda.device_count() if distributed else range(1))
+        cfg.gpu_ids = range(torch.cuda.device_count() if distributed else 1)
     if distributed:
         return torch.multiprocessing.spawn(
             _train_segmentor,
