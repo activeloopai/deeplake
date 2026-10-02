@@ -54,13 +54,14 @@ def get_indexes(
     if drop_last:
         total_size = (dataset_length // num_replicas) * num_replicas
         per_process = total_size // num_replicas
+        start_index = rank * per_process
     else:
         per_process = math.ceil(dataset_length / num_replicas)
-        total_size = per_process * num_replicas
+        # Distribute the starting offsets across the full dataset. This keeps each
+        # rank's slice at ``per_process`` items, repeating boundary items when the
+        # dataset length is not divisible by the number of replicas.
+        start_index = (rank * dataset_length) // num_replicas
 
-    start_index = rank * per_process
-    end_index = min(start_index + per_process, total_size)
-
-    end_index = min(end_index, dataset_length)
+    end_index = min(start_index + per_process, dataset_length)
 
     return slice(start_index, end_index)
