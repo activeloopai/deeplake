@@ -36,6 +36,9 @@ from deeplake.types import TypeKind
 from deeplake.integrations.mm.upcast_array import upcast_array
 from deeplake.integrations.mm.warnings import always_warn
 from deeplake.integrations.mmdet import mmdet_utils_
+from deeplake.integrations.mmdet._bbox_converters import (
+    yolo_pixel_2_pascal_pixel as _yolo_pixel_2_pascal_pixel,
+)
 
 from torch.utils.data import DataLoader
 
@@ -142,14 +145,7 @@ def yolo_pixel_2_pascal_pixel(boxes, shape):
 
     @return: numpy array of shape (N, 4), bounding boxes in Pascal VOC format.
     """
-    bbox = np.empty((0, 4), dtype=boxes.dtype)
-    if boxes.size != 0:
-        x_top = np.array(boxes[:, 0]) - np.floor(np.array(boxes[:, 2]) / 2)
-        y_top = np.array(boxes[:, 1]) - np.floor(np.array(boxes[:, 3]) / 2)
-        x_bottom = np.array(boxes[:, 0]) + np.floor(np.array(boxes[:, 2]) / 2)
-        y_bottom = np.array(boxes[:, 1]) + np.floor(np.array(boxes[:, 3]) / 2)
-        bbox = np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
-    return bbox
+    return _yolo_pixel_2_pascal_pixel(boxes, shape)
 
 
 def yolo_frac_2_pascal_pixel(boxes, shape):
