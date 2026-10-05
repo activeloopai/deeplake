@@ -7,6 +7,8 @@
 #include <icm/slice.hpp>
 #include <icm/vector.hpp>
 
+#include <cstdint>
+
 namespace {
 
 template <typename I>
@@ -222,7 +224,20 @@ public:
                 if (step < 0) {
                     should_reverse = true;
                 }
-                dim = std::ceil((stop - start) / static_cast<float>(step));
+                if constexpr (std::is_integral_v<I>) {
+                    const auto start64 = static_cast<int64_t>(start);
+                    const auto stop64 = static_cast<int64_t>(stop);
+                    const auto step64 = static_cast<int64_t>(step);
+                    if (step64 > 0 && stop64 > start64) {
+                        dim = 1 + (stop64 - start64 - 1) / step64;
+                    } else if (step64 < 0 && stop64 < start64) {
+                        const auto distance = static_cast<uint64_t>(start64) - static_cast<uint64_t>(stop64);
+                        const auto step_magnitude = uint64_t{0} - static_cast<uint64_t>(step64);
+                        dim = static_cast<int64_t>(1 + (distance - 1) / step_magnitude);
+                    }
+                } else {
+                    dim = std::ceil((stop - start) / static_cast<float>(step));
+                }
             }
 
             new_shape[i] = std::max(dim, static_cast<int64_t>(0));
