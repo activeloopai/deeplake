@@ -16,7 +16,6 @@ This reference documents the Python API of Deep Lake.
 - [Query Language](query.md): Complete TQL syntax and operations
 - [Metadata](metadata.md): Dataset and column metadata management
 - [Version Control](version_control.md): Version control, history, branches, and tags
-- [Miscellaneous](misc.md): Additional auxiliary functionality
 
 ## Index Management
 

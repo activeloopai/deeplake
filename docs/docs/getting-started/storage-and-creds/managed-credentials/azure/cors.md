@@ -19,7 +19,7 @@ Cross-Origin Resource Sharing (CORS) is typically enabled by default in Azure. I
 
 4\. Add the following items to the permissions.
 
-<figure><img src="images/Azure_CORS_1.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="images/Azure_CORS_2.png" alt=""><figcaption></figcaption></figure>
 
 | Allowed origins           | Allowed methods | Allowed headers |
 | ------------------------- | --------------- | --------------- |

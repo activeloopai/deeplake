@@ -17,11 +17,11 @@ The most secure method for connecting data from your AWS account to Deep Lake is
 
 3\. In the left nav, open the `Policies` under `Access management` and on `Create policy` on the right.
 
-<figure><img src="../images/IAM_Provisioning_Screenshots.001.jpeg" alt=""><figcaption></figcaption></figure>
+<figure><img src="images/IAM_Provisioning_Screenshots.001.jpeg" alt=""><figcaption></figcaption></figure>
 
 5\. Select the `JSON` tab instead of `Visual editor`.
 
-<figure><img src="../images/IAM_Provisioning_Screenshots.002.jpeg" alt=""><figcaption></figcaption></figure>
+<figure><img src="images/IAM_Provisioning_Screenshots.002.jpeg" alt=""><figcaption></figcaption></figure>
 
 6\. Replace the code in the editor with the code below. Replace `BUCKET_NAME` with the bucket names for which you want to grant role-based access:
 
@@ -50,17 +50,17 @@ The most secure method for connecting data from your AWS account to Deep Lake is
 
 7\. On the bottom right, click `Next: Tags` (create tags if needed) and `Next: Preview`, enter the policy `name` and `description`, and click `Create policy`
 
-<figure><img src="../images/IAM_Provisioning_Screenshots.003.jpeg" alt=""><figcaption></figcaption></figure>
+<figure><img src="images/IAM_Provisioning_Screenshots.003.jpeg" alt=""><figcaption></figcaption></figure>
 
 #### Step 2: Create the AWS IAM Role&#x20;
 
 1\. On the `IAM` page, in the left nav, open the `Roles` under `Access management`, and click `Create role` on the right.
 
-<figure><img src="../images/IAM_Provisioning_Screenshots.004.jpeg" alt=""><figcaption></figcaption></figure>
+<figure><img src="images/IAM_Provisioning_Screenshots.004.jpeg" alt=""><figcaption></figcaption></figure>
 
 3\. Select `Custom trust policy` from the list of options.
 
-<figure><img src="../images/IAM_Provisioning_Screenshots.005.jpeg" alt=""><figcaption></figcaption></figure>
+<figure><img src="images/IAM_Provisioning_Screenshots.005.jpeg" alt=""><figcaption></figcaption></figure>
 
 4\. Replace the policy definition with the code below and click `Next`
 
@@ -83,11 +83,11 @@ The most secure method for connecting data from your AWS account to Deep Lake is
 
 5\. From the provided policy list, select the previously created policy from Step 1 and click `Next`
 
-<figure><img src="../images/IAM_Provisioning_Screenshots.010.jpeg" alt=""><figcaption></figcaption></figure>
+<figure><img src="images/IAM_Provisioning_Screenshots.010.jpeg" alt=""><figcaption></figcaption></figure>
 
 6\. Set the `name` and `description` for the role and click `Create role` at the bottom.
 
-<figure><img src="../images/IAM_Provisioning_Screenshots.007.jpeg" alt=""><figcaption></figcaption></figure>
+<figure><img src="images/IAM_Provisioning_Screenshots.007.jpeg" alt=""><figcaption></figcaption></figure>
 
 #### Step 3: Grant Access to AWS KMS Key (**only for buckets that are encrypted with customer managed KMS keys**)
 
@@ -95,11 +95,11 @@ The most secure method for connecting data from your AWS account to Deep Lake is
 
 2\. Open the bucket Properties
 
-<figure><img src="../images/IAM_Provisioning_Screenshots.008.jpeg" alt=""><figcaption></figcaption></figure>
+<figure><img src="images/IAM_Provisioning_Screenshots.008.jpeg" alt=""><figcaption></figcaption></figure>
 
 3\. Scroll down to Default encryption and copy the `AWS KMS key ARN`&#x20;
 
-<figure><img src="../images/IAM_Provisioning_Screenshots.009.jpeg" alt=""><figcaption></figcaption></figure>
+<figure><img src="images/IAM_Provisioning_Screenshots.009.jpeg" alt=""><figcaption></figcaption></figure>
 
 4\. In the Policy creation step (Step 1, Sub-step 6), use the JSON below in the policy statement, and replace `YOUR_KMS_KEY_ARN` with the copied Key ARN for the encrypted bucket.
 
@@ -129,7 +129,7 @@ The most secure method for connecting data from your AWS account to Deep Lake is
                 "kms:DescribeKey"
             ],
             "Resource": [
-                "YOUR_KMS_KEY_ARN”
+                "YOUR_KMS_KEY_ARN"
             ]
         }
     ]

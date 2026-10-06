@@ -105,6 +105,8 @@ deeplake.create = create
 
 ```python
 # 1. Create v4 dataset with desired schema
+old_ds_path = "hub://org_name/v3_dataset"  # Replace with the v3 dataset path to migrate.
+batch_size = 32
 ds = deeplake.create("s3://new/dataset")
 ds.add_column("embeddings", deeplake.types.Embedding(768))
 ds.add_column("images", deeplake.types.Image()) 
@@ -117,7 +119,8 @@ source = deeplake.query(f'SELECT * FROM "{old_ds_path}"')
 for i in range(0, len(source), batch_size):
     batch = source[i:i+batch_size]
     ds.append(batch)
-    if i % 10000 == 0:
+    processed = i + len(batch)
+    if processed // 10000 > i // 10000 or processed == len(source):
         ds.commit()
 ```
 

@@ -66,11 +66,13 @@ lock = Lock()
 index = -1
 def generate_data(ds: deeplake.Dataset):
     total_count = len(ds)
+    if total_count == 0:
+        return
     global index
     while True:
         idx = 0
         with lock:
-            index = (index + 1) % (total_count - 1)
+            index = (index + 1) % total_count
             idx = index
         yield ds[idx]
 

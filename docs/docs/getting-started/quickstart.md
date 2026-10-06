@@ -55,7 +55,7 @@ ds = deeplake.create("path/to/dataset")
 # Or create in cloud storage
 ds = deeplake.create("s3://my-bucket/dataset")
 ds = deeplake.create("gcs://my-bucket/dataset")
-ds = deeplake.create("azure://container/dataset")
+ds = deeplake.create("azure://<account_name>/<container_name>/<dataset_name>")
 ```
 
 ## Adding Data
@@ -179,8 +179,8 @@ cats = future.result()
 
 ## Next Steps
 
-- Explore [RAG applications](../../guide/rag)
-- Check out [Deep Learning integration](../../guide/deep-learning/deep-learning)
+- Explore [RAG applications](../guide/rag.md)
+- Check out [Deep Learning integration](../guide/deep-learning/deep-learning.ipynb)
 
 ## Support
 

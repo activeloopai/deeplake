@@ -229,7 +229,7 @@ results = deeplake.query("""
         l.label
     FROM "s3://bucket1/images" AS i
     JOIN "gcs://bucket2/embeddings" AS e ON i.id = e.image_id
-    JOIN "azure://container/labels" AS l ON i.id = l.image_id
+    JOIN "azure://<account_name>/<container_name>/labels" AS l ON i.id = l.image_id
     WHERE l.confidence > 0.9
     ORDER BY COSINE_SIMILARITY(e.embedding, ARRAY[0.1, 0.2, 0.3]) DESC
     LIMIT 100

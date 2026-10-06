@@ -122,7 +122,7 @@ SELECT AVG(features, axis=0) FROM dataset
 SELECT i.image, e.embedding, m.metadata
 FROM "s3://bucket1/images" AS i
 JOIN "gcs://bucket2/embeddings" AS e ON i.id = e.image_id  
-JOIN "azure://container/meta" AS m ON i.id = m.image_id
+JOIN "azure://<account_name>/<container_name>/meta" AS m ON i.id = m.image_id
 WHERE m.verified = true
 ORDER BY COSINE_SIMILARITY(e.embedding, ARRAY[0.1,0.2,0.3]) DESC
 ```
