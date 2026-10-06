@@ -842,7 +842,7 @@ for v in sorted_documents.values():
     print(f"Restaurant name: {v.data['restaurant_name']} \nReview: {v.data['restaurant_review']}")
 ```
 
-The printed rows depend on the contents of both datasets.
+Example output from one run (your rows may differ if either dataset changes):
 
 Restaurant name: Olympus Caffe & Bakery
 Review: I like the garden to sit down with friends and have a drink.

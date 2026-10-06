@@ -117,7 +117,7 @@ source = deeplake.query(f'SELECT * FROM "{old_ds_path}"')
 
 # 3. Migrate in batches with progress tracking
 for i in range(0, len(source), batch_size):
-    batch = source[i:i+batch_size]
+    batch = [row.to_dict() for row in source[i:i+batch_size]]
     ds.append(batch)
     processed = i + len(batch)
     if processed // 10000 > i // 10000 or processed == len(source):
