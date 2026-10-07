@@ -97,7 +97,7 @@ class COCOStructuredDataset:
 
         return categories_kp, supercats_kp, masks_kp, boxes_kp, keypoints_kp
 
-    def get_stuff_group_data(self, height, width, ann, anns_stuff):
+    def get_stuff_group_data(self, height, width, anns_stuff):
         # Iterate through stuff and parse each
         masks_stuff = np.zeros((height, width, len(anns_stuff)))
         boxes_stuff = np.zeros((len(anns_stuff), 4))
@@ -109,7 +109,7 @@ class COCOStructuredDataset:
         for k, ann_stuff in enumerate(anns_stuff):
             mask_stuff = self.coco.annToMask(ann_stuff)  # Convert annotation to mask
             masks_stuff[:, :, k] = mask_stuff
-            boxes_stuff[k, :] = ann["bbox"]
+            boxes_stuff[k, :] = ann_stuff["bbox"]
 
             # Do a brute force search and make no assumptions between order of relationship of category ids
             categories_stuff[k] = self.cat_names_stuff.index(
@@ -290,7 +290,7 @@ class COCOStructuredDataset:
                 areas_stuff,
                 iscrowds_stuff,
                 supercats_stuff,
-            ) = self.get_stuff_group_data(height, width, ann, anns_stuff)
+            ) = self.get_stuff_group_data(height, width, anns_stuff)
 
             in_dict = {
                 "images": [image_bytes],
