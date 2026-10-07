@@ -499,6 +499,7 @@ class MMDetDataset(MMDetTorchDataset):
                 "pipeline": self.pipeline,
                 "num_gpus": self.num_gpus,
                 "batch_size": self.batch_size,
+                "metrics_format": self.metrics_format,
                 "tensors_dict": self.tensors_dict,
                 "bbox_info": self.bbox_info,
             }
@@ -514,6 +515,7 @@ class MMDetDataset(MMDetTorchDataset):
         self.pipeline = state["pipeline"]
         self.num_gpus = state["num_gpus"]
         self.batch_size = state["batch_size"]
+        self.metrics_format = state["metrics_format"]
         self.tensors_dict = state["tensors_dict"]
         self.bbox_info = state["bbox_info"]
 
@@ -528,18 +530,17 @@ class MMDetDataset(MMDetTorchDataset):
             self.masks_type_kind = masks_type_kind
             self.masks = masks[:]
             self.bboxes = self._get_bboxes(self.tensors_dict["boxes_tensor"])
-            bbox_format = get_bbox_format(first_non_empty(self.bboxes), bbox_info)
+            bbox_format = get_bbox_format(first_non_empty(self.bboxes), self.bbox_info)
             self.labels = self._get_labels(self.tensors_dict["labels_tensor"])
             self.iscrowds = self._get_iscrowds(self.tensors_dict.get("iscrowds"))
             self.CLASSES = self.get_classes(self.tensors_dict["labels_tensor"])
-            self.metrics_format = metrics_format
             coco_style_bbox = convert_to_coco_format(
                 self.bboxes, bbox_format, self.images
             )
 
             if self.metrics_format == "COCO":
                 self.evaluator = mmdet_utils_.COCODatasetEvaluater(
-                    pipeline,
+                    self.pipeline,
                     classes=self.CLASSES,
                     deeplake_dataset=self.dataset,
                     imgs=self.images,
@@ -549,7 +550,7 @@ class MMDetDataset(MMDetTorchDataset):
                     labels=self.labels,
                     iscrowds=self.iscrowds,
                     bbox_format=bbox_format,
-                    num_gpus=num_gpus,
+                    num_gpus=self.num_gpus,
                 )
             else:
                 self.evaluator = None
