@@ -239,6 +239,8 @@ def pascal_frac_2_coco_pixel(boxes, images):
             x_bottom = box[:, 2] * shape[1]
             y_bottom = box[:, 3] * shape[0]
             bbox = np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
+        else:
+            bbox = np.empty((0, 4), dtype=box.dtype)
         pascal_pixel_boxes.append(bbox)
     return pascal_pixel_2_coco_pixel(pascal_pixel_boxes, images)
 
@@ -252,6 +254,8 @@ def yolo_pixel_2_coco_pixel(boxes, images):
             w = box[:, 2]
             h = box[:, 3]
             bbox = np.stack([x_top, y_top, w, h], axis=1)
+        else:
+            bbox = np.empty((0, 4), dtype=box.dtype)
         yolo_boxes.append(bbox)
     return yolo_boxes
 
