@@ -192,7 +192,7 @@ class _COCO(pycocotools_coco.COCO):
                 ]
             )
         if not iscrowd == None:
-            ids = [ann["id"] for ann in anns.values() if ann["iscrowd"] == iscrowd]
+            ids = [ann["id"] for ann in anns if ann["iscrowd"] == iscrowd]
         else:
             ids = [ann["id"] for ann in anns]
         return ids
