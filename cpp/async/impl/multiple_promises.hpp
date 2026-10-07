@@ -14,6 +14,7 @@ struct multiple_promises_state_t
 
     explicit multiple_promises_state_t(std::vector<promise<T>>&& promises)
         : promises_(std::move(promises))
+        , promise_count_(promises_.size())
         , results_(promises_.size())
         , completed_count_(0)
     {
@@ -21,12 +22,14 @@ struct multiple_promises_state_t
 
     multiple_promises_state_t(multiple_promises_state_t&& other) noexcept
         : promises_(std::move(other.promises_))
+        , promise_count_(other.promise_count_)
         , results_(std::move(other.results_))
         , completed_count_(other.completed_count_.load())
     {
     }
 
     std::vector<promise<T>> promises_;
+    const std::size_t promise_count_;
     results_t results_;
     std::atomic<std::size_t> completed_count_;
 };
@@ -38,17 +41,20 @@ struct multiple_promises_state_t<void>
 
     explicit multiple_promises_state_t(std::vector<promise<void>>&& promises)
         : promises_(std::move(promises))
+        , promise_count_(promises_.size())
         , completed_count_(0)
     {
     }
 
     multiple_promises_state_t(multiple_promises_state_t&& other) noexcept
         : promises_(std::move(other.promises_))
+        , promise_count_(other.promise_count_)
         , completed_count_(other.completed_count_.load())
     {
     }
 
     std::vector<promise<void>> promises_;
+    const std::size_t promise_count_;
     std::atomic<std::size_t> completed_count_;
 };
 
@@ -138,8 +144,8 @@ private:
             base_t::state().results_[id] = std::move(r.get());
         }
         const auto completed_count = ++base_t::state().completed_count_;
-        ASSERT(completed_count <= promises().size());
-        if (completed_count == promises().size()) {
+        ASSERT(completed_count <= base_t::state().promise_count_);
+        if (completed_count == base_t::state().promise_count_) {
             if constexpr (std::is_void_v<T>) {
                 base_t::set_value();
             } else {
