@@ -2,6 +2,7 @@ import io
 import numpy as np
 from typing import Callable, Optional, List
 from functools import partial
+from PIL import Image
 
 from deeplake.integrations.mm.exceptions import InvalidImageError, InvalidSegmentError
 from deeplake.integrations.mm.upcast_array import upcast_array
