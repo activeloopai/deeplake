@@ -452,6 +452,7 @@ class MMDetDataset(MMDetTorchDataset):
         self.batch_size = batch_size
         self.tensors_dict = tensors_dict
         self.bbox_info = bbox_info
+        self.metrics_format = metrics_format
         if self.mode in ("val", "test"):
             self.images = self._get_images(self.tensors_dict["images_tensor"])
             masks = self._get_masks(self.tensors_dict.get("masks_tensor", None))
@@ -467,7 +468,6 @@ class MMDetDataset(MMDetTorchDataset):
             self.labels = self._get_labels(self.tensors_dict["labels_tensor"])
             self.iscrowds = self._get_iscrowds(self.tensors_dict.get("iscrowds"))
             self.CLASSES = self.get_classes(self.tensors_dict["labels_tensor"])
-            self.metrics_format = metrics_format
             coco_style_bbox = convert_to_coco_format(
                 self.bboxes, bbox_format, self.images
             )
