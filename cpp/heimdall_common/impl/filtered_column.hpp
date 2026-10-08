@@ -129,7 +129,7 @@ private:
             // The incoming filter operates on our filtered space, so we need to expand it
             // to the source space by applying it through our index mapping
             auto expanded_filter = std::make_shared<icm::roaring>();
-            for (int64_t i = 0; i < filter->cardinality() && i < indices_.size(); ++i) {
+            for (int64_t i = 0; i < indices_.size(); ++i) {
                 if (filter->contains(i)) {
                     auto source_idx = indices_[i];
                     if (source_idx < source_size) {
@@ -144,15 +144,15 @@ private:
 
         return source_->index_holder()
             ->run_query(info, data, combined_filter)
-            .then([indices = indices_](auto&& results) {
+            .then([indices = indices_, filter = std::move(filter)](auto&& results) {
                 // Convert results back to our filtered index space
                 for (auto& result : results) {
                     std::vector<int64_t> new_indices;
                     new_indices.reserve(result.indices.size());
                     for (auto source_idx : result.indices) {
-                        // Find where this source index maps to in our filtered space
+                        // Preserve the first-match behavior, restricted to eligible view positions.
                         for (int64_t i = 0; i < indices.size(); ++i) {
-                            if (indices[i] == source_idx) {
+                            if (indices[i] == source_idx && (!filter || filter->contains(i))) {
                                 new_indices.push_back(i);
                                 break;
                             }
