@@ -129,7 +129,7 @@ The most secure method for connecting data from your AWS account to Deep Lake is
                 "kms:DescribeKey"
             ],
             "Resource": [
-                "YOUR_KMS_KEY_ARN”
+                "YOUR_KMS_KEY_ARN"
             ]
         }
     ]

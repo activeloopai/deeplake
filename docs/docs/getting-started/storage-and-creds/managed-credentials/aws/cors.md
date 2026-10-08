@@ -18,7 +18,7 @@ In order to visualize Deep Lake datasets stored in your own S3 buckets in the [D
             "HEAD"
         ],
         "AllowedOrigins": [
-            "*.activeloop.ai"
+            "https://*.activeloop.ai"
         ],
         "ExposeHeaders": []
     }

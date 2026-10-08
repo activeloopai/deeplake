@@ -111,7 +111,7 @@ data = dict(
     ),
     val=dict(
         pipeline=test_pipeline,
-        deeplake_path="hub://activeloop/coco-val-seg-mask"",
+        deeplake_path="hub://activeloop/coco-val-seg-mask",
         deeplake_tensors = {"img": "images", "gt_semantic_seg": "seg_masks"},
         deeplake_dataloader={"shuffle": False, "batch_size": 1, "num_workers": 0, "drop_last": True}
     )

@@ -580,7 +580,7 @@ class Document(BaseModel):
     data: Dict[str, Any]
     score: Optional[float] = None
 
-def softmax(retrieved_score: list[float], max_weight: int = 700) -> Dict[str, Document]:
+def softmax(retrieved_score: list[float], max_weight: int = 700) -> list[float]:
     # Compute the exponentials
     exp_scores = [math.exp(min(score, max_weight)) for score in retrieved_score]
     
@@ -672,7 +672,7 @@ def fusion(docs_vs: Dict[str, Document], docs_bm25: Dict[str, Document]) -> Dict
     VECTOR_WEIGHT = 0.5
     LEXICAL_WEIGHT = 0.5
 
-    results: Dict[str, Dict[str, Document]] = {}
+    results: Dict[str, Document] = {}
     
 
     for k in set(docs_vs) | set(docs_bm25):
@@ -691,16 +691,16 @@ print(results)
 
 Output:
 ```
-{'2637': Document(id='2637', data={'restaurant_name': 'Mifen101 花溪米粉王', 'restaurant_review': 'Feel like I’m back in China.'}, score=0.013747293509625419),
- '5136': Document(id='5136', data={'restaurant_name': 'Scratch', 'restaurant_review': 'Just had drinks. They were good!'}, score=0.024505473374994282),
- '17426': Document(id='17426', data={'restaurant_name': "St. Stephen's Green", 'restaurant_review': 'Good drinks an easy going bartenders'}, score=0.024579178342433523),
- '17444': Document(id='17444', data={'restaurant_name': "St. Stephen's Green", 'restaurant_review': 'Good drinks, good food'}, score=0.02475096426920331),
- '2496': Document(id='2496', data={'restaurant_name': 'Seasons Noodles & Dumplings Garden', 'restaurant_review': 'Comfort food, excellent service! Feel like back to home.'}, score=0.005430922978171003),
- '4022': Document(id='4022', data={'restaurant_name': 'Eureka! Mountain View', 'restaurant_review': 'Good drinks and burgers'}, score=0.0246334319067476),
- '3518': Document(id='3518', data={'restaurant_name': 'Olympus Caffe & Bakery', 'restaurant_review': 'I like the garden to sit down with friends and have a drink.'}, score=0.08915287739833623),
- '17502': Document(id='17502', data={'restaurant_name': "St. Stephen's Green", 'restaurant_review': 'Nice place for a drink'}, score=0.02653095210662131),
- '11383': Document(id='11383', data={'restaurant_name': 'Ludwigs Biergarten Mountain View', 'restaurant_review': 'Beer is fresh tables are big feel like a proper beer garden'}, score=0.011447537567869991),
- '10788': Document(id='10788', data={'restaurant_name': 'Casa Lupe', 'restaurant_review': 'Run by a family that makes you feel like part of the family. Awesome food. I love their wet Chili Verde burritos'}, score=0.00522136854599736)}
+{'2637': Document(id='2637', data={'restaurant_name': 'Mifen101 花溪米粉王', 'restaurant_review': 'Feel like I’m back in China.'}, score=0.054989174038501676),
+ '5136': Document(id='5136', data={'restaurant_name': 'Scratch', 'restaurant_review': 'Just had drinks. They were good!'}, score=0.09802189349997713),
+ '17426': Document(id='17426', data={'restaurant_name': "St. Stephen's Green", 'restaurant_review': 'Good drinks an easy going bartenders'}, score=0.09831671336973409),
+ '17444': Document(id='17444', data={'restaurant_name': "St. Stephen's Green", 'restaurant_review': 'Good drinks, good food'}, score=0.09900385707681324),
+ '2496': Document(id='2496', data={'restaurant_name': 'Seasons Noodles & Dumplings Garden', 'restaurant_review': 'Comfort food, excellent service! Feel like back to home.'}, score=0.02172369191268401),
+ '4022': Document(id='4022', data={'restaurant_name': 'Eureka! Mountain View', 'restaurant_review': 'Good drinks and burgers'}, score=0.0985337276269904),
+ '3518': Document(id='3518', data={'restaurant_name': 'Olympus Caffe & Bakery', 'restaurant_review': 'I like the garden to sit down with friends and have a drink.'}, score=0.3566115095933449),
+ '17502': Document(id='17502', data={'restaurant_name': "St. Stephen's Green", 'restaurant_review': 'Nice place for a drink'}, score=0.10612380842648524),
+ '11383': Document(id='11383', data={'restaurant_name': 'Ludwigs Biergarten Mountain View', 'restaurant_review': 'Beer is fresh tables are big feel like a proper beer garden'}, score=0.045790150271479965),
+ '10788': Document(id='10788', data={'restaurant_name': 'Casa Lupe', 'restaurant_review': 'Run by a family that makes you feel like part of the family. Awesome food. I love their wet Chili Verde burritos'}, score=0.02088547418398944)}
 ```
 
 We sort the results dictionary by each document's combined score in descending order, ensuring that the highest-ranking documents appear first.
@@ -856,6 +856,7 @@ for el, score in zip(bm25_results, bm25s):
 
 ```python
 results = fusion(docs_vs, docs_bm25)
+sorted_documents = dict(sorted(results.items(), key=lambda item: item[1].score, reverse=True))
 ```
 
 ```python
@@ -1287,8 +1288,7 @@ Dataset(columns=(text,embedding), length=19719)
 ```
 
 ```python
-medical_dataset.add_column(name="embedding", dtype=types.Array(types.Float32(),dimensions=2))
-medical_dataset.commit()
+# The copied dataset already has an embedding column, so reuse it.
 ```
 
 3. **Text Extraction** : 

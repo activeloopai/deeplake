@@ -7,7 +7,7 @@ description: "Provision Google Cloud Resources For Use With Deep Lake, Enabling 
 
 ## Setting up Federated Credentials in Google Cloud Platform
 
-The most secure method for connecting data from your Azure storage to Deep Lake is using Federated Credentials, which are set up using the steps below:
+The most secure method for connecting data from your Google Cloud Storage bucket to Deep Lake is using Federated Credentials, which are set up using the steps below:
 
 #### Step 1: Create Google Cloud Service Account
 
