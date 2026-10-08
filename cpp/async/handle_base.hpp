@@ -237,6 +237,9 @@ public:
     inline void set_value(T&& value)
     {
         std::unique_lock lock(data_->lock_);
+        if (is_cancelled(data_)) {
+            return;
+        }
         ASSERT(!has_result(data_));
         data_->result_ = Result(std::forward<T>(value));
         on_result_updated(std::move(lock), data_);
@@ -247,6 +250,9 @@ public:
     inline void set_value(T&& value)
     {
         std::unique_lock lock(data_->lock_);
+        if (is_cancelled(data_)) {
+            return;
+        }
         ASSERT(!has_result(data_));
         data_->result_ = Result(std::forward<T>(value));
         on_result_updated(std::move(lock), data_);
@@ -257,6 +263,9 @@ public:
     requires(std::is_void_v<Result>)
     {
         std::unique_lock lock(data_->lock_);
+        if (is_cancelled(data_)) {
+            return;
+        }
         ASSERT(!has_result(data_));
         data_->result_->set_fulfilled();
         on_result_updated(std::move(lock), data_);
@@ -265,6 +274,9 @@ public:
     inline void set_exception(std::exception_ptr ex)
     {
         std::unique_lock lock(data_->lock_);
+        if (is_cancelled(data_)) {
+            return;
+        }
         ASSERT(!has_result(data_) || !data_->result_->succeeded());
         data_->result_ = std::move(ex);
         on_result_updated(std::move(lock), data_);

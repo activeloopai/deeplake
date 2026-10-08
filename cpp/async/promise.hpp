@@ -237,7 +237,8 @@ public:
      * or re-raises the exception in case of failure.
      *
      * @pre The promise should have no callback registered. This is a mutually exclusive interface with set_callback.
-     * @warning The future will be forever locked if the promise will be cancelled.
+     * @warning Successful cancellation clears the callback and makes the future ready with
+     * std::future_errc::broken_promise, rather than delivering a result value.
      */
     [[nodiscard]] inline std::future<T> get_future()
     {
