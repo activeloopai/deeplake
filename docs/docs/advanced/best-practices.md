@@ -78,7 +78,7 @@ The second method is more efficient as the Deep Lake columnar format is handling
 
 ### Avoid decompressing images when adding them to the dataset
 
-Deep Lake [Image](../api/types/#deeplake.types.Image) type supports multiple image formats including JPEG, PNG, and TIFF. When adding images to the dataset, no need to decompress images into `numpy.array` or `PIL.Image` objects. Instead you can pass raw bytes and Deep Lake will automatically decompress the images when reading them.
+Deep Lake [Image](../../api/types/#deeplake.types.Image) type supports multiple image formats including JPEG, PNG, and TIFF. When adding images to the dataset, no need to decompress images into `numpy.array` or `PIL.Image` objects. Instead you can pass raw bytes and Deep Lake will automatically decompress the images when reading them.
 
 ```python
 image_ds.add_column("images", deeplake.types.Image("uint8", "jpeg"))
@@ -88,9 +88,9 @@ image_ds.append({"images": f.read()})
 
 This will be much faster and use less memory compared to decompressing the images before adding them to the dataset.
 
-### Use [Link Image](../api/types/#deeplake.types.Link) for cloud storage images
+### Use [Link Image](../../api/types/#deeplake.types.Link) for cloud storage images
 
-If the images are in the cloud storage and you want to avoid data duplication you can use [Link Image](../api/types/#deeplake.types.Link) type. In this case you need to pass the image url.
+If the images are in the cloud storage and you want to avoid data duplication you can use [Link Image](../../api/types/#deeplake.types.Link) type. In this case you need to pass the image url.
 
 ```python
 link_image_ds.add_column("images", deeplake.types.Link(deeplake.types.Image()))
@@ -111,7 +111,7 @@ Small data updates like `ds['column1'][i] = value` can be done in Deep Lake data
 
 ### Prefer opening datasets in read-only mode.
 
-When you are not planning to modify the dataset, prefer opening the dataset with [open_read_only](../api/dataset/#deeplake.open_read_only) method. This will prevent accidental modifications to the dataset and will improve the performance of the data access.
+When you are not planning to modify the dataset, prefer opening the dataset with [open_read_only](../../api/dataset/#deeplake.open_read_only) method. This will prevent accidental modifications to the dataset and will improve the performance of the data access.
 
 ### Prefer batch access instead of row by row access
 
@@ -139,7 +139,7 @@ for i in range(len(column)):
 
 ### Use `query` for complex data filtering and search
 
-Deep Lake supports SQL-like queries to filter and search the data. If you need to filter the data based on multiple columns or complex conditions, prefer using the [deeplake.DatasetView.query](../api/dataset#deeplake.DatasetView) or [deeplake.query](../api/query) method, instead of doing manual iteration and filtering.
+Deep Lake supports SQL-like queries to filter and search the data. If you need to filter the data based on multiple columns or complex conditions, prefer using the [deeplake.DatasetView.query](../../api/dataset#deeplake.DatasetView) or [deeplake.query](../../api/query) method, instead of doing manual iteration and filtering.
 
 ### Avoid accessing the data of the whole column
 
@@ -147,7 +147,7 @@ The column data can be accessed directly by `ds["column_name"][:]`. For the larg
 
 ### Consider using async data access
 
-Deep Lake supports async data access and query. If your workflow allows async processing and benefits from that, consider using async data access. Please refer to the [Async Data Loader](../guide/deep-learning/async-data-loader) guide for the details.
+Deep Lake supports async data access and query. If your workflow allows async processing and benefits from that, consider using async data access. Please refer to the [Async Data Loader](../../guide/deep-learning/async-data-loader) guide for the details.
 
 
 ## Storage and Data Management
@@ -169,7 +169,7 @@ Deep Lake supports multiple storage backends, which are differentiated by url sc
 
 In memory datasets are not persisted and are useful for temporary data storage and testing. They are automatically deleted when the process is terminated.
 
-If you created in memory dataset and you want to persist it you can use [deeplake.copy](../advanced/sync/#copying-datasets) method to copy the dataset to the local or cloud storage.
+If you created in memory dataset and you want to persist it you can use [deeplake.copy](../../advanced/sync/#copying-datasets) method to copy the dataset to the local or cloud storage.
 
 ### Avoid local storage for large datasets
 
@@ -177,7 +177,7 @@ Local storage shows better latency compared to the cloud dataset. However it is 
 
 If you plan to store large data (>=100GB) cloud storage will be more efficient and reliable.
 
-If you have local dataset and you want to move it to the cloud you can use [deeplake.copy](../advanced/sync/#copying-datasets) method to copy the dataset to the cloud storage.
+If you have local dataset and you want to move it to the cloud you can use [deeplake.copy](../../advanced/sync/#copying-datasets) method to copy the dataset to the cloud storage.
 
 ### Prefer accessing the cloud storage from the same region
 

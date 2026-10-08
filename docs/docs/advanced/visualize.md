@@ -5,7 +5,7 @@ description: "Learn how to visualize Deep Lake datasets using the Deep Lake web 
 
 # Dataset Visualization
 
-Deep Lake has a web interface for visualizing, versioning, and querying machine learning datasets. It utilizes the Deep Lake format under-the-hood, and it can be connected to datasets stored in all Deep Lake [storage locations](../getting-started/storage-and-creds/).
+Deep Lake has a web interface for visualizing, versioning, and querying machine learning datasets. It utilizes the Deep Lake format under-the-hood, and it can be connected to datasets stored in all Deep Lake [storage locations](../../getting-started/storage-and-creds/).
 
 ![Visualizer](images/visualize.jpg)
 

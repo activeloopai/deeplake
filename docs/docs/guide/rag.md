@@ -689,9 +689,19 @@ results = fusion(docs_vs, docs_bm25)
 print(results)
 ```
 
-The exact scores depend on the retrieved rows; use the sorted results below.
-
-
+Output:
+```
+{'2637': Document(id='2637', data={'restaurant_name': 'Mifen101 花溪米粉王', 'restaurant_review': 'Feel like I’m back in China.'}, score=0.054989174038501676),
+ '5136': Document(id='5136', data={'restaurant_name': 'Scratch', 'restaurant_review': 'Just had drinks. They were good!'}, score=0.09802189349997713),
+ '17426': Document(id='17426', data={'restaurant_name': "St. Stephen's Green", 'restaurant_review': 'Good drinks an easy going bartenders'}, score=0.09831671336973409),
+ '17444': Document(id='17444', data={'restaurant_name': "St. Stephen's Green", 'restaurant_review': 'Good drinks, good food'}, score=0.09900385707681324),
+ '2496': Document(id='2496', data={'restaurant_name': 'Seasons Noodles & Dumplings Garden', 'restaurant_review': 'Comfort food, excellent service! Feel like back to home.'}, score=0.02172369191268401),
+ '4022': Document(id='4022', data={'restaurant_name': 'Eureka! Mountain View', 'restaurant_review': 'Good drinks and burgers'}, score=0.0985337276269904),
+ '3518': Document(id='3518', data={'restaurant_name': 'Olympus Caffe & Bakery', 'restaurant_review': 'I like the garden to sit down with friends and have a drink.'}, score=0.3566115095933449),
+ '17502': Document(id='17502', data={'restaurant_name': "St. Stephen's Green", 'restaurant_review': 'Nice place for a drink'}, score=0.10612380842648524),
+ '11383': Document(id='11383', data={'restaurant_name': 'Ludwigs Biergarten Mountain View', 'restaurant_review': 'Beer is fresh tables are big feel like a proper beer garden'}, score=0.045790150271479965),
+ '10788': Document(id='10788', data={'restaurant_name': 'Casa Lupe', 'restaurant_review': 'Run by a family that makes you feel like part of the family. Awesome food. I love their wet Chili Verde burritos'}, score=0.02088547418398944)}
+```
 
 We sort the results dictionary by each document's combined score in descending order, ensuring that the highest-ranking documents appear first.
 
@@ -700,7 +710,19 @@ sorted_documents = dict(sorted(results.items(), key=lambda item: item[1].score, 
 print(sorted_documents)
 ```
 
-The sorted output contains the retrieved documents in descending fused score order.
+Output:
+```
+{'3518': Document(id='3518', data={'restaurant_name': 'Olympus Caffe & Bakery', 'restaurant_review': 'I like the garden to sit down with friends and have a drink.'}, score=0.3566115095933449),
+ '17502': Document(id='17502', data={'restaurant_name': "St. Stephen's Green", 'restaurant_review': 'Nice place for a drink'}, score=0.10612380842648524),
+ '17444': Document(id='17444', data={'restaurant_name': "St. Stephen's Green", 'restaurant_review': 'Good drinks, good food'}, score=0.09900385707681324),
+ '4022': Document(id='4022', data={'restaurant_name': 'Eureka! Mountain View', 'restaurant_review': 'Good drinks and burgers'}, score=0.0985337276269904),
+ '17426': Document(id='17426', data={'restaurant_name': "St. Stephen's Green", 'restaurant_review': 'Good drinks an easy going bartenders'}, score=0.09831671336973409),
+ '5136': Document(id='5136', data={'restaurant_name': 'Scratch', 'restaurant_review': 'Just had drinks. They were good!'}, score=0.09802189349997713),
+ '2637': Document(id='2637', data={'restaurant_name': 'Mifen101 花溪米粉王', 'restaurant_review': 'Feel like I’m back in China.'}, score=0.054989174038501676),
+ '11383': Document(id='11383', data={'restaurant_name': 'Ludwigs Biergarten Mountain View', 'restaurant_review': 'Beer is fresh tables are big feel like a proper beer garden'}, score=0.045790150271479965),
+ '2496': Document(id='2496', data={'restaurant_name': 'Seasons Noodles & Dumplings Garden', 'restaurant_review': 'Comfort food, excellent service! Feel like back to home.'}, score=0.02172369191268401),
+ '10788': Document(id='10788', data={'restaurant_name': 'Casa Lupe', 'restaurant_review': 'Run by a family that makes you feel like part of the family. Awesome food. I love their wet Chili Verde burritos'}, score=0.02088547418398944)}
+```
 
 ### Show the results
 
@@ -842,8 +864,8 @@ for v in sorted_documents.values():
     print(f"Restaurant name: {v.data['restaurant_name']} \nReview: {v.data['restaurant_review']}")
 ```
 
-Example output from one run (your rows may differ if either dataset changes):
-
+Output:
+```
 Restaurant name: Olympus Caffe & Bakery
 Review: I like the garden to sit down with friends and have a drink.
 Restaurant name: St. Stephen's Green
@@ -1266,7 +1288,7 @@ Dataset(columns=(text,embedding), length=19719)
 ```
 
 ```python
-# The copied dataset already has an `embedding` column, so reuse it.
+# The copied dataset already has an embedding column, so reuse it.
 ```
 
 3. **Text Extraction** : 

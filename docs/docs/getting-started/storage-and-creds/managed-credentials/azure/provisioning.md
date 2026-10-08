@@ -17,23 +17,23 @@ The most secure method for connecting data from your Azure storage to Deep Lake 
 
 3\. Click on `Register an application` or `New registration`.
 
-<figure><img src="images/Azure_Federated_Step_1_3.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../images/Azure_Federated_Step_1_3.png" alt=""><figcaption></figcaption></figure>
 
 4\. Enter the `Name` and `Supported account type` (all are supported in Deep Lake) and click `Register`
 
-<figure><img src="images/Azure_Federated_Step_1_4.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../images/Azure_Federated_Step_1_4.png" alt=""><figcaption></figcaption></figure>
 
 5\. In the application console, click `Certificates & secrets`.
 
-<figure><img src="images/Azure_Federated_Step_1_5.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../images/Azure_Federated_Step_1_5.png" alt=""><figcaption></figcaption></figure>
 
 6\. Click on `Federated credentials` and `Add credential`.
 
-<figure><img src="images/Azure_Federated_Step_1_6.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../images/Azure_Federated_Step_1_6.png" alt=""><figcaption></figcaption></figure>
 
 7\. Click on `Select scenario` and select `Other issuer`.
 
-<figure><img src="images/Azure_Federated_Step_1_7.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../images/Azure_Federated_Step_1_7.png" alt=""><figcaption></figcaption></figure>
 
 8\. Enter the following information in the form, and click `Add`.
 
@@ -44,7 +44,7 @@ The most secure method for connecting data from your Azure storage to Deep Lake 
 * **Description (optional):** enter description a with your choice
 * **Audience:** us-east-1:57e5de2f-e2ec-4514-b9b0-f3bb8c4283c3
 
-<figure><img src="images/Azure_Federated_Step_1_8.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../images/Azure_Federated_Step_1_8.png" alt=""><figcaption></figcaption></figure>
 
 #### Step 2a: Apply the Application Credentials to your Azure storage account&#x20;
 
@@ -54,23 +54,23 @@ The most secure method for connecting data from your Azure storage to Deep Lake 
 
 2\. Select the `Storage account` to which you want to add Application Credentials.
 
-<figure><img src="images/Azure_Federated_Step_2a_2.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../images/Azure_Federated_Step_2a_2.png" alt=""><figcaption></figcaption></figure>
 
 3\. Select `Access Control (IAM)` and click `Add`, and `select Add role assignment`.
 
-<figure><img src="images/Azure_Federated_Step_2a_3.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../images/Azure_Federated_Step_2a_3.png" alt=""><figcaption></figcaption></figure>
 
 4\. Search and select `Storage Blob Data Contributor` under the role names and click `Next`.
 
-<figure><img src="images/Azure_Federated_Step_2a_4.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../images/Azure_Federated_Step_2a_4.png" alt=""><figcaption></figcaption></figure>
 
 5\. Click on the `Select members` link, and in the tab that opens up on the right, search by name and select the application you created in Step 1. Click `Select` at the bottom of the page.
 
-<figure><img src="images/Azure_Federated_Step_2a_5.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../images/Azure_Federated_Step_2a_5.png" alt=""><figcaption></figcaption></figure>
 
 6\. The application should appear in the list of Members, at which point you can click `Review + assign`.
 
-<figure><img src="images/Azure_Federated_Step_2a_6.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../images/Azure_Federated_Step_2a_6.png" alt=""><figcaption></figcaption></figure>
 
 #### Step 2b: Apply the Application Credentials to a specific Azure contained in your Azure storage account
 
@@ -78,15 +78,15 @@ The most secure method for connecting data from your Azure storage to Deep Lake 
 
 2\. Select the `Storage account` to which you want to add Application Credentials.
 
-<figure><img src="images/Azure_Federated_Step_2b_2.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../images/Azure_Federated_Step_2b_2.png" alt=""><figcaption></figcaption></figure>
 
 3\. Select the `Container` to which you add the Application Credentials.
 
-<figure><img src="images/Azure_Federated_Step_2b_3.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../images/Azure_Federated_Step_2b_3.png" alt=""><figcaption></figcaption></figure>
 
 4\. Select `Access Control (IAM)` and click `Add`, and `select Add role assignment`.
 
-<figure><img src="images/Azure_Federated_Step_2b_4.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../images/Azure_Federated_Step_2b_4.png" alt=""><figcaption></figcaption></figure>
 
 #### IMPORTANT TO PERFORM STEPS BELOW TO COMPLETE 2b - PLEASE DO NOT SKIP
 
