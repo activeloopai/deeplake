@@ -57,9 +57,12 @@ def wrapper_module(monkeypatch):
 def make_dataset(
     wrapper_module, size=3, invalid=(), transform=None, segment_error=False
 ):
-    error = importlib.import_module(
-        "deeplake.integrations.mm.exceptions"
-    ).InvalidImageError
+    exceptions = importlib.import_module("deeplake.integrations.mm.exceptions")
+    error = (
+        exceptions.InvalidSegmentError
+        if segment_error
+        else exceptions.InvalidImageError
+    )
 
     class Dataset:
         schema = SimpleNamespace(columns=[SimpleNamespace(name="image")])
