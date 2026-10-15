@@ -32,7 +32,16 @@ class MMSegTorchDataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, idx):
-        while True:
+        size = len(self.dataset)
+        if idx < 0:
+            idx += size
+        if not 0 <= idx < size:
+            raise IndexError("Dataset index out of range")
+        attempted = set()
+        next_index = (idx + 1) % size
+        last_error = None
+        for _ in range(size):
+            attempted.add(idx)
             try:
                 sample = self.dataset[idx]
                 result = None
@@ -43,14 +52,23 @@ class MMSegTorchDataset(Dataset):
                     for col in self.column_names:
                         out[col] = sample[col]
                     result = out
-                self.last_successful_index = idx
-                return result
+                if result is not None:
+                    self.last_successful_index = idx
+                    return result
+                last_error = ValueError("Transform rejected the sample")
             except (InvalidImageError, InvalidSegmentError) as e:
-                print(f"Error processing data at index {idx}: {e}")
-                if self.last_successful_index == -1:
-                    self.last_successful_index = idx + 1
-                idx = self.last_successful_index
-                continue
+                last_error = e
+            print(f"Error processing data at index {idx}: {last_error}")
+            fallback = self.last_successful_index
+            if 0 <= fallback < size and fallback not in attempted:
+                idx = fallback
+            else:
+                while next_index in attempted and len(attempted) < size:
+                    next_index = (next_index + 1) % size
+                idx = next_index
+        raise RuntimeError(
+            f"No valid sample found in {size} dataset rows"
+        ) from last_error
 
 
 class MMSegDataset(MMSegTorchDataset):
